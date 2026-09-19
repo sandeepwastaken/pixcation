@@ -1,0 +1,307 @@
+<!-- Ts builder all AI bro it doeesn't matter cuz its not part of the actual project-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixcation Map Builder</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            background: #202020;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .layout {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        .palette {
+            display: grid;
+            grid-template-columns: repeat(3, 64px);
+            gap: 8px;
+            width: 208px;
+        }
+
+        .tile-button {
+            width: 64px;
+            height: 64px;
+            padding: 4px;
+            background: #333;
+            border: 2px solid #555;
+            cursor: pointer;
+        }
+
+        .tile-button.selected {
+            border-color: yellow;
+        }
+
+        .tile-button img {
+            width: 48px;
+            height: 48px;
+            image-rendering: pixelated;
+        }
+
+        #map {
+            display: grid;
+            border: 2px solid white;
+            image-rendering: pixelated;
+            cursor: crosshair;
+        }
+
+        .map-cell {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            border: 0;
+            background: #333;
+        }
+
+        .map-cell img {
+            width: 32px;
+            height: 32px;
+            display: block;
+            image-rendering: pixelated;
+            pointer-events: none;
+        }
+
+        button#export-button {
+            margin-top: 24px;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pixcation Map Builder</h1>
+
+    <div class="layout">
+        <div>
+            <h2>Tiles</h2>
+            <div id="palette"></div>
+            <input id="import-input" type="file" accept=".json,application/json">
+            <button id="export-button">Export map.json</button>
+        </div>
+
+        <div>
+            <h2>Map</h2>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <script>
+        const TILE_SIZE = 16;
+        let mapWidth = 20;
+        let mapHeight = 12;
+
+        const TILE_KEYS = [
+            'dirt1',
+            'dirtEdge',
+            'grass1',
+            'grass2',
+            'grass3',
+            'grass4',
+            'grassEdge',
+            'water',
+            'waterDirt',
+            'waterGrass',
+            'wood',
+            'woodLeft',
+            'woodRight'
+        ];
+
+        let selectedTile = 'grass1';
+        let isPainting = false;
+
+        let mapData = Array.from(
+            { length: mapHeight },
+            () => Array(mapWidth).fill('grass1')
+        );
+
+        const paletteElement = document.querySelector('#palette');
+        const mapElement = document.querySelector('#map');
+        const importInput = document.querySelector('#import-input');
+        const exportButton = document.querySelector('#export-button');
+
+        function createPalette() {
+            TILE_KEYS.forEach((tileKey) => {
+                const button = document.createElement('button');
+                const image = document.createElement('img');
+
+                button.className = 'tile-button';
+                button.dataset.tileKey = tileKey;
+                button.title = tileKey;
+
+                image.src = `media/${tileKey}.png`;
+                image.alt = tileKey;
+
+                button.appendChild(image);
+                paletteElement.appendChild(button);
+
+                button.addEventListener('click', () => {
+                    selectedTile = tileKey;
+                    updateSelectedTile();
+                });
+            });
+
+            updateSelectedTile();
+        }
+
+        function updateSelectedTile() {
+            document.querySelectorAll('.tile-button').forEach((button) => {
+                button.classList.toggle(
+                    'selected',
+                    button.dataset.tileKey === selectedTile
+                );
+            });
+        }
+
+        function createMap() {
+            mapElement.replaceChildren();
+            mapElement.style.gridTemplateColumns =
+                `repeat(${mapWidth}, 32px)`;
+
+            for (let y = 0; y < mapHeight; y += 1) {
+                for (let x = 0; x < mapWidth; x += 1) {
+                    const cell = document.createElement('button');
+                    const image = document.createElement('img');
+
+                    cell.className = 'map-cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+
+                    image.alt = '';
+                    cell.appendChild(image);
+                    mapElement.appendChild(cell);
+
+                    cell.addEventListener('mousedown', () => {
+                        isPainting = true;
+                        paintCell(cell);
+                    });
+
+                    cell.addEventListener('mouseenter', () => {
+                        if (isPainting) {
+                            paintCell(cell);
+                        }
+                    });
+                }
+            }
+
+            document.addEventListener('mouseup', () => {
+                isPainting = false;
+            });
+
+            renderMap();
+        }
+
+        function paintCell(cell) {
+            const x = Number(cell.dataset.x);
+            const y = Number(cell.dataset.y);
+
+            mapData[y][x] = selectedTile;
+            cell.querySelector('img').src = `media/${selectedTile}.png`;
+        }
+
+        function renderMap() {
+            document.querySelectorAll('.map-cell').forEach((cell) => {
+                const x = Number(cell.dataset.x);
+                const y = Number(cell.dataset.y);
+                const tileKey = mapData[y][x];
+
+                cell.querySelector('img').src = `media/${tileKey}.png`;
+            });
+        }
+
+        function loadMap(map) {
+            const importedData = map.data || map.tiles;
+
+            if (!Array.isArray(importedData) || importedData.length === 0) {
+                throw new Error('The JSON must contain a data or tiles array.');
+            }
+
+            const importedHeight = Number(map.height) || importedData.length;
+            const importedWidth = Number(map.width) || importedData[0].length;
+
+            if (importedData.length !== importedHeight) {
+                throw new Error('The map height does not match its rows.');
+            }
+
+            if (importedData.some((row) => {
+                return !Array.isArray(row) || row.length !== importedWidth;
+            })) {
+                throw new Error('Every map row must have the map width.');
+            }
+
+            mapWidth = importedWidth;
+            mapHeight = importedHeight;
+            mapData = importedData.map((row) => row.slice());
+            createMap();
+        }
+
+        function importMap(event) {
+            const file = event.target.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.addEventListener('load', () => {
+                try {
+                    loadMap(JSON.parse(reader.result));
+                } catch (error) {
+                    window.alert(`Could not load map: ${error.message}`);
+                }
+
+                importInput.value = '';
+            });
+
+            reader.readAsText(file);
+        }
+
+        function exportMap() {
+            const map = {
+                tileSize: TILE_SIZE,
+                width: mapWidth,
+                height: mapHeight,
+                data: mapData
+            };
+
+            const file = new Blob(
+                [JSON.stringify(map, null, 4)],
+                { type: 'application/json' }
+            );
+
+            const url = URL.createObjectURL(file);
+            const link = document.createElement('a');
+
+            link.href = url;
+            link.download = 'map.json';
+            link.click();
+
+            URL.revokeObjectURL(url);
+        }
+
+        exportButton.addEventListener('click', exportMap);
+        importInput.addEventListener('change', importMap);
+
+        createPalette();
+        createMap();
+    </script>
+</body>
+</html>
