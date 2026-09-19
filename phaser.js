@@ -17,14 +17,19 @@ const config = {
 const game = new Phaser.Game(config);
 
 function preload() {
-// add assets to preload here
+    this.load.image('grass', 'media/grass.png');
 }
 
 function create() {
-    this.add.text(400, 300, 'wassup', {
-        fontsize: '32px',
-        fill: '#fff'
-    }).setOrigin(0.5, 0.5);
+    const tileSize = 16;
+    const gap = 0;
+    const spacing = tileSize + gap;
+
+    for (let y = 0; y < this.scale.height; y += spacing) {
+        for (let x = 0; x < this.scale.width; x += spacing) {
+            this.add.image(x, y, 'grass').setOrigin(0);
+        }
+    }
 }
 
 function update() {
