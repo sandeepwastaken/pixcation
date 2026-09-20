@@ -16,6 +16,10 @@ const config = {
     },
 
     parent: 'game-container',
+
+    dom: {
+        createContainer: true
+    },
     
     scene: {
         preload: preload,
@@ -151,7 +155,8 @@ const GUIDE_DIALOGUE = {
 
 let guide;
 let guideWasNear = false;
-let dialogueContainer; 
+let dialogueContainer;
+let dialogueTextLayer;
 let dialogueText;
 let dialogueOptionTexts = [];
 let dialogueOpen = false;
@@ -1133,48 +1138,43 @@ function createGuideDialogueUI(scene) {
     const portrait = scene.add.image(12, 13, 'headshot')
     .setOrigin(0);
 
-    const nameText = scene.add.text(
-        64,
-        5, 
-        'Guide',
-        {
-            fontFamily: 'm6x11',
-            fontSize: '16px',
-            color: '#acccf9'
-        }
-    )
-    .setOrigin(0)
-    .setResolution(1);
+    const textLayer = document.createElement('div');
 
-    dialogueText = scene.add.text(
-        64,
-        21,
-        '',
-        {
-            fontFamily: 'm6x11',
-            fontSize: '16px',
-            color: '#e0f2fd',
-            wordWrap: { width: 154, useAdvancedWrap: true }
-        }
+    Object.assign(textLayer.style, {
+        position: 'relative',
+        width: '320px',
+        height: '78px',
+        fontFamily: 'm6x11',
+        fontSize: '16px',
+        lineHeight: '11px',
+        textRendering: 'geometricPrecision',
+        WebkitFontSmoothing: 'antialiased',
+        pointerEvents: 'none'
+    });
 
-    )
-    .setOrigin(0)
-    .setResolution(1)
-    .setLineSpacing(-5);
+    const createText = (x, y, color, width) => {
+        const text = document.createElement('div');
+
+        Object.assign(text.style, {
+            position: 'absolute',
+            left: `${x}px`,
+            top: `${y}px`,
+            width: width ? `${width}px` : 'auto',
+            color,
+            whiteSpace: width ? 'normal' : 'nowrap'
+        });
+
+        textLayer.appendChild(text);
+        return text;
+    };
+
+    const nameText = createText(64, 5, '#acccf9');
+    nameText.textContent = 'Guide';
+
+    dialogueText = createText(64, 21, '#e0f2fd', 154);
 
     dialogueOptionTexts = [0, 1, 2].map(index => {
-        return scene.add.text(
-            222,
-            14 + index * 17,
-            '',
-            {
-                fontFamily: 'm6x11',
-                fontSize: '16px',
-                color: '#c0a887'
-            }
-        )
-        .setOrigin(0)
-        .setResolution(1);
+        return createText(222, 14 + index * 17, '#c0a887');
     });
 
     dialogueContainer = scene.add.container(
@@ -1182,13 +1182,20 @@ function createGuideDialogueUI(scene) {
         DIALOGUE_HIDDEN_Y,
         [
             panel,
-            portrait,
-            nameText,
-            dialogueText,
-            ...dialogueOptionTexts
+            portrait
         ]
     )
     .setDepth(200)
+    .setScrollFactor(0)
+    .setVisible(false);
+
+    dialogueTextLayer = scene.add.dom(
+        0,
+        DIALOGUE_HIDDEN_Y,
+        textLayer
+    )
+    .setOrigin(0)
+    .setDepth(201)
     .setScrollFactor(0)
     .setVisible(false);
 }
@@ -1213,22 +1220,215 @@ function refreshGuideDialogueOptions() {
         const option = options[index];
         
         if (!option) {
-            optionText.setVisible(false);
+            optionText.style.display = 'none';
             return;
         }
 
-        optionText
-        .setVisible(true)
-        .setText(`${index === selectedDialogueOption ? '> ' : '  '}${option.label}`)
-        .setColor(
-                index === selectedDialogueOption
-                    ? '#d1edf1'
-                    : '#c0a887'
+        optionText.style.display = 'block';
+        optionText.textContent = `${index === selectedDialogueOption ? '> ' : '  '}${option.label}`;
+        optionText.style.color = index === selectedDialogueOption
+            ? '#d1edf1'
+            : '#c0a887';
+    });
+}
+
+function finishGuideDialogueText() {
+    if (!dialogueTypingEvent) {
+        return false;
+    }
+
+    dialogueTypingEvent.remove(false);
+    dialogueTypingEvent = null;
+    dialogueText.textContent = dialogueFullText;
+
+    return true;
+}
+
+function showGuideDialogueNode(scene, nodeKey) {
+    if (dialogueTypingEvent) {
+        dialogueTypingEvent.remove(false);
+        dialogueTypingEvent = null;
+    }
+
+    dialogueNode = nodeKey;
+    selectedDialogueOption = 0;
+    dialogueFullText = GUIDE_DIALOGUE[nodeKey].text;
+
+    dialogueText.textContent = '';
+    refreshGuideDialogueOptions();
+
+    let characterIndex = 0;
+
+    dialogueTypingEvent = scene.time.addEvent({
+        delay: 24,
+        repeat: dialogueFullText.length - 1,
+        callback: () => {
+            characterIndex += 1;
+
+            dialogueText.textContent = dialogueFullText.slice(
+                0,
+                characterIndex
             );
-        });
+
+            if (characterIndex === dialogueFullText.length) {
+                dialogueTypingEvent = null;
+            }
+        }
+    });
+}
+
+function openGuideDialogue(scene) {
+    if (
+        dialogueOpen ||
+        !guide ||
+        !dialogueContainer ||
+        !dialogueTextLayer
+    ) {
+        return;
+    }
+
+    dialogueOpen = true;
+    characterMoveRemainderX = 0;
+    characterMoveRemainderY = 0;
+    characterTextureKey = `character-${characterDirection}`;
+    character.setTexture(characterTextureKey);
+
+    dialogueContainer
+        .setVisible(true)
+        .setY(DIALOGUE_HIDDEN_Y);
+
+    dialogueTextLayer
+        .setVisible(true)
+        .setY(DIALOGUE_HIDDEN_Y);
+
+    scene.tweens.killTweensOf(dialogueContainer);
+    scene.tweens.killTweensOf(dialogueTextLayer);
+
+    scene.tweens.add({
+        targets: [dialogueContainer, dialogueTextLayer],
+        y: DIALOGUE_VISIBLE_Y,
+        duration: 180,
+        ease: 'Cubic.Out'
+    });
+
+    showGuideDialogueNode(scene, 'intro');
+}
+
+function closeGuideDialogue(scene) {
+    if (!dialogueOpen) {
+        return;
+    }
+
+    dialogueOpen = false;
+
+    if (dialogueTypingEvent) {
+        dialogueTypingEvent.remove(false);
+        dialogueTypingEvent = null;
+    }
+
+    scene.tweens.killTweensOf(dialogueContainer);
+    scene.tweens.killTweensOf(dialogueTextLayer);
+
+    scene.tweens.add({
+        targets: [dialogueContainer, dialogueTextLayer],
+        y: DIALOGUE_HIDDEN_Y,
+        duration: 140,
+        ease: 'Cubic.In',
+        onComplete: () => {
+            if (!dialogueOpen) {
+                dialogueContainer.setVisible(false);
+                dialogueTextLayer.setVisible(false);
+            }
+        }
+    });
+}
+
+function selectGuideDialogueOption(scene) {
+    if (finishGuideDialogueText()) {
+        return;
+    }
+
+    const option =
+        GUIDE_DIALOGUE[dialogueNode]
+            .options[selectedDialogueOption];
+
+    if (option.close) {
+        closeGuideDialogue(scene);
+        return;
+    }
+
+    showGuideDialogueNode(
+        scene,
+        option.next
+    );
+}
+
+function moveGuideDialogueSelection(amount) {
+    const options =
+        GUIDE_DIALOGUE[dialogueNode].options;
+
+    selectedDialogueOption =
+        Phaser.Math.Wrap(
+            selectedDialogueOption + amount,
+            0,
+            options.length
+        );
+
+    refreshGuideDialogueOptions();
+}
+
+function handleGuideDialogueKey(scene, event) {
+    const key = event.key.toLowerCase();
+
+    if (
+        key === 'w' ||
+        event.key === 'ArrowUp'
+    ) {
+        moveGuideDialogueSelection(-1);
+        return;
+    }
+
+    if (
+        key === 's' ||
+        event.key === 'ArrowDown'
+    ) {
+        moveGuideDialogueSelection(1);
+        return;
+    }
+
+    if (
+        event.key === 'Enter' ||
+        event.code === 'Space'
+    ) {
+        selectGuideDialogueOption(scene);
+        return;
+    }
+
+    if (event.key === 'Escape') {
+        closeGuideDialogue(scene);
+    }
+}
+
+function updateGuideInteraction(scene) {
+    const guideIsNear = isGuideNear();
+
+    if (
+        guideIsNear &&
+        !guideWasNear &&
+        !dialogueOpen
+    ) {
+        openGuideDialogue(scene);
+    }
+
+    guideWasNear = guideIsNear;
 }
 
 function canCharacterOccupy(x, y) {
+
+    if (guide && x < guide.x + GUIDE_SIZE && x + CHARACTER_SIZE > guide.x && y < guide.y + GUIDE_SIZE && y + CHARACTER_SIZE > guide.y) {
+        return false;
+    }
+
     const leftTile =
         Math.floor(x / TILE_SIZE);
 
@@ -1337,32 +1537,34 @@ function update(time, delta) {
     let moveX = 0;
     let moveY = 0;
 
-    if (
-        characterKeys.left.isDown ||
-        characterKeys.leftArrow.isDown
-    ) {
-        moveX -= 1;
-        characterDirection = 'left';
-    } else if (
-        characterKeys.right.isDown ||
-        characterKeys.rightArrow.isDown
-    ) {
-        moveX += 1;
-        characterDirection = 'right';
-    }
+    if (!dialogueOpen) {
+        if (
+            characterKeys.left.isDown ||
+            characterKeys.leftArrow.isDown
+        ) {
+            moveX -= 1;
+            characterDirection = 'left';
+        } else if (
+            characterKeys.right.isDown ||
+            characterKeys.rightArrow.isDown
+        ) {
+            moveX += 1;
+            characterDirection = 'right';
+        }
 
-    if (
-        characterKeys.up.isDown ||
-        characterKeys.upArrow.isDown
-    ) {
-        moveY -= 1;
-        characterDirection = 'back';
-    } else if (
-        characterKeys.down.isDown ||
-        characterKeys.downArrow.isDown
-    ) {
-        moveY += 1;
-        characterDirection = 'front';
+        if (
+            characterKeys.up.isDown ||
+            characterKeys.upArrow.isDown
+        ) {
+            moveY -= 1;
+            characterDirection = 'back';
+        } else if (
+            characterKeys.down.isDown ||
+            characterKeys.downArrow.isDown
+        ) {
+            moveY += 1;
+            characterDirection = 'front';
+        }
     }
 
     const isWalking = moveX !== 0 || moveY !== 0;
@@ -1405,6 +1607,8 @@ function update(time, delta) {
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
     character.setDepth(character.y + CHARACTER_SIZE);
+
+    updateGuideInteraction(this);
 
     updateLoadedChunks(this);
     updateChunkWater(time);
