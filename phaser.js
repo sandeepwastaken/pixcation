@@ -227,6 +227,207 @@ function valueNoise(worldX, worldY, scale, salt) {
     return topValue + (bottomValue - topValue) * verticalAmount;
 }
 
+function fractalNoise(worldX, worldY, salt) {
+    return(valueNoise(worldX, worldY, 48, salt) * 0.55 +
+        valueNoise(worldX + 83, worldY - 47, 24, salt + 1) * 0.30 +
+        valueNoise(worldX - 29, worldY + 101, 12, salt + 2) * 0.15);
+}
+
+function getTerrainType(tileX, tileY) {
+    if (Math.abs(tileX) <= 6 && Math.abs(tileY) <= 6) {
+        return 'grass';
+    }
+
+    const warpX = (valueNoise(tileX, tileY, 64, 10) - 0.5) * 24;
+    const warpY = (valueNoise(tileX + 200, tileY - 100, 64, 11) - 0.5) * 24;
+
+    const elevation = fractalNoise(tileX + warpX, tileY + warpY, 20);
+
+    if (elevation < 0.3) {
+        return 'water';
+    }
+
+    const dirtAmount = fractalNoise(tileX - 317, tileY + 191, 40);
+
+    const localDirt = valueNoise(tileX, tileY, 4, 44);
+
+    const dirtScore = dirtAmount + (localDirt - 0.5) * 0.14;
+
+    if (elevation < 0.38 || dirtScore > 0.63) {
+        return 'dirt';
+    }
+
+    return 'grass';
+}
+
+function getWorldTileKey(tileX, tileY) {
+    const terrain = getTerrainType(tileX, tileY);
+
+    if (terrain === 'water') {
+        const northernTerrain = getTerrainType(tileX, tileY - 1);
+        
+        if (northernTerrain === 'dirt') {
+            return 'waterDirt';
+        }
+
+        if (northernTerrain === 'grass') {
+            return 'waterGrass';
+        }
+
+        return 'water';
+    }
+
+    const southernTerrain = getTerrainType(tileX, tileY + 1);
+
+    if (southernTerrain === 'water') {
+        if (terrain === 'dirt') {
+            return 'dirtEdge';
+        }
+
+        return 'grassEdge';
+    }
+
+    if (terrain === 'dirt') {
+        return 'dirt1';
+    }
+
+    const decoration = worldHash(tileX, tileY, 670);
+
+    if (decoration > 0.985) {
+        return 'grass4';
+    }
+
+    if (decoration > 0.95) {
+        return 'grass3';
+    }
+
+    if (decoration > 0.80) {
+        return 'grass2';
+    }
+
+    return 'grass1';
+}
+
+function getChunkKey(chunkX, chunkY) {
+    return `${chunkX},${chunkY}`;
+}  
+
+function createWorldChunk(scene, chunkX, chunkY) {
+    const key = getChunkKey(chunkX, chunkY);
+
+    if (loadedChunks.has(key)) {
+        return;
+    }
+
+    const pixelX = chunkX * CHUNK_PIXEL_SIZE;
+    const pixelY = chunkY * CHUNK_PIXEL_SIZE;
+
+    const tileSprites = [];
+    const waterCells = [];
+
+    for (let localY = 0; localY < CHUNK_SIZE; localY++) {
+        for (let localX = 0; localX < CHUNK_SIZE; localX++) {
+            const tileX = chunkX * CHUNK_SIZE + localX;
+            const tileY = chunkY * CHUNK_SIZE + localY;
+
+            const tileKey = getWorldTileKey(tileX, tileY);
+
+            const tileSprite = scene.add.image(
+                tileX * TILE_SIZE,
+                tileY * TILE_SIZE,
+                tileKey
+            )
+                .setOrigin(0)
+                .setDepth(0);
+
+            tileSprites.push(tileSprite);
+
+            if (tileKey.toLowerCase().includes('water')) {
+                waterCells.push({x: tileX * TILE_SIZE, y: tileY * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE});
+            }
+        }
+    }
+
+    let overlay = null;
+    let maskGraphics = null;
+    let mask = null;
+
+    if (waterCells.length > 0) {
+        maskGraphics = scene.make.graphics({
+            x: 0,
+            y: 0,
+            add: false
+        });
+
+        maskGraphics.fillStyle(0xffffff, 1);
+
+        for (const cell of waterCells) {
+            maskGraphics.fillRect(cell.x, cell.y, cell.width, cell.height);
+        }
+
+        mask = maskGraphics.createGeometryMask();
+
+        overlay = scene.add.tileSprite(
+            pixelX,
+            pixelY,
+            CHUNK_PIXEL_SIZE,
+            CHUNK_PIXEL_SIZE,
+            'waterOverlay'
+        )
+            .setOrigin(0)
+            .setDepth(1)
+            .setAlpha(1)
+            .setBlendMode(Phaser.BlendModes.SCREEN)
+            .setMask(mask);
+
+        overlay.setPipeline = 'WaterWarp';
+
+        overlay.pipeline.set1f('uOpacity', 0.2);
+    }
+
+    loadedChunks.set(key, {
+        key,
+        chunkX,
+        chunkY,
+        tileSprites,
+        waterCells,
+        shimmers: [],
+        overlay,
+        maskGraphics,
+        mask
+    });
+}
+
+function destroyWorldChunk(key) {
+    const chunk = loadedChunks.get(key);
+
+    if (!chunk) {
+        return;
+    }
+
+    for (const shimmer of chunk.shimmers) {
+        shimmer.destroy();
+    }
+
+    for (const tileSprite of chunk.tileSprites) {
+        tileSprite.destroy();
+    }
+
+    if (chunk.overlay) {
+        chunk.overlay.destroy();
+    }
+
+    if (chunk.mask) {
+        chunk.mask.destroy();
+    }
+
+    if (chunk.maskGraphics) {
+        chunk.maskGraphics.destroy();
+    }
+
+    loadedChunks.delete(key);
+}
+
 function spawnShimmer(scene) {
     if (waterCells.length === 0) return;
 
