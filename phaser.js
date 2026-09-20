@@ -282,10 +282,26 @@ function create() {
     };
 
     this.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
-        selectHotBarSlot(selectedHotbarSlot + Math.sign(deltaY));
+        if (!dialogueOpen) {
+            selectHotBarSlot(selectedHotbarSlot + Math.sign(deltaY));
+        }
     });
 
     this.input.keyboard.on('keydown', event => {
+        if (event.repeat) {
+            return;
+        }
+
+        if (dialogueOpen) {
+            handleGuideDialogueKey(this,event);
+            return;
+        }
+
+        if (event.key.toLowerCase() === 'e' && isGuideNear()) {
+            openDialogue(this);
+            return;
+        }
+
         const slot = Number(event.key) - 1;
 
         if (slot >= 0 && slot < 9) {
@@ -303,6 +319,9 @@ function create() {
     cameraScrollY = mainCamera.scrollY;
 
     updateLoadedChunks(this, true);
+
+    spawnGuide(this);
+    createGuideDialogueUI(this);
 
     for (let index = 0; index < 10; index++) {
         spawnShimmer(this);
@@ -1039,6 +1058,174 @@ function spawnShimmer(scene) {
         }
         shimmer.destroy();
     });
+}
+
+function hasBushAt(tileX, tileY) {
+    return(getTerrainType(tileX, tileY) === 'grass' && getTerrainType(tileX + 1, tileY) === 'grass' && worldHash(tileX, tileY, 760) > 0.992);
+}
+
+function isGuideSpawnTile(tileX, tileY) {
+    const tileKey = getWorldTileKey(tileX, tileY).toLowerCase();
+
+    return ((getTerrainType(tileX, tileY) !== 'water' &&
+        !tileKey.includes('edge') &&
+        !tileKey.includes('wood') &&
+        !tileKey.includes('water') &&
+        !hasBushAt(tileX, tileY)) &&
+        !hasBushAt(tileX - 1, tileY));
+}
+
+function findGuideSpawnTile() {
+    const centerTileX = Math.floor(character.x + CHARACTER_SIZE / 2) / TILE_SIZE;
+    const centerTileY = Math.floor(character.y + CHARACTER_SIZE / 2) / TILE_SIZE;
+
+    for (let radius = 3 ; radius <= 8; radius++) {
+        for (let offsetY = -radius; offsetY <= radius; offsetY++) {
+            for (let offsetX = -radius; offsetX <= radius; offsetX++) {
+                if (Math.max(Math.abs(offsetX), Math.abs(offsetY)) !== radius) {
+                    continue;
+                }
+                
+                const tileX = centerTileX + offsetX;
+                const tileY = centerTileY + offsetY;
+                
+                if (isGuideSpawnTile(tileX, tileY)) {
+                    return {tileX, tileY};
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+function spawnGuide(scene) {
+    const spawnTile = findGuideSpawnTile();
+    
+    if (!spawnTile) {
+        return;
+    }
+
+    guide = scene.add.image(
+        spawnTile.tileX * TILE_SIZE,
+        spawnTile.tileY * TILE_SIZE,
+        'guide'
+    )
+    .setOrigin(0)
+    .setDepth(spawnTile.tileY * TILE_SIZE + GUIDE_SIZE);
+
+    worldObjectLayer.add(guide);
+}
+
+function createGuideDialogueUI(scene) {
+    const panel = scene.add.graphics();
+
+    panel
+        .fillStyle(0x230a03, 1)
+        .fillRect(5, 0, 310, 78)
+        .fillStyle(0xacccf9, 1)
+        .fillRect(6, 1, 308, 76)
+        .fillStyle(0x465989, 1)
+        .fillRect(7, 2, 306, 74)
+        .fillStyle(0x36160d, 1)
+        .fillRect(8, 3, 304, 72);
+
+    const portrait = scene.add.image(12, 13, 'headshot')
+    .setOrigin(0);
+
+    const nameText = scene.add.text(
+        64,
+        5, 
+        'Guide',
+        {
+            fontFamily: 'm6x11',
+            fontSize: '16px',
+            color: '#acccf9'
+        }
+    )
+    .setOrigin(0)
+    .setResolution(1);
+
+    dialogueText = scene.add.text(
+        64,
+        21,
+        '',
+        {
+            fontFamily: 'm6x11',
+            fontSize: '16px',
+            color: '#e0f2fd',
+            wordWrap: { width: 154, useAdvancedWrap: true }
+        }
+
+    )
+    .setOrigin(0)
+    .setResolution(1)
+    .setLineSpacing(-5);
+
+    dialogueOptionTexts = [0, 1, 2].map(index => {
+        return scene.add.text(
+            222,
+            14 + index * 17,
+            '',
+            {
+                fontFamily: 'm6x11',
+                fontSize: '16px',
+                color: '#c0a887'
+            }
+        )
+        .setOrigin(0)
+        .setResolution(1);
+    });
+
+    dialogueContainer = scene.add.container(
+        0,
+        DIALOGUE_HIDDEN_Y,
+        [
+            panel,
+            portrait,
+            nameText,
+            dialogueText,
+            ...dialogueOptionTexts
+        ]
+    )
+    .setDepth(200)
+    .setScrollFactor(0)
+    .setVisible(false);
+}
+
+function isGuideNear() {
+    if (!guide) {
+        return false;
+    }
+
+    return Phaser.Math.Distance.Between(
+        character.x + CHARACTER_SIZE / 2,
+        character.y + CHARACTER_SIZE / 2,
+        guide.x + GUIDE_SIZE / 2,
+        guide.y + GUIDE_SIZE / 2
+    ) < GUIDE_INTERACTION_DISTANCE;
+}
+
+function refreshGuideDialogueOptions() {
+    const options = GUIDE_DIALOGUE[dialogueNode].options;
+
+    dialogueOptionTexts.forEach((optionText, index) => {
+        const option = options[index];
+        
+        if (!option) {
+            optionText.setVisible(false);
+            return;
+        }
+
+        optionText
+        .setVisible(true)
+        .setText(`${index === selectedDialogueOption ? '> ' : '  '}${option.label}`)
+        .setColor(
+                index === selectedDialogueOption
+                    ? '#d1edf1'
+                    : '#c0a887'
+            );
+        });
 }
 
 function canCharacterOccupy(x, y) {
