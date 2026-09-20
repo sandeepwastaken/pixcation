@@ -67,8 +67,20 @@ const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
 
 const CHUNK_LOAD_RADIUS = 2;
 const WORLD_SEED = 6767676767676;
+const WORLD_FEATURE_SCALE = 0.42;
+
+const MIN_BRIDGE_WATER_LENGTH = 2;
+const MAX_BRIDGE_WATER_LENGTH = 6;
+
+const MIN_PIER_WATER_LENGTH = 4;
+const MAX_PIER_WATER_LENGTH = 7;
+
+const WORLD_CACHE_LIMIT = 50000;
 
 const loadedChunks = new Map();
+const terrainTypeCache = new Map();
+const worldTileCache = new Map();
+const pierCandidateCache = new Map();
 
 let activeChunkX = null;
 let activeChunkY = null;
@@ -87,7 +99,7 @@ let characterTextureKey = 'character-front';
 
 let mainCamera;
 
-let cameraScollX = 0;
+let cameraScrollX = 0;
 let cameraScrollY = 0;
 
 const CAMERA_EASE = 8;
@@ -179,7 +191,7 @@ function create() {
     cameraScrollX = mainCamera.scrollX;
     cameraScrollY = mainCamera.scrollY;
 
-    updateLoadedChunks();
+    updateLoadedChunks(this, true);
 
     for (let index = 0; index < 10; index++) {
         spawnShimmer(this);
@@ -228,39 +240,351 @@ function valueNoise(worldX, worldY, scale, salt) {
 }
 
 function fractalNoise(worldX, worldY, salt) {
-    return(valueNoise(worldX, worldY, 48, salt) * 0.55 +
-        valueNoise(worldX + 83, worldY - 47, 24, salt + 1) * 0.30 +
-        valueNoise(worldX - 29, worldY + 101, 12, salt + 2) * 0.15);
+    return(valueNoise(worldX, worldY, 48 * WORLD_FEATURE_SCALE, salt) * 0.55 +
+        valueNoise(worldX + 83, worldY - 47, 24 * WORLD_FEATURE_SCALE, salt + 1) * 0.30 +
+        valueNoise(worldX - 29, worldY + 101, 12 * WORLD_FEATURE_SCALE, salt + 2) * 0.15);
 }
 
 function getTerrainType(tileX, tileY) {
+    const key = `${tileX},${tileY}`;
+
+    if (terrainTypeCache.has(key)) {
+        return terrainTypeCache.get(key);
+    }
+
+    let terrain;
+
     if (Math.abs(tileX) <= 6 && Math.abs(tileY) <= 6) {
-        return 'grass';
+        terrain = 'grass';
+    } else {
+        const warpScale = 64 * WORLD_FEATURE_SCALE;
+        const warpStrength = 24 * WORLD_FEATURE_SCALE;
+        const warpX = (valueNoise(tileX, tileY, warpScale, 10) - 0.5) * warpStrength;
+        const warpY = (valueNoise(tileX + 200, tileY - 100, warpScale, 11) - 0.5) * warpStrength;
+
+        const elevation = fractalNoise(tileX + warpX, tileY + warpY, 20);
+
+        if (elevation < 0.3) {
+            terrain = 'water';
+        } else {
+            const dirtAmount = fractalNoise(tileX - 317, tileY + 191, 40);
+            const localDirt = valueNoise(tileX, tileY, 4, 44);
+            const dirtScore = dirtAmount + (localDirt - 0.5) * 0.14;
+
+            terrain = elevation < 0.38 || dirtScore > 0.63
+                ? 'dirt'
+                : 'grass';
+        }
     }
 
-    const warpX = (valueNoise(tileX, tileY, 64, 10) - 0.5) * 24;
-    const warpY = (valueNoise(tileX + 200, tileY - 100, 64, 11) - 0.5) * 24;
-
-    const elevation = fractalNoise(tileX + warpX, tileY + warpY, 20);
-
-    if (elevation < 0.3) {
-        return 'water';
+    if (terrainTypeCache.size >= WORLD_CACHE_LIMIT) {
+        terrainTypeCache.clear();
     }
 
-    const dirtAmount = fractalNoise(tileX - 317, tileY + 191, 40);
+    terrainTypeCache.set(key, terrain);
 
-    const localDirt = valueNoise(tileX, tileY, 4, 44);
-
-    const dirtScore = dirtAmount + (localDirt - 0.5) * 0.14;
-
-    if (elevation < 0.38 || dirtScore > 0.63) {
-        return 'dirt';
-    }
-
-    return 'grass';
+    return terrain;
 }
 
-function getWorldTileKey(tileX, tileY) {
+function isLandTile(tileX, tileY) {
+    return getTerrainType(tileX, tileY) !== 'water';
+}
+
+function isLocalHashPeak(tileX, tileY, stepX, stepY, radius, salt) {
+    const score = worldHash(tileX, tileY, salt);
+
+    if (score < 0.82) {
+        return false;
+    }
+
+    for (let offset = -radius; offset <= radius; offset++) {
+        if (offset === 0) {
+            continue;
+        }
+
+        const nearbyScore = worldHash(
+            tileX + stepX * offset,
+            tileY + stepY * offset,
+            salt
+        );
+
+        if (nearbyScore >= score) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function findWaterRun(tileX, tileY, stepX, stepY) {
+    let waterX = tileX;
+    let waterY = tileY;
+
+    if (getTerrainType(waterX, waterY) !== 'water') {
+        if (getTerrainType(tileX + stepX, tileY + stepY) === 'water') {
+            waterX += stepX;
+            waterY += stepY;
+        } else if (getTerrainType(tileX - stepX, tileY - stepY) === 'water') {
+            waterX -= stepX;
+            waterY -= stepY;
+        } else {
+            return null;
+        }
+    }
+
+    let startX = waterX;
+    let startY = waterY;
+    let endX = waterX;
+    let endY = waterY;
+    let waterLength = 1;
+
+    while (getTerrainType(startX - stepX, startY - stepY) === 'water') {
+        startX -= stepX;
+        startY -= stepY;
+        waterLength += 1;
+
+        if (waterLength > MAX_BRIDGE_WATER_LENGTH) {
+            return null;
+        }
+    }
+
+    while (getTerrainType(endX + stepX, endY + stepY) === 'water') {
+        endX += stepX;
+        endY += stepY;
+        waterLength += 1;
+
+        if (waterLength > MAX_BRIDGE_WATER_LENGTH) {
+            return null;
+        }
+    }
+
+    if (waterLength < MIN_BRIDGE_WATER_LENGTH) {
+        return null;
+    }
+
+    const startLandX = startX - stepX;
+    const startLandY = startY - stepY;
+    const endLandX = endX + stepX;
+    const endLandY = endY + stepY;
+
+    if (
+        !isLandTile(startLandX, startLandY) ||
+        !isLandTile(endLandX, endLandY)
+    ) {
+        return null;
+    }
+
+    return {
+        startLandX,
+        startLandY,
+        waterLength
+    };
+}
+
+function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
+    const run = findWaterRun(tileX, tileY, stepX, stepY);
+
+    if (!run) {
+        return null;
+    }
+
+    const spanLength = run.waterLength + 2;
+
+    for (let distance = 0; distance < spanLength; distance++) {
+        const firstX = run.startLandX + stepX * distance;
+        const firstY = run.startLandY + stepY * distance;
+        const secondX = firstX + widthX;
+        const secondY = firstY + widthY;
+        const shouldBeLand = distance === 0 || distance === spanLength - 1;
+
+        if (shouldBeLand) {
+            if (!isLandTile(firstX, firstY) || !isLandTile(secondX, secondY)) {
+                return null;
+            }
+        } else if (
+            getTerrainType(firstX, firstY) !== 'water' ||
+            getTerrainType(secondX, secondY) !== 'water'
+        ) {
+            return null;
+        }
+    }
+
+    if (!isLocalHashPeak(
+        run.startLandX,
+        run.startLandY,
+        widthX,
+        widthY,
+        4,
+        salt
+    )) {
+        return null;
+    }
+
+    return {
+        startX: run.startLandX,
+        startY: run.startLandY,
+        stepX,
+        stepY,
+        widthX,
+        widthY,
+        spanLength
+    };
+}
+
+function isTileInBridge(tileX, tileY, bridge) {
+    for (let distance = 0; distance < bridge.spanLength; distance++) {
+        const bridgeX = bridge.startX + bridge.stepX * distance;
+        const bridgeY = bridge.startY + bridge.stepY * distance;
+
+        if (
+            (tileX === bridgeX && tileY === bridgeY) ||
+            (
+                tileX === bridgeX + bridge.widthX &&
+                tileY === bridgeY + bridge.widthY
+            )
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function getBridgeTile(tileX, tileY) {
+    for (let firstColumn = tileX - 1; firstColumn <= tileX; firstColumn++) {
+        const bridge = getBridgeCandidate(
+            firstColumn,
+            tileY,
+            0,
+            1,
+            1,
+            0,
+            810
+        );
+
+        if (bridge && isTileInBridge(tileX, tileY, bridge)) {
+            return {
+                key: 'wood',
+                rotation: 0
+            };
+        }
+    }
+
+    for (let firstRow = tileY - 1; firstRow <= tileY; firstRow++) {
+        const bridge = getBridgeCandidate(
+            tileX,
+            firstRow,
+            1,
+            0,
+            0,
+            1,
+            811
+        );
+
+        if (bridge && isTileInBridge(tileX, tileY, bridge)) {
+            return {
+                key: 'wood',
+                rotation: Math.PI / 2
+            };
+        }
+    }
+
+    return null;
+}
+
+function getPierCandidate(anchorX, anchorY) {
+    const key = `${anchorX},${anchorY}`;
+
+    if (pierCandidateCache.has(key)) {
+        return pierCandidateCache.get(key);
+    }
+
+    let pier = null;
+
+    if (
+        isLandTile(anchorX, anchorY) &&
+        isLandTile(anchorX + 1, anchorY) &&
+        isLocalHashPeak(anchorX, anchorY, 1, 0, 5, 920)
+    ) {
+        const lengthRange = MAX_PIER_WATER_LENGTH - MIN_PIER_WATER_LENGTH + 1;
+        const waterLength = MIN_PIER_WATER_LENGTH + Math.floor(
+            worldHash(anchorX, anchorY, 921) * lengthRange
+        );
+        let hasWaterPath = true;
+
+        for (let distance = 1; distance <= waterLength + 2; distance++) {
+            if (
+                getTerrainType(anchorX, anchorY + distance) !== 'water' ||
+                getTerrainType(anchorX + 1, anchorY + distance) !== 'water'
+            ) {
+                hasWaterPath = false;
+                break;
+            }
+        }
+
+        if (hasWaterPath) {
+            let openWaterTiles = 0;
+            let checkedTiles = 0;
+
+            for (let y = waterLength; y <= waterLength + 2; y++) {
+                for (let x = -2; x <= 3; x++) {
+                    checkedTiles += 1;
+
+                    if (getTerrainType(anchorX + x, anchorY + y) === 'water') {
+                        openWaterTiles += 1;
+                    }
+                }
+            }
+
+            if (openWaterTiles / checkedTiles >= 0.8) {
+                pier = {
+                    anchorX,
+                    anchorY,
+                    waterLength
+                };
+            }
+        }
+    }
+
+    if (pierCandidateCache.size >= WORLD_CACHE_LIMIT) {
+        pierCandidateCache.clear();
+    }
+
+    pierCandidateCache.set(key, pier);
+
+    return pier;
+}
+
+function getPierTile(tileX, tileY) {
+    for (let distance = 0; distance <= MAX_PIER_WATER_LENGTH; distance++) {
+        for (let side = 0; side <= 1; side++) {
+            const anchorX = tileX - side;
+            const anchorY = tileY - distance;
+            const pier = getPierCandidate(anchorX, anchorY);
+
+            if (!pier || distance > pier.waterLength) {
+                continue;
+            }
+
+            if (distance === pier.waterLength) {
+                return {
+                    key: side === 0 ? 'woodLeft' : 'woodRight',
+                    rotation: 0,
+                    baseKey: 'water'
+                };
+            }
+
+            return {
+                key: 'wood',
+                rotation: 0
+            };
+        }
+    }
+
+    return null;
+}
+
+function getTerrainTileKey(tileX, tileY) {
     const terrain = getTerrainType(tileX, tileY);
 
     if (terrain === 'water') {
@@ -308,6 +632,32 @@ function getWorldTileKey(tileX, tileY) {
     return 'grass1';
 }
 
+function getWorldTile(tileX, tileY) {
+    const key = `${tileX},${tileY}`;
+
+    if (worldTileCache.has(key)) {
+        return worldTileCache.get(key);
+    }
+
+    const tile = getBridgeTile(tileX, tileY) ||
+        getPierTile(tileX, tileY) || {
+            key: getTerrainTileKey(tileX, tileY),
+            rotation: 0
+        };
+
+    if (worldTileCache.size >= WORLD_CACHE_LIMIT) {
+        worldTileCache.clear();
+    }
+
+    worldTileCache.set(key, tile);
+
+    return tile;
+}
+
+function getWorldTileKey(tileX, tileY) {
+    return getWorldTile(tileX, tileY).key;
+}
+
 function getChunkKey(chunkX, chunkY) {
     return `${chunkX},${chunkY}`;
 }  
@@ -330,14 +680,28 @@ function createWorldChunk(scene, chunkX, chunkY) {
             const tileX = chunkX * CHUNK_SIZE + localX;
             const tileY = chunkY * CHUNK_SIZE + localY;
 
-            const tileKey = getWorldTileKey(tileX, tileY);
+            const worldTile = getWorldTile(tileX, tileY);
+            const tileKey = worldTile.key;
+
+            if (worldTile.baseKey) {
+                const baseSprite = scene.add.image(
+                    tileX * TILE_SIZE,
+                    tileY * TILE_SIZE,
+                    worldTile.baseKey
+                )
+                    .setOrigin(0)
+                    .setDepth(0);
+
+                tileSprites.push(baseSprite);
+            }
 
             const tileSprite = scene.add.image(
-                tileX * TILE_SIZE,
-                tileY * TILE_SIZE,
+                tileX * TILE_SIZE + TILE_SIZE / 2,
+                tileY * TILE_SIZE + TILE_SIZE / 2,
                 tileKey
             )
-                .setOrigin(0)
+                .setOrigin(0.5)
+                .setRotation(worldTile.rotation)
                 .setDepth(0);
 
             tileSprites.push(tileSprite);
@@ -380,7 +744,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
             .setBlendMode(Phaser.BlendModes.SCREEN)
             .setMask(mask);
 
-        overlay.setPipeline = 'WaterWarp';
+        overlay.setPipeline('WaterWarp');
 
         overlay.pipeline.set1f('uOpacity', 0.2);
     }
@@ -622,7 +986,7 @@ function update(time, delta) {
         characterKeys.leftArrow.isDown
     ) {
         moveX -= 1;
-        character.Direction = 'left';
+        characterDirection = 'left';
     } else if (
         characterKeys.right.isDown ||
         characterKeys.rightArrow.isDown
@@ -653,8 +1017,8 @@ function update(time, delta) {
         const wholeMoveX = Math.trunc(characterMoveRemainderX);
         const wholeMoveY = Math.trunc(characterMoveRemainderY);
 
-        character.MoveRemainderX -= wholeMoveX;
-        character.MoveRemainderY -= wholeMoveY;
+        characterMoveRemainderX -= wholeMoveX;
+        characterMoveRemainderY -= wholeMoveY;
 
         const nextX = character.x + wholeMoveX;
         const nextY = character.y + wholeMoveY;
@@ -672,19 +1036,13 @@ function update(time, delta) {
         }
 
         const walkFrame = Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 3;
-        
-        const nextTextureKey = `character-${characterDirection}${walkFrame}`;
+
+        const frameSuffix = walkFrame === 0 ? '' : `walk${walkFrame}`;
+        const nextTextureKey = `character-${characterDirection}${frameSuffix}`;
 
         if (nextTextureKey !== characterTextureKey) {
             characterTextureKey = nextTextureKey;
             character.setTexture(characterTextureKey);
-        } else {
-            const idleTextureKey = `character-${characterDirection}`;
-
-            if (characterTextureKey !== idleTextureKey) {
-                characterTextureKey = idleTextureKey;
-                character.setTexture(characterTextureKey);
-            }
         }
     }    
     
