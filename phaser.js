@@ -1156,7 +1156,7 @@ function update(time, delta) {
             characterMoveRemainderY = 0;
         }
 
-        const walkFrame = [0, 1, 2, 1][Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 4];
+        const walkFrame = [0, 1, 0, 2][Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 4];
 
         const frameSuffix = walkFrame === 0 ? '' : `walk${walkFrame}`;
         const nextTextureKey = `character-${characterDirection}${frameSuffix}`;
