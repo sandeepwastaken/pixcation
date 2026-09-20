@@ -82,6 +82,7 @@ const HOTBAR_SLOT_SIZE = 26;
 let hotbarSelector;
 let selectedHotbarSlot = 0;
 let worldObjectLayer;
+let edgeShimmerFrame = -1;
 
 const CHUNK_SIZE = 16;
 const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
@@ -123,7 +124,7 @@ let mainCamera;
 let cameraScrollX = 0;
 let cameraScrollY = 0;
 
-const CAMERA_EASE = 8;
+const CAMERA_EASE = 2;
 
 const cameraTargetScroll = new Phaser.Math.Vector2();
 
@@ -742,6 +743,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
 
     const tileSprites = [];
     const waterCells = [];
+    const edgeCells = [];
 
     for (let localY = 0; localY < CHUNK_SIZE; localY++) {
         for (let localX = 0; localX < CHUNK_SIZE; localX++) {
@@ -773,6 +775,13 @@ function createWorldChunk(scene, chunkX, chunkY) {
                 .setDepth(0);
 
             tileSprites.push(tileSprite);
+
+            if (tileKey === 'waterDirt' || tileKey === 'waterGrass') {
+                const leftExtension = getWorldTileKey(tileX - 1, tileY) === 'water' ? 4 : 0;
+                const rightExtension = getWorldTileKey(tileX + 1, tileY) === 'water' ? 4 : 0;
+                edgeCells.push({x: tileX * TILE_SIZE - leftExtension, y: tileY * TILE_SIZE, width: TILE_SIZE + leftExtension + rightExtension});
+            }
+
             if (getTerrainType(tileX, tileY) === 'grass' && getTerrainType(tileX + 1, tileY) === 'grass' && worldHash(tileX, tileY, 760) > 0.992) {
                 const bush = scene.add.image(tileX * TILE_SIZE, tileY * TILE_SIZE + TILE_SIZE, 'bush').setOrigin(0, 1).setDepth(tileY * TILE_SIZE + TILE_SIZE);
                 worldObjectLayer.add(bush);
@@ -784,6 +793,8 @@ function createWorldChunk(scene, chunkX, chunkY) {
             }
         }
     }
+
+    const edgeShimmer = edgeCells.length > 0 ? scene.add.graphics().setDepth(2) : null;
 
     let overlay = null;
     let maskGraphics = null;
@@ -828,6 +839,8 @@ function createWorldChunk(scene, chunkX, chunkY) {
         chunkY,
         tileSprites,
         waterCells,
+        edgeCells,
+        edgeShimmer,
         shimmers: [],
         overlay,
         maskGraphics,
@@ -852,6 +865,10 @@ function destroyWorldChunk(key) {
 
     if (chunk.overlay) {
         chunk.overlay.destroy();
+    }
+
+    if (chunk.edgeShimmer) {
+        chunk.edgeShimmer.destroy();
     }
 
     if (chunk.mask) {
@@ -909,6 +926,37 @@ function updateChunkWater(time) {
         chunk.overlay.pipeline.set1f('uTime', time * 0.003);
         chunk.overlay.tilePositionX = time * 0.01;
         chunk.overlay.tilePositionY = time * 0.006;
+    }
+}
+
+function updateEdgeShimmers(time) {
+    const frame = Math.floor(time * 12 / 1000);
+
+    if (frame === edgeShimmerFrame) return;
+
+    edgeShimmerFrame = frame;
+
+    for (const chunk of loadedChunks.values()) {
+        if (!chunk.edgeShimmer) continue;
+
+        chunk.edgeShimmer.clear();
+        let activeColor = 0;
+
+        for (const cell of chunk.edgeCells) {
+            for (let pixelX = cell.x; pixelX < cell.x + cell.width; pixelX++) {
+                const noise = valueNoise(pixelX - frame, cell.y + frame * 0.25, 24, 780);
+                const color = noise >= 0.76 ? 0xd1edf1 : noise >= 0.5 || noise >= 0.39 && noise < 0.42 ? 0x87bed8 : 0;
+
+                if (color === 0) continue;
+
+                if (color !== activeColor) {
+                    chunk.edgeShimmer.fillStyle(color, 1);
+                    activeColor = color;
+                }
+
+                chunk.edgeShimmer.fillRect(pixelX, cell.y, 1, 1);
+            }
+        }
     }
 }
 
@@ -1125,5 +1173,6 @@ function update(time, delta) {
 
     updateLoadedChunks(this);
     updateChunkWater(time);
+    updateEdgeShimmers(time);
     updateCamera(delta);
 }
