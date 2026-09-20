@@ -64,7 +64,11 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
     }
 }
 
-const game = new Phaser.Game(config);
+let game;
+
+document.fonts.load('16px m6x11').finally(() => {
+    game = new Phaser.Game(config);
+});
 
 const TILE_SIZE = 16;
 
@@ -114,6 +118,47 @@ let characterDirection = 'front';
 const CHARACTER_SIZE = 16;
 const CHARACTER_SPEED = 60;
 const CHARACTER_ANIMATION_SPEED = 8;
+
+const GUIDE_SIZE = 16;
+const GUIDE_INTERACTION_DISTANCE = 26;
+const DIALOGUE_HIDDEN_Y = -78;
+const DIALOGUE_VISIBLE_Y = 6;
+
+const GUIDE_DIALOGUE = {
+    intro: {
+        text: "Hey! Need something?",
+        options: [
+            {label: 'Help', next: 'help'},
+            {label: 'Greet', next: 'greet'},
+            {label: 'Exit', close: true}
+        ]
+    },
+    help: {
+        text: "You can move around using WASD or the arrow keys. Scroll or press 1-9 to select items.",
+        options: [
+            {label: 'Back', next: 'intro'},
+            {label: 'Exit', close: true}
+        ]
+    },
+    greet: {
+        text: "Hello there! I'm your guide. It's nice to meet you. Enjoy your adventure!",
+        options: [
+            {label: 'Back', next: 'intro'},
+            {label: 'Exit', close: true}
+        ]
+    }
+};
+
+let guide;
+let guideWasNear = false;
+let dialogueContainer; 
+let dialogueText;
+let dialogueOptionTexts = [];
+let dialogueOpen = false;
+let dialogueNode = 'intro';
+let selectedDialogueOption = 0;
+let dialogueTypingEvent = null;
+let dialogueFullText = '';
 
 let characterMoveRemainderX = 0;
 let characterMoveRemainderY = 0;
@@ -179,6 +224,9 @@ function preload() {
     this.load.image('hotbar', `media/hotbar.png?v=${assetVersion}`);
     this.load.image('selected', `media/selected.png?v=${assetVersion}`);
     this.load.image('bush', `media/bush.png?v=${assetVersion}`);
+
+    this.load.image('guide', `media/guide.png?v=${assetVersion}`);
+    this.load.image('headshot', `media/headshot.png?v=${assetVersion}`);
 
     this.load.image('waterOverlay', `media/waterOverlay.png?v=${assetVersion}`);
     this.load.spritesheet('shimmer', `media/shimmer.png?v=${assetVersion}`, {
