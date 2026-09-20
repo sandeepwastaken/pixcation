@@ -59,12 +59,25 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
 }
 
 const game = new Phaser.Game(config);
-let waterOverlay;
-let waterCells = [];
+
+const TILE_SIZE = 16;
+
+const CHUNK_SIZE = 16;
+const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
+
+const CHUNK_LOAD_RADIUS = 2;
+const WORLD_SEED = 6767676767676;
+
+const loadedChunks = new Map();
+
+let activeChunkX = null;
+let activeChunkY = null;
 
 let character;
 let characterKeys;
 let characterDirection = 'front';
+
+const CHARACTER_SIZE = 16;
 const CHARACTER_SPEED = 60;
 const CHARACTER_ANIMATION_SPEED = 8;
 
@@ -72,10 +85,8 @@ let characterMoveRemainderX = 0;
 let characterMoveRemainderY = 0;
 let characterTextureKey = 'character-front';
 
-let gameMap;
-const CHARACTER_SIZE = 16;
-
 let mainCamera;
+
 let cameraScollX = 0;
 let cameraScrollY = 0;
 
@@ -132,95 +143,21 @@ function preload() {
         frameWidth: 12,
         frameHeight: 1
     });
-
-    this.load.json('map', `map.json?v=${Date.now()}`);
 }
 
 function create() {
-    gameMap = this.cache.json.get('map');
-    const map = gameMap;
-
-    this.game.renderer.pipelines.add(
-        'WaterWarp',
-        new WaterWarpPipeline(this.game)
-    );
-
-    for (let y = 0; y < map.height; y++) {
-        for (let x = 0; x < map.width; x++) {
-            const tileKey = map.data[y][x];
-            if (tileKey == null) continue;
-            if (tileKey == 'woodLeft' || tileKey == 'woodRight'){
-                this.add.image(x * map.tileSize, y * map.tileSize, 'water')
-                .setOrigin(0);
-            };
-            this.add.image(x * map.tileSize, y * map.tileSize, tileKey)
-            .setOrigin(0);
-
-            if (tileKey.toLowerCase().includes('water')) {
-                waterCells.push({
-                    x: x * map.tileSize,
-                    y: y * map.tileSize,
-                    width: map.tileSize,
-                    height: map.tileSize
-                 });
-            }
-        }
-    }
-
-    const waterMaskGraphics = this.make.graphics({
-        x: 0,
-        y: 0,
-        add: false
-    });
-
-    waterCells.forEach((cell) => {
-        waterMaskGraphics.fillRect(cell.x, cell.y, cell.width, cell.height);
-    });
-
-    waterOverlay = this.add.tileSprite(
-        0,
-        0,
-        map.width * map.tileSize,
-        map.height * map.tileSize,
-        'waterOverlay'
-    )
-        .setOrigin(0)
-        .setAlpha(1)
-        .setBlendMode(Phaser.BlendModes.SCREEN)
-        .setMask(waterMaskGraphics.createGeometryMask());
-
-    waterOverlay.setPipeline('WaterWarp');
-    waterOverlay.pipeline.set1f('uOpacity', 0.2);
+    this.game.renderer.pipelines.add('WaterWarp', new WaterWarpPipeline(this.game));
 
     this.anims.create({
         key: 'shimmer',
         frames: this.anims.generateFrameNumbers('shimmer', { start: 0, end: 15 }),
         frameRate: 12,
         repeat: 0
-    })
-
-    for (let index = 0; index < 8; index++) {
-        spawnShimmer(this);
-    }
-
-    this.time.addEvent({
-        delay: 450,
-        loop: true,
-        callback: () => spawnShimmer(this)
     });
 
-    character = this.add.sprite(16, 16, 'character-front')
-    .setOrigin(0)
-    .setDepth(10);
-
-    mainCamera = this.cameras.main;
-    mainCamera.setZoom(1);
-    mainCamera.setBounds(0, 0, map.width * map.tileSize, map.height * map.tileSize);
-
-    mainCamera.setRoundPixels(true);
-
-    cameraScrollX = mainCamera.scrollX;
-    cameraScrollY = mainCamera.scrollY;
+    character = this.add.sprite(0, 0, 'character-front')
+        .setOrigin(0)
+        .setDepth(10);
 
     characterKeys = this.input.keyboard.addKeys({
         up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -232,6 +169,62 @@ function create() {
         leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
         rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT
     });
+
+    mainCamera = this.cameras.main;
+    
+    mainCamera.setZoom(1);
+    mainCamera.removeBounds();
+    mainCamera.setRoundPixels(true);
+
+    cameraScrollX = mainCamera.scrollX;
+    cameraScrollY = mainCamera.scrollY;
+
+    updateLoadedChunks();
+
+    for (let index = 0; index < 10; index++) {
+        spawnShimmer(this);
+    }
+
+    this.time.addEvent({
+        delay: 450,
+        callback: () => spawnShimmer(this),
+        loop: true
+    });
+}
+
+function worldHash(x, y, salt = 0) {
+    let number = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(WORLD_SEED + salt, 1442695040888963407);
+    
+    number ^= number >>> 13;
+
+    number = Math.imul(number, 1274126177);
+
+    return (((number ^ (number >>> 16)) >>> 0) / 4294967295);
+}
+
+function smoothNoiseAmount(value) {
+    return (value * value * (3 - 2 * value));
+}
+
+function valueNoise(worldX, worldY, scale, salt) {
+    const scaledX = worldX / scale;
+    const scaledY = worldY / scale;
+
+    const left = Math.floor(scaledX);
+    const top = Math.floor(scaledY);
+
+    const horizontalAmount = smoothNoiseAmount(scaledX - left);
+    const verticalAmount = smoothNoiseAmount(scaledY - top);
+
+    const topLeft = worldHash(left, top, salt);
+    const topRight = worldHash(left + 1, top, salt);
+    const bottomLeft = worldHash(left, top + 1, salt);
+    const bottomRight = worldHash(left + 1, top + 1, salt);
+
+    const topValue = topLeft + (topRight - topLeft) * horizontalAmount;
+    const bottomValue = bottomLeft + (bottomRight - bottomLeft) * horizontalAmount;
+
+    return topValue + (bottomValue - topValue) * verticalAmount;
 }
 
 function spawnShimmer(scene) {
