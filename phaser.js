@@ -75,6 +75,14 @@ let characterTextureKey = 'character-front';
 let gameMap;
 const CHARACTER_SIZE = 16;
 
+let mainCamera;
+let cameraScollX = 0;
+let cameraScrollY = 0;
+
+const CAMERA_EASE = 8;
+
+const cameraTargetScroll = new Phaser.Math.Vector2();
+
 function preload() {
     const assetVersion = Date.now();
     const tileKeys = [
@@ -205,11 +213,14 @@ function create() {
     .setOrigin(0)
     .setDepth(10);
 
-    const camera = this.cameras.main;
-    camera.setZoom(0.1);
-    camera.setBounds(0, 0, map.width * map.tileSize, map.height * map.tileSize);
-    camera.startFollow(character, true);
-    camera.setLerp(0.12, 0.12);
+    mainCamera = this.cameras.main;
+    mainCamera.setZoom(1);
+    mainCamera.setBounds(0, 0, map.width * map.tileSize, map.height * map.tileSize);
+
+    mainCamera.setRoundPixels(true);
+
+    cameraScrollX = mainCamera.scrollX;
+    cameraScrollY = mainCamera.scrollY;
 
     characterKeys = this.input.keyboard.addKeys({
         up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -350,4 +361,13 @@ function update(time, delta) {
 
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
+
+    mainCamera.getScroll(character.x + CHARACTER_SIZE / 2, character.y + CHARACTER_SIZE / 2, cameraTargetScroll);
+
+    const cameraFollowAmount = 1 - Math.exp(-CAMERA_EASE * delta / 1000);
+
+    cameraScrollX = Phaser.Math.Linear(cameraScrollX, cameraTargetScroll.x, cameraFollowAmount);
+    cameraScrollY = Phaser.Math.Linear(cameraScrollY, cameraTargetScroll.y, cameraFollowAmount);
+
+    mainCamera.setScroll(Math.round(cameraScrollX), Math.round(cameraScrollY));
 }
