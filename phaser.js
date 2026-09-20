@@ -40,16 +40,22 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                 void main() {
                     vec2 uv = outTexCoord;
                     vec2 grid = vec2(32.0);
+                    vec2 pixel = floor(outTexCoord * 256.0);
 
-                    float x = floor(sin(floor(uv.y * grid.y) * 0.8 + uTime) * 0.51);
-                    float y = floor(cos(floor(uv.x * grid.x) * 0.7 + uTime * 0.8) * 0.51);
+                    float x = floor(sin(floor(uv.y * grid.y) * 0.78539816339 + uTime) * 0.51);
+                    float y = floor(cos(floor(uv.x * grid.x) * 0.58904862255 + uTime * 0.8) * 0.51);
+                    float light =
+                        sin((pixel.x + pixel.y * 2.0) * 0.09817477042 + uTime * 0.35) * 0.5 +
+                        cos((pixel.x * 3.0 - pixel.y) * 0.04908738521 - uTime * 0.28) * 0.35 +
+                        sin((pixel.x * 5.0 + pixel.y * 3.0) * 0.02454369261 + uTime * 0.18) * 0.15;
+                    float brightness = 0.7 + floor((light + 1.0) * 4.0) * 0.0625;
 
                     uv += vec2(x, y) / grid;
 
                     uv = (floor(uv * grid) + 0.5) / grid;
 
                     vec4 color = texture2D(uMainSampler, uv);
-                    color.rgb *= outTint.rgb * uOpacity;
+                    color.rgb *= outTint.rgb * uOpacity * brightness;
                     color.a = 1.0;
                     gl_FragColor = color;
                 }
@@ -829,13 +835,13 @@ function updateLoadedChunks(scene, force = false) {
     activeChunkY = centerChunkY;
 }
 
-function updateChunkWater(time, delta) {
+function updateChunkWater(time) {
     for (const chunk of loadedChunks.values()) {
         if (!chunk.overlay) continue;
 
         chunk.overlay.pipeline.set1f('uTime', time * 0.003);
-        chunk.overlay.tilePositionX += delta * 0.01;
-        chunk.overlay.tilePositionY += delta * 0.006;
+        chunk.overlay.tilePositionX = time * 0.01;
+        chunk.overlay.tilePositionY = time * 0.006;
     }
 }
 
@@ -1050,6 +1056,6 @@ function update(time, delta) {
     character.y = Math.round(character.y);
 
     updateLoadedChunks(this);
-    updateChunkWater(time, delta);
+    updateChunkWater(time);
     updateCamera(delta);
 }
