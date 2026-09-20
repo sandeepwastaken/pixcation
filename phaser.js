@@ -68,6 +68,21 @@ const game = new Phaser.Game(config);
 
 const TILE_SIZE = 16;
 
+const DIRT_TRANSITIONS = {
+    3: 'transition1',
+    6: 'transition2',
+    12: 'transition3',
+    9: 'transition4'
+};
+
+const HOTBAR_X = 43;
+const HOTBAR_Y = 164;
+const HOTBAR_SLOT_SIZE = 26;
+
+let hotbarSelector;
+let selectedHotbarSlot = 0;
+let worldObjectLayer;
+
 const CHUNK_SIZE = 16;
 const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
 
@@ -127,7 +142,11 @@ function preload() {
         'waterGrass',
         'wood',
         'woodLeft',
-        'woodRight'
+        'woodRight',
+        'transition1',
+        'transition2',
+        'transition3',
+        'transition4'
     ];
 
     const characterFrames = [
@@ -156,6 +175,10 @@ function preload() {
         this.load.image(tileKey, `media/${tileKey}.png?v=${assetVersion}`);
     });
 
+    this.load.image('hotbar', `media/hotbar.png?v=${assetVersion}`);
+    this.load.image('selected', `media/selected.png?v=${assetVersion}`);
+    this.load.image('bush', `media/bush.png?v=${assetVersion}`);
+
     this.load.image('waterOverlay', `media/waterOverlay.png?v=${assetVersion}`);
     this.load.spritesheet('shimmer', `media/shimmer.png?v=${assetVersion}`, {
         frameWidth: 12,
@@ -164,6 +187,7 @@ function preload() {
 }
 
 function create() {
+    worldObjectLayer = this.add.layer().setDepth(3);
     this.game.renderer.pipelines.add('WaterWarp', new WaterWarpPipeline(this.game));
 
     this.anims.create({
@@ -175,7 +199,8 @@ function create() {
 
     character = this.add.sprite(0, 0, 'character-front')
         .setOrigin(0)
-        .setDepth(10);
+        .setDepth(CHARACTER_SIZE);
+    worldObjectLayer.add(character);
 
     characterKeys = this.input.keyboard.addKeys({
         up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -186,6 +211,37 @@ function create() {
         downArrow: Phaser.Input.Keyboard.KeyCodes.DOWN,
         leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
         rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT
+    });
+
+    this.add.image(HOTBAR_X, HOTBAR_Y, 'hotbar')
+        .setOrigin(0)
+        .setDepth(100)
+        .setScrollFactor(0);
+
+    hotbarSelector = this.add.image(
+        HOTBAR_X - 2,
+        HOTBAR_Y - 3,
+        'selected'
+    )
+        .setOrigin(0)
+        .setDepth(101)
+        .setScrollFactor(0);
+
+    const selectHotBarSlot = slot => {
+        selectedHotbarSlot = Phaser.Math.Wrap(slot, 0, 9);
+        hotbarSelector.x = HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE;
+    };
+
+    this.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
+        selectHotBarSlot(selectedHotbarSlot + Math.sign(deltaY));
+    });
+
+    this.input.keyboard.on('keydown', event => {
+        const slot = Number(event.key) - 1;
+
+        if (slot >= 0 && slot < 9) {
+            selectHotBarSlot(slot);
+        }
     });
 
     mainCamera = this.cameras.main;
@@ -618,7 +674,13 @@ function getTerrainTileKey(tileX, tileY) {
     }
 
     if (terrain === 'dirt') {
-        return 'dirt1';
+        const grassMask =
+        (getTerrainType(tileX, tileY - 1) === 'grass' ? 1 : 0) |
+        (getTerrainType(tileX + 1, tileY) === 'grass' ? 2 : 0) |
+        (getTerrainType(tileX, tileY + 1) === 'grass' ? 4 : 0) |
+        (getTerrainType(tileX - 1, tileY) === 'grass' ? 8 : 0);
+
+        return DIRT_TRANSITIONS[grassMask] || 'dirt1';
     }
 
     const decoration = worldHash(tileX, tileY, 670);
@@ -711,6 +773,11 @@ function createWorldChunk(scene, chunkX, chunkY) {
                 .setDepth(0);
 
             tileSprites.push(tileSprite);
+            if (getTerrainType(tileX, tileY) === 'grass' && getTerrainType(tileX + 1, tileY) === 'grass' && worldHash(tileX, tileY, 760) > 0.992) {
+                const bush = scene.add.image(tileX * TILE_SIZE, tileY * TILE_SIZE + TILE_SIZE, 'bush').setOrigin(0, 1).setDepth(tileY * TILE_SIZE + TILE_SIZE);
+                worldObjectLayer.add(bush);
+                tileSprites.push(bush);
+            }
 
             if (tileKey.toLowerCase().includes('water')) {
                 waterCells.push({x: tileX * TILE_SIZE, y: tileY * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE});
@@ -1054,6 +1121,7 @@ function update(time, delta) {
     
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
+    character.setDepth(character.y + CHARACTER_SIZE);
 
     updateLoadedChunks(this);
     updateChunkWater(time);
