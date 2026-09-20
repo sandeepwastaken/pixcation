@@ -428,54 +428,149 @@ function destroyWorldChunk(key) {
     loadedChunks.delete(key);
 }
 
-function spawnShimmer(scene) {
-    if (waterCells.length === 0) return;
+function updateLoadedChunks(scene, force = false) {
+    const characterCenterX = character.x + CHARACTER_SIZE / 2;
+    const characterCenterY = character.y + CHARACTER_SIZE / 2;
 
-    const cell = Phaser.Utils.Array.GetRandom(waterCells);
+    const characterTileX = Math.floor(characterCenterX / TILE_SIZE);
+    const characterTileY = Math.floor(characterCenterY / TILE_SIZE);
+
+    const centerChunkX = Math.floor(characterTileX / CHUNK_SIZE);
+    const centerChunkY = Math.floor(characterTileY / CHUNK_SIZE);
+
+    if (!force && centerChunkX === activeChunkX && centerChunkY === activeChunkY) {
+        return;
+    }
+
+    const desiredChunkKeys = new Set();
+
+    for (let offsetY = -CHUNK_LOAD_RADIUS; offsetY <= CHUNK_LOAD_RADIUS; offsetY++) {
+        for (let offsetX = -CHUNK_LOAD_RADIUS; offsetX <= CHUNK_LOAD_RADIUS; offsetX++) {
+            const chunkX = centerChunkX + offsetX;
+            const chunkY = centerChunkY + offsetY;
+
+            const key = getChunkKey(chunkX, chunkY);
+            desiredChunkKeys.add(key);
+            createWorldChunk(scene, chunkX, chunkY);
+        }
+    }
+
+    for (const key of Array.from(loadedChunks.keys())) {
+        if (!desiredChunkKeys.has(key)) {
+            destroyWorldChunk(key);
+        }
+    }
+
+    activeChunkX = centerChunkX;
+    activeChunkY = centerChunkY;
+}
+
+function updateChunkWater(time, delta) {
+    for (const chunk of loadedChunks.values()) {
+        if (!chunk.overlay) continue;
+
+        chunk.overlay.pipeline.set1f('uTime', time * 0.003);
+        chunk.overlay.tilePositionX += delta * 0.01;
+        chunk.overlay.tilePositionY += delta * 0.006;
+    }
+}
+
+function spawnShimmer(scene) {
+    const waterChunks = Array.from(loadedChunks.values()).filter(chunk => chunk.waterCells.length > 0);
+
+    if (waterChunks.length === 0) {
+        return;
+    }
+
+    const chunk = Phaser.Utils.Array.GetRandom(waterChunks);
+
+    const cell = Phaser.Utils.Array.GetRandom(chunk.waterCells);
+
     const shimmer = scene.add.sprite(
         cell.x + Phaser.Math.Between(0, cell.width - 12),
         cell.y + Phaser.Math.Between(0, cell.height - 1),
-        'shimmer',
-        0
+        'shimmer'
     )
         .setOrigin(0)
+        .setDepth(2)
         .setBlendMode(Phaser.BlendModes.NORMAL);
 
+    chunk.shimmers.push(shimmer);
+
     shimmer.play('shimmer');
-    shimmer.once(
-        Phaser.Animations.Events.ANIMATION_COMPLETE,
-        () => shimmer.destroy()
-    );
+
+    shimmer.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        const index = chunk.shimmers.indexOf(shimmer);
+        if (index !== -1) {
+            chunk.shimmers.splice(index, 1);
+        }
+        shimmer.destroy();
+    });
 }
 
 function canCharacterOccupy(x, y) {
-    const mapPixelWidth = gameMap.width * gameMap.tileSize;
-    const mapPixelHeight = gameMap.height * gameMap.tileSize;
+    const leftTile =
+        Math.floor(x / TILE_SIZE);
 
-    if (x < 0 || y < 0 || x + CHARACTER_SIZE > mapPixelWidth || y + CHARACTER_SIZE > mapPixelHeight) {
-        return false;
-    }
+    const rightTile =
+        Math.floor(
+            (
+                x +
+                CHARACTER_SIZE -
+                1
+            ) / TILE_SIZE
+        );
 
-    const leftTile = Math.floor(x / gameMap.tileSize);
-    const rightTile = Math.floor((x + CHARACTER_SIZE - 1) / gameMap.tileSize);
-    const topTile = Math.floor(y / gameMap.tileSize);
-    const bottomTile = Math.floor((y + CHARACTER_SIZE - 1) / gameMap.tileSize);
-    const characterBottomY = y + CHARACTER_SIZE;
+    const topTile =
+        Math.floor(y / TILE_SIZE);
 
-    for (let tileY = topTile; tileY <= bottomTile; tileY++) {
-        for (let tileX = leftTile; tileX <= rightTile; tileX++) {
-            const tileKey = gameMap.data[tileY][tileX];
-            
-            if (tileKey.toLowerCase().includes('water')) {
+    const bottomTile =
+        Math.floor(
+            (
+                y +
+                CHARACTER_SIZE -
+                1
+            ) / TILE_SIZE
+        );
+
+    const characterBottomY =
+        y + CHARACTER_SIZE;
+
+    for (
+        let tileY = topTile;
+        tileY <= bottomTile;
+        tileY += 1
+    ) {
+        for (
+            let tileX = leftTile;
+            tileX <= rightTile;
+            tileX += 1
+        ) {
+            const tileKey =
+                getWorldTileKey(
+                    tileX,
+                    tileY
+                );
+
+            const tileName =
+                tileKey.toLowerCase();
+
+            if (tileName.includes('water')) {
                 return false;
             }
 
-            const tileTop = tileY * gameMap.tileSize;
-            const tileName = tileKey.toLowerCase();
+            const tileTop =
+                tileY * TILE_SIZE;
 
             if (
-                (tileName.includes('edge') || tileName.includes('left') || tileName.includes('right')) &&
-                characterBottomY > tileTop + gameMap.tileSize / 2
+                (
+                    tileName.includes('edge') ||
+                    tileName.includes('left') ||
+                    tileName.includes('right')
+                ) &&
+                characterBottomY >
+                    tileTop +
+                    TILE_SIZE / 2
             ) {
                 return false;
             }
@@ -485,31 +580,68 @@ function canCharacterOccupy(x, y) {
     return true;
 }
 
+function updateCamera(delta) {
+    mainCamera.getScroll(
+        character.x + CHARACTER_SIZE / 2,
+        character.y + CHARACTER_SIZE / 2,
+        cameraTargetScroll
+    );
+
+    const followAmount =
+        1 - Math.exp(-CAMERA_EASE * delta / 1000);
+
+    cameraScrollX =
+        Phaser.Math.Linear(
+            cameraScrollX,
+            cameraTargetScroll.x,
+            followAmount
+        );
+    cameraScrollY =
+        Phaser.Math.Linear(
+            cameraScrollY,
+            cameraTargetScroll.y,
+            followAmount
+        );
+
+    mainCamera.setScroll(
+        Math.round(cameraScrollX),
+        Math.round(cameraScrollY)
+    );
+}
+
 function update(time, delta) {
-    if (!waterOverlay) return;
-
-    waterOverlay.pipeline.set1f('uTime', time * 0.003);
-    waterOverlay.tilePositionX += delta * 0.01;
-    waterOverlay.tilePositionY += delta * 0.006;
-
-    if (!character) return;
+    if (!character) {
+        return;
+    }
 
     let moveX = 0;
     let moveY = 0;
 
-    if (characterKeys.left.isDown || characterKeys.leftArrow.isDown) {
-        moveX = -1;
-        characterDirection = 'left';
-    } else if (characterKeys.right.isDown || characterKeys.rightArrow.isDown) {
-        moveX = 1;
+    if (
+        characterKeys.left.isDown ||
+        characterKeys.leftArrow.isDown
+    ) {
+        moveX -= 1;
+        character.Direction = 'left';
+    } else if (
+        characterKeys.right.isDown ||
+        characterKeys.rightArrow.isDown
+    ) {
+        moveX += 1;
         characterDirection = 'right';
     }
-    
-    if (characterKeys.up.isDown || characterKeys.upArrow.isDown) {
-        moveY = -1;
+
+    if (
+        characterKeys.up.isDown ||
+        characterKeys.upArrow.isDown
+    ) {
+        moveY -= 1;
         characterDirection = 'back';
-    } else if (characterKeys.down.isDown || characterKeys.downArrow.isDown) {
-        moveY = 1;
+    } else if (
+        characterKeys.down.isDown ||
+        characterKeys.downArrow.isDown
+    ) {
+        moveY += 1;
         characterDirection = 'front';
     }
 
@@ -518,12 +650,11 @@ function update(time, delta) {
     if (isWalking) {
         characterMoveRemainderX += moveX * CHARACTER_SPEED * delta / 1000;
         characterMoveRemainderY += moveY * CHARACTER_SPEED * delta / 1000;
-
         const wholeMoveX = Math.trunc(characterMoveRemainderX);
         const wholeMoveY = Math.trunc(characterMoveRemainderY);
 
-        characterMoveRemainderX -= wholeMoveX;
-        characterMoveRemainderY -= wholeMoveY;
+        character.MoveRemainderX -= wholeMoveX;
+        character.MoveRemainderY -= wholeMoveY;
 
         const nextX = character.x + wholeMoveX;
         const nextY = character.y + wholeMoveY;
@@ -540,28 +671,27 @@ function update(time, delta) {
             characterMoveRemainderY = 0;
         }
 
-        const walkFrame = Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 2 + 1;
+        const walkFrame = Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 3;
+        
+        const nextTextureKey = `character-${characterDirection}${walkFrame}`;
 
-        const nextTextureKey = isWalking ? `character-${characterDirection}walk${walkFrame}` : `character-${characterDirection}`;
-
-        if (characterTextureKey !== nextTextureKey) {
-            character.setTexture(nextTextureKey);
+        if (nextTextureKey !== characterTextureKey) {
             characterTextureKey = nextTextureKey;
+            character.setTexture(characterTextureKey);
+        } else {
+            const idleTextureKey = `character-${characterDirection}`;
+
+            if (characterTextureKey !== idleTextureKey) {
+                characterTextureKey = idleTextureKey;
+                character.setTexture(characterTextureKey);
+            }
         }
-
-    } else {
-        character.setTexture(`character-${characterDirection}`);
-    }
-
+    }    
+    
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
 
-    mainCamera.getScroll(character.x + CHARACTER_SIZE / 2, character.y + CHARACTER_SIZE / 2, cameraTargetScroll);
-
-    const cameraFollowAmount = 1 - Math.exp(-CAMERA_EASE * delta / 1000);
-
-    cameraScrollX = Phaser.Math.Linear(cameraScrollX, cameraTargetScroll.x, cameraFollowAmount);
-    cameraScrollY = Phaser.Math.Linear(cameraScrollY, cameraTargetScroll.y, cameraFollowAmount);
-
-    mainCamera.setScroll(Math.round(cameraScrollX), Math.round(cameraScrollY));
+    updateLoadedChunks(this);
+    updateChunkWater(time, delta);
+    updateCamera(delta);
 }
