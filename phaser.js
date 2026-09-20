@@ -68,6 +68,13 @@ let characterDirection = 'front';
 const CHARACTER_SPEED = 60;
 const CHARACTER_ANIMATION_SPEED = 8;
 
+let characterMoveRemainderX = 0;
+let characterMoveRemainderY = 0;
+let characterTextureKey = 'character-front';
+
+let gameMap;
+const CHARACTER_SIZE = 16;
+
 function preload() {
     const assetVersion = Date.now();
     const tileKeys = [
@@ -118,11 +125,12 @@ function preload() {
         frameHeight: 1
     });
 
-    this.load.json('map', `map.json?v=${Date.now()}`); // cache-buster
+    this.load.json('map', `map.json?v=${Date.now()}`);
 }
 
 function create() {
-    const map = this.cache.json.get('map');
+    gameMap = this.cache.json.get('map');
+    const map = gameMap;
 
     this.game.renderer.pipelines.add(
         'WaterWarp',
@@ -229,6 +237,43 @@ function spawnShimmer(scene) {
     );
 }
 
+function canCharacterOccupy(x, y) {
+    const mapPixelWidth = gameMap.width * gameMap.tileSize;
+    const mapPixelHeight = gameMap.height * gameMap.tileSize;
+
+    if (x < 0 || y < 0 || x + CHARACTER_SIZE > mapPixelWidth || y + CHARACTER_SIZE > mapPixelHeight) {
+        return false;
+    }
+
+    const leftTile = Math.floor(x / gameMap.tileSize);
+    const rightTile = Math.floor((x + CHARACTER_SIZE - 1) / gameMap.tileSize);
+    const topTile = Math.floor(y / gameMap.tileSize);
+    const bottomTile = Math.floor((y + CHARACTER_SIZE - 1) / gameMap.tileSize);
+    const characterBottomY = y + CHARACTER_SIZE;
+
+    for (let tileY = topTile; tileY <= bottomTile; tileY++) {
+        for (let tileX = leftTile; tileX <= rightTile; tileX++) {
+            const tileKey = gameMap.data[tileY][tileX];
+            
+            if (tileKey.toLowerCase().includes('water')) {
+                return false;
+            }
+
+            const tileTop = tileY * gameMap.tileSize;
+            const tileName = tileKey.toLowerCase();
+
+            if (
+                (tileName.includes('edge') || tileName.includes('left') || tileName.includes('right')) &&
+                characterBottomY > tileTop + gameMap.tileSize / 2
+            ) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 function update(time, delta) {
     if (!waterOverlay) return;
 
@@ -260,12 +305,39 @@ function update(time, delta) {
     const isWalking = moveX !== 0 || moveY !== 0;
 
     if (isWalking) {
-        character.x += moveX * CHARACTER_SPEED * (delta / 1000);
-        character.y += moveY * CHARACTER_SPEED * (delta / 1000);
-        
+        characterMoveRemainderX += moveX * CHARACTER_SPEED * delta / 1000;
+        characterMoveRemainderY += moveY * CHARACTER_SPEED * delta / 1000;
+
+        const wholeMoveX = Math.trunc(characterMoveRemainderX);
+        const wholeMoveY = Math.trunc(characterMoveRemainderY);
+
+        characterMoveRemainderX -= wholeMoveX;
+        characterMoveRemainderY -= wholeMoveY;
+
+        const nextX = character.x + wholeMoveX;
+        const nextY = character.y + wholeMoveY;
+
+        if (canCharacterOccupy(nextX, character.y)) {
+            character.x = nextX;
+        } else {
+            characterMoveRemainderX = 0;
+        }
+
+        if (canCharacterOccupy(character.x, nextY)) {
+            character.y = nextY;
+        } else {
+            characterMoveRemainderY = 0;
+        }
+
         const walkFrame = Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 2 + 1;
 
-        character.setTexture(`character-${characterDirection}walk${walkFrame}`);
+        const nextTextureKey = isWalking ? `character-${characterDirection}walk${walkFrame}` : `character-${characterDirection}`;
+
+        if (characterTextureKey !== nextTextureKey) {
+            character.setTexture(nextTextureKey);
+            characterTextureKey = nextTextureKey;
+        }
+
     } else {
         character.setTexture(`character-${characterDirection}`);
     }
