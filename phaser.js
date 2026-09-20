@@ -205,6 +205,12 @@ function create() {
     .setOrigin(0)
     .setDepth(10);
 
+    const camera = this.cameras.main;
+    camera.setZoom(0.1);
+    camera.setBounds(0, 0, map.width * map.tileSize, map.height * map.tileSize);
+    camera.startFollow(character, true);
+    camera.setLerp(0.12, 0.12);
+
     characterKeys = this.input.keyboard.addKeys({
         up: Phaser.Input.Keyboard.KeyCodes.W,
         down: Phaser.Input.Keyboard.KeyCodes.S,
