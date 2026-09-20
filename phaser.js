@@ -76,7 +76,7 @@ const DIRT_TRANSITIONS = {
 };
 
 const HOTBAR_X = 43;
-const HOTBAR_Y = 164;
+const HOTBAR_Y = 155;
 const HOTBAR_SLOT_SIZE = 26;
 
 let hotbarSelector;
