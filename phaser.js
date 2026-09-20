@@ -62,6 +62,12 @@ const game = new Phaser.Game(config);
 let waterOverlay;
 let waterCells = [];
 
+let character;
+let characterKeys;
+let characterDirection = 'front';
+const CHARACTER_SPEED = 60;
+const CHARACTER_ANIMATION_SPEED = 8;
+
 function preload() {
     const assetVersion = Date.now();
     const tileKeys = [
@@ -79,6 +85,28 @@ function preload() {
         'woodLeft',
         'woodRight'
     ];
+
+    const characterFrames = [
+        'front',
+        'frontwalk1',
+        'frontwalk2',
+        'back',
+        'backwalk1',
+        'backwalk2',
+        'left',
+        'leftwalk1',
+        'leftwalk2',
+        'right',
+        'rightwalk1',
+        'rightwalk2'
+    ];
+
+    characterFrames.forEach(frame => {
+        this.load.image(
+            `character-${frame}`,
+            `media/character/${frame}.png?v=${assetVersion}`
+        )
+    });
 
     tileKeys.forEach(tileKey => {
         this.load.image(tileKey, `media/${tileKey}.png?v=${assetVersion}`);
@@ -164,6 +192,21 @@ function create() {
         loop: true,
         callback: () => spawnShimmer(this)
     });
+
+    character = this.add.sprite(16, 16, 'character-front')
+    .setOrigin(0)
+    .setDepth(10);
+
+    characterKeys = this.input.keyboard.addKeys({
+        up: Phaser.Input.Keyboard.KeyCodes.W,
+        down: Phaser.Input.Keyboard.KeyCodes.S,
+        left: Phaser.Input.Keyboard.KeyCodes.A,
+        right: Phaser.Input.Keyboard.KeyCodes.D,
+        upArrow: Phaser.Input.Keyboard.KeyCodes.UP,
+        downArrow: Phaser.Input.Keyboard.KeyCodes.DOWN,
+        leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
+        rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT
+    });
 }
 
 function spawnShimmer(scene) {
@@ -192,4 +235,41 @@ function update(time, delta) {
     waterOverlay.pipeline.set1f('uTime', time * 0.003);
     waterOverlay.tilePositionX += delta * 0.01;
     waterOverlay.tilePositionY += delta * 0.006;
+
+    if (!character) return;
+
+    let moveX = 0;
+    let moveY = 0;
+
+    if (characterKeys.left.isDown || characterKeys.leftArrow.isDown) {
+        moveX = -1;
+        characterDirection = 'left';
+    } else if (characterKeys.right.isDown || characterKeys.rightArrow.isDown) {
+        moveX = 1;
+        characterDirection = 'right';
+    }
+    
+    if (characterKeys.up.isDown || characterKeys.upArrow.isDown) {
+        moveY = -1;
+        characterDirection = 'back';
+    } else if (characterKeys.down.isDown || characterKeys.downArrow.isDown) {
+        moveY = 1;
+        characterDirection = 'front';
+    }
+
+    const isWalking = moveX !== 0 || moveY !== 0;
+
+    if (isWalking) {
+        character.x += moveX * CHARACTER_SPEED * (delta / 1000);
+        character.y += moveY * CHARACTER_SPEED * (delta / 1000);
+        
+        const walkFrame = Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 2 + 1;
+
+        character.setTexture(`character-${characterDirection}walk${walkFrame}`);
+    } else {
+        character.setTexture(`character-${characterDirection}`);
+    }
+
+    character.x = Math.round(character.x);
+    character.y = Math.round(character.y);
 }
