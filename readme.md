@@ -1,52 +1,59 @@
 # Pixcation
 
-A small Phaser-based pixel-art demo/game prototype. This repository contains a lightweight HTML+JS game using Phaser, a tilemap (`map.json`), and local media assets under `media/`.
+Little pixel world you can walk around in. Phaser 3, no build step, just open it in a browser.
 
-## Contents
-- **index.html** — main development entry (loads Phaser and game assets)
-- **build.html** — production/build preview (if available)
-- **phaser.js** — Phaser library (bundled copy)
-- **map.json** — map/tilemap data used by the demo
-- **map-old.json** — older map backup
-- **media/** — image and character assets (see `media/character/`)
+The world is generated as you move (not loaded from `map.json` — that file is an old painted map / backup from earlier experiments). Almost everything lives in **`phaser.js`**, which is the game itself, not the Phaser engine (the engine comes from the CDN in `index.html`).
 
-## How to run
-Open the project in a local HTTP server (Phaser requires loading assets over HTTP). From the project root run one of the following:
+## Run it
+
+Phaser needs HTTP, not `file://`.
 
 ```bash
-# Python 3
+cd pixcation
 python3 -m http.server 8000
-
-# or using npm http-server (install globally first)
-npm install -g http-server
-http-server -c-1
 ```
 
-Then open http://localhost:8000/ in your browser and load `index.html` or `build.html`.
+Then go to **http://localhost:8000/index.html**
 
-## Development notes
-- The game is built on Phaser. `phaser.js` is included for convenience — you can replace it with a CDN or npm-managed version if you prefer.
-- Tilemap data lives in `map.json`. Edit or regenerate it with your preferred map editor (e.g., Tiled) and keep the format compatible with the loader used in `index.html`.
+`build.html` is a separate map painter for exporting JSON. Handy if you want to doodle tiles, but the live game does not read those maps.
+
+## Controls
+
+- **WASD** or arrow keys — move
+- **Scroll** or **1–9** — hotbar slots (visual for now)
+- **E** — talk to the guide (after your first conversation, walk up and press E when the prompt shows)
+- **M** — world map anywhere; at the shop it opens the market instead
+
+First time you meet the guide, dialogue pops up on its own. After that you get a small hint above the hotbar: `E - Interact with Guide`.
+
+Near the brown store building: `M - see market`. The shop never opens unless you press M.
+
+## What's in the repo
+
+| File | What it is |
+|------|------------|
+| `index.html` | Loads Phaser + `phaser.js`, centers the canvas |
+| `phaser.js` | Game code — world gen, player, guide, store, map, market |
+| `media/` | Tiles, character frames, UI, font, `store.png` / `rod.png` placeholders |
+| `map.json`, `map-old.json` | Unused tilemaps from an older version |
+| `build.html` | Tile editor, not the game |
+
+## Features (current)
+
+- Infinite-ish procedural terrain (grass, dirt, water, bridges, piers, bushes)
+- Chunk streaming around the player, water shader, shore shimmer
+- Guide NPC with dialogue box (pixel font `m6x11`)
+- Placeholder **store** (3×2 tiles) spawned behind the guide on valid terrain
+- **Minimap** — explored tiles only, gray checkerboard for fog, guide marked in blue
+- **Rod shop** — spend coins on placeholder rod icons (swap art in `media/rod.png` later)
 
 ## Assets
-All visual assets are stored in the `media/` folder. Keep asset filenames and relative paths consistent with the loading code in `index.html`.
 
-## Contributing
-- Open an issue for feature requests or bugs.
-- For code changes, fork the repo and open a pull request. Keep changes small and focused.
-
-## License
-This project is provided as-is. Add a `LICENSE` file (for example, MIT) if you want to set an explicit license.
+Keep paths in sync with `preload()` in `phaser.js`. Character walk frames live under `media/character/`.
 
 ## Credits
-- Phaser (https://phaser.io) — game framework
-- Project starter and assets — original author
 
----
+- [Phaser](https://phaser.io)
+- Original art / starter — project author
 
-If you'd like, I can:
-- add a proper `LICENSE` file,
-- wire up a simple build script or npm setup,
-- expand the README with developer-specific notes (controls, map format details).
-
-Tell me which of the above you'd like next.
+No license file yet — add one if you ship this anywhere public.
