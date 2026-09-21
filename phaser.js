@@ -1,3 +1,7 @@
+const APP_CACHE_BUSTER = Date.now();
+
+const withCacheBuster = (path) => `${path}?v=${APP_CACHE_BUSTER}`;
+
 const config = {
     type: Phaser.AUTO,
 
@@ -254,25 +258,25 @@ function preload() {
     characterFrames.forEach(frame => {
         this.load.image(
             `character-${frame}`,
-            `media/character/${frame}.png?v=${assetVersion}`
+            withCacheBuster(`media/character/${frame}.png`)
         )
     });
 
     tileKeys.forEach(tileKey => {
-        this.load.image(tileKey, `media/${tileKey}.png?v=${assetVersion}`);
+        this.load.image(tileKey, withCacheBuster(`media/${tileKey}.png`));
     });
 
-    this.load.image('hotbar', `media/hotbar.png?v=${assetVersion}`);
-    this.load.image('selected', `media/selected.png?v=${assetVersion}`);
-    this.load.image('bush', `media/bush.png?v=${assetVersion}`);
+    this.load.image('hotbar', withCacheBuster('media/hotbar.png'));
+    this.load.image('selected', withCacheBuster('media/selected.png'));
+    this.load.image('bush', withCacheBuster('media/bush.png'));
 
-    this.load.image('guide', `media/guide.png?v=${assetVersion}`);
-    this.load.image('headshot', `media/headshot.png?v=${assetVersion}`);
-    this.load.image('store', `media/store.png?v=${assetVersion}`);
-    this.load.image('rod', `media/rod.png?v=${assetVersion}`);
+    this.load.image('guide', withCacheBuster('media/guide.png'));
+    this.load.image('headshot', withCacheBuster('media/headshot.png'));
+    this.load.image('store', withCacheBuster('media/store.png'));
+    this.load.image('rod', withCacheBuster('media/rod.png'));
 
-    this.load.image('waterOverlay', `media/waterOverlay.png?v=${assetVersion}`);
-    this.load.spritesheet('shimmer', `media/shimmer.png?v=${assetVersion}`, {
+    this.load.image('waterOverlay', withCacheBuster('media/waterOverlay.png'));
+    this.load.spritesheet('shimmer', withCacheBuster('media/shimmer.png'), {
         frameWidth: 12,
         frameHeight: 1
     });

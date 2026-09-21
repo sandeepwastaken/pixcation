@@ -5,15 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pixcation</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script>
+        window.APP_CACHE_BUSTER = Date.now();
+        const fontStyle = document.createElement('style');
+        fontStyle.textContent = `
+            @font-face {
+                font-family: 'm6x11';
+                src: url('media/m6x11plus.ttf?v=${window.APP_CACHE_BUSTER}') format('truetype');
+                font-weight: normal;
+                font-style: normal;
+                font-display: block;
+            }
+        `;
+        document.head.appendChild(fontStyle);
+    </script>
     <style>
-        @font-face {
-            font-family: 'm6x11';
-            src: url('media/m6x11plus.ttf') format('truetype');
-            font-weight: normal;
-            font-style: normal;
-            font-display: block;
-        }
-
         body {
             margin: 0;
             padding: 0;
@@ -28,5 +34,9 @@
 <body>
     <div id="game-container"></div>
 
-    <script src="phaser.js"></script>
+    <script>
+        const phaserScript = document.createElement('script');
+        phaserScript.src = `phaser.js?v=${window.APP_CACHE_BUSTER}`;
+        document.body.appendChild(phaserScript);
+    </script>
 </body>

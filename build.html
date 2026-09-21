@@ -104,6 +104,9 @@
     </div>
 
     <script>
+        const APP_CACHE_BUSTER = Date.now();
+        const withCacheBuster = (path) => `${path}?v=${APP_CACHE_BUSTER}`;
+
         const TILE_SIZE = 16;
         let mapWidth = 20;
         let mapHeight = 12;
@@ -146,7 +149,7 @@
                 button.dataset.tileKey = tileKey;
                 button.title = tileKey;
 
-                image.src = `media/${tileKey}.png`;
+                image.src = withCacheBuster(`media/${tileKey}.png`);
                 image.alt = tileKey;
 
                 button.appendChild(image);
@@ -213,7 +216,7 @@
             const y = Number(cell.dataset.y);
 
             mapData[y][x] = selectedTile;
-            cell.querySelector('img').src = `media/${selectedTile}.png`;
+            cell.querySelector('img').src = withCacheBuster(`media/${selectedTile}.png`);
         }
 
         function renderMap() {
@@ -222,7 +225,7 @@
                 const y = Number(cell.dataset.y);
                 const tileKey = mapData[y][x];
 
-                cell.querySelector('img').src = `media/${tileKey}.png`;
+                cell.querySelector('img').src = withCacheBuster(`media/${tileKey}.png`);
             });
         }
 
