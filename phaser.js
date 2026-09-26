@@ -126,6 +126,7 @@ const worldTileCache = new Map();
 const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
 const discoveredChunks = new Set();
+const pendingChunks = [];
 const chunkCanvasPool = [];
 let chunkCanvasCount = 0;
 let waterPipeline;
@@ -1746,12 +1747,18 @@ function updateLoadedChunks(scene, force = false) {
         }
     }
 
+    pendingChunks.length = 0;
+
     for (let offsetY = -CHUNK_LOAD_RADIUS; offsetY <= CHUNK_LOAD_RADIUS; offsetY++) {
         for (let offsetX = -CHUNK_LOAD_RADIUS; offsetX <= CHUNK_LOAD_RADIUS; offsetX++) {
             const chunkX = centerChunkX + offsetX;
             const chunkY = centerChunkY + offsetY;
 
-            createWorldChunk(scene, chunkX, chunkY);
+            if (force || offsetX === 0 && offsetY === 0) {
+                createWorldChunk(scene, chunkX, chunkY);
+            } else if (!loadedChunks.has(getChunkKey(chunkX, chunkY))) {
+                pendingChunks.push(chunkX, chunkY);
+            }
         }
     }
 
@@ -1767,6 +1774,25 @@ function updateLoadedChunks(scene, force = false) {
     activeChunkX = centerChunkX;
     activeChunkY = centerChunkY;
     visibleChunkLeft = null;
+}
+
+function buildPendingChunk(scene) {
+    while (pendingChunks.length > 0) {
+        const chunkY = pendingChunks.pop();
+        const chunkX = pendingChunks.pop();
+
+        if (
+            Math.abs(chunkX - activeChunkX) > CHUNK_LOAD_RADIUS ||
+            Math.abs(chunkY - activeChunkY) > CHUNK_LOAD_RADIUS ||
+            loadedChunks.has(getChunkKey(chunkX, chunkY))
+        ) {
+            continue;
+        }
+
+        createWorldChunk(scene, chunkX, chunkY);
+        visibleChunkLeft = null;
+        return;
+    }
 }
 
 function updateChunkVisibility() {
@@ -3061,6 +3087,7 @@ function update(time, delta) {
     updateInteractionPrompt(guideIsNear);
 
     updateLoadedChunks(this);
+    buildPendingChunk(this);
     updateCamera(delta);
     updateChunkVisibility();
     updateChunkWater(time);
