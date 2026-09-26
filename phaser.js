@@ -80,6 +80,12 @@ document.fonts.load('16px m6x11').finally(() => {
 
 const TILE_SIZE = 16;
 
+const DIRT_CLIFF_TILES = [
+    ['dirtEdge', 'dirtEdgeOuterRight', 'dirtEdgeInnerRight'],
+    ['dirtEdgeOuterLeft', 'dirtEdgeOuterBoth', 'dirtEdgeOuterLeftInnerRight'],
+    ['dirtEdgeInnerLeft', 'dirtEdgeInnerLeftOuterRight', 'dirtEdgeInnerBoth']
+];
+
 const HOTBAR_X = 43;
 const HOTBAR_Y = 155;
 const HOTBAR_SLOT_SIZE = 26;
@@ -223,6 +229,14 @@ function preload() {
         'cornerDirt2',
         'cornerDirt3',
         'dirtEdgeCorner',
+        'dirtEdgeOuterLeft',
+        'dirtEdgeOuterRight',
+        'dirtEdgeOuterBoth',
+        'dirtEdgeInnerLeft',
+        'dirtEdgeInnerRight',
+        'dirtCliffCorner',
+        'waterDirtInnerLeft',
+        'waterDirtInnerRight',
         'corner',
         'grass1',
         'grass2',
@@ -315,10 +329,109 @@ function createBushSlices(scene) {
     }
 }
 
+function createRoundedCliffTextures(scene) {
+    const source = key => scene.textures.get(key).getSourceImage();
+
+    for (let left = 0; left < DIRT_CLIFF_TILES.length; left++) {
+        for (let right = 0; right < DIRT_CLIFF_TILES[left].length; right++) {
+            const key = DIRT_CLIFF_TILES[left][right];
+
+            if (!scene.textures.exists(key)) {
+                const texture = scene.textures.createCanvas(key, TILE_SIZE, TILE_SIZE);
+                const context = texture.getContext();
+                const half = TILE_SIZE / 2;
+
+                context.drawImage(
+                    source(DIRT_CLIFF_TILES[left][0]),
+                    0, 0, half, TILE_SIZE,
+                    0, 0, half, TILE_SIZE
+                );
+                context.drawImage(
+                    source(DIRT_CLIFF_TILES[0][right]),
+                    half, 0, half, TILE_SIZE,
+                    half, 0, half, TILE_SIZE
+                );
+                texture.refresh();
+            }
+
+            const cliffKey = left === 1 || right === 1 ? `${key}-trimmed` : key;
+
+            if (!scene.textures.exists(cliffKey)) {
+                const texture = scene.textures.createCanvas(cliffKey, TILE_SIZE, TILE_SIZE);
+                const context = texture.getContext();
+                context.drawImage(source(key), 0, 0);
+
+                if (left === 1) {
+                    context.clearRect(0, TILE_SIZE - 1, 2, 1);
+                    context.clearRect(0, TILE_SIZE - 2, 1, 1);
+                }
+
+                if (right === 1) {
+                    context.clearRect(TILE_SIZE - 2, TILE_SIZE - 1, 2, 1);
+                    context.clearRect(TILE_SIZE - 1, TILE_SIZE - 2, 1, 1);
+                }
+
+                texture.refresh();
+            }
+
+            for (const corner of ['cornerDirt1', 'cornerDirt2', 'cornerDirt3']) {
+                const roundedKey = `${cliffKey}-${corner}`;
+                if (scene.textures.exists(roundedKey)) continue;
+
+                const texture = scene.textures.createCanvas(roundedKey, TILE_SIZE, TILE_SIZE);
+                const context = texture.getContext();
+
+                context.drawImage(source(cliffKey), 0, 0);
+                context.clearRect(0, 0, TILE_SIZE, 5);
+                context.drawImage(
+                    source(corner),
+                    0, 0, TILE_SIZE, 5,
+                    0, 0, TILE_SIZE, 5
+                );
+                texture.refresh();
+            }
+        }
+    }
+
+    for (const base of ['waterDirt', 'waterGrass']) {
+        for (const [suffix, left, right] of [
+            ['InnerLeft', true, false],
+            ['InnerRight', false, true],
+            ['InnerBoth', true, true]
+        ]) {
+            const key = `${base}${suffix}`;
+            if (scene.textures.exists(key)) continue;
+
+            const texture = scene.textures.createCanvas(key, TILE_SIZE, TILE_SIZE);
+            const context = texture.getContext();
+            context.drawImage(source(base), 0, 0);
+
+            if (left) {
+                context.drawImage(
+                    source('waterDirtInnerLeft'),
+                    0, 0, 5, TILE_SIZE,
+                    0, 0, 5, TILE_SIZE
+                );
+            }
+
+            if (right) {
+                context.drawImage(
+                    source('waterDirtInnerRight'),
+                    TILE_SIZE - 5, 0, 5, TILE_SIZE,
+                    TILE_SIZE - 5, 0, 5, TILE_SIZE
+                );
+            }
+
+            texture.refresh();
+        }
+    }
+}
+
 function create() {
     worldObjectLayer = this.add.layer().setDepth(3);
     this.game.renderer.pipelines.add('WaterWarp', new WaterWarpPipeline(this.game));
     createBushSlices(this);
+    createRoundedCliffTextures(this);
 
     this.anims.create({
         key: 'shimmer',
@@ -878,17 +991,45 @@ function getTerrainTile(tileX, tileY) {
         patches: []
     };
 
+    if (terrain === 'dirt' && south === 'water') {
+        const left = west === 'water' ? 1
+            : getTerrainType(tileX - 1, tileY + 1) !== 'water' ? 2 : 0;
+        const right = east === 'water' ? 1
+            : getTerrainType(tileX + 1, tileY + 1) !== 'water' ? 2 : 0;
+
+        tile.textureKey = DIRT_CLIFF_TILES[left][right];
+
+        if (left === 1 || right === 1) {
+            tile.baseKey = 'water';
+            tile.textureKey += '-trimmed';
+        }
+    }
+
     if (terrain === 'dirt' && north === 'water') {
         const left = west === 'water';
         const right = east === 'water';
 
         if (left || right) {
             const corner = left && right ? 'cornerDirt3'
-            : left ? 'cornerDirt1' : 'cornerDirt2';
+                : left ? 'cornerDirt1' : 'cornerDirt2';
 
             tile.baseKey = 'water';
-            tile.textureKey = south === 'water' ? `dirtEdge-${corner}` : corner;
+            tile.textureKey = south === 'water'
+                ? `${tile.textureKey}-${corner}` : corner;
+        }
+    }
 
+    if (terrain === 'water' && north !== 'water') {
+        const left = west !== 'water' &&
+            getTerrainType(tileX - 1, tileY - 1) !== 'water';
+        const right = east !== 'water' &&
+            getTerrainType(tileX + 1, tileY - 1) !== 'water';
+
+        if (left || right) {
+            const suffix = left && right ? 'InnerBoth'
+                : left ? 'InnerLeft' : 'InnerRight';
+
+            tile.textureKey = `${tile.key}${suffix}`;
         }
     }
 
@@ -907,25 +1048,32 @@ function getTerrainTile(tileX, tileY) {
             key = 'corner';
             size = 7;
         } else if (
+            terrain === 'grass' &&
+            horizontal === 'dirt' &&
+            vertical === 'dirt'
+        ) {
+            key = 'dirtEdgeCorner';
+            size = 5;
+        } else if (
             terrain === 'water' &&
             horizontal !== 'water' &&
             vertical !== 'water' &&
             getTerrainType(tileX + dx, tileY + dy) !== 'water'
         ) {
-            key = 'dirtEdgeCorner';
+            key = dy < 0 ? 'dirtCliffCorner' : 'dirtEdgeCorner';
             size = 5;
         } else {
             continue;
         }
 
         tile.patches.push({
-            key, 
+            key,
             x: dx < 0 ? 0 : TILE_SIZE - size,
             y: dy < 0 ? 0 : TILE_SIZE - size,
             size,
             flipX: dx > 0,
             flipY: dy > 0
-        })
+        });
     }
 
     return tile;
@@ -938,11 +1086,7 @@ function getWorldTile(tileX, tileY) {
         return worldTileCache.get(key);
     }
 
-    const tile = getBridgeTile(tileX, tileY) ||
-        getPierTile(tileX, tileY) || {
-            key: getTerrainTileKey(tileX, tileY),
-            rotation: 0
-        };
+    const tile = getBridgeTile(tileX, tileY) || getPierTile(tileX, tileY) || getTerrainTile(tileX, tileY);
 
     if (worldTileCache.size >= WORLD_CACHE_LIMIT) {
         worldTileCache.clear();
@@ -961,6 +1105,165 @@ function getChunkKey(chunkX, chunkY) {
     return `${chunkX},${chunkY}`;
 }  
 
+function getTerrainPixels(scene, key) {
+    scene.terrainPixelCache ||= new Map();
+    if (scene.terrainPixelCache.has(key)) return scene.terrainPixelCache.get(key);
+
+    const source = scene.textures.get(key).getSourceImage();
+    const canvas = document.createElement('canvas');
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const context = canvas.getContext('2d');
+    context.drawImage(source, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    scene.terrainPixelCache.set(key, pixels);
+    return pixels;
+}
+
+function getTerrainSurface(scene, tile) {
+    scene.terrainSurfaceCache ||= new Map();
+    const signature = JSON.stringify([
+        tile.key, tile.textureKey, tile.baseKey, tile.rotation, tile.patches
+    ]);
+    if (scene.terrainSurfaceCache.has(signature)) {
+        return scene.terrainSurfaceCache.get(signature);
+    }
+
+    const isWater = tile.key.startsWith('water');
+    const isWood = tile.key.startsWith('wood');
+    const pixels = getTerrainPixels(scene, tile.textureKey || tile.key);
+    const land = new Uint8Array(TILE_SIZE * TILE_SIZE);
+    const water = new Uint8Array(TILE_SIZE * TILE_SIZE);
+
+    for (let index = 0; index < land.length; index++) {
+        const opaque = pixels.data[index * 4 + 3] > 0;
+        land[index] = !isWater && !isWood && opaque ? 1 : 0;
+        water[index] = isWater || tile.baseKey === 'water' && !opaque ? 1 : 0;
+    }
+
+    for (const patch of tile.patches || []) {
+        const pixels = getTerrainPixels(scene, patch.key);
+
+        for (let y = 0; y < pixels.height; y++) {
+            for (let x = 0; x < pixels.width; x++) {
+                const sourceX = patch.flipX ? pixels.width - 1 - x : x;
+                const sourceY = patch.flipY ? pixels.height - 1 - y : y;
+                if (!pixels.data[(sourceY * pixels.width + sourceX) * 4 + 3]) continue;
+
+                const index = (patch.y + y) * TILE_SIZE + patch.x + x;
+                land[index] = 1;
+                water[index] = 0;
+            }
+        }
+    }
+
+    const surface = { signature, land, water };
+    scene.terrainSurfaceCache.set(signature, surface);
+    return surface;
+}
+
+function getShorelineTile(scene, tile, northTile) {
+    scene.shorelineTileCache ||= new Map();
+    const surface = getTerrainSurface(scene, tile);
+    const north = getTerrainSurface(scene, northTile);
+    const signature = `${surface.signature}|${north.signature}`;
+    if (scene.shorelineTileCache.has(signature)) {
+        return scene.shorelineTileCache.get(signature);
+    }
+
+    const textureKey = `shoreline-${scene.shorelineTileCache.size}`;
+    const texture = scene.textures.createCanvas(textureKey, TILE_SIZE, TILE_SIZE);
+    const context = texture.getContext();
+    const image = context.createImageData(TILE_SIZE, TILE_SIZE);
+    const base = getTerrainPixels(scene, 'water');
+    const waterTile = tile.key.startsWith('water') && tile.key !== 'water';
+    const shadowKey = waterTile ? tile.textureKey || tile.key
+        : tile.key.startsWith('grass') || northTile.key.includes('Grass') ||
+            northTile.key.startsWith('grass') ? 'waterGrass' : 'waterDirt';
+    const shadow = getTerrainPixels(scene, shadowKey);
+    const edges = new Uint8Array(TILE_SIZE * TILE_SIZE);
+
+    for (let x = 0; x < TILE_SIZE; x++) {
+        let distance = TILE_SIZE;
+
+        for (let y = TILE_SIZE - 1; y >= 0; y--) {
+            if (north.land[y * TILE_SIZE + x]) {
+                distance = TILE_SIZE - 2 - y;
+                break;
+            }
+        }
+
+        let shadowOffset = 0;
+        if (waterTile) {
+            while (shadowOffset < TILE_SIZE &&
+                surface.land[shadowOffset * TILE_SIZE + x]) {
+                shadowOffset++;
+            }
+        }
+
+        for (let y = 0; y < TILE_SIZE; y++) {
+            const index = y * TILE_SIZE + x;
+
+            if (surface.land[index]) {
+                distance = -1;
+                continue;
+            }
+
+            distance++;
+            if (!surface.water[index]) continue;
+
+            const shadowY = distance + shadowOffset;
+            const shaded = shadowY < TILE_SIZE;
+            const source = shaded ? shadow.data : base.data;
+            const sourceIndex = ((shaded ? shadowY : y) * TILE_SIZE + x) * 4;
+            image.data.set(source.subarray(sourceIndex, sourceIndex + 4), index * 4);
+            edges[index] = distance === 0 ? 1 : 0;
+        }
+    }
+
+    context.putImageData(image, 0, 0);
+    texture.refresh();
+
+    const runs = (mask, mergeRows = false) => {
+        const cells = [];
+        const previous = new Map();
+
+        for (let y = 0; y < TILE_SIZE; y++) {
+            let x = 0;
+
+            while (x < TILE_SIZE) {
+                if (!mask[y * TILE_SIZE + x]) {
+                    x++;
+                    continue;
+                }
+
+                const start = x;
+                while (x < TILE_SIZE && mask[y * TILE_SIZE + x]) x++;
+                const key = `${start},${x - start}`;
+                const above = previous.get(key);
+
+                if (mergeRows && above && above.y + above.height === y) {
+                    above.height++;
+                } else {
+                    const cell = { x: start, y, width: x - start, height: 1 };
+                    cells.push(cell);
+                    previous.set(key, cell);
+                }
+            }
+        }
+
+        return cells;
+    };
+
+    const shoreline = {
+        textureKey,
+        waterCells: runs(surface.water, true),
+        edgeCells: runs(edges)
+    };
+    scene.shorelineTileCache.set(signature, shoreline);
+    return shoreline;
+}
+
 function createWorldChunk(scene, chunkX, chunkY) {
     const key = getChunkKey(chunkX, chunkY);
 
@@ -973,6 +1276,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
 
     const tileSprites = [];
     const waterCells = [];
+    const waterMaskCells = [];
     const edgeCells = [];
 
     for (let localY = 0; localY < CHUNK_SIZE; localY++) {
@@ -983,12 +1287,16 @@ function createWorldChunk(scene, chunkX, chunkY) {
 
             const worldTile = getWorldTile(tileX, tileY);
             const tileKey = worldTile.key;
+            const isWater = tileKey.startsWith('water');
+            const shoreline = isWater || worldTile.baseKey === 'water'
+                ? getShorelineTile(scene, worldTile, getWorldTile(tileX, tileY - 1))
+                : null;
 
             if (worldTile.baseKey) {
                 const baseSprite = scene.add.image(
                     tileX * TILE_SIZE,
                     tileY * TILE_SIZE,
-                    worldTile.baseKey
+                    shoreline ? shoreline.textureKey : worldTile.baseKey
                 )
                     .setOrigin(0)
                     .setDepth(0);
@@ -999,18 +1307,27 @@ function createWorldChunk(scene, chunkX, chunkY) {
             const tileSprite = scene.add.image(
                 tileX * TILE_SIZE + TILE_SIZE / 2,
                 tileY * TILE_SIZE + TILE_SIZE / 2,
-                tileKey
+                isWater ? shoreline.textureKey : worldTile.textureKey || tileKey
             )
                 .setOrigin(0.5)
                 .setRotation(worldTile.rotation)
-                .setDepth(0);
+                .setDepth(worldTile.baseKey === 'water' ? 1.5 : 0);
 
             tileSprites.push(tileSprite);
 
-            if (tileKey === 'waterDirt' || tileKey === 'waterGrass') {
-                const leftExtension = getWorldTileKey(tileX - 1, tileY) === 'water' ? 4 : 0;
-                const rightExtension = getWorldTileKey(tileX + 1, tileY) === 'water' ? 4 : 0;
-                edgeCells.push({x: tileX * TILE_SIZE - leftExtension, y: tileY * TILE_SIZE, width: TILE_SIZE + leftExtension + rightExtension});
+            const patches = worldTile.patches || [];
+
+            for (const patch of patches) {
+                const image = scene.add.image(
+                    tileX * TILE_SIZE + patch.x,
+                    tileY * TILE_SIZE + patch.y,
+                    patch.key
+                )
+                    .setOrigin(0)
+                    .setFlip(patch.flipX, patch.flipY)
+                    .setDepth(1.5);
+
+                tileSprites.push(image);
             }
 
             if (hasBushAt(tileX, tileY)) {
@@ -1028,8 +1345,21 @@ function createWorldChunk(scene, chunkX, chunkY) {
                 }
             }
 
-            if (tileKey.toLowerCase().includes('water')) {
-                waterCells.push({x: tileX * TILE_SIZE, y: tileY * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE});
+            if (shoreline) {
+                const positionCell = cell => ({
+                    ...cell,
+                    x: tileX * TILE_SIZE + cell.x,
+                    y: tileY * TILE_SIZE + cell.y
+                });
+
+                waterMaskCells.push(...shoreline.waterCells.map(positionCell));
+                edgeCells.push(...shoreline.edgeCells.map(positionCell));
+
+                if (isWater) {
+                    waterCells.push(...shoreline.waterCells
+                        .filter(cell => cell.width >= 12)
+                        .map(positionCell));
+                }
             }
         }
     }
@@ -1040,7 +1370,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
     let maskGraphics = null;
     let mask = null;
 
-    if (waterCells.length > 0) {
+    if (waterMaskCells.length > 0) {
         maskGraphics = scene.make.graphics({
             x: 0,
             y: 0,
@@ -1049,7 +1379,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
 
         maskGraphics.fillStyle(0xffffff, 1);
 
-        for (const cell of waterCells) {
+        for (const cell of waterMaskCells) {
             maskGraphics.fillRect(cell.x, cell.y, cell.width, cell.height);
         }
 
