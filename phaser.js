@@ -80,13 +80,6 @@ document.fonts.load('16px m6x11').finally(() => {
 
 const TILE_SIZE = 16;
 
-const DIRT_TRANSITIONS = {
-    3: 'transition1',
-    6: 'transition2',
-    12: 'transition3',
-    9: 'transition4'
-};
-
 const HOTBAR_X = 43;
 const HOTBAR_Y = 155;
 const HOTBAR_SLOT_SIZE = 26;
@@ -143,7 +136,7 @@ const STORE_HEIGHT = STORE_HEIGHT_TILES * TILE_SIZE;
 
 const MARKET_INTERACTION_DISTANCE = 34;
 const MARKET_HIDDEN_Y = -130;
-const PROMPT_Y = HOTBAR_Y - 15;
+const PROMPT_Y = HOTBAR_Y - 25;
 
 const MARKET_RODS = [
     { id: 'basic', label: 'Basic Rod', price: 10 },
@@ -198,8 +191,8 @@ let marketRodImages = [];
 let selectedMarketOption = 0;
 let playerCoins = 100;
 const ownedRods = new Set();
-let interactionPromptLayer;
 
+let interactionPromptLayer;
 let marketPrompt;
 let guidePrompt;
 
@@ -226,6 +219,11 @@ function preload() {
     const tileKeys = [
         'dirt1',
         'dirtEdge',
+        'cornerDirt1',
+        'cornerDirt2',
+        'cornerDirt3',
+        'dirtEdgeCorner',
+        'corner',
         'grass1',
         'grass2',
         'grass3',
@@ -847,13 +845,7 @@ function getTerrainTileKey(tileX, tileY) {
     }
 
     if (terrain === 'dirt') {
-        const grassMask =
-        (getTerrainType(tileX, tileY - 1) === 'grass' ? 1 : 0) |
-        (getTerrainType(tileX + 1, tileY) === 'grass' ? 2 : 0) |
-        (getTerrainType(tileX, tileY + 1) === 'grass' ? 4 : 0) |
-        (getTerrainType(tileX - 1, tileY) === 'grass' ? 8 : 0);
-
-        return DIRT_TRANSITIONS[grassMask] || 'dirt1';
+        return 'dirt1';
     }
 
     const decoration = worldHash(tileX, tileY, 670);
@@ -871,6 +863,72 @@ function getTerrainTileKey(tileX, tileY) {
     }
 
     return 'grass1';
+}
+
+function getTerrainTile(tileX, tileY) {
+    const terrain = getTerrainType(tileX, tileY);
+    const north = getTerrainType(tileX, tileY - 1);
+    const south = getTerrainType(tileX, tileY + 1);
+    const west = getTerrainType(tileX - 1, tileY);
+    const east = getTerrainType(tileX + 1, tileY);
+
+    const tile = {
+        key: getTerrainTileKey(tileX, tileY),
+        rotation: 0,
+        patches: []
+    };
+
+    if (terrain === 'dirt' && north === 'water') {
+        const left = west === 'water';
+        const right = east === 'water';
+
+        if (left || right) {
+            const corner = left && right ? 'cornerDirt3'
+            : left ? 'cornerDirt1' : 'cornerDirt2';
+
+            tile.baseKey = 'water';
+            tile.textureKey = south === 'water' ? `dirtEdge-${corner}` : corner;
+
+        }
+    }
+
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        const horizontal = dx < 0 ? west : east;
+        const vertical = dy < 0 ? north : south;
+
+        let key;
+        let size;
+
+        if (
+            terrain === 'dirt' &&
+            horizontal === 'grass' &&
+            vertical === 'grass'
+        ) {
+            key = 'corner';
+            size = 7;
+        } else if (
+            terrain === 'water' &&
+            horizontal !== 'water' &&
+            vertical !== 'water' &&
+            getTerrainType(tileX + dx, tileY + dy) !== 'water'
+        ) {
+            key = 'dirtEdgeCorner';
+            size = 5;
+        } else {
+            continue;
+        }
+
+        tile.patches.push({
+            key, 
+            x: dx < 0 ? 0 : TILE_SIZE - size,
+            y: dy < 0 ? 0 : TILE_SIZE - size,
+            size,
+            flipX: dx > 0,
+            flipY: dy > 0
+        })
+    }
+
+    return tile;
 }
 
 function getWorldTile(tileX, tileY) {
@@ -1502,27 +1560,63 @@ function handleMapKey(scene, event) {
 }
 
 function createInteractionPromptUI(scene) {
-    const textLayer = document.createElement('div');
+    const wrapper = document.createElement('div');
+    const row = document.createElement('div');
+    wrapper.appendChild(row);
 
-    Object.assign(textLayer.style, {
-        position: 'relative',
+    Object.assign(row.style, {
         width: '320px',
-        height: '12px',
-        fontFamily: 'm6x11',
-        fontSize: '16px',
+        height: '18px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '6px',
+        pointerEvents: 'none',
+        fontFamily: 'm6x11, monospace',
+        fontSize: '11px',
         lineHeight: '11px',
-        textAlign: 'center',
-        color: '#d1edf1',
-        textRendering: 'geometricPrecision',
-        WebkitFontSmoothing: 'antialiased',
-        pointerEvents: 'none'
+        color: '#f4f1de',
+        whiteSpace: 'nowrap',
     });
 
-    interactionPromptText = document.createElement('div');
-    interactionPromptText.textContent = '';
-    textLayer.appendChild(interactionPromptText);
+    const makePrompt = (key, label) => {
+        const box = document.createElement('div');
 
-    interactionPromptLayer = scene.add.dom(0, PROMPT_Y, textLayer)
+        Object.assign(box.style, {
+            display: 'none',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '3px 6px',
+            background: 'rgba(0, 0, 0, 0.5)',
+            borderRadius: '2px',
+            boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)'
+        });
+
+        const keycap = document.createElement('span');
+        keycap.textContent = key;
+
+        Object.assign(keycap.style, {
+            display: 'inline-block',
+            textAlign: 'center',
+            minWidth: '10px',
+            color: '#fff',
+            background: 'rgba(255, 255, 255, 0.14)',
+            borderRadius: '1px'
+        });
+
+        const text = document.createElement('span');
+        text.textContent = label;
+
+        box.append(keycap, text);
+        row.appendChild(box);
+
+        return box;
+    };
+
+    marketPrompt = makePrompt('M', 'Market');
+    guidePrompt = makePrompt('E', 'Talk to the Guide');
+
+    interactionPromptLayer = scene.add.dom(0, PROMPT_Y, wrapper)
         .setOrigin(0)
         .setDepth(103)
         .setScrollFactor(0)
@@ -1530,28 +1624,16 @@ function createInteractionPromptUI(scene) {
 }
 
 function updateInteractionPrompt() {
-    if (!interactionPromptLayer || !interactionPromptText) {
-        return;
-    }
+    if (!interactionPromptLayer || !marketPrompt || !guidePrompt) return;
 
-    if (dialogueOpen || mapOpen || marketOpen) {
-        interactionPromptLayer.setVisible(false);
-        return;
-    }
+    const availible = !dialogueOpen && !marketOpen && !mapOpen;
+    const showMarket = availible && isMarketNear();
+    const showGuide = availible && guideHasMetPlayer && isGuideNear();
 
-    if (store && isMarketNear()) {
-        interactionPromptText.textContent = 'M - see market';
-        interactionPromptLayer.setVisible(true);
-        return;
-    }
+    marketPrompt.style.display = showMarket ? 'flex' : 'none';
+    guidePrompt.style.display = showGuide ? 'flex' : 'none';
 
-    if (guide && guideHasMetPlayer && isGuideNear()) {
-        interactionPromptText.textContent = 'E - Interact with Guide';
-        interactionPromptLayer.setVisible(true);
-        return;
-    }
-
-    interactionPromptLayer.setVisible(false);
+    interactionPromptLayer.setVisible(showMarket || showGuide);
 }
 
 function createMarketUI(scene) {
