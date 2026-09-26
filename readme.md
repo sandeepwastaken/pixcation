@@ -21,12 +21,10 @@ Then go to **http://localhost:8000/index.html**
 
 - **WASD** or arrow keys — move
 - **Scroll** or **1–9** — hotbar slots (visual for now)
-- **E** — talk to the guide (after your first conversation, walk up and press E when the prompt shows)
-- **M** — world map anywhere; at the shop it opens the market instead
+- **E** — interact with whatever is closest (the guide or the shop); also closes the shop
+- **M** — world map, anywhere
 
-First time you meet the guide, dialogue pops up on its own. After that you get a small hint above the hotbar: `E - Interact with Guide`.
-
-Near the brown store building: `M - see market`. The shop never opens unless you press M.
+First time you meet the guide, dialogue pops up on its own. After that, walking up to the guide or the brown store shows a small hint above the hotbar (`E Talk to the Guide` / `E Market`).
 
 ## What's in the repo
 

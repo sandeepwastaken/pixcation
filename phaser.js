@@ -634,16 +634,19 @@ function create() {
         }
 
         if (event.key.toLowerCase() === 'm') {
-            if (isMarketNear()) {
-                openMarket(this);
-            } else {
-                openMap(this);
-            }
+            openMap(this);
             return;
         }
 
-        if (event.key.toLowerCase() === 'e' && isGuideNear()) {
-            openGuideDialogue(this);
+        if (event.key.toLowerCase() === 'e') {
+            const target = getInteractionTarget(true);
+
+            if (target === 'guide') {
+                openGuideDialogue(this);
+            } else if (target === 'market') {
+                openMarket(this);
+            }
+
             return;
         }
 
@@ -2340,7 +2343,7 @@ function createInteractionPromptUI(scene) {
         return box;
     };
 
-    marketPrompt = makePrompt('M', 'Market');
+    marketPrompt = makePrompt('E', 'Market');
     guidePrompt = makePrompt('E', 'Talk to the Guide');
 
     interactionPromptLayer = scene.add.dom(0, PROMPT_Y, wrapper)
@@ -2354,8 +2357,11 @@ function updateInteractionPrompt(guideIsNear) {
     if (!interactionPromptLayer || !marketPrompt || !guidePrompt) return;
 
     const available = !dialogueOpen && !marketOpen && !mapOpen;
-    const showMarket = available && isMarketNear();
-    const showGuide = available && guideHasMetPlayer && guideIsNear;
+    const target = available && (guideIsNear || isMarketNear())
+        ? getInteractionTarget(guideHasMetPlayer)
+        : null;
+    const showMarket = target === 'market';
+    const showGuide = target === 'guide';
 
     const state = (showMarket ? 1 : 0) | (showGuide ? 2 : 0);
 
@@ -2472,7 +2478,7 @@ function createMarketUI(scene) {
         gap: '12px'
     });
 
-    for (const [key, label] of [['W/S', 'Select'], ['Enter', 'Buy'], ['Esc', 'Close']]) {
+    for (const [key, label] of [['W/S', 'Select'], ['Enter', 'Buy'], ['E', 'Close']]) {
         const hint = document.createElement('span');
         const keycap = document.createElement('span');
 
@@ -2707,31 +2713,67 @@ function handleMarketKey(scene, event) {
         return;
     }
 
-    if (key === 'm' || event.key === 'Escape') {
+    if (key === 'e' || event.key === 'Escape') {
         closeMarket(scene);
     }
 }
 
-function isMarketNear() {
+function getMarketReach() {
     if (!store) {
-        return false;
+        return Infinity;
     }
 
     const x = character.x + CHARACTER_SIZE / 2 - store.x - STORE_WIDTH / 2;
     const y = character.y + CHARACTER_SIZE / 2 - store.y - STORE_HEIGHT / 2;
 
-    return x * x + y * y < MARKET_INTERACTION_DISTANCE_SQUARED;
+    return (x * x + y * y) / MARKET_INTERACTION_DISTANCE_SQUARED;
 }
 
-function isGuideNear() {
+function getGuideReach() {
     if (!guide) {
-        return false;
+        return Infinity;
     }
 
     const x = character.x - guide.x;
     const y = character.y - guide.y;
 
-    return x * x + y * y < GUIDE_INTERACTION_DISTANCE_SQUARED;
+    return (x * x + y * y) / GUIDE_INTERACTION_DISTANCE_SQUARED;
+}
+
+function isMarketNear() {
+    return getMarketReach() < 1;
+}
+
+function isGuideNear() {
+    return getGuideReach() < 1;
+}
+
+function getFacingPenalty(targetX, targetY) {
+    const x = targetX - character.x - CHARACTER_SIZE / 2;
+    const y = targetY - character.y - CHARACTER_SIZE / 2;
+    const along = characterDirection === 'left' ? -x
+        : characterDirection === 'right' ? x
+        : characterDirection === 'back' ? -y
+        : y;
+
+    return along > 0 && along * along * 2 >= x * x + y * y ? 0 : 1;
+}
+
+function getInteractionTarget(guideAvailable) {
+    const guideReach = guideAvailable ? getGuideReach() : Infinity;
+    const marketReach = getMarketReach();
+
+    if (guideReach >= 1 && marketReach >= 1) {
+        return null;
+    }
+
+    if (guideReach >= 1) return 'market';
+    if (marketReach >= 1) return 'guide';
+
+    const guideScore = guideReach + getFacingPenalty(guide.x + GUIDE_SIZE / 2, guide.y + GUIDE_SIZE / 2);
+    const marketScore = marketReach + getFacingPenalty(store.x + STORE_WIDTH / 2, store.y + STORE_HEIGHT / 2);
+
+    return guideScore <= marketScore ? 'guide' : 'market';
 }
 
 function refreshGuideDialogueOptions() {
