@@ -72,10 +72,14 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                 }
 
                 float caustic(vec2 p) {
-                    return texture2D(uMainSampler, (mod(p, 32.0) + 0.5) / 32.0).a;
+                    return texture2D(uMainSampler, (mod(p, 32.0) + 0.5) / 256.0).g;
                 }
 
                 void main() {
+                    if (texture2D(uMainSampler, outTexCoord).r < 0.5) {
+                        discard;
+                    }
+
                     vec2 p = floor(vec2(gl_FragCoord.x, uViewHeight - gl_FragCoord.y)) + uScroll;
                     float t = uTime;
 
@@ -1457,6 +1461,24 @@ function getShorelineTile(scene, tile, northTile) {
     return shoreline;
 }
 
+function getWaterMaskBase(scene) {
+    if (scene.waterMaskBase) return scene.waterMaskBase;
+
+    const pattern = getTerrainPixels(scene, 'waterOverlay');
+    const base = new Uint8ClampedArray(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE * 4);
+
+    for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
+        for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
+            const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
+            base[index + 1] = pattern.data[((y % pattern.height) * pattern.width + x % pattern.width) * 4 + 3];
+            base[index + 3] = 255;
+        }
+    }
+
+    scene.waterMaskBase = base;
+    return base;
+}
+
 function acquireChunkCanvas(scene) {
     const texture = chunkCanvasPool.pop() || scene.textures.createCanvas(
         `chunk-canvas-${chunkCanvasCount++}`,
@@ -1669,29 +1691,35 @@ function createWorldChunk(scene, chunkX, chunkY) {
     }
 
     let overlay = null;
-    let maskGraphics = null;
-    let mask = null;
+    let waterTexture = null;
 
     if (waterMaskCells.length > 0) {
-        maskGraphics = scene.make.graphics({
-            x: 0,
-            y: 0,
-            add: false
-        });
+        waterTexture = acquireChunkCanvas(scene);
+        const context = waterTexture.getContext();
+        const image = context.createImageData(CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
+        const data = image.data;
 
-        maskGraphics.fillStyle(0xffffff, 1);
+        data.set(getWaterMaskBase(scene));
 
         for (const cell of waterMaskCells) {
-            maskGraphics.fillRect(cell.x, cell.y, cell.width, cell.height);
+            const localX = cell.x - pixelX;
+            const localY = cell.y - pixelY;
+
+            for (let y = localY; y < localY + cell.height; y++) {
+                let index = (y * CHUNK_PIXEL_SIZE + localX) * 4;
+
+                for (let x = 0; x < cell.width; x++, index += 4) {
+                    data[index] = 255;
+                }
+            }
         }
 
-        mask = maskGraphics.createGeometryMask();
+        context.putImageData(image, 0, 0);
+        waterTexture.refresh();
 
-        overlay = scene.add.image(pixelX, pixelY, 'waterOverlay')
+        overlay = scene.add.image(pixelX, pixelY, waterTexture.key)
             .setOrigin(0)
-            .setDisplaySize(CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE)
             .setDepth(1)
-            .setMask(mask)
             .setPipeline('WaterWarp');
     }
 
@@ -1711,8 +1739,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
         visible: true,
         shimmers: [],
         overlay,
-        maskGraphics,
-        mask
+        waterTexture
     };
 
     loadedChunks.set(key, chunk);
@@ -1760,12 +1787,8 @@ function destroyWorldChunk(key) {
         chunk.edgeShimmer.destroy();
     }
 
-    if (chunk.mask) {
-        chunk.mask.destroy();
-    }
-
-    if (chunk.maskGraphics) {
-        chunk.maskGraphics.destroy();
+    if (chunk.waterTexture) {
+        chunkCanvasPool.push(chunk.waterTexture);
     }
 
     loadedWaterChunks.delete(chunk);
