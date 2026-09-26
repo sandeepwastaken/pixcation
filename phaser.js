@@ -175,6 +175,7 @@ const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
 const discoveredChunks = new Set();
 const pendingChunks = [];
+const shimmerPool = [];
 const chunkCanvasPool = [];
 let chunkCanvasCount = 0;
 let waterPipeline;
@@ -1730,8 +1731,9 @@ function destroyWorldChunk(key) {
         return;
     }
 
-    for (const shimmer of chunk.shimmers) {
-        shimmer.destroy();
+    for (const shimmer of chunk.shimmers.slice()) {
+        shimmer.off(Phaser.Animations.Events.ANIMATION_COMPLETE);
+        releaseShimmer(chunk, shimmer);
     }
 
     for (const tileSprite of chunk.tileSprites) {
@@ -1938,37 +1940,45 @@ function updateEdgeShimmers(time) {
     }
 }
 
-function spawnShimmer(scene) {
-    const waterChunks = Array.from(loadedShimmerChunks);
+function releaseShimmer(chunk, shimmer) {
+    const index = chunk.shimmers.indexOf(shimmer);
 
-    if (waterChunks.length === 0) {
+    if (index !== -1) {
+        chunk.shimmers.splice(index, 1);
+    }
+
+    shimmer.stop().setVisible(false).setActive(false);
+    shimmerPool.push(shimmer);
+}
+
+function spawnShimmer(scene) {
+    if (loadedShimmerChunks.size === 0) {
         return;
     }
 
-    const chunk = Phaser.Utils.Array.GetRandom(waterChunks);
+    let pick = Math.floor(Math.random() * loadedShimmerChunks.size);
+    let chunk;
 
-    const cell = Phaser.Utils.Array.GetRandom(chunk.waterCells);
+    for (chunk of loadedShimmerChunks) {
+        if (pick-- === 0) break;
+    }
 
-    const shimmer = scene.add.sprite(
-        cell.x + Phaser.Math.Between(0, cell.width - 12),
-        cell.y + Phaser.Math.Between(0, cell.height - 1),
-        'shimmer'
-    )
+    const cell = chunk.waterCells[Math.floor(Math.random() * chunk.waterCells.length)];
+    const shimmer = shimmerPool.pop() || scene.add.sprite(0, 0, 'shimmer')
         .setOrigin(0)
-        .setDepth(2)
-        .setBlendMode(Phaser.BlendModes.NORMAL);
+        .setDepth(2);
+
+    shimmer
+        .setPosition(
+            cell.x + Phaser.Math.Between(0, cell.width - 12),
+            cell.y + Phaser.Math.Between(0, cell.height - 1)
+        )
+        .setVisible(true)
+        .setActive(true);
 
     chunk.shimmers.push(shimmer);
-
     shimmer.play('shimmer');
-
-    shimmer.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-        const index = chunk.shimmers.indexOf(shimmer);
-        if (index !== -1) {
-            chunk.shimmers.splice(index, 1);
-        }
-        shimmer.destroy();
-    });
+    shimmer.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => releaseShimmer(chunk, shimmer));
 }
 
 function hasBushAt(tileX, tileY) {
