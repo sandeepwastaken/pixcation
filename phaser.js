@@ -207,6 +207,7 @@ let character;
 let characterKeys;
 let characterDirection = 'front';
 let horizontalPriority = 0;
+let lastMenuWheelTime = -Infinity;
 let verticalPriority = 0;
 
 const CHARACTER_SIZE = 16;
@@ -601,8 +602,21 @@ function create() {
     };
 
     this.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
-        if (!dialogueOpen && !mapOpen && !marketOpen) {
-            selectHotBarSlot(selectedHotbarSlot + Math.sign(deltaY));
+        const step = Math.sign(deltaY);
+
+        if (!step) return;
+
+        if (marketOpen || dialogueOpen) {
+            if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
+            lastMenuWheelTime = pointer.event.timeStamp;
+        }
+
+        if (marketOpen) {
+            moveMarketSelection(step);
+        } else if (dialogueOpen) {
+            moveGuideDialogueSelection(step);
+        } else if (!mapOpen) {
+            selectHotBarSlot(selectedHotbarSlot + step);
         }
     });
 
@@ -2131,6 +2145,8 @@ function createGuideDialogueUI(scene) {
     .setDepth(201)
     .setScrollFactor(0)
     .setVisible(false);
+
+    dialogueTextLayer.pointerEvents = 'none';
 }
 
 function createMapUI(scene) {
@@ -2351,6 +2367,8 @@ function createInteractionPromptUI(scene) {
         .setDepth(103)
         .setScrollFactor(0)
         .setVisible(false);
+
+    interactionPromptLayer.pointerEvents = 'none';
 }
 
 function updateInteractionPrompt(guideIsNear) {
@@ -2518,6 +2536,8 @@ function createMarketUI(scene) {
     .setDepth(204)
     .setScrollFactor(0)
     .setVisible(false);
+
+    marketTextLayer.pointerEvents = 'none';
 
     refreshMarketOptions();
 }
@@ -2964,7 +2984,8 @@ function handleGuideDialogueKey(scene, event) {
 
     if (
         event.key === 'Enter' ||
-        event.code === 'Space'
+        event.code === 'Space' ||
+        key === 'e'
     ) {
         selectGuideDialogueOption(scene);
         return;
