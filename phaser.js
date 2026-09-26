@@ -37,34 +37,82 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
         super({
             game,
             fragShader: `
+                #ifdef GL_FRAGMENT_PRECISION_HIGH
+                precision highp float;
+                #else
                 precision mediump float;
+                #endif
 
                 uniform sampler2D uMainSampler;
                 uniform float uTime;
-                uniform float uOpacity;
+                uniform vec2 uScroll;
+                uniform float uViewHeight;
                 varying vec2 outTexCoord;
                 varying vec4 outTint;
 
+                float hash(vec2 p) {
+                    p = mod(p, 289.0);
+                    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+                }
+
+                float noise(vec2 x) {
+                    vec2 i = floor(x);
+                    vec2 f = fract(x);
+                    f = f * f * (3.0 - 2.0 * f);
+                    return mix(
+                        mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+                        mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+                        f.y
+                    );
+                }
+
+                float fbm(vec2 x) {
+                    vec2 r = mat2(0.8, -0.6, 0.6, 0.8) * x;
+                    return noise(r) * 0.65 + noise(mat2(0.8, 0.6, -0.6, 0.8) * x * 2.03 + vec2(7.3, 2.9)) * 0.35;
+                }
+
+                float caustic(vec2 p) {
+                    return texture2D(uMainSampler, (mod(p, 32.0) + 0.5) / 32.0).a;
+                }
+
                 void main() {
-                    vec2 grid = vec2(256.0);
-                    vec2 pixel = floor(outTexCoord * grid);
-                    float waveX =
-                        sin(pixel.y * 0.04908738521 + uTime * 0.65) +
-                        sin((pixel.x + pixel.y) * 0.02454369261 - uTime * 0.27);
-                    float waveY =
-                        cos(pixel.x * 0.04908738521 - uTime * 0.55) +
-                        cos((pixel.x - pixel.y) * 0.02454369261 + uTime * 0.31);
-                    vec2 warp = floor(vec2(waveX, waveY) * 0.55 + 0.5);
-                    float light =
-                        sin((pixel.x + pixel.y * 2.0) * 0.09817477042 + uTime * 0.35) * 0.5 +
-                        cos((pixel.x * 3.0 - pixel.y) * 0.04908738521 - uTime * 0.28) * 0.35 +
-                        sin((pixel.x * 5.0 + pixel.y * 3.0) * 0.02454369261 + uTime * 0.18) * 0.15;
-                    float brightness = 0.7 + floor((light + 1.0) * 4.0) * 0.0625;
-                    vec2 uv = (pixel + warp + 0.5) / grid;
-                    vec4 color = texture2D(uMainSampler, uv);
-                    color.rgb *= outTint.rgb * uOpacity * brightness;
-                    color.a = 1.0;
-                    gl_FragColor = color;
+                    vec2 p = floor(vec2(gl_FragCoord.x, uViewHeight - gl_FragCoord.y)) + uScroll;
+                    float t = uTime;
+
+                    vec2 swell = p * 0.011 + vec2(t * 0.045, -t * 0.03);
+                    vec2 warp = vec2(noise(swell), noise(swell + vec2(31.7, 11.3))) - 0.5;
+                    float strength = 4.0 + 12.0 * noise(p * 0.007 + vec2(-t * 0.025, t * 0.02));
+                    vec2 rippleField = p * 0.06 + vec2(t * 0.4, t * 0.27);
+                    vec2 ripple = vec2(noise(rippleField), noise(rippleField + vec2(5.2, 1.3))) - 0.5;
+                    vec2 offset = warp * strength + ripple * 3.0;
+
+                    float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
+                    float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
+                    float dither = (mod(p.x + p.y, 2.0) - 0.5) * 0.016;
+                    float depth = fbm(p * 0.012 + warp * 1.2 + vec2(t * 0.03, t * 0.01)) + dither;
+                    float light = fbm(p * 0.021 - warp * 0.9 + vec2(-t * 0.06, t * 0.04)) + dither;
+
+                    vec4 color = vec4(0.0);
+
+                    if (depth < 0.34) {
+                        color = vec4(0.231, 0.357, 0.604, 0.32);
+                    } else if (depth < 0.44) {
+                        color = vec4(0.231, 0.357, 0.604, 0.16);
+                    } else if (depth > 0.66) {
+                        color = vec4(0.529, 0.745, 0.847, 0.12);
+                    }
+
+                    float shallow = light + (depth - 0.5) * 0.5;
+
+                    if (first > 0.9 && second > 0.9 && shallow > 0.6) {
+                        color = vec4(0.82, 0.93, 0.945, 0.8);
+                    } else if (first > 0.9 && shallow > 0.555) {
+                        color = vec4(0.529, 0.745, 0.847, shallow > 0.62 ? 0.42 : 0.24);
+                    } else if (first > 0.4 && shallow > 0.63) {
+                        color = vec4(0.529, 0.745, 0.847, 0.16);
+                    }
+
+                    gl_FragColor = vec4(color.rgb * color.a, color.a);
                 }
             `
         });
@@ -597,12 +645,12 @@ function create() {
     createMarketUI(this);
     createInteractionPromptUI(this);
 
-    for (let index = 0; index < 10; index++) {
+    for (let index = 0; index < 20; index++) {
         spawnShimmer(this);
     }
 
     this.time.addEvent({
-        delay: 450,
+        delay: 225,
         callback: () => spawnShimmer(this),
         loop: true
     });
@@ -1628,22 +1676,12 @@ function createWorldChunk(scene, chunkX, chunkY) {
 
         mask = maskGraphics.createGeometryMask();
 
-        overlay = scene.add.tileSprite(
-            pixelX,
-            pixelY,
-            CHUNK_PIXEL_SIZE,
-            CHUNK_PIXEL_SIZE,
-            'waterOverlay'
-        )
+        overlay = scene.add.image(pixelX, pixelY, 'waterOverlay')
             .setOrigin(0)
+            .setDisplaySize(CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE)
             .setDepth(1)
-            .setAlpha(1)
-            .setBlendMode(Phaser.BlendModes.SCREEN)
-            .setMask(mask);
-
-        overlay.setPipeline('WaterWarp');
-
-        overlay.pipeline.set1f('uOpacity', 0.2);
+            .setMask(mask)
+            .setPipeline('WaterWarp');
     }
 
     const chunk = {
@@ -1840,16 +1878,11 @@ function updateChunkVisibility() {
 }
 
 function updateChunkWater(time) {
-    if (waterPipeline) {
-        waterPipeline.set1f('uTime', time * 0.003);
-    }
+    if (!waterPipeline || loadedWaterChunks.size === 0) return;
 
-    for (const chunk of loadedWaterChunks) {
-        if (!chunk.visible) continue;
-
-        chunk.overlay.tilePositionX = time * 0.01;
-        chunk.overlay.tilePositionY = time * 0.006;
-    }
+    waterPipeline.set1f('uTime', time / 1000);
+    waterPipeline.set2f('uScroll', mainCamera.scrollX, mainCamera.scrollY);
+    waterPipeline.set1f('uViewHeight', mainCamera.height);
 }
 
 function getEdgeShimmerColor(pixelX, pixelY, frame) {
