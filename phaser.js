@@ -199,6 +199,7 @@ const CHARACTER_HITBOX_X = 4;
 const CHARACTER_HITBOX_Y = 12;
 const CHARACTER_HITBOX_WIDTH = 8;
 const CHARACTER_HITBOX_HEIGHT = 4;
+const CHARACTER_CORNER_NUDGE = 4;
 
 const GUIDE_SIZE = 16;
 const GUIDE_INTERACTION_DISTANCE = 26;
@@ -3016,6 +3017,50 @@ function canCharacterOccupy(scene, x, y) {
     return true;
 }
 
+function stepCharacter(scene, stepX, stepY, allowNudge) {
+    if (canCharacterOccupy(scene, character.x + stepX, character.y + stepY)) {
+        character.x += stepX;
+        character.y += stepY;
+        return true;
+    }
+
+    if (!allowNudge) {
+        return false;
+    }
+
+    for (let offset = 1; offset <= CHARACTER_CORNER_NUDGE; offset++) {
+        for (let side = -1; side <= 1; side += 2) {
+            const nudgeX = stepX === 0 ? side * offset : 0;
+            const nudgeY = stepY === 0 ? side * offset : 0;
+
+            if (
+                canCharacterOccupy(scene, character.x + nudgeX + stepX, character.y + nudgeY + stepY) &&
+                canCharacterOccupy(scene, character.x + Math.sign(nudgeX), character.y + Math.sign(nudgeY))
+            ) {
+                character.x += Math.sign(nudgeX);
+                character.y += Math.sign(nudgeY);
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+function moveCharacterAxis(scene, amountX, amountY, allowNudge) {
+    const steps = Math.abs(amountX + amountY);
+    const stepX = Math.sign(amountX);
+    const stepY = Math.sign(amountY);
+
+    for (let step = 0; step < steps; step++) {
+        if (!stepCharacter(scene, stepX, stepY, allowNudge)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 function followCameraAxis(offset, lag) {
     return Math.abs(lag - offset) > 0.6 ? Math.round(lag) : offset;
 }
@@ -3077,26 +3122,22 @@ function update(time, delta) {
     const isWalking = moveX !== 0 || moveY !== 0;
 
     if (isWalking) {
-        characterMoveRemainderX += moveX * CHARACTER_SPEED * delta / 1000;
-        characterMoveRemainderY += moveY * CHARACTER_SPEED * delta / 1000;
+        const distance = CHARACTER_SPEED * Math.min(delta, 50) / 1000 *
+            (moveX !== 0 && moveY !== 0 ? Math.SQRT1_2 : 1);
+
+        characterMoveRemainderX += moveX * distance;
+        characterMoveRemainderY += moveY * distance;
         const wholeMoveX = Math.trunc(characterMoveRemainderX);
         const wholeMoveY = Math.trunc(characterMoveRemainderY);
 
         characterMoveRemainderX -= wholeMoveX;
         characterMoveRemainderY -= wholeMoveY;
 
-        const nextX = character.x + wholeMoveX;
-        const nextY = character.y + wholeMoveY;
-
-        if (!wholeMoveX || canCharacterOccupy(this, nextX, character.y)) {
-            character.x = nextX;
-        } else {
+        if (!moveCharacterAxis(this, wholeMoveX, 0, moveY === 0)) {
             characterMoveRemainderX = 0;
         }
 
-        if (!wholeMoveY || canCharacterOccupy(this, character.x, nextY)) {
-            character.y = nextY;
-        } else {
+        if (!moveCharacterAxis(this, 0, wholeMoveY, moveX === 0)) {
             characterMoveRemainderY = 0;
         }
 
