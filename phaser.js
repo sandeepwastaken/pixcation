@@ -175,7 +175,16 @@ const STORE_HITBOX_HEIGHT = 8;
 
 const MARKET_INTERACTION_DISTANCE = 34;
 const MARKET_INTERACTION_DISTANCE_SQUARED = MARKET_INTERACTION_DISTANCE ** 2;
-const MARKET_HIDDEN_Y = -130;
+const MARKET_HEIGHT = 142;
+const MARKET_HIDDEN_Y = -MARKET_HEIGHT;
+const MARKET_DIVIDER_Y = 19;
+const MARKET_LIST_X = 12;
+const MARKET_LIST_Y = 24;
+const MARKET_LIST_WIDTH = 160;
+const MARKET_ROW_HEIGHT = 24;
+const MARKET_DETAIL_X = 178;
+const MARKET_DETAIL_WIDTH = 130;
+const MARKET_FOOTER_Y = 126;
 const PROMPT_Y = HOTBAR_Y - 25;
 
 const MARKET_RODS = [
@@ -183,6 +192,7 @@ const MARKET_RODS = [
     { id: 'sturdy', label: 'Sturdy Rod', price: 25 },
     { id: 'iron', label: 'Iron Rod', price: 50 }
 ];
+const MARKET_ROW_COUNT = MARKET_RODS.length + 1;
 
 const GUIDE_DIALOGUE = {
     intro: {
@@ -228,6 +238,13 @@ let marketTextLayer;
 let marketOptionTexts = [];
 let marketMessageText;
 let marketRodImages = [];
+let marketPriceTexts = [];
+let marketHighlight;
+let marketDetailImage;
+let marketDetailName;
+let marketDetailStatus;
+let marketDetailAction;
+let marketFeedback = null;
 let selectedMarketOption = 0;
 let playerCoins = 100;
 const ownedRods = new Set();
@@ -2298,26 +2315,47 @@ function createMarketUI(scene) {
 
     panel
         .fillStyle(0x230a03, 1)
-        .fillRect(5, 0, 310, 130)
+        .fillRect(5, 0, 310, MARKET_HEIGHT)
         .fillStyle(0xacccf9, 1)
-        .fillRect(6, 1, 308, 128)
+        .fillRect(6, 1, 308, MARKET_HEIGHT - 2)
         .fillStyle(0x465989, 1)
-        .fillRect(7, 2, 306, 126)
+        .fillRect(7, 2, 306, MARKET_HEIGHT - 4)
         .fillStyle(0x36160d, 1)
-        .fillRect(8, 3, 304, 124);
+        .fillRect(8, 3, 304, MARKET_HEIGHT - 6)
+        .fillStyle(0x465989, 1)
+        .fillRect(12, MARKET_DIVIDER_Y, 296, 1)
+        .fillRect(12, MARKET_FOOTER_Y - 3, 296, 1)
+        .fillStyle(0x230a03, 1)
+        .fillRect(MARKET_DETAIL_X, MARKET_LIST_Y, MARKET_DETAIL_WIDTH, MARKET_ROW_HEIGHT * MARKET_ROW_COUNT - 2)
+        .fillStyle(0x2a0f07, 1)
+        .fillRect(MARKET_DETAIL_X + 1, MARKET_LIST_Y + 1, MARKET_DETAIL_WIDTH - 2, MARKET_ROW_HEIGHT * MARKET_ROW_COUNT - 4);
+
+    marketHighlight = scene.add.graphics()
+        .fillStyle(0xacccf9, 1)
+        .fillRect(MARKET_LIST_X, 0, MARKET_LIST_WIDTH, MARKET_ROW_HEIGHT - 2)
+        .fillStyle(0x4a2216, 1)
+        .fillRect(MARKET_LIST_X + 1, 1, MARKET_LIST_WIDTH - 2, MARKET_ROW_HEIGHT - 4);
 
     marketRodImages = MARKET_RODS.map((rod, index) => {
-        return scene.add.image(16, 18 + index * 34, 'rod')
+        return scene.add.image(MARKET_LIST_X + 3, MARKET_LIST_Y + index * MARKET_ROW_HEIGHT + 2, 'rod')
             .setOrigin(0)
-            .setDisplaySize(32, 32);
+            .setDisplaySize(16, 16);
     });
+
+    marketDetailImage = scene.add.image(
+        MARKET_DETAIL_X + (MARKET_DETAIL_WIDTH - 32) / 2,
+        MARKET_LIST_Y + 8,
+        'rod'
+    )
+        .setOrigin(0)
+        .setDisplaySize(32, 32);
 
     const textLayer = document.createElement('div');
 
     Object.assign(textLayer.style, {
         position: 'relative',
         width: '320px',
-        height: '130px',
+        height: `${MARKET_HEIGHT}px`,
         fontFamily: 'm6x11',
         fontSize: '16px',
         lineHeight: '11px',
@@ -2326,13 +2364,16 @@ function createMarketUI(scene) {
         pointerEvents: 'none'
     });
 
-    const createText = (x, y, color) => {
+    const createText = (x, y, color, width, align, size) => {
         const text = document.createElement('div');
 
         Object.assign(text.style, {
             position: 'absolute',
             left: `${x}px`,
             top: `${y}px`,
+            width: width ? `${width}px` : 'auto',
+            textAlign: align || 'left',
+            fontSize: size ? `${size}px` : '',
             color,
             whiteSpace: 'nowrap'
         });
@@ -2341,22 +2382,63 @@ function createMarketUI(scene) {
         return text;
     };
 
-    marketMessageText = createText(56, 5, '#acccf9');
-    marketMessageText.textContent = `Coins: ${playerCoins}`;
+    createText(14, 5, '#acccf9').textContent = 'Rod Shop';
+    marketMessageText = createText(160, 5, '#e8c170', 146, 'right');
 
-    marketOptionTexts = MARKET_RODS.map((rod, index) => {
-        return createText(56, 22 + index * 34, '#c0a887');
+    marketOptionTexts = [];
+    marketPriceTexts = [];
+
+    for (let index = 0; index < MARKET_ROW_COUNT; index++) {
+        const rowY = MARKET_LIST_Y + index * MARKET_ROW_HEIGHT + 6;
+        const isExit = index === MARKET_RODS.length;
+
+        marketOptionTexts.push(createText(isExit ? MARKET_LIST_X + 6 : MARKET_LIST_X + 24, rowY, '#c0a887'));
+
+        if (!isExit) {
+            marketPriceTexts.push(createText(MARKET_LIST_X, rowY, '#c0a887', MARKET_LIST_WIDTH - 5, 'right'));
+        }
+    }
+
+    const detailTextX = MARKET_DETAIL_X + 4;
+    const detailTextWidth = MARKET_DETAIL_WIDTH - 8;
+
+    marketDetailName = createText(detailTextX, MARKET_LIST_Y + 46, '#e0f2fd', detailTextWidth, 'center');
+    marketDetailStatus = createText(detailTextX, MARKET_LIST_Y + 60, '#c0a887', detailTextWidth, 'center');
+    marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 76, '#acccf9', detailTextWidth, 'center');
+
+    const footer = createText(12, MARKET_FOOTER_Y, '#8c7358', 296, 'center', 11);
+
+    Object.assign(footer.style, {
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '12px'
     });
 
-    const exitText = createText(56, 22 + MARKET_RODS.length * 34, '#c0a887');
-    marketOptionTexts.push(exitText);
+    for (const [key, label] of [['W/S', 'Select'], ['Enter', 'Buy'], ['Esc', 'Close']]) {
+        const hint = document.createElement('span');
+        const keycap = document.createElement('span');
+
+        keycap.textContent = key;
+
+        Object.assign(keycap.style, {
+            color: '#e0f2fd',
+            background: 'rgba(255, 255, 255, 0.14)',
+            padding: '0 2px',
+            marginRight: '4px'
+        });
+
+        hint.append(keycap, label);
+        footer.appendChild(hint);
+    }
 
     marketContainer = scene.add.container(
         0,
         MARKET_HIDDEN_Y,
         [
             panel,
-            ...marketRodImages
+            marketHighlight,
+            ...marketRodImages,
+            marketDetailImage
         ]
     )
     .setDepth(203)
@@ -2376,30 +2458,73 @@ function createMarketUI(scene) {
     refreshMarketOptions();
 }
 
+function getMarketRodStatus(rod) {
+    if (ownedRods.has(rod.id)) {
+        return { text: 'Owned', color: '#8fbf7a' };
+    }
+
+    if (playerCoins < rod.price) {
+        return { text: `Need ${rod.price - playerCoins}c more`, color: '#d9745b' };
+    }
+
+    return { text: `${rod.price}c`, color: '#e8c170' };
+}
+
 function refreshMarketOptions() {
     if (!marketMessageText) {
         return;
     }
 
-    marketMessageText.textContent = `Coins: ${playerCoins}`;
+    marketMessageText.textContent = `${playerCoins}c`;
+    marketHighlight.setY(MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT);
 
     MARKET_RODS.forEach((rod, index) => {
-        const optionText = marketOptionTexts[index];
+        const selected = index === selectedMarketOption;
         const owned = ownedRods.has(rod.id);
+        const affordable = playerCoins >= rod.price;
+        const priceText = marketPriceTexts[index];
 
-        optionText.textContent = `${index === selectedMarketOption ? '> ' : '  '}${rod.label} - ${rod.price}c${owned ? ' (owned)' : ''}`;
-        optionText.style.color = index === selectedMarketOption
-            ? '#d1edf1'
-            : '#c0a887';
+        marketOptionTexts[index].textContent = rod.label;
+        marketOptionTexts[index].style.color = selected ? '#e0f2fd' : owned ? '#7a6450' : '#c0a887';
+        priceText.textContent = owned ? 'Owned' : `${rod.price}c`;
+        priceText.style.color = owned ? '#8fbf7a' : affordable ? '#e8c170' : '#9a5a47';
+        marketRodImages[index].setAlpha(owned ? 0.45 : 1);
     });
 
     const exitIndex = MARKET_RODS.length;
     const exitText = marketOptionTexts[exitIndex];
 
-    exitText.textContent = `${exitIndex === selectedMarketOption ? '> ' : '  '}Exit`;
-    exitText.style.color = exitIndex === selectedMarketOption
-        ? '#d1edf1'
-        : '#c0a887';
+    exitText.textContent = 'Leave';
+    exitText.style.color = exitIndex === selectedMarketOption ? '#e0f2fd' : '#c0a887';
+
+    const rod = MARKET_RODS[selectedMarketOption];
+
+    if (!rod) {
+        marketDetailImage.setVisible(false);
+        marketDetailName.textContent = 'Leave shop';
+        marketDetailStatus.textContent = 'Come back soon!';
+        marketDetailStatus.style.color = '#c0a887';
+        marketDetailAction.textContent = 'Enter - Leave';
+        marketDetailAction.style.color = '#acccf9';
+        return;
+    }
+
+    const status = getMarketRodStatus(rod);
+
+    marketDetailImage.setVisible(true).setAlpha(ownedRods.has(rod.id) ? 0.45 : 1);
+    marketDetailName.textContent = rod.label;
+    marketDetailStatus.textContent = status.text;
+    marketDetailStatus.style.color = status.color;
+
+    if (marketFeedback) {
+        marketDetailAction.textContent = marketFeedback.text;
+        marketDetailAction.style.color = marketFeedback.color;
+    } else if (ownedRods.has(rod.id) || playerCoins < rod.price) {
+        marketDetailAction.textContent = '';
+    } else {
+        marketDetailAction.textContent = 'Enter - Buy';
+        marketDetailAction.style.color = '#acccf9';
+    }
 }
 
 function buySelectedMarketItem(scene) {
@@ -2410,16 +2535,14 @@ function buySelectedMarketItem(scene) {
 
     const rod = MARKET_RODS[selectedMarketOption];
 
-    if (ownedRods.has(rod.id)) {
-        return;
-    }
-
-    if (playerCoins < rod.price) {
+    if (ownedRods.has(rod.id) || playerCoins < rod.price) {
         return;
     }
 
     playerCoins -= rod.price;
     ownedRods.add(rod.id);
+    marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
+
     refreshMarketOptions();
 }
 
@@ -2429,6 +2552,7 @@ function moveMarketSelection(amount) {
         0,
         MARKET_RODS.length + 1
     );
+    marketFeedback = null;
 
     refreshMarketOptions();
 }
@@ -2447,6 +2571,7 @@ function openMarket(scene) {
 
     marketOpen = true;
     selectedMarketOption = 0;
+    marketFeedback = null;
     characterMoveRemainderX = 0;
     characterMoveRemainderY = 0;
     characterTextureKey = `character-${characterDirection}`;
