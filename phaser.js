@@ -93,7 +93,6 @@ const HOTBAR_SLOT_SIZE = 26;
 let hotbarSelector;
 let selectedHotbarSlot = 0;
 let worldObjectLayer;
-let edgeShimmerFrame = -1;
 
 const CHUNK_SIZE = 16;
 const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
@@ -115,6 +114,9 @@ const terrainTypeCache = new Map();
 const worldTileCache = new Map();
 const pierCandidateCache = new Map();
 const discoveredTiles = new Set();
+const chunkCanvasPool = [];
+let chunkCanvasCount = 0;
+let waterPipeline;
 
 let activeChunkX = null;
 let activeChunkY = null;
@@ -218,10 +220,12 @@ let cameraScrollY = 0;
 
 const CAMERA_EASE = 2;
 
-const cameraTargetScroll = new Phaser.Math.Vector2();
+let cameraOffsetX = 0;
+let cameraOffsetY = 0;
+
+let promptState = '';
 
 function preload() {
-    const assetVersion = Date.now();
     const tileKeys = [
         'dirt1',
         'dirtEdge',
@@ -429,7 +433,7 @@ function createRoundedCliffTextures(scene) {
 
 function create() {
     worldObjectLayer = this.add.layer().setDepth(3);
-    this.game.renderer.pipelines.add('WaterWarp', new WaterWarpPipeline(this.game));
+    waterPipeline = this.game.renderer.pipelines.add('WaterWarp', new WaterWarpPipeline(this.game));
     createBushSlices(this);
     createRoundedCliffTextures(this);
 
@@ -550,6 +554,10 @@ function create() {
     });
 }
 
+function getTileId(tileX, tileY) {
+    return tileX * 67108864 + tileY;
+}
+
 function worldHash(x, y, salt = 0) {
     let number = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(WORLD_SEED + salt, 1442695040888963407);
     
@@ -592,7 +600,7 @@ function fractalNoise(worldX, worldY, salt) {
 }
 
 function getTerrainType(tileX, tileY) {
-    const key = `${tileX},${tileY}`;
+    const key = getTileId(tileX, tileY);
 
     if (terrainTypeCache.has(key)) {
         return terrainTypeCache.get(key);
@@ -839,7 +847,7 @@ function getBridgeTile(tileX, tileY) {
 }
 
 function getPierCandidate(anchorX, anchorY) {
-    const key = `${anchorX},${anchorY}`;
+    const key = getTileId(anchorX, anchorY);
 
     if (pierCandidateCache.has(key)) {
         return pierCandidateCache.get(key);
@@ -1080,13 +1088,18 @@ function getTerrainTile(tileX, tileY) {
 }
 
 function getWorldTile(tileX, tileY) {
-    const key = `${tileX},${tileY}`;
+    const key = getTileId(tileX, tileY);
 
     if (worldTileCache.has(key)) {
         return worldTileCache.get(key);
     }
 
     const tile = getBridgeTile(tileX, tileY) || getPierTile(tileX, tileY) || getTerrainTile(tileX, tileY);
+    const name = tile.key.toLowerCase();
+
+    tile.blocking = name.includes('water') ? 'full'
+        : name.includes('edge') || name.includes('left') || name.includes('right') ? 'lower'
+        : null;
 
     if (worldTileCache.size >= WORLD_CACHE_LIMIT) {
         worldTileCache.clear();
@@ -1121,12 +1134,15 @@ function getTerrainPixels(scene, key) {
 }
 
 function getTerrainSurface(scene, tile) {
+    if (tile.surface) return tile.surface;
+
     scene.terrainSurfaceCache ||= new Map();
     const signature = JSON.stringify([
         tile.key, tile.textureKey, tile.baseKey, tile.rotation, tile.patches
     ]);
     if (scene.terrainSurfaceCache.has(signature)) {
-        return scene.terrainSurfaceCache.get(signature);
+        tile.surface = scene.terrainSurfaceCache.get(signature);
+        return tile.surface;
     }
 
     const isWater = tile.key.startsWith('water');
@@ -1159,6 +1175,7 @@ function getTerrainSurface(scene, tile) {
 
     const surface = { signature, land, water };
     scene.terrainSurfaceCache.set(signature, surface);
+    tile.surface = surface;
     return surface;
 }
 
@@ -1264,6 +1281,54 @@ function getShorelineTile(scene, tile, northTile) {
     return shoreline;
 }
 
+function acquireChunkCanvas(scene) {
+    const texture = chunkCanvasPool.pop() || scene.textures.createCanvas(
+        `chunk-canvas-${chunkCanvasCount++}`,
+        CHUNK_PIXEL_SIZE,
+        CHUNK_PIXEL_SIZE
+    );
+    const context = texture.getContext();
+
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
+    context.imageSmoothingEnabled = false;
+
+    return texture;
+}
+
+function drawChunkTexture(context, scene, key, x, y, rotation = 0, flipX = false, flipY = false) {
+    const source = scene.textures.get(key).getSourceImage();
+    const { width, height } = source;
+
+    if (rotation) {
+        const cos = Math.round(Math.cos(rotation));
+        const sin = Math.round(Math.sin(rotation));
+
+        context.setTransform(cos, sin, -sin, cos, x + width / 2, y + height / 2);
+        context.drawImage(source, -width / 2, -height / 2);
+    } else if (flipX || flipY) {
+        context.setTransform(
+            flipX ? -1 : 1, 0, 0, flipY ? -1 : 1,
+            flipX ? x + width : x,
+            flipY ? y + height : y
+        );
+        context.drawImage(source, 0, 0);
+    } else {
+        context.drawImage(source, x, y);
+        return;
+    }
+
+    context.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+function createChunkLayer(scene, texture, x, y, depth) {
+    texture.refresh();
+
+    return scene.add.image(x, y, texture.key)
+        .setOrigin(0)
+        .setDepth(depth);
+}
+
 function createWorldChunk(scene, chunkX, chunkY) {
     const key = getChunkKey(chunkX, chunkY);
 
@@ -1278,12 +1343,25 @@ function createWorldChunk(scene, chunkX, chunkY) {
     const waterCells = [];
     const waterMaskCells = [];
     const edgeCells = [];
+    const groundTexture = acquireChunkCanvas(scene);
+    const groundContext = groundTexture.getContext();
+    let upperTexture = null;
+    let upperContext = null;
+
+    const getUpperContext = () => {
+        if (!upperContext) {
+            upperTexture = acquireChunkCanvas(scene);
+            upperContext = upperTexture.getContext();
+        }
+
+        return upperContext;
+    };
 
     for (let localY = 0; localY < CHUNK_SIZE; localY++) {
         for (let localX = 0; localX < CHUNK_SIZE; localX++) {
             const tileX = chunkX * CHUNK_SIZE + localX;
             const tileY = chunkY * CHUNK_SIZE + localY;
-            discoveredTiles.add(`${tileX},${tileY}`);
+            discoveredTiles.add(getTileId(tileX, tileY));
 
             const worldTile = getWorldTile(tileX, tileY);
             const tileKey = worldTile.key;
@@ -1291,43 +1369,39 @@ function createWorldChunk(scene, chunkX, chunkY) {
             const shoreline = isWater || worldTile.baseKey === 'water'
                 ? getShorelineTile(scene, worldTile, getWorldTile(tileX, tileY - 1))
                 : null;
+            const drawX = localX * TILE_SIZE;
+            const drawY = localY * TILE_SIZE;
 
             if (worldTile.baseKey) {
-                const baseSprite = scene.add.image(
-                    tileX * TILE_SIZE,
-                    tileY * TILE_SIZE,
-                    shoreline ? shoreline.textureKey : worldTile.baseKey
-                )
-                    .setOrigin(0)
-                    .setDepth(0);
-
-                tileSprites.push(baseSprite);
+                drawChunkTexture(
+                    groundContext,
+                    scene,
+                    shoreline ? shoreline.textureKey : worldTile.baseKey,
+                    drawX,
+                    drawY
+                );
             }
 
-            const tileSprite = scene.add.image(
-                tileX * TILE_SIZE + TILE_SIZE / 2,
-                tileY * TILE_SIZE + TILE_SIZE / 2,
-                isWater ? shoreline.textureKey : worldTile.textureKey || tileKey
-            )
-                .setOrigin(0.5)
-                .setRotation(worldTile.rotation)
-                .setDepth(worldTile.baseKey === 'water' ? 1.5 : 0);
+            drawChunkTexture(
+                worldTile.baseKey === 'water' ? getUpperContext() : groundContext,
+                scene,
+                isWater ? shoreline.textureKey : worldTile.textureKey || tileKey,
+                drawX,
+                drawY,
+                worldTile.rotation
+            );
 
-            tileSprites.push(tileSprite);
-
-            const patches = worldTile.patches || [];
-
-            for (const patch of patches) {
-                const image = scene.add.image(
-                    tileX * TILE_SIZE + patch.x,
-                    tileY * TILE_SIZE + patch.y,
-                    patch.key
-                )
-                    .setOrigin(0)
-                    .setFlip(patch.flipX, patch.flipY)
-                    .setDepth(1.5);
-
-                tileSprites.push(image);
+            for (const patch of worldTile.patches || []) {
+                drawChunkTexture(
+                    getUpperContext(),
+                    scene,
+                    patch.key,
+                    drawX + patch.x,
+                    drawY + patch.y,
+                    0,
+                    patch.flipX,
+                    patch.flipY
+                );
             }
 
             if (hasBushAt(tileX, tileY)) {
@@ -1364,6 +1438,10 @@ function createWorldChunk(scene, chunkX, chunkY) {
         }
     }
 
+    const groundLayer = createChunkLayer(scene, groundTexture, pixelX, pixelY, 0);
+    const upperLayer = upperTexture
+        ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5)
+        : null;
     const edgeShimmer = edgeCells.length > 0 ? scene.add.graphics().setDepth(2) : null;
 
     let overlay = null;
@@ -1408,9 +1486,15 @@ function createWorldChunk(scene, chunkX, chunkY) {
         chunkX,
         chunkY,
         tileSprites,
+        groundLayer,
+        groundTexture,
+        upperLayer,
+        upperTexture,
         waterCells,
         edgeCells,
         edgeShimmer,
+        edgeShimmerFrame: -1,
+        visible: true,
         shimmers: [],
         overlay,
         maskGraphics,
@@ -1431,6 +1515,14 @@ function destroyWorldChunk(key) {
 
     for (const tileSprite of chunk.tileSprites) {
         tileSprite.destroy();
+    }
+
+    chunk.groundLayer.destroy();
+    chunkCanvasPool.push(chunk.groundTexture);
+
+    if (chunk.upperLayer) {
+        chunk.upperLayer.destroy();
+        chunkCanvasPool.push(chunk.upperTexture);
     }
 
     if (chunk.overlay) {
@@ -1489,42 +1581,77 @@ function updateLoadedChunks(scene, force = false) {
     activeChunkY = centerChunkY;
 }
 
-function updateChunkWater(time) {
-    for (const chunk of loadedChunks.values()) {
-        if (!chunk.overlay) continue;
+function updateChunkVisibility() {
+    const left = mainCamera.scrollX;
+    const top = mainCamera.scrollY;
+    const right = left + mainCamera.width;
+    const bottom = top + mainCamera.height;
 
-        chunk.overlay.pipeline.set1f('uTime', time * 0.003);
+    for (const chunk of loadedChunks.values()) {
+        const chunkLeft = chunk.chunkX * CHUNK_PIXEL_SIZE;
+        const chunkTop = chunk.chunkY * CHUNK_PIXEL_SIZE;
+        const visible = chunkLeft < right && chunkLeft + CHUNK_PIXEL_SIZE > left &&
+            chunkTop < bottom && chunkTop + CHUNK_PIXEL_SIZE > top;
+
+        if (visible === chunk.visible) continue;
+
+        chunk.visible = visible;
+        chunk.groundLayer.setVisible(visible);
+        if (chunk.upperLayer) chunk.upperLayer.setVisible(visible);
+        if (chunk.overlay) chunk.overlay.setVisible(visible);
+        if (chunk.edgeShimmer) chunk.edgeShimmer.setVisible(visible);
+    }
+}
+
+function updateChunkWater(time) {
+    if (waterPipeline) {
+        waterPipeline.set1f('uTime', time * 0.003);
+    }
+
+    for (const chunk of loadedChunks.values()) {
+        if (!chunk.overlay || !chunk.visible) continue;
+
         chunk.overlay.tilePositionX = time * 0.01;
         chunk.overlay.tilePositionY = time * 0.006;
     }
 }
 
+function getEdgeShimmerColor(pixelX, pixelY, frame) {
+    const noise = valueNoise(pixelX - frame, pixelY + frame * 0.25, 24, 780);
+
+    return noise >= 0.76 ? 0xd1edf1 : noise >= 0.5 || noise >= 0.39 && noise < 0.42 ? 0x87bed8 : 0;
+}
+
 function updateEdgeShimmers(time) {
     const frame = Math.floor(time * 12 / 1000);
 
-    if (frame === edgeShimmerFrame) return;
-
-    edgeShimmerFrame = frame;
-
     for (const chunk of loadedChunks.values()) {
-        if (!chunk.edgeShimmer) continue;
+        if (!chunk.edgeShimmer || !chunk.visible || chunk.edgeShimmerFrame === frame) continue;
 
+        chunk.edgeShimmerFrame = frame;
         chunk.edgeShimmer.clear();
         let activeColor = 0;
 
         for (const cell of chunk.edgeCells) {
-            for (let pixelX = cell.x; pixelX < cell.x + cell.width; pixelX++) {
-                const noise = valueNoise(pixelX - frame, cell.y + frame * 0.25, 24, 780);
-                const color = noise >= 0.76 ? 0xd1edf1 : noise >= 0.5 || noise >= 0.39 && noise < 0.42 ? 0x87bed8 : 0;
+            const endX = cell.x + cell.width;
+            let pixelX = cell.x;
+            let color = getEdgeShimmerColor(pixelX, cell.y, frame);
 
-                if (color === 0) continue;
+            while (pixelX < endX) {
+                const runColor = color;
+                const startX = pixelX;
 
-                if (color !== activeColor) {
-                    chunk.edgeShimmer.fillStyle(color, 1);
-                    activeColor = color;
+                pixelX++;
+                while (pixelX < endX && (color = getEdgeShimmerColor(pixelX, cell.y, frame)) === runColor) pixelX++;
+
+                if (runColor === 0) continue;
+
+                if (runColor !== activeColor) {
+                    chunk.edgeShimmer.fillStyle(runColor, 1);
+                    activeColor = runColor;
                 }
 
-                chunk.edgeShimmer.fillRect(pixelX, cell.y, 1, 1);
+                chunk.edgeShimmer.fillRect(startX, cell.y, pixelX - startX, 1);
             }
         }
     }
@@ -1782,7 +1909,7 @@ function redrawMap() {
 
             let color;
 
-            if (!discoveredTiles.has(`${tileX},${tileY}`)) {
+            if (!discoveredTiles.has(getTileId(tileX, tileY))) {
                 color = (x + y) & 1 ? 0x1a1a1a : 0x2a2a2a;
             } else if (hasBushAt(tileX, tileY) || hasBushAt(tileX - 1, tileY)) {
                 color = 0x2f5c2a;
@@ -1811,7 +1938,7 @@ function redrawMap() {
         const guideTileX = Math.floor(guide.x / TILE_SIZE);
         const guideTileY = Math.floor(guide.y / TILE_SIZE);
 
-        if (discoveredTiles.has(`${guideTileX},${guideTileY}`)) {
+        if (discoveredTiles.has(getTileId(guideTileX, guideTileY))) {
             const x = guideTileX - originX;
             const y = guideTileY - originY;
 
@@ -1960,6 +2087,11 @@ function updateInteractionPrompt() {
     const showMarket = availible && isMarketNear();
     const showGuide = availible && guideHasMetPlayer && isGuideNear();
 
+    const state = `${showMarket}|${showGuide}`;
+
+    if (state === promptState) return;
+
+    promptState = state;
     marketPrompt.style.display = showMarket ? 'flex' : 'none';
     guidePrompt.style.display = showGuide ? 'flex' : 'none';
 
@@ -2445,7 +2577,6 @@ function updateGuideInteraction(scene) {
 }
 
 function canCharacterOccupy(x, y) {
-
     if (guide && x < guide.x + GUIDE_SIZE && x + CHARACTER_SIZE > guide.x && y < guide.y + GUIDE_SIZE && y + CHARACTER_SIZE > guide.y) {
         return false;
     }
@@ -2454,69 +2585,21 @@ function canCharacterOccupy(x, y) {
         return false;
     }
 
-    const leftTile =
-        Math.floor(x / TILE_SIZE);
+    const leftTile = Math.floor(x / TILE_SIZE);
+    const rightTile = Math.floor((x + CHARACTER_SIZE - 1) / TILE_SIZE);
+    const topTile = Math.floor(y / TILE_SIZE);
+    const bottomTile = Math.floor((y + CHARACTER_SIZE - 1) / TILE_SIZE);
+    const characterBottomY = y + CHARACTER_SIZE;
 
-    const rightTile =
-        Math.floor(
-            (
-                x +
-                CHARACTER_SIZE -
-                1
-            ) / TILE_SIZE
-        );
+    for (let tileY = topTile; tileY <= bottomTile; tileY += 1) {
+        for (let tileX = leftTile; tileX <= rightTile; tileX += 1) {
+            const blocking = getWorldTile(tileX, tileY).blocking;
 
-    const topTile =
-        Math.floor(y / TILE_SIZE);
-
-    const bottomTile =
-        Math.floor(
-            (
-                y +
-                CHARACTER_SIZE -
-                1
-            ) / TILE_SIZE
-        );
-
-    const characterBottomY =
-        y + CHARACTER_SIZE;
-
-    for (
-        let tileY = topTile;
-        tileY <= bottomTile;
-        tileY += 1
-    ) {
-        for (
-            let tileX = leftTile;
-            tileX <= rightTile;
-            tileX += 1
-        ) {
-            const tileKey =
-                getWorldTileKey(
-                    tileX,
-                    tileY
-                );
-
-            const tileName =
-                tileKey.toLowerCase();
-
-            if (tileName.includes('water')) {
+            if (blocking === 'full') {
                 return false;
             }
 
-            const tileTop =
-                tileY * TILE_SIZE;
-
-            if (
-                (
-                    tileName.includes('edge') ||
-                    tileName.includes('left') ||
-                    tileName.includes('right')
-                ) &&
-                characterBottomY >
-                    tileTop +
-                    TILE_SIZE / 2
-            ) {
+            if (blocking === 'lower' && characterBottomY > tileY * TILE_SIZE + TILE_SIZE / 2) {
                 return false;
             }
         }
@@ -2525,33 +2608,24 @@ function canCharacterOccupy(x, y) {
     return true;
 }
 
+function followCameraAxis(offset, lag) {
+    return Math.abs(lag - offset) > 0.6 ? Math.round(lag) : offset;
+}
+
 function updateCamera(delta) {
-    mainCamera.getScroll(
-        character.x + CHARACTER_SIZE / 2,
-        character.y + CHARACTER_SIZE / 2,
-        cameraTargetScroll
-    );
+    const baseScrollX = character.x + CHARACTER_SIZE / 2 - mainCamera.width / 2;
+    const baseScrollY = character.y + CHARACTER_SIZE / 2 - mainCamera.height / 2;
+    const targetX = baseScrollX + characterMoveRemainderX;
+    const targetY = baseScrollY + characterMoveRemainderY;
+    const followAmount = 1 - Math.exp(-CAMERA_EASE * delta / 1000);
 
-    const followAmount =
-        1 - Math.exp(-CAMERA_EASE * delta / 1000);
+    cameraScrollX += (targetX - cameraScrollX) * followAmount;
+    cameraScrollY += (targetY - cameraScrollY) * followAmount;
 
-    cameraScrollX =
-        Phaser.Math.Linear(
-            cameraScrollX,
-            cameraTargetScroll.x,
-            followAmount
-        );
-    cameraScrollY =
-        Phaser.Math.Linear(
-            cameraScrollY,
-            cameraTargetScroll.y,
-            followAmount
-        );
+    cameraOffsetX = followCameraAxis(cameraOffsetX, cameraScrollX - targetX);
+    cameraOffsetY = followCameraAxis(cameraOffsetY, cameraScrollY - targetY);
 
-    mainCamera.setScroll(
-        Math.round(cameraScrollX),
-        Math.round(cameraScrollY)
-    );
+    mainCamera.setScroll(baseScrollX + cameraOffsetX, baseScrollY + cameraOffsetY);
 }
 
 function update(time, delta) {
@@ -2637,7 +2711,8 @@ function update(time, delta) {
     updateInteractionPrompt();
 
     updateLoadedChunks(this);
+    updateCamera(delta);
+    updateChunkVisibility();
     updateChunkWater(time);
     updateEdgeShimmers(time);
-    updateCamera(delta);
 }
