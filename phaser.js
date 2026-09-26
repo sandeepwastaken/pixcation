@@ -190,6 +190,8 @@ let edgeShimmerFrame = -1;
 let character;
 let characterKeys;
 let characterDirection = 'front';
+let horizontalPriority = 0;
+let verticalPriority = 0;
 
 const CHARACTER_SIZE = 16;
 const CHARACTER_SPEED = 60;
@@ -592,6 +594,13 @@ function create() {
         if (event.repeat) {
             return;
         }
+
+        const code = event.code;
+
+        if (code === 'KeyA' || code === 'ArrowLeft') horizontalPriority = -1;
+        if (code === 'KeyD' || code === 'ArrowRight') horizontalPriority = 1;
+        if (code === 'KeyW' || code === 'ArrowUp') verticalPriority = -1;
+        if (code === 'KeyS' || code === 'ArrowDown') verticalPriority = 1;
 
         if (dialogueOpen) {
             handleGuideDialogueKey(this,event);
@@ -3090,36 +3099,33 @@ function update(time, delta) {
     let moveY = 0;
 
     if (!dialogueOpen && !mapOpen && !marketOpen) {
-        if (
-            characterKeys.left.isDown ||
-            characterKeys.leftArrow.isDown
-        ) {
-            moveX -= 1;
-            characterDirection = 'left';
-        } else if (
-            characterKeys.right.isDown ||
-            characterKeys.rightArrow.isDown
-        ) {
-            moveX += 1;
-            characterDirection = 'right';
+        const left = characterKeys.left.isDown || characterKeys.leftArrow.isDown;
+        const right = characterKeys.right.isDown || characterKeys.rightArrow.isDown;
+        const up = characterKeys.up.isDown || characterKeys.upArrow.isDown;
+        const down = characterKeys.down.isDown || characterKeys.downArrow.isDown;
+
+        moveX = left && right ? horizontalPriority : left ? -1 : right ? 1 : 0;
+        moveY = up && down ? verticalPriority : up ? -1 : down ? 1 : 0;
+
+        if (moveX !== 0) {
+            characterDirection = moveX < 0 ? 'left' : 'right';
         }
 
-        if (
-            characterKeys.up.isDown ||
-            characterKeys.upArrow.isDown
-        ) {
-            moveY -= 1;
-            characterDirection = 'back';
-        } else if (
-            characterKeys.down.isDown ||
-            characterKeys.downArrow.isDown
-        ) {
-            moveY += 1;
-            characterDirection = 'front';
+        if (moveY !== 0) {
+            characterDirection = moveY < 0 ? 'back' : 'front';
         }
     }
 
     const isWalking = moveX !== 0 || moveY !== 0;
+
+    if (!isWalking) {
+        const idleTextureKey = `character-${characterDirection}`;
+
+        if (idleTextureKey !== characterTextureKey) {
+            characterTextureKey = idleTextureKey;
+            character.setTexture(characterTextureKey);
+        }
+    }
 
     if (isWalking) {
         const distance = CHARACTER_SPEED * Math.min(delta, 50) / 1000 *
