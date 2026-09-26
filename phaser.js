@@ -85,6 +85,13 @@ const DIRT_CLIFF_TILES = [
     ['dirtEdgeInnerLeft', 'dirtEdgeInnerLeftOuterRight', 'dirtEdgeInnerBoth']
 ];
 
+const TERRAIN_CORNER_OFFSETS = [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1]
+];
+
 const HOTBAR_X = 43;
 const HOTBAR_Y = 155;
 const HOTBAR_SLOT_SIZE = 26;
@@ -96,7 +103,8 @@ let worldObjectLayer;
 const CHUNK_SIZE = 16;
 const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
 
-const CHUNK_LOAD_RADIUS = 2;
+const CHUNK_LOAD_RADIUS = 1;
+const CHUNK_DISCOVERY_RADIUS = 2;
 const WORLD_SEED = 6767676767676;
 const WORLD_FEATURE_SCALE = 0.42;
 
@@ -109,17 +117,25 @@ const MAX_PIER_WATER_LENGTH = 7;
 const WORLD_CACHE_LIMIT = 50000;
 
 const loadedChunks = new Map();
+const loadedWaterChunks = new Set();
+const loadedEdgeChunks = new Set();
+const loadedShimmerChunks = new Set();
 const terrainTypeCache = new Map();
 const worldTileCache = new Map();
 const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
-const discoveredTiles = new Set();
+const discoveredChunks = new Set();
 const chunkCanvasPool = [];
 let chunkCanvasCount = 0;
 let waterPipeline;
 
 let activeChunkX = null;
 let activeChunkY = null;
+let visibleChunkLeft = null;
+let visibleChunkRight = null;
+let visibleChunkTop = null;
+let visibleChunkBottom = null;
+let edgeShimmerFrame = -1;
 
 let character;
 let characterKeys;
@@ -238,7 +254,7 @@ const CAMERA_EASE = 2;
 let cameraOffsetX = 0;
 let cameraOffsetY = 0;
 
-let promptState = '';
+let promptState = -1;
 
 function preload() {
     const tileKeys = [
@@ -447,6 +463,9 @@ function createRoundedCliffTextures(scene) {
 }
 
 function create() {
+    this.terrainPixelCache = new Map();
+    this.terrainSurfaceCache = new Map();
+    this.shorelineTileCache = new Map();
     worldObjectLayer = this.add.layer().setDepth(3);
     waterPipeline = this.game.renderer.pipelines.add('WaterWarp', new WaterWarpPipeline(this.game));
     createBushSlices(this);
@@ -952,6 +971,13 @@ function getPierCandidate(anchorX, anchorY) {
 }
 
 function getPierTile(tileX, tileY) {
+    if (
+        getTerrainType(tileX, tileY) !== 'water' &&
+        getTerrainType(tileX, tileY + 1) !== 'water'
+    ) {
+        return null;
+    }
+
     for (let distance = 0; distance <= MAX_PIER_WATER_LENGTH; distance++) {
         for (let side = 0; side <= 1; side++) {
             const anchorX = tileX - side;
@@ -1012,17 +1038,14 @@ function getTerrainTileKey(tileX, tileY) {
     }
 
     const decoration = worldHash(tileX, tileY, 670);
-    const flowerPatch = valueNoise(tileX, tileY, 8, 671);
-
-    if (decoration > 0.80 && flowerPatch > 0.62) {
-        return worldHash(
-            Math.floor((tileX + 149) / 20),
-            Math.floor((tileY - 83) / 20),
-            672
-        ) > 0.5 ? 'grass4' : 'grass3';
-    }
 
     if (decoration > 0.80) {
+        if (valueNoise(tileX, tileY, 8, 671) > 0.62) {
+            return valueNoise(tileX + 149, tileY - 83, 24, 672) > 0.5
+                ? 'grass4'
+                : 'grass3';
+        }
+
         return 'grass2';
     }
 
@@ -1038,8 +1061,7 @@ function getTerrainTile(tileX, tileY) {
 
     const tile = {
         key: getTerrainTileKey(tileX, tileY),
-        rotation: 0,
-        patches: []
+        rotation: 0
     };
 
     if (terrain === 'dirt' && south === 'water') {
@@ -1084,7 +1106,7 @@ function getTerrainTile(tileX, tileY) {
         }
     }
 
-    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    for (const [dx, dy] of TERRAIN_CORNER_OFFSETS) {
         const horizontal = dx < 0 ? west : east;
         const vertical = dy < 0 ? north : south;
 
@@ -1117,6 +1139,7 @@ function getTerrainTile(tileX, tileY) {
             continue;
         }
 
+        tile.patches ||= [];
         tile.patches.push({
             key,
             x: dx < 0 ? 0 : TILE_SIZE - size,
@@ -1162,9 +1185,16 @@ function getChunkKey(chunkX, chunkY) {
     return `${chunkX},${chunkY}`;
 }  
 
+function isTileDiscovered(tileX, tileY) {
+    return discoveredChunks.has(getTileId(
+        Math.floor(tileX / CHUNK_SIZE),
+        Math.floor(tileY / CHUNK_SIZE)
+    ));
+}
+
 function getTerrainPixels(scene, key) {
-    scene.terrainPixelCache ||= new Map();
-    if (scene.terrainPixelCache.has(key)) return scene.terrainPixelCache.get(key);
+    const cached = scene.terrainPixelCache.get(key);
+    if (cached) return cached;
 
     const source = scene.textures.get(key).getSourceImage();
     const canvas = document.createElement('canvas');
@@ -1180,12 +1210,13 @@ function getTerrainPixels(scene, key) {
 function getTerrainSurface(scene, tile) {
     if (tile.surface) return tile.surface;
 
-    scene.terrainSurfaceCache ||= new Map();
     const signature = JSON.stringify([
         tile.key, tile.textureKey, tile.baseKey, tile.rotation, tile.patches
     ]);
-    if (scene.terrainSurfaceCache.has(signature)) {
-        tile.surface = scene.terrainSurfaceCache.get(signature);
+    const cached = scene.terrainSurfaceCache.get(signature);
+
+    if (cached) {
+        tile.surface = cached;
         return tile.surface;
     }
 
@@ -1224,13 +1255,11 @@ function getTerrainSurface(scene, tile) {
 }
 
 function getShorelineTile(scene, tile, northTile) {
-    scene.shorelineTileCache ||= new Map();
     const surface = getTerrainSurface(scene, tile);
     const north = getTerrainSurface(scene, northTile);
     const signature = `${surface.signature}|${north.signature}`;
-    if (scene.shorelineTileCache.has(signature)) {
-        return scene.shorelineTileCache.get(signature);
-    }
+    const cached = scene.shorelineTileCache.get(signature);
+    if (cached) return cached;
 
     const textureKey = `shoreline-${scene.shorelineTileCache.size}`;
     const texture = scene.textures.createCanvas(textureKey, TILE_SIZE, TILE_SIZE);
@@ -1387,6 +1416,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
     const waterCells = [];
     const waterMaskCells = [];
     const edgeCells = [];
+    const bridgeCells = [];
     const groundTexture = acquireChunkCanvas(scene);
     const groundContext = groundTexture.getContext();
     let upperTexture = null;
@@ -1405,37 +1435,46 @@ function createWorldChunk(scene, chunkX, chunkY) {
         for (let localX = 0; localX < CHUNK_SIZE; localX++) {
             const tileX = chunkX * CHUNK_SIZE + localX;
             const tileY = chunkY * CHUNK_SIZE + localY;
-            discoveredTiles.add(getTileId(tileX, tileY));
 
             const worldTile = getWorldTile(tileX, tileY);
-            const tileKey = worldTile.key;
+            const terrainTile = worldTile.bridge
+                ? getTerrainTile(tileX, tileY)
+                : worldTile;
+            const tileKey = terrainTile.key;
             const isWater = tileKey.startsWith('water');
-            const shoreline = isWater || worldTile.baseKey === 'water'
-                ? getShorelineTile(scene, worldTile, getWorldTile(tileX, tileY - 1))
-                : null;
+            let shoreline = null;
+
+            if (isWater || terrainTile.baseKey === 'water') {
+                const northWorldTile = getWorldTile(tileX, tileY - 1);
+                const northTile = northWorldTile.bridge
+                    ? getTerrainTile(tileX, tileY - 1)
+                    : northWorldTile;
+                shoreline = getShorelineTile(scene, terrainTile, northTile);
+            }
+
             const drawX = localX * TILE_SIZE;
             const drawY = localY * TILE_SIZE;
 
-            if (worldTile.baseKey) {
+            if (terrainTile.baseKey) {
                 drawChunkTexture(
                     groundContext,
                     scene,
-                    shoreline ? shoreline.textureKey : worldTile.baseKey,
+                    shoreline ? shoreline.textureKey : terrainTile.baseKey,
                     drawX,
                     drawY
                 );
             }
 
             drawChunkTexture(
-                worldTile.baseKey === 'water' ? getUpperContext() : groundContext,
+                terrainTile.baseKey === 'water' ? getUpperContext() : groundContext,
                 scene,
-                isWater ? shoreline.textureKey : worldTile.textureKey || tileKey,
+                isWater ? shoreline.textureKey : terrainTile.textureKey || tileKey,
                 drawX,
                 drawY,
-                worldTile.rotation
+                terrainTile.rotation
             );
 
-            for (const patch of worldTile.patches || []) {
+            for (const patch of terrainTile.patches || []) {
                 drawChunkTexture(
                     getUpperContext(),
                     scene,
@@ -1446,6 +1485,24 @@ function createWorldChunk(scene, chunkX, chunkY) {
                     patch.flipX,
                     patch.flipY
                 );
+            }
+
+            if (worldTile.bridge) {
+                drawChunkTexture(
+                    getUpperContext(),
+                    scene,
+                    worldTile.key,
+                    drawX,
+                    drawY,
+                    worldTile.rotation
+                );
+
+                if (isWater) {
+                    bridgeCells.push({
+                        x: tileX * TILE_SIZE,
+                        y: tileY * TILE_SIZE
+                    });
+                }
             }
 
             if (hasBushAt(tileX, tileY)) {
@@ -1464,19 +1521,28 @@ function createWorldChunk(scene, chunkX, chunkY) {
             }
 
             if (shoreline) {
-                const positionCell = cell => ({
-                    ...cell,
-                    x: tileX * TILE_SIZE + cell.x,
-                    y: tileY * TILE_SIZE + cell.y
-                });
+                const worldX = tileX * TILE_SIZE;
+                const worldY = tileY * TILE_SIZE;
 
-                waterMaskCells.push(...shoreline.waterCells.map(positionCell));
-                edgeCells.push(...shoreline.edgeCells.map(positionCell));
+                for (const cell of shoreline.waterCells) {
+                    const positioned = {
+                        x: worldX + cell.x,
+                        y: worldY + cell.y,
+                        width: cell.width,
+                        height: cell.height
+                    };
 
-                if (isWater) {
-                    waterCells.push(...shoreline.waterCells
-                        .filter(cell => cell.width >= 12)
-                        .map(positionCell));
+                    waterMaskCells.push(positioned);
+                    if (isWater && cell.width >= 12) waterCells.push(positioned);
+                }
+
+                for (const cell of shoreline.edgeCells) {
+                    edgeCells.push({
+                        x: worldX + cell.x,
+                        y: worldY + cell.y,
+                        width: cell.width,
+                        height: cell.height
+                    });
                 }
             }
         }
@@ -1486,7 +1552,18 @@ function createWorldChunk(scene, chunkX, chunkY) {
     const upperLayer = upperTexture
         ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5)
         : null;
+    const bridgeShadow = bridgeCells.length > 0
+        ? scene.add.graphics().setDepth(1.25)
+        : null;
     const edgeShimmer = edgeCells.length > 0 ? scene.add.graphics().setDepth(2) : null;
+
+    if (bridgeShadow) {
+        bridgeShadow.fillStyle(0x17283b, 0.32);
+
+        for (const cell of bridgeCells) {
+            bridgeShadow.fillRect(cell.x + 2, cell.y + 2, TILE_SIZE, TILE_SIZE);
+        }
+    }
 
     let overlay = null;
     let maskGraphics = null;
@@ -1525,7 +1602,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
         overlay.pipeline.set1f('uOpacity', 0.2);
     }
 
-    loadedChunks.set(key, {
+    const chunk = {
         key,
         chunkX,
         chunkY,
@@ -1534,16 +1611,24 @@ function createWorldChunk(scene, chunkX, chunkY) {
         groundTexture,
         upperLayer,
         upperTexture,
+        bridgeShadow,
         waterCells,
         edgeCells,
         edgeShimmer,
-        edgeShimmerFrame: -1,
         visible: true,
         shimmers: [],
         overlay,
         maskGraphics,
         mask
-    });
+    };
+
+    loadedChunks.set(key, chunk);
+    if (overlay) loadedWaterChunks.add(chunk);
+    if (edgeShimmer) {
+        loadedEdgeChunks.add(chunk);
+        edgeShimmerFrame = -1;
+    }
+    if (waterCells.length > 0) loadedShimmerChunks.add(chunk);
 }
 
 function destroyWorldChunk(key) {
@@ -1573,6 +1658,10 @@ function destroyWorldChunk(key) {
         chunk.overlay.destroy();
     }
 
+    if (chunk.bridgeShadow) {
+        chunk.bridgeShadow.destroy();
+    }
+
     if (chunk.edgeShimmer) {
         chunk.edgeShimmer.destroy();
     }
@@ -1585,6 +1674,9 @@ function destroyWorldChunk(key) {
         chunk.maskGraphics.destroy();
     }
 
+    loadedWaterChunks.delete(chunk);
+    loadedEdgeChunks.delete(chunk);
+    loadedShimmerChunks.delete(chunk);
     loadedChunks.delete(key);
 }
 
@@ -1602,27 +1694,36 @@ function updateLoadedChunks(scene, force = false) {
         return;
     }
 
-    const desiredChunkKeys = new Set();
+    for (let offsetY = -CHUNK_DISCOVERY_RADIUS; offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
+        for (let offsetX = -CHUNK_DISCOVERY_RADIUS; offsetX <= CHUNK_DISCOVERY_RADIUS; offsetX++) {
+            discoveredChunks.add(getTileId(
+                centerChunkX + offsetX,
+                centerChunkY + offsetY
+            ));
+        }
+    }
 
     for (let offsetY = -CHUNK_LOAD_RADIUS; offsetY <= CHUNK_LOAD_RADIUS; offsetY++) {
         for (let offsetX = -CHUNK_LOAD_RADIUS; offsetX <= CHUNK_LOAD_RADIUS; offsetX++) {
             const chunkX = centerChunkX + offsetX;
             const chunkY = centerChunkY + offsetY;
 
-            const key = getChunkKey(chunkX, chunkY);
-            desiredChunkKeys.add(key);
             createWorldChunk(scene, chunkX, chunkY);
         }
     }
 
-    for (const key of Array.from(loadedChunks.keys())) {
-        if (!desiredChunkKeys.has(key)) {
+    for (const [key, chunk] of loadedChunks) {
+        if (
+            Math.abs(chunk.chunkX - centerChunkX) > CHUNK_LOAD_RADIUS ||
+            Math.abs(chunk.chunkY - centerChunkY) > CHUNK_LOAD_RADIUS
+        ) {
             destroyWorldChunk(key);
         }
     }
 
     activeChunkX = centerChunkX;
     activeChunkY = centerChunkY;
+    visibleChunkLeft = null;
 }
 
 function updateChunkVisibility() {
@@ -1630,12 +1731,30 @@ function updateChunkVisibility() {
     const top = mainCamera.scrollY;
     const right = left + mainCamera.width;
     const bottom = top + mainCamera.height;
+    const chunkLeft = Math.floor(left / CHUNK_PIXEL_SIZE);
+    const chunkRight = Math.ceil(right / CHUNK_PIXEL_SIZE) - 1;
+    const chunkTop = Math.floor(top / CHUNK_PIXEL_SIZE);
+    const chunkBottom = Math.ceil(bottom / CHUNK_PIXEL_SIZE) - 1;
+
+    if (
+        chunkLeft === visibleChunkLeft &&
+        chunkRight === visibleChunkRight &&
+        chunkTop === visibleChunkTop &&
+        chunkBottom === visibleChunkBottom
+    ) {
+        return;
+    }
+
+    visibleChunkLeft = chunkLeft;
+    visibleChunkRight = chunkRight;
+    visibleChunkTop = chunkTop;
+    visibleChunkBottom = chunkBottom;
 
     for (const chunk of loadedChunks.values()) {
-        const chunkLeft = chunk.chunkX * CHUNK_PIXEL_SIZE;
-        const chunkTop = chunk.chunkY * CHUNK_PIXEL_SIZE;
-        const visible = chunkLeft < right && chunkLeft + CHUNK_PIXEL_SIZE > left &&
-            chunkTop < bottom && chunkTop + CHUNK_PIXEL_SIZE > top;
+        const visible = chunk.chunkX >= visibleChunkLeft &&
+            chunk.chunkX <= visibleChunkRight &&
+            chunk.chunkY >= visibleChunkTop &&
+            chunk.chunkY <= visibleChunkBottom;
 
         if (visible === chunk.visible) continue;
 
@@ -1643,7 +1762,11 @@ function updateChunkVisibility() {
         chunk.groundLayer.setVisible(visible);
         if (chunk.upperLayer) chunk.upperLayer.setVisible(visible);
         if (chunk.overlay) chunk.overlay.setVisible(visible);
-        if (chunk.edgeShimmer) chunk.edgeShimmer.setVisible(visible);
+        if (chunk.bridgeShadow) chunk.bridgeShadow.setVisible(visible);
+        if (chunk.edgeShimmer) {
+            chunk.edgeShimmer.setVisible(visible);
+            if (visible) edgeShimmerFrame = -1;
+        }
     }
 }
 
@@ -1652,8 +1775,8 @@ function updateChunkWater(time) {
         waterPipeline.set1f('uTime', time * 0.003);
     }
 
-    for (const chunk of loadedChunks.values()) {
-        if (!chunk.overlay || !chunk.visible) continue;
+    for (const chunk of loadedWaterChunks) {
+        if (!chunk.visible) continue;
 
         chunk.overlay.tilePositionX = time * 0.01;
         chunk.overlay.tilePositionY = time * 0.006;
@@ -1669,10 +1792,12 @@ function getEdgeShimmerColor(pixelX, pixelY, frame) {
 function updateEdgeShimmers(time) {
     const frame = Math.floor(time * 12 / 1000);
 
-    for (const chunk of loadedChunks.values()) {
-        if (!chunk.edgeShimmer || !chunk.visible || chunk.edgeShimmerFrame === frame) continue;
+    if (frame === edgeShimmerFrame) return;
+    edgeShimmerFrame = frame;
 
-        chunk.edgeShimmerFrame = frame;
+    for (const chunk of loadedEdgeChunks) {
+        if (!chunk.visible) continue;
+
         chunk.edgeShimmer.clear();
         let activeColor = 0;
 
@@ -1702,7 +1827,7 @@ function updateEdgeShimmers(time) {
 }
 
 function spawnShimmer(scene) {
-    const waterChunks = Array.from(loadedChunks.values()).filter(chunk => chunk.waterCells.length > 0);
+    const waterChunks = Array.from(loadedShimmerChunks);
 
     if (waterChunks.length === 0) {
         return;
@@ -1953,7 +2078,7 @@ function redrawMap() {
 
             let color;
 
-            if (!discoveredTiles.has(getTileId(tileX, tileY))) {
+            if (!isTileDiscovered(tileX, tileY)) {
                 color = (x + y) & 1 ? 0x1a1a1a : 0x2a2a2a;
             } else if (hasBushAt(tileX, tileY) || hasBushAt(tileX - 1, tileY)) {
                 color = 0x2f5c2a;
@@ -1982,7 +2107,7 @@ function redrawMap() {
         const guideTileX = Math.floor(guide.x / TILE_SIZE);
         const guideTileY = Math.floor(guide.y / TILE_SIZE);
 
-        if (discoveredTiles.has(getTileId(guideTileX, guideTileY))) {
+        if (isTileDiscovered(guideTileX, guideTileY)) {
             const x = guideTileX - originX;
             const y = guideTileY - originY;
 
@@ -2124,14 +2249,14 @@ function createInteractionPromptUI(scene) {
         .setVisible(false);
 }
 
-function updateInteractionPrompt() {
+function updateInteractionPrompt(guideIsNear) {
     if (!interactionPromptLayer || !marketPrompt || !guidePrompt) return;
 
     const available = !dialogueOpen && !marketOpen && !mapOpen;
     const showMarket = available && isMarketNear();
-    const showGuide = available && guideHasMetPlayer && isGuideNear();
+    const showGuide = available && guideHasMetPlayer && guideIsNear;
 
-    const state = `${showMarket}|${showGuide}`;
+    const state = (showMarket ? 1 : 0) | (showGuide ? 2 : 0);
 
     if (state === promptState) return;
 
@@ -2599,9 +2724,7 @@ function handleGuideDialogueKey(scene, event) {
     }
 }
 
-function updateGuideInteraction(scene) {
-    const guideIsNear = isGuideNear();
-
+function updateGuideInteraction(scene, guideIsNear) {
     if (
         guideIsNear &&
         !guideWasNear &&
@@ -2651,7 +2774,7 @@ function canCharacterOccupy(scene, x, y) {
         for (let tileX = leftTile; tileX <= rightTile; tileX += 1) {
             const tile = getWorldTile(tileX, tileY);
 
-            if (tile.blocking === 'full') {
+            if (tile.blocking === 'full' && !tile.patches?.length) {
                 return false;
             }
 
@@ -2659,7 +2782,12 @@ function canCharacterOccupy(scene, x, y) {
                 return false;
             }
 
-            if (tile.baseKey !== 'water' || tile.blocking === 'lower') continue;
+            if (
+                tile.blocking !== 'full' && tile.baseKey !== 'water' ||
+                tile.blocking === 'lower'
+            ) {
+                continue;
+            }
 
             const water = getTerrainSurface(scene, tile).water;
             const startX = Math.max(left, tileX * TILE_SIZE) - tileX * TILE_SIZE;
@@ -2777,8 +2905,9 @@ function update(time, delta) {
     character.y = Math.round(character.y);
     character.setDepth(character.y + CHARACTER_SIZE);
 
-    updateGuideInteraction(this);
-    updateInteractionPrompt();
+    const guideIsNear = isGuideNear();
+    updateGuideInteraction(this, guideIsNear);
+    updateInteractionPrompt(guideIsNear);
 
     updateLoadedChunks(this);
     updateCamera(delta);
