@@ -601,6 +601,49 @@ function create() {
         hotbarSelector.x = HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE;
     };
 
+    this.input.on('pointermove', pointer => {
+        if (marketOpen) {
+            const row = getMarketRowAt(pointer.x, pointer.y);
+
+            if (row !== -1 && row !== selectedMarketOption) {
+                selectedMarketOption = row;
+                marketFeedback = null;
+                refreshMarketOptions();
+            }
+        } else if (dialogueOpen) {
+            const option = getDialogueOptionAt(pointer.x, pointer.y);
+
+            if (option !== -1 && option !== selectedDialogueOption) {
+                selectedDialogueOption = option;
+                refreshGuideDialogueOptions();
+            }
+        }
+    });
+
+    this.input.on('pointerdown', pointer => {
+        if (marketOpen) {
+            const row = getMarketRowAt(pointer.x, pointer.y);
+
+            if (row !== -1) {
+                selectedMarketOption = row;
+                buySelectedMarketItem(this);
+            } else if (pointer.y > DIALOGUE_VISIBLE_Y + MARKET_HEIGHT) {
+                closeMarket(this);
+            }
+        } else if (dialogueOpen) {
+            const option = getDialogueOptionAt(pointer.x, pointer.y);
+
+            if (option === -1) {
+                finishGuideDialogueText();
+            } else {
+                selectedDialogueOption = option;
+                selectGuideDialogueOption(this);
+            }
+        } else if (mapOpen) {
+            closeMap(this);
+        }
+    });
+
     this.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
         const step = Math.sign(deltaY);
 
@@ -2540,6 +2583,38 @@ function createMarketUI(scene) {
     marketTextLayer.pointerEvents = 'none';
 
     refreshMarketOptions();
+}
+
+function getMarketRowAt(x, y) {
+    const localY = y - DIALOGUE_VISIBLE_Y - MARKET_LIST_Y;
+    const row = Math.floor(localY / MARKET_ROW_HEIGHT);
+
+    if (
+        x < MARKET_LIST_X ||
+        x >= MARKET_LIST_X + MARKET_LIST_WIDTH ||
+        localY < 0 ||
+        row >= MARKET_ROW_COUNT ||
+        localY - row * MARKET_ROW_HEIGHT >= MARKET_ROW_HEIGHT - 2
+    ) {
+        return -1;
+    }
+
+    return row;
+}
+
+function getDialogueOptionAt(x, y) {
+    const option = Math.floor((y - DIALOGUE_VISIBLE_Y - 11) / 17);
+
+    if (
+        x < 216 ||
+        x > 312 ||
+        option < 0 ||
+        option >= GUIDE_DIALOGUE[dialogueNode].options.length
+    ) {
+        return -1;
+    }
+
+    return option;
 }
 
 function getMarketRodStatus(rod) {
