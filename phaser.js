@@ -46,22 +46,21 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                 varying vec4 outTint;
 
                 void main() {
-                    vec2 uv = outTexCoord;
-                    vec2 grid = vec2(32.0);
-                    vec2 pixel = floor(outTexCoord * 256.0);
-
-                    float x = floor(sin(floor(uv.y * grid.y) * 0.78539816339 + uTime) * 0.51);
-                    float y = floor(cos(floor(uv.x * grid.x) * 0.58904862255 + uTime * 0.8) * 0.51);
+                    vec2 grid = vec2(256.0);
+                    vec2 pixel = floor(outTexCoord * grid);
+                    float waveX =
+                        sin(pixel.y * 0.04908738521 + uTime * 0.65) +
+                        sin((pixel.x + pixel.y) * 0.02454369261 - uTime * 0.27);
+                    float waveY =
+                        cos(pixel.x * 0.04908738521 - uTime * 0.55) +
+                        cos((pixel.x - pixel.y) * 0.02454369261 + uTime * 0.31);
+                    vec2 warp = floor(vec2(waveX, waveY) * 0.55 + 0.5);
                     float light =
                         sin((pixel.x + pixel.y * 2.0) * 0.09817477042 + uTime * 0.35) * 0.5 +
                         cos((pixel.x * 3.0 - pixel.y) * 0.04908738521 - uTime * 0.28) * 0.35 +
                         sin((pixel.x * 5.0 + pixel.y * 3.0) * 0.02454369261 + uTime * 0.18) * 0.15;
                     float brightness = 0.7 + floor((light + 1.0) * 4.0) * 0.0625;
-
-                    uv += vec2(x, y) / grid;
-
-                    uv = (floor(uv * grid) + 0.5) / grid;
-
+                    vec2 uv = (pixel + warp + 0.5) / grid;
                     vec4 color = texture2D(uMainSampler, uv);
                     color.rgb *= outTint.rgb * uOpacity * brightness;
                     color.a = 1.0;
@@ -112,6 +111,7 @@ const WORLD_CACHE_LIMIT = 50000;
 const loadedChunks = new Map();
 const terrainTypeCache = new Map();
 const worldTileCache = new Map();
+const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
 const discoveredTiles = new Set();
 const chunkCanvasPool = [];
@@ -128,9 +128,19 @@ let characterDirection = 'front';
 const CHARACTER_SIZE = 16;
 const CHARACTER_SPEED = 60;
 const CHARACTER_ANIMATION_SPEED = 8;
+const CHARACTER_WALK_FRAMES = [0, 1, 0, 2];
+const CHARACTER_HITBOX_X = 4;
+const CHARACTER_HITBOX_Y = 12;
+const CHARACTER_HITBOX_WIDTH = 8;
+const CHARACTER_HITBOX_HEIGHT = 4;
 
 const GUIDE_SIZE = 16;
 const GUIDE_INTERACTION_DISTANCE = 26;
+const GUIDE_INTERACTION_DISTANCE_SQUARED = GUIDE_INTERACTION_DISTANCE ** 2;
+const GUIDE_HITBOX_X = 4;
+const GUIDE_HITBOX_Y = 12;
+const GUIDE_HITBOX_WIDTH = 8;
+const GUIDE_HITBOX_HEIGHT = 4;
 const DIALOGUE_HIDDEN_Y = -78;
 const DIALOGUE_VISIBLE_Y = 6;
 const MAP_WIDTH = 296;
@@ -141,8 +151,13 @@ const STORE_WIDTH_TILES = 3;
 const STORE_HEIGHT_TILES = 2;
 const STORE_WIDTH = STORE_WIDTH_TILES * TILE_SIZE;
 const STORE_HEIGHT = STORE_HEIGHT_TILES * TILE_SIZE;
+const STORE_HITBOX_X = 2;
+const STORE_HITBOX_Y = STORE_HEIGHT - 8;
+const STORE_HITBOX_WIDTH = STORE_WIDTH - 4;
+const STORE_HITBOX_HEIGHT = 8;
 
 const MARKET_INTERACTION_DISTANCE = 34;
+const MARKET_INTERACTION_DISTANCE_SQUARED = MARKET_INTERACTION_DISTANCE ** 2;
 const MARKET_HIDDEN_Y = -130;
 const PROMPT_Y = HOTBAR_Y - 25;
 
@@ -601,9 +616,10 @@ function fractalNoise(worldX, worldY, salt) {
 
 function getTerrainType(tileX, tileY) {
     const key = getTileId(tileX, tileY);
+    const cached = terrainTypeCache.get(key);
 
-    if (terrainTypeCache.has(key)) {
-        return terrainTypeCache.get(key);
+    if (cached !== undefined) {
+        return cached;
     }
 
     let terrain;
@@ -735,11 +751,27 @@ function findWaterRun(tileX, tileY, stepX, stepY) {
     };
 }
 
+function cacheBridgeCandidate(key, bridge) {
+    if (bridgeCandidateCache.size >= WORLD_CACHE_LIMIT) {
+        bridgeCandidateCache.clear();
+    }
+
+    bridgeCandidateCache.set(key, bridge);
+    return bridge;
+}
+
 function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
+    const key = getTileId(tileX, tileY) * 2 + (salt === 811 ? 1 : 0);
+    const cached = bridgeCandidateCache.get(key);
+
+    if (cached !== undefined) {
+        return cached;
+    }
+
     const run = findWaterRun(tileX, tileY, stepX, stepY);
 
     if (!run) {
-        return null;
+        return cacheBridgeCandidate(key, null);
     }
 
     const spanLength = run.waterLength + 2;
@@ -753,13 +785,13 @@ function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
 
         if (shouldBeLand) {
             if (!isLandTile(firstX, firstY) || !isLandTile(secondX, secondY)) {
-                return null;
+                return cacheBridgeCandidate(key, null);
             }
         } else if (
             getTerrainType(firstX, firstY) !== 'water' ||
             getTerrainType(secondX, secondY) !== 'water'
         ) {
-            return null;
+            return cacheBridgeCandidate(key, null);
         }
     }
 
@@ -771,10 +803,10 @@ function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
         4,
         salt
     )) {
-        return null;
+        return cacheBridgeCandidate(key, null);
     }
 
-    return {
+    const bridge = {
         startX: run.startLandX,
         startY: run.startLandY,
         stepX,
@@ -783,63 +815,72 @@ function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
         widthY,
         spanLength
     };
+
+    return cacheBridgeCandidate(key, bridge);
 }
 
 function isTileInBridge(tileX, tileY, bridge) {
-    for (let distance = 0; distance < bridge.spanLength; distance++) {
-        const bridgeX = bridge.startX + bridge.stepX * distance;
-        const bridgeY = bridge.startY + bridge.stepY * distance;
+    const offsetX = tileX - bridge.startX;
+    const offsetY = tileY - bridge.startY;
+    const distance = offsetX * bridge.stepX + offsetY * bridge.stepY;
+    const width = offsetX * bridge.widthX + offsetY * bridge.widthY;
 
-        if (
-            (tileX === bridgeX && tileY === bridgeY) ||
-            (
-                tileX === bridgeX + bridge.widthX &&
-                tileY === bridgeY + bridge.widthY
-            )
-        ) {
-            return true;
-        }
-    }
-
-    return false;
+    return distance >= 0 && distance < bridge.spanLength &&
+        (width === 0 || width === 1);
 }
 
 function getBridgeTile(tileX, tileY) {
-    for (let firstColumn = tileX - 1; firstColumn <= tileX; firstColumn++) {
-        const bridge = getBridgeCandidate(
-            firstColumn,
-            tileY,
-            0,
-            1,
-            1,
-            0,
-            810
-        );
+    const terrain = getTerrainType(tileX, tileY);
 
-        if (bridge && isTileInBridge(tileX, tileY, bridge)) {
-            return {
-                key: 'wood',
-                rotation: 0
-            };
+    if (
+        terrain === 'water' ||
+        getTerrainType(tileX, tileY - 1) === 'water' ||
+        getTerrainType(tileX, tileY + 1) === 'water'
+    ) {
+        for (let firstColumn = tileX - 1; firstColumn <= tileX; firstColumn++) {
+            const bridge = getBridgeCandidate(
+                firstColumn,
+                tileY,
+                0,
+                1,
+                1,
+                0,
+                810
+            );
+
+            if (bridge && isTileInBridge(tileX, tileY, bridge)) {
+                return {
+                    key: 'wood',
+                    rotation: 0,
+                    bridge: true
+                };
+            }
         }
     }
 
-    for (let firstRow = tileY - 1; firstRow <= tileY; firstRow++) {
-        const bridge = getBridgeCandidate(
-            tileX,
-            firstRow,
-            1,
-            0,
-            0,
-            1,
-            811
-        );
+    if (
+        terrain === 'water' ||
+        getTerrainType(tileX - 1, tileY) === 'water' ||
+        getTerrainType(tileX + 1, tileY) === 'water'
+    ) {
+        for (let firstRow = tileY - 1; firstRow <= tileY; firstRow++) {
+            const bridge = getBridgeCandidate(
+                tileX,
+                firstRow,
+                1,
+                0,
+                0,
+                1,
+                811
+            );
 
-        if (bridge && isTileInBridge(tileX, tileY, bridge)) {
-            return {
-                key: 'wood',
-                rotation: Math.PI / 2
-            };
+            if (bridge && isTileInBridge(tileX, tileY, bridge)) {
+                return {
+                    key: 'wood',
+                    rotation: Math.PI / 2,
+                    bridge: true
+                };
+            }
         }
     }
 
@@ -848,9 +889,10 @@ function getBridgeTile(tileX, tileY) {
 
 function getPierCandidate(anchorX, anchorY) {
     const key = getTileId(anchorX, anchorY);
+    const cached = pierCandidateCache.get(key);
 
-    if (pierCandidateCache.has(key)) {
-        return pierCandidateCache.get(key);
+    if (cached !== undefined) {
+        return cached;
     }
 
     let pier = null;
@@ -970,13 +1012,14 @@ function getTerrainTileKey(tileX, tileY) {
     }
 
     const decoration = worldHash(tileX, tileY, 670);
+    const flowerPatch = valueNoise(tileX, tileY, 8, 671);
 
-    if (decoration > 0.985) {
-        return 'grass4';
-    }
-
-    if (decoration > 0.95) {
-        return 'grass3';
+    if (decoration > 0.80 && flowerPatch > 0.62) {
+        return worldHash(
+            Math.floor((tileX + 149) / 20),
+            Math.floor((tileY - 83) / 20),
+            672
+        ) > 0.5 ? 'grass4' : 'grass3';
     }
 
     if (decoration > 0.80) {
@@ -1089,9 +1132,10 @@ function getTerrainTile(tileX, tileY) {
 
 function getWorldTile(tileX, tileY) {
     const key = getTileId(tileX, tileY);
+    const cached = worldTileCache.get(key);
 
-    if (worldTileCache.has(key)) {
-        return worldTileCache.get(key);
+    if (cached !== undefined) {
+        return cached;
     }
 
     const tile = getBridgeTile(tileX, tileY) || getPierTile(tileX, tileY) || getTerrainTile(tileX, tileY);
@@ -2045,7 +2089,7 @@ function createInteractionPromptUI(scene) {
             gap: '5px',
             padding: '3px 6px',
             background: 'rgba(0, 0, 0, 0.5)',
-            borderRadius: '2px',
+            borderRadius: '0',
             boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)'
         });
 
@@ -2058,7 +2102,7 @@ function createInteractionPromptUI(scene) {
             minWidth: '10px',
             color: '#fff',
             background: 'rgba(255, 255, 255, 0.14)',
-            borderRadius: '1px'
+            borderRadius: '0'
         });
 
         const text = document.createElement('span');
@@ -2083,9 +2127,9 @@ function createInteractionPromptUI(scene) {
 function updateInteractionPrompt() {
     if (!interactionPromptLayer || !marketPrompt || !guidePrompt) return;
 
-    const availible = !dialogueOpen && !marketOpen && !mapOpen;
-    const showMarket = availible && isMarketNear();
-    const showGuide = availible && guideHasMetPlayer && isGuideNear();
+    const available = !dialogueOpen && !marketOpen && !mapOpen;
+    const showMarket = available && isMarketNear();
+    const showGuide = available && guideHasMetPlayer && isGuideNear();
 
     const state = `${showMarket}|${showGuide}`;
 
@@ -2339,12 +2383,10 @@ function isMarketNear() {
         return false;
     }
 
-    return Phaser.Math.Distance.Between(
-        character.x + CHARACTER_SIZE / 2,
-        character.y + CHARACTER_SIZE / 2,
-        store.x + STORE_WIDTH / 2,
-        store.y + STORE_HEIGHT / 2
-    ) < MARKET_INTERACTION_DISTANCE;
+    const x = character.x + CHARACTER_SIZE / 2 - store.x - STORE_WIDTH / 2;
+    const y = character.y + CHARACTER_SIZE / 2 - store.y - STORE_HEIGHT / 2;
+
+    return x * x + y * y < MARKET_INTERACTION_DISTANCE_SQUARED;
 }
 
 function isGuideNear() {
@@ -2352,12 +2394,10 @@ function isGuideNear() {
         return false;
     }
 
-    return Phaser.Math.Distance.Between(
-        character.x + CHARACTER_SIZE / 2,
-        character.y + CHARACTER_SIZE / 2,
-        guide.x + GUIDE_SIZE / 2,
-        guide.y + GUIDE_SIZE / 2
-    ) < GUIDE_INTERACTION_DISTANCE;
+    const x = character.x - guide.x;
+    const y = character.y - guide.y;
+
+    return x * x + y * y < GUIDE_INTERACTION_DISTANCE_SQUARED;
 }
 
 function refreshGuideDialogueOptions() {
@@ -2576,31 +2616,61 @@ function updateGuideInteraction(scene) {
     guideWasNear = guideIsNear;
 }
 
-function canCharacterOccupy(x, y) {
-    if (guide && x < guide.x + GUIDE_SIZE && x + CHARACTER_SIZE > guide.x && y < guide.y + GUIDE_SIZE && y + CHARACTER_SIZE > guide.y) {
+function canCharacterOccupy(scene, x, y) {
+    const left = x + CHARACTER_HITBOX_X;
+    const top = y + CHARACTER_HITBOX_Y;
+    const right = left + CHARACTER_HITBOX_WIDTH;
+    const bottom = top + CHARACTER_HITBOX_HEIGHT;
+
+    if (
+        guide &&
+        left < guide.x + GUIDE_HITBOX_X + GUIDE_HITBOX_WIDTH &&
+        right > guide.x + GUIDE_HITBOX_X &&
+        top < guide.y + GUIDE_HITBOX_Y + GUIDE_HITBOX_HEIGHT &&
+        bottom > guide.y + GUIDE_HITBOX_Y
+    ) {
         return false;
     }
 
-    if (store && x < store.x + STORE_WIDTH && x + CHARACTER_SIZE > store.x && y < store.y + STORE_HEIGHT && y + CHARACTER_SIZE > store.y) {
+    if (
+        store &&
+        left < store.x + STORE_HITBOX_X + STORE_HITBOX_WIDTH &&
+        right > store.x + STORE_HITBOX_X &&
+        top < store.y + STORE_HITBOX_Y + STORE_HITBOX_HEIGHT &&
+        bottom > store.y + STORE_HITBOX_Y
+    ) {
         return false;
     }
 
-    const leftTile = Math.floor(x / TILE_SIZE);
-    const rightTile = Math.floor((x + CHARACTER_SIZE - 1) / TILE_SIZE);
-    const topTile = Math.floor(y / TILE_SIZE);
-    const bottomTile = Math.floor((y + CHARACTER_SIZE - 1) / TILE_SIZE);
-    const characterBottomY = y + CHARACTER_SIZE;
+    const leftTile = Math.floor(left / TILE_SIZE);
+    const rightTile = Math.floor((right - 1) / TILE_SIZE);
+    const topTile = Math.floor(top / TILE_SIZE);
+    const bottomTile = Math.floor((bottom - 1) / TILE_SIZE);
 
     for (let tileY = topTile; tileY <= bottomTile; tileY += 1) {
         for (let tileX = leftTile; tileX <= rightTile; tileX += 1) {
-            const blocking = getWorldTile(tileX, tileY).blocking;
+            const tile = getWorldTile(tileX, tileY);
 
-            if (blocking === 'full') {
+            if (tile.blocking === 'full') {
                 return false;
             }
 
-            if (blocking === 'lower' && characterBottomY > tileY * TILE_SIZE + TILE_SIZE / 2) {
+            if (tile.blocking === 'lower' && bottom > tileY * TILE_SIZE + TILE_SIZE / 2) {
                 return false;
+            }
+
+            if (tile.baseKey !== 'water' || tile.blocking === 'lower') continue;
+
+            const water = getTerrainSurface(scene, tile).water;
+            const startX = Math.max(left, tileX * TILE_SIZE) - tileX * TILE_SIZE;
+            const endX = Math.min(right, (tileX + 1) * TILE_SIZE) - tileX * TILE_SIZE;
+            const startY = Math.max(top, tileY * TILE_SIZE) - tileY * TILE_SIZE;
+            const endY = Math.min(bottom, (tileY + 1) * TILE_SIZE) - tileY * TILE_SIZE;
+
+            for (let pixelY = startY; pixelY < endY; pixelY += 1) {
+                for (let pixelX = startX; pixelX < endX; pixelX += 1) {
+                    if (water[pixelY * TILE_SIZE + pixelX]) return false;
+                }
             }
         }
     }
@@ -2680,19 +2750,19 @@ function update(time, delta) {
         const nextX = character.x + wholeMoveX;
         const nextY = character.y + wholeMoveY;
 
-        if (canCharacterOccupy(nextX, character.y)) {
+        if (!wholeMoveX || canCharacterOccupy(this, nextX, character.y)) {
             character.x = nextX;
         } else {
             characterMoveRemainderX = 0;
         }
 
-        if (canCharacterOccupy(character.x, nextY)) {
+        if (!wholeMoveY || canCharacterOccupy(this, character.x, nextY)) {
             character.y = nextY;
         } else {
             characterMoveRemainderY = 0;
         }
 
-        const walkFrame = [0, 1, 0, 2][Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 4];
+        const walkFrame = CHARACTER_WALK_FRAMES[Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 4];
 
         const frameSuffix = walkFrame === 0 ? '' : `walk${walkFrame}`;
         const nextTextureKey = `character-${characterDirection}${frameSuffix}`;
