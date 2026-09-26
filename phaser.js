@@ -143,7 +143,7 @@ const STORE_HEIGHT = STORE_HEIGHT_TILES * TILE_SIZE;
 
 const MARKET_INTERACTION_DISTANCE = 34;
 const MARKET_HIDDEN_Y = -130;
-const PROMPT_Y = 142;
+const PROMPT_Y = HOTBAR_Y - 15;
 
 const MARKET_RODS = [
     { id: 'basic', label: 'Basic Rod', price: 10 },
@@ -199,7 +199,10 @@ let selectedMarketOption = 0;
 let playerCoins = 100;
 const ownedRods = new Set();
 let interactionPromptLayer;
-let interactionPromptText;
+
+let marketPrompt;
+let guidePrompt;
+
 let dialogueNode = 'intro';
 let selectedDialogueOption = 0;
 let dialogueTypingEvent = null;
@@ -282,9 +285,42 @@ function preload() {
     });
 }
 
+function createBushSlices(scene) {
+    const source = scene.textures.get('bush').getSourceImage();
+    const { width, height} = source;
+
+    for (let slice = 0; slice < TILE_SIZE; slice++) {
+        const key = `bush-slice-${slice}`;
+        if (scene.textures.exists(key)) continue;
+
+        const texture = scene.textures.createCanvas(key, width, height);
+        const context = texture.getContext();
+
+        context.drawImage(source, 0, 0);
+        const image = context.getImageData(0, 0, width, height);
+
+        for (let y= 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const depth = Math.min(TILE_SIZE - 1, Math.floor(
+                    (worldHash(x, y, 761) * 0.7 +
+                        (y / (height - 1)) * 0.3) * TILE_SIZE
+                ));
+
+                if (depth !== slice) {
+                    image.data[(y * width + x) * 4 + 3] = 0;
+                }
+            }
+        }
+
+        context.putImageData(image, 0, 0);
+        texture.refresh();
+    }
+}
+
 function create() {
     worldObjectLayer = this.add.layer().setDepth(3);
     this.game.renderer.pipelines.add('WaterWarp', new WaterWarpPipeline(this.game));
+    createBushSlices(this);
 
     this.anims.create({
         key: 'shimmer',
@@ -919,10 +955,19 @@ function createWorldChunk(scene, chunkX, chunkY) {
                 edgeCells.push({x: tileX * TILE_SIZE - leftExtension, y: tileY * TILE_SIZE, width: TILE_SIZE + leftExtension + rightExtension});
             }
 
-            if (getTerrainType(tileX, tileY) === 'grass' && getTerrainType(tileX + 1, tileY) === 'grass' && worldHash(tileX, tileY, 760) > 0.992) {
-                const bush = scene.add.image(tileX * TILE_SIZE, tileY * TILE_SIZE + TILE_SIZE, 'bush').setOrigin(0, 1).setDepth(tileY * TILE_SIZE + TILE_SIZE);
-                worldObjectLayer.add(bush);
-                tileSprites.push(bush);
+            if (hasBushAt(tileX, tileY)) {
+                const baseY = (tileY + 1) * TILE_SIZE;
+
+                for (let slice = 0; slice < TILE_SIZE; slice++) {
+                    const bush = scene.add.image(
+                        tileX * TILE_SIZE, baseY, `bush-slice-${slice}`
+                    )
+                        .setOrigin(0, 1)
+                        .setDepth(baseY - TILE_SIZE + slice + 0.5);
+
+                    worldObjectLayer.add(bush);
+                    tileSprites.push(bush);
+                }
             }
 
             if (tileKey.toLowerCase().includes('water')) {
