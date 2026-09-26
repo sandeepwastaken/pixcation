@@ -76,7 +76,9 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                 }
 
                 void main() {
-                    if (texture2D(uMainSampler, outTexCoord).r < 0.5) {
+                    vec4 mask = texture2D(uMainSampler, outTexCoord);
+
+                    if (mask.r < 0.5) {
                         discard;
                     }
 
@@ -114,6 +116,17 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                         color = vec4(0.529, 0.745, 0.847, shallow > 0.62 ? 0.42 : 0.24);
                     } else if (first > 0.4 && shallow > 0.63) {
                         color = vec4(0.529, 0.745, 0.847, 0.16);
+                    }
+
+                    if (mask.b > 0.5) {
+                        float frame = floor(t * 12.0);
+                        float edge = noise(vec2(p.x - frame, p.y + frame * 0.25) / 24.0 + vec2(41.0, 17.0));
+
+                        if (edge >= 0.76) {
+                            color = vec4(0.82, 0.93, 0.945, 1.0);
+                        } else if (edge >= 0.5 || edge >= 0.39 && edge < 0.42) {
+                            color = vec4(0.529, 0.745, 0.847, 1.0);
+                        }
                     }
 
                     gl_FragColor = vec4(color.rgb * color.a, color.a);
@@ -171,7 +184,6 @@ const WORLD_CACHE_LIMIT = 50000;
 
 const loadedChunks = new Map();
 const loadedWaterChunks = new Set();
-const loadedEdgeChunks = new Set();
 const loadedShimmerChunks = new Set();
 const terrainTypeCache = new Map();
 const worldTileCache = new Map();
@@ -190,7 +202,6 @@ let visibleChunkLeft = null;
 let visibleChunkRight = null;
 let visibleChunkTop = null;
 let visibleChunkBottom = null;
-let edgeShimmerFrame = -1;
 
 let character;
 let characterKeys;
@@ -1662,12 +1673,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
                 }
 
                 for (const cell of shoreline.edgeCells) {
-                    edgeCells.push({
-                        x: worldX + cell.x,
-                        y: worldY + cell.y,
-                        width: cell.width,
-                        height: cell.height
-                    });
+                    edgeCells.push(worldX + cell.x, worldY + cell.y, cell.width);
                 }
             }
         }
@@ -1680,7 +1686,6 @@ function createWorldChunk(scene, chunkX, chunkY) {
     const bridgeShadow = bridgeCells.length > 0
         ? scene.add.graphics().setDepth(1.25)
         : null;
-    const edgeShimmer = edgeCells.length > 0 ? scene.add.graphics().setDepth(2) : null;
 
     if (bridgeShadow) {
         bridgeShadow.fillStyle(0x17283b, 0.32);
@@ -1714,6 +1719,14 @@ function createWorldChunk(scene, chunkX, chunkY) {
             }
         }
 
+        for (let cell = 0; cell < edgeCells.length; cell += 3) {
+            let index = ((edgeCells[cell + 1] - pixelY) * CHUNK_PIXEL_SIZE + edgeCells[cell] - pixelX) * 4 + 2;
+
+            for (let x = 0; x < edgeCells[cell + 2]; x++, index += 4) {
+                data[index] = 255;
+            }
+        }
+
         context.putImageData(image, 0, 0);
         waterTexture.refresh();
 
@@ -1734,8 +1747,6 @@ function createWorldChunk(scene, chunkX, chunkY) {
         upperTexture,
         bridgeShadow,
         waterCells,
-        edgeCells,
-        edgeShimmer,
         visible: true,
         shimmers: [],
         overlay,
@@ -1744,10 +1755,6 @@ function createWorldChunk(scene, chunkX, chunkY) {
 
     loadedChunks.set(key, chunk);
     if (overlay) loadedWaterChunks.add(chunk);
-    if (edgeShimmer) {
-        loadedEdgeChunks.add(chunk);
-        edgeShimmerFrame = -1;
-    }
     if (waterCells.length > 0) loadedShimmerChunks.add(chunk);
 }
 
@@ -1783,16 +1790,12 @@ function destroyWorldChunk(key) {
         chunk.bridgeShadow.destroy();
     }
 
-    if (chunk.edgeShimmer) {
-        chunk.edgeShimmer.destroy();
-    }
 
     if (chunk.waterTexture) {
         chunkCanvasPool.push(chunk.waterTexture);
     }
 
     loadedWaterChunks.delete(chunk);
-    loadedEdgeChunks.delete(chunk);
     loadedShimmerChunks.delete(chunk);
     loadedChunks.delete(key);
 }
@@ -1905,10 +1908,6 @@ function updateChunkVisibility() {
         if (chunk.upperLayer) chunk.upperLayer.setVisible(visible);
         if (chunk.overlay) chunk.overlay.setVisible(visible);
         if (chunk.bridgeShadow) chunk.bridgeShadow.setVisible(visible);
-        if (chunk.edgeShimmer) {
-            chunk.edgeShimmer.setVisible(visible);
-            if (visible) edgeShimmerFrame = -1;
-        }
     }
 }
 
@@ -1918,49 +1917,6 @@ function updateChunkWater(time) {
     waterPipeline.set1f('uTime', time / 1000);
     waterPipeline.set2f('uScroll', mainCamera.scrollX, mainCamera.scrollY);
     waterPipeline.set1f('uViewHeight', mainCamera.height);
-}
-
-function getEdgeShimmerColor(pixelX, pixelY, frame) {
-    const noise = valueNoise(pixelX - frame, pixelY + frame * 0.25, 24, 780);
-
-    return noise >= 0.76 ? 0xd1edf1 : noise >= 0.5 || noise >= 0.39 && noise < 0.42 ? 0x87bed8 : 0;
-}
-
-function updateEdgeShimmers(time) {
-    const frame = Math.floor(time * 12 / 1000);
-
-    if (frame === edgeShimmerFrame) return;
-    edgeShimmerFrame = frame;
-
-    for (const chunk of loadedEdgeChunks) {
-        if (!chunk.visible) continue;
-
-        chunk.edgeShimmer.clear();
-        let activeColor = 0;
-
-        for (const cell of chunk.edgeCells) {
-            const endX = cell.x + cell.width;
-            let pixelX = cell.x;
-            let color = getEdgeShimmerColor(pixelX, cell.y, frame);
-
-            while (pixelX < endX) {
-                const runColor = color;
-                const startX = pixelX;
-
-                pixelX++;
-                while (pixelX < endX && (color = getEdgeShimmerColor(pixelX, cell.y, frame)) === runColor) pixelX++;
-
-                if (runColor === 0) continue;
-
-                if (runColor !== activeColor) {
-                    chunk.edgeShimmer.fillStyle(runColor, 1);
-                    activeColor = runColor;
-                }
-
-                chunk.edgeShimmer.fillRect(startX, cell.y, pixelX - startX, 1);
-            }
-        }
-    }
 }
 
 function releaseShimmer(chunk, shimmer) {
@@ -3204,5 +3160,4 @@ function update(time, delta) {
     updateCamera(delta);
     updateChunkVisibility();
     updateChunkWater(time);
-    updateEdgeShimmers(time);
 }
