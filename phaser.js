@@ -106,6 +106,7 @@ const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
 const CHUNK_LOAD_RADIUS = 1;
 const CHUNK_DISCOVERY_RADIUS = 2;
 const WORLD_SEED = 6767676767676;
+const WORLD_HASH_MULTIPLIER = 1442695040888963407;
 const WORLD_FEATURE_SCALE = 0.42;
 
 const MIN_BRIDGE_WATER_LENGTH = 2;
@@ -333,7 +334,7 @@ function preload() {
 }
 
 function createBushSlices(scene) {
-    const source = scene.textures.get('bush').getSourceImage();
+    const source = getTextureSource(scene, 'bush');
     const { width, height} = source;
 
     for (let slice = 0; slice < TILE_SIZE; slice++) {
@@ -365,7 +366,7 @@ function createBushSlices(scene) {
 }
 
 function createRoundedCliffTextures(scene) {
-    const source = key => scene.textures.get(key).getSourceImage();
+    const source = key => getTextureSource(scene, key);
 
     for (let left = 0; left < DIRT_CLIFF_TILES.length; left++) {
         for (let right = 0; right < DIRT_CLIFF_TILES[left].length; right++) {
@@ -463,6 +464,7 @@ function createRoundedCliffTextures(scene) {
 }
 
 function create() {
+    this.textureSourceCache = new Map();
     this.terrainPixelCache = new Map();
     this.terrainSurfaceCache = new Map();
     this.shorelineTileCache = new Map();
@@ -592,14 +594,22 @@ function getTileId(tileX, tileY) {
     return tileX * 67108864 + tileY;
 }
 
-function worldHash(x, y, salt = 0) {
-    let number = Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(WORLD_SEED + salt, 1442695040888963407);
+function coordinateHash(x, y, seedHash) {
+    let number = Math.imul(x, 374761393) + Math.imul(y, 668265263) + seedHash;
     
     number ^= number >>> 13;
 
     number = Math.imul(number, 1274126177);
 
     return (((number ^ (number >>> 16)) >>> 0) / 4294967295);
+}
+
+function worldHash(x, y, salt = 0) {
+    return coordinateHash(
+        x,
+        y,
+        Math.imul(WORLD_SEED + salt, WORLD_HASH_MULTIPLIER)
+    );
 }
 
 function smoothNoiseAmount(value) {
@@ -616,10 +626,11 @@ function valueNoise(worldX, worldY, scale, salt) {
     const horizontalAmount = smoothNoiseAmount(scaledX - left);
     const verticalAmount = smoothNoiseAmount(scaledY - top);
 
-    const topLeft = worldHash(left, top, salt);
-    const topRight = worldHash(left + 1, top, salt);
-    const bottomLeft = worldHash(left, top + 1, salt);
-    const bottomRight = worldHash(left + 1, top + 1, salt);
+    const seedHash = Math.imul(WORLD_SEED + salt, WORLD_HASH_MULTIPLIER);
+    const topLeft = coordinateHash(left, top, seedHash);
+    const topRight = coordinateHash(left + 1, top, seedHash);
+    const bottomLeft = coordinateHash(left, top + 1, seedHash);
+    const bottomRight = coordinateHash(left + 1, top + 1, seedHash);
 
     const topValue = topLeft + (topRight - topLeft) * horizontalAmount;
     const bottomValue = bottomLeft + (bottomRight - bottomLeft) * horizontalAmount;
@@ -1192,11 +1203,22 @@ function isTileDiscovered(tileX, tileY) {
     ));
 }
 
+function getTextureSource(scene, key) {
+    let source = scene.textureSourceCache.get(key);
+
+    if (!source) {
+        source = scene.textures.get(key).getSourceImage();
+        scene.textureSourceCache.set(key, source);
+    }
+
+    return source;
+}
+
 function getTerrainPixels(scene, key) {
     const cached = scene.terrainPixelCache.get(key);
     if (cached) return cached;
 
-    const source = scene.textures.get(key).getSourceImage();
+    const source = getTextureSource(scene, key);
     const canvas = document.createElement('canvas');
     canvas.width = source.width;
     canvas.height = source.height;
@@ -1306,7 +1328,11 @@ function getShorelineTile(scene, tile, northTile) {
             const shaded = shadowY < TILE_SIZE;
             const source = shaded ? shadow.data : base.data;
             const sourceIndex = ((shaded ? shadowY : y) * TILE_SIZE + x) * 4;
-            image.data.set(source.subarray(sourceIndex, sourceIndex + 4), index * 4);
+            const targetIndex = index * 4;
+            image.data[targetIndex] = source[sourceIndex];
+            image.data[targetIndex + 1] = source[sourceIndex + 1];
+            image.data[targetIndex + 2] = source[sourceIndex + 2];
+            image.data[targetIndex + 3] = source[sourceIndex + 3];
             edges[index] = distance === 0 ? 1 : 0;
         }
     }
@@ -1329,7 +1355,7 @@ function getShorelineTile(scene, tile, northTile) {
 
                 const start = x;
                 while (x < TILE_SIZE && mask[y * TILE_SIZE + x]) x++;
-                const key = `${start},${x - start}`;
+                const key = start * (TILE_SIZE + 1) + x - start;
                 const above = previous.get(key);
 
                 if (mergeRows && above && above.y + above.height === y) {
@@ -1370,7 +1396,7 @@ function acquireChunkCanvas(scene) {
 }
 
 function drawChunkTexture(context, scene, key, x, y, rotation = 0, flipX = false, flipY = false) {
-    const source = scene.textures.get(key).getSourceImage();
+    const source = getTextureSource(scene, key);
     const { width, height } = source;
 
     if (rotation) {
