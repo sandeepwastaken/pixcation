@@ -312,6 +312,7 @@ const FISH_PER_CHUNK_MAX = 5;
 const FISH_WATER_PER_FISH = 5000;
 const FISH_SWIM_SPEED = 13;
 const FISH_ACCELERATION = 40;
+const FISH_FLEE_ACCELERATION = 220;
 const FISH_DRAG = 0.6;
 const FISH_COAST_DRAG = 1.6;
 const FISH_BURST_MIN = 300;
@@ -2900,7 +2901,8 @@ function updateFish(delta) {
                     fish.heading += Phaser.Math.Clamp(turn, -maxTurn, maxTurn);
 
                     if (fish.thrusting && Math.cos(turn) > 0) {
-                        fish.velocity = Math.min(fish.topSpeed, fish.velocity + FISH_ACCELERATION * seconds);
+                        const acceleration = fish.state === 'flee' ? FISH_FLEE_ACCELERATION : FISH_ACCELERATION;
+                        fish.velocity = Math.min(fish.topSpeed, fish.velocity + acceleration * seconds);
                     }
                 }
             }
