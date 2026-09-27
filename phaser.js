@@ -2,6 +2,21 @@ const APP_CACHE_BUSTER = Date.now();
 
 const withCacheBuster = (path) => `${path}?v=${APP_CACHE_BUSTER}`;
 
+function getPixelPerfectZoom() {
+    const ratio = window.devicePixelRatio || 1;
+    const width = document.documentElement.clientWidth || window.innerWidth;
+    const height = document.documentElement.clientHeight || window.innerHeight;
+    const scale = Math.floor(Math.min(width * ratio / 320, height * ratio / 192));
+
+    return Math.max(1, scale) / ratio;
+}
+
+window.addEventListener('resize', () => {
+    if (game) {
+        game.scale.setZoom(getPixelPerfectZoom());
+    }
+});
+
 const config = {
     type: Phaser.AUTO,
 
@@ -15,8 +30,9 @@ const config = {
     },
 
     scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        mode: Phaser.Scale.NONE,
+        autoCenter: Phaser.Scale.NO_CENTER,
+        zoom: getPixelPerfectZoom()
     },
 
     parent: 'game-container',
