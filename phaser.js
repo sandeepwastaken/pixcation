@@ -426,6 +426,8 @@ let cameraOffsetX = 0;
 let cameraOffsetY = 0;
 
 let promptState = -1;
+const promptMotion = { value: 0 };
+const PROMPT_SLIDE = 4;
 
 function preload() {
     const tileKeys = [
@@ -3369,7 +3371,7 @@ function createInteractionPromptUI(scene) {
     interactionPromptLayer.pointerEvents = 'none';
 }
 
-function updateInteractionPrompt(guideIsNear) {
+function updateInteractionPrompt(scene, guideIsNear) {
     if (!interactionPromptLayer || !marketPrompt || !guidePrompt) return;
 
     const available = !dialogueOpen && !marketOpen && !mapOpen;
@@ -3383,11 +3385,48 @@ function updateInteractionPrompt(guideIsNear) {
 
     if (state === promptState) return;
 
+    const wasShowing = promptState > 0;
     promptState = state;
+
+    scene.tweens.killTweensOf(promptMotion);
+
+    if (state === 0) {
+        scene.tweens.add({
+            targets: promptMotion,
+            value: 0,
+            duration: 90,
+            onUpdate: applyPromptMotion,
+            onComplete: () => {
+                if (promptState === 0) {
+                    interactionPromptLayer.setVisible(false);
+                }
+            }
+        });
+        return;
+    }
+
     marketPrompt.style.display = showMarket ? 'flex' : 'none';
     guidePrompt.style.display = showGuide ? 'flex' : 'none';
+    interactionPromptLayer.setVisible(true);
 
-    interactionPromptLayer.setVisible(showMarket || showGuide);
+    if (!wasShowing) {
+        promptMotion.value = 0;
+    }
+
+    applyPromptMotion();
+    scene.tweens.add({
+        targets: promptMotion,
+        value: 1,
+        duration: 140,
+        ease: 'Cubic.Out',
+        onUpdate: applyPromptMotion
+    });
+}
+
+function applyPromptMotion() {
+    interactionPromptLayer
+        .setY(PROMPT_Y + Math.round((1 - promptMotion.value) * PROMPT_SLIDE))
+        .setAlpha(promptMotion.value);
 }
 
 function createMarketUI(scene) {
@@ -4272,7 +4311,7 @@ function update(time, delta) {
 
     const guideIsNear = isGuideNear();
     updateGuideInteraction(this, guideIsNear);
-    updateInteractionPrompt(guideIsNear);
+    updateInteractionPrompt(this, guideIsNear);
 
     updateLoadedChunks(this);
     buildPendingChunk(this);
