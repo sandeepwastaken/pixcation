@@ -328,24 +328,7 @@ function openMap(scene) {
     mapDrag = null;
     redrawMap(scene);
 
-    mapContainer
-        .setVisible(true)
-        .setY(MAP_HIDDEN_Y);
-
-    mapTextLayer
-        .setVisible(true)
-        .setY(MAP_HIDDEN_Y);
-
-    scene.tweens.killTweensOf(mapContainer);
-    scene.tweens.killTweensOf(mapTextLayer);
-
-    scene.tweens.add({
-        targets: [mapContainer, mapTextLayer],
-        y: DIALOGUE_VISIBLE_Y,
-        duration: 180,
-        ease: 'Cubic.Out',
-        onUpdate: snapTweenTarget
-    });
+    showSlidingPanel(scene, MAP_HIDDEN_Y, mapContainer, mapTextLayer);
 }
 
 function updateMapPan(scene, delta) {
@@ -377,6 +360,22 @@ function snapTweenTarget(tween, target) {
     target.y = Math.round(target.y);
 }
 
+function slidePanel(scene, y, duration, ease, targets, onComplete) {
+    for (const target of targets) scene.tweens.killTweensOf(target);
+    scene.tweens.add({ targets, y, duration, ease, onUpdate: snapTweenTarget, onComplete });
+}
+
+function showSlidingPanel(scene, hiddenY, ...targets) {
+    for (const target of targets) target.setVisible(true).setY(hiddenY);
+    slidePanel(scene, DIALOGUE_VISIBLE_Y, 180, 'Cubic.Out', targets);
+}
+
+function hideSlidingPanel(scene, hiddenY, isOpen, ...targets) {
+    slidePanel(scene, hiddenY, 140, 'Cubic.In', targets, () => {
+        if (!isOpen()) for (const target of targets) target.setVisible(false);
+    });
+}
+
 function closeMap(scene) {
     if (!mapOpen) {
         return;
@@ -384,22 +383,7 @@ function closeMap(scene) {
 
     mapOpen = false;
 
-    scene.tweens.killTweensOf(mapContainer);
-    scene.tweens.killTweensOf(mapTextLayer);
-
-    scene.tweens.add({
-        targets: [mapContainer, mapTextLayer],
-        y: MAP_HIDDEN_Y,
-        duration: 140,
-        ease: 'Cubic.In',
-        onUpdate: snapTweenTarget,
-        onComplete: () => {
-            if (!mapOpen) {
-                mapContainer.setVisible(false);
-                mapTextLayer.setVisible(false);
-            }
-        }
-    });
+    hideSlidingPanel(scene, MAP_HIDDEN_Y, () => mapOpen, mapContainer, mapTextLayer);
 }
 
 function handleMapKey(scene, event) {
@@ -552,17 +536,7 @@ function openInventory(scene) {
     characterMoveRemainderY = 0;
     refreshInventoryUI(scene.time.now);
 
-    inventoryContainer.setVisible(true).setY(INVENTORY_HIDDEN_Y);
-    inventoryTextLayer.setVisible(true).setY(INVENTORY_HIDDEN_Y);
-    scene.tweens.killTweensOf(inventoryContainer);
-    scene.tweens.killTweensOf(inventoryTextLayer);
-    scene.tweens.add({
-        targets: [inventoryContainer, inventoryTextLayer],
-        y: DIALOGUE_VISIBLE_Y,
-        duration: 180,
-        ease: 'Cubic.Out',
-        onUpdate: snapTweenTarget
-    });
+    showSlidingPanel(scene, INVENTORY_HIDDEN_Y, inventoryContainer, inventoryTextLayer);
 }
 
 function closeInventory(scene) {
@@ -570,21 +544,7 @@ function closeInventory(scene) {
 
     inventoryOpen = false;
     newGameConfirmUntil = 0;
-    scene.tweens.killTweensOf(inventoryContainer);
-    scene.tweens.killTweensOf(inventoryTextLayer);
-    scene.tweens.add({
-        targets: [inventoryContainer, inventoryTextLayer],
-        y: INVENTORY_HIDDEN_Y,
-        duration: 140,
-        ease: 'Cubic.In',
-        onUpdate: snapTweenTarget,
-        onComplete: () => {
-            if (!inventoryOpen) {
-                inventoryContainer.setVisible(false);
-                inventoryTextLayer.setVisible(false);
-            }
-        }
-    });
+    hideSlidingPanel(scene, INVENTORY_HIDDEN_Y, () => inventoryOpen, inventoryContainer, inventoryTextLayer);
 }
 
 function handleInventoryKey(scene, event) {
@@ -1133,6 +1093,17 @@ function refreshMarketOptions() {
     }
 }
 
+function animateCoinTotal(scene) {
+    scene.tweens.killTweensOf(coinDisplay);
+    scene.tweens.add({
+        targets: coinDisplay,
+        value: playerCoins,
+        duration: 260,
+        ease: 'Quad.Out',
+        onUpdate: () => marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`
+    });
+}
+
 function buySelectedMarketItem(scene) {
     if (selectedMarketOption === MARKET_EXIT_INDEX) {
         closeMarket(scene);
@@ -1149,16 +1120,7 @@ function buySelectedMarketItem(scene) {
         saveDirty = true;
         marketFeedback = { text: `Sold for ${summary.value}c!`, color: '#8fbf7a' };
 
-        scene.tweens.killTweensOf(coinDisplay);
-        scene.tweens.add({
-            targets: coinDisplay,
-            value: playerCoins,
-            duration: 260,
-            ease: 'Quad.Out',
-            onUpdate: () => {
-                marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`;
-            }
-        });
+        animateCoinTotal(scene);
 
         refreshMarketOptions();
         return;
@@ -1174,16 +1136,7 @@ function buySelectedMarketItem(scene) {
     ownedRods.add(rod.id);
     saveDirty = true;
 
-    scene.tweens.killTweensOf(coinDisplay);
-    scene.tweens.add({
-        targets: coinDisplay,
-        value: playerCoins,
-        duration: 260,
-        ease: 'Quad.Out',
-        onUpdate: () => {
-            marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`;
-        }
-    });
+    animateCoinTotal(scene);
     addHotbarItem(scene, rod.icon, rod.label);
     marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
 
@@ -1225,24 +1178,7 @@ function openMarket(scene) {
 
     refreshMarketOptions();
 
-    marketContainer
-        .setVisible(true)
-        .setY(MARKET_HIDDEN_Y);
-
-    marketTextLayer
-        .setVisible(true)
-        .setY(MARKET_HIDDEN_Y);
-
-    scene.tweens.killTweensOf(marketContainer);
-    scene.tweens.killTweensOf(marketTextLayer);
-
-    scene.tweens.add({
-        targets: [marketContainer, marketTextLayer],
-        y: DIALOGUE_VISIBLE_Y,
-        duration: 180,
-        ease: 'Cubic.Out',
-        onUpdate: snapTweenTarget
-    });
+    showSlidingPanel(scene, MARKET_HIDDEN_Y, marketContainer, marketTextLayer);
 }
 
 function closeMarket(scene) {
@@ -1252,22 +1188,7 @@ function closeMarket(scene) {
 
     marketOpen = false;
 
-    scene.tweens.killTweensOf(marketContainer);
-    scene.tweens.killTweensOf(marketTextLayer);
-
-    scene.tweens.add({
-        targets: [marketContainer, marketTextLayer],
-        y: MARKET_HIDDEN_Y,
-        duration: 140,
-        ease: 'Cubic.In',
-        onUpdate: snapTweenTarget,
-        onComplete: () => {
-            if (!marketOpen) {
-                marketContainer.setVisible(false);
-                marketTextLayer.setVisible(false);
-            }
-        }
-    });
+    hideSlidingPanel(scene, MARKET_HIDDEN_Y, () => marketOpen, marketContainer, marketTextLayer);
 }
 
 function handleMarketKey(scene, event) {
@@ -1470,24 +1391,7 @@ function openGuideDialogue(scene) {
     characterTextureKey = `character-${characterDirection}`;
     character.setTexture(characterTextureKey);
 
-    dialogueContainer
-        .setVisible(true)
-        .setY(DIALOGUE_HIDDEN_Y);
-
-    dialogueTextLayer
-        .setVisible(true)
-        .setY(DIALOGUE_HIDDEN_Y);
-
-    scene.tweens.killTweensOf(dialogueContainer);
-    scene.tweens.killTweensOf(dialogueTextLayer);
-
-    scene.tweens.add({
-        targets: [dialogueContainer, dialogueTextLayer],
-        y: DIALOGUE_VISIBLE_Y,
-        duration: 180,
-        ease: 'Cubic.Out',
-        onUpdate: snapTweenTarget
-    });
+    showSlidingPanel(scene, DIALOGUE_HIDDEN_Y, dialogueContainer, dialogueTextLayer);
 
     showGuideDialogueNode(scene, 'intro');
 }
@@ -1506,22 +1410,7 @@ function closeGuideDialogue(scene) {
         dialogueTypingEvent = null;
     }
 
-    scene.tweens.killTweensOf(dialogueContainer);
-    scene.tweens.killTweensOf(dialogueTextLayer);
-
-    scene.tweens.add({
-        targets: [dialogueContainer, dialogueTextLayer],
-        y: DIALOGUE_HIDDEN_Y,
-        duration: 140,
-        ease: 'Cubic.In',
-        onUpdate: snapTweenTarget,
-        onComplete: () => {
-            if (!dialogueOpen) {
-                dialogueContainer.setVisible(false);
-                dialogueTextLayer.setVisible(false);
-            }
-        }
-    });
+    hideSlidingPanel(scene, DIALOGUE_HIDDEN_Y, () => dialogueOpen, dialogueContainer, dialogueTextLayer);
 }
 
 function selectGuideDialogueOption(scene) {
