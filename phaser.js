@@ -1178,7 +1178,18 @@ function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
         }
     }
 
-    if (!isLocalHashPeak(
+    let crossesChannel = false;
+
+    for (let distance = 1; distance < spanLength - 1 && !crossesChannel; distance++) {
+        const firstX = run.startLandX + stepX * distance;
+        const firstY = run.startLandY + stepY * distance;
+
+        crossesChannel =
+            getTerrainType(firstX - widthX, firstY - widthY) === 'water' &&
+            getTerrainType(firstX + widthX * 2, firstY + widthY * 2) === 'water';
+    }
+
+    if (!crossesChannel || !isLocalHashPeak(
         run.startLandX,
         run.startLandY,
         widthX,
