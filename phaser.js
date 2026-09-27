@@ -274,6 +274,7 @@ const pixelPathX = new Int32Array(1024);
 const pixelPathY = new Int32Array(1024);
 const pixelPathColor = new Int32Array(1024);
 let pixelPathLength = 0;
+let inventoryFooterHints;
 const OWNED_ROD_TINT = 0x8a7c6e;
 let fishingUiPanel;
 let fishingCatchZoneTop;
@@ -5247,7 +5248,8 @@ function createInventoryUI(scene) {
         .fillRect(8, 3, 304, INVENTORY_HEIGHT - 6)
         .fillStyle(0x465989, 1)
         .fillRect(12, 19, 296, 1)
-        .fillRect(12, 127, 296, 1);
+        .fillRect(12, 127, 296, 1)
+        .fillRect(159, 23, 1, 101);
 
     const textLayer = document.createElement('div');
 
@@ -5290,10 +5292,10 @@ function createInventoryUI(scene) {
     for (let index = 0; index < FISH_SPECIES.length; index++) {
         const column = Math.floor(index / 13);
         const row = index % 13;
-        const x = 14 + column * 147;
+        const x = 14 + column * 152;
         const y = 22 + row * 8;
-        const name = createText(x, y, 87);
-        const detail = createText(x + 87, y, 56, 'right');
+        const name = createText(x, y, 84);
+        const detail = createText(x + 84, y, 55, 'right');
         name.style.fontSize = '9px';
         name.style.lineHeight = '8px';
         detail.style.fontSize = '8px';
@@ -5302,11 +5304,25 @@ function createInventoryUI(scene) {
         inventoryCountTexts.push(detail);
     }
 
-    const footer = createText(12, 129, 296, 'center');
+    const footer = createText(12, 128, 296, 'center');
     footer.style.fontSize = '11px';
     footer.style.color = '#8c7358';
-    footer.textContent = 'I / Esc  Close     N  New Game';
     inventoryNewGameText = footer;
+    inventoryFooterHints = document.createElement('span');
+
+    for (const [key, label] of [['I/Esc', 'Close'], ['N', 'New Game']]) {
+        const keycap = document.createElement('span');
+        keycap.textContent = key;
+
+        Object.assign(keycap.style, {
+            color: '#e0f2fd',
+            background: '#465989',
+            padding: '0 2px',
+            margin: '0 4px 0 10px'
+        });
+
+        inventoryFooterHints.append(keycap, label);
+    }
 
     inventoryContainer = scene.add.container(0, INVENTORY_HIDDEN_Y, [panel])
         .setDepth(203)
@@ -5342,9 +5358,13 @@ function refreshInventoryUI(time) {
     });
 
     const confirming = time < newGameConfirmUntil;
-    inventoryNewGameText.textContent = confirming
-        ? 'Press N again to erase all progress'
-        : 'I / Esc  Close     N  New Game';
+
+    if (confirming) {
+        inventoryNewGameText.textContent = 'Press N again to erase all progress';
+    } else if (inventoryNewGameText.firstChild !== inventoryFooterHints) {
+        inventoryNewGameText.replaceChildren(inventoryFooterHints);
+    }
+
     inventoryNewGameText.style.color = confirming ? '#d9745b' : '#8c7358';
 }
 
