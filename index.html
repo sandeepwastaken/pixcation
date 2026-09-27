@@ -39,16 +39,22 @@
     <div id="game-container"></div>
 
     <script>
-        const gameScripts = ['game-data.js'];
-        if (new URLSearchParams(window.location.search).has('test')) gameScripts.push('automated-tests.js');
-        gameScripts.push('water-pipeline.js', 'art.js', 'world.js', 'environment.js', 'fish.js', 'fishing.js', 'ui.js', 'phaser.js');
-        const loadGameScript = index => {
+        const supportScripts = ['game-data.js', 'water-pipeline.js', 'art.js', 'world.js', 'environment.js', 'fish.js', 'fishing.js', 'ui.js'];
+        if (new URLSearchParams(window.location.search).has('test')) supportScripts.push('automated-tests.js');
+        const loadGameScript = source => new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = `${gameScripts[index]}?v=${window.APP_CACHE_BUSTER}`;
-            if (index + 1 < gameScripts.length) script.onload = () => loadGameScript(index + 1);
+            script.src = `${source}?v=${window.APP_CACHE_BUSTER}`;
+            script.onload = resolve;
+            script.onerror = reject;
             document.body.appendChild(script);
+        });
+        const loadGame = async () => {
+            for (let index = 0; index < supportScripts.length; index += 3) {
+                await Promise.all(supportScripts.slice(index, index + 3).map(loadGameScript));
+            }
+            await loadGameScript('phaser.js');
         };
 
-        loadGameScript(0);
+        loadGame();
     </script>
 </body>
