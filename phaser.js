@@ -72,14 +72,14 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                 }
 
                 vec3 tone(float index) {
-                    if (index < 0.5) return vec3(0.302, 0.420, 0.631);
-                    if (index < 1.5) return vec3(0.345, 0.478, 0.686);
-                    if (index < 2.5) return vec3(0.376, 0.522, 0.741);
+                    if (index < 0.5) return vec3(0.353, 0.494, 0.714);
+                    if (index < 1.5) return vec3(0.376, 0.522, 0.741);
+                    if (index < 2.5) return vec3(0.392, 0.541, 0.765);
                     if (index < 3.5) return vec3(0.408, 0.565, 0.792);
-                    if (index < 4.5) return vec3(0.424, 0.608, 0.804);
-                    if (index < 5.5) return vec3(0.447, 0.659, 0.812);
-                    if (index < 6.5) return vec3(0.482, 0.706, 0.820);
-                    if (index < 7.5) return vec3(0.529, 0.745, 0.847);
+                    if (index < 4.5) return vec3(0.420, 0.592, 0.800);
+                    if (index < 5.5) return vec3(0.435, 0.624, 0.812);
+                    if (index < 6.5) return vec3(0.451, 0.655, 0.820);
+                    if (index < 7.5) return vec3(0.471, 0.686, 0.827);
                     return vec3(0.820, 0.929, 0.945);
                 }
 
@@ -144,7 +144,7 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                     } else if (first > 0.9 && second > 0.9 && gate > 0.6) {
                         index = 7.0;
                     } else if (first > 0.9 && gate > 0.56) {
-                        index = min(index + (gate > 0.63 ? 2.0 : 1.0), 7.0);
+                        index = min(index + (gate > 0.63 ? 3.0 : 2.0), 7.0);
                     } else if (first > 0.4 && gate > 0.64) {
                         index = min(index + 1.0, 7.0);
                     }
