@@ -73,8 +73,9 @@ function isWaterPixel(scene, x, y) {
 }
 
 function findFishForBobber() {
-    let nearest = null;
-    let nearestDistance = Infinity;
+    let nearestFish = null;
+    let nearestChunk = null;
+    let nearestDistanceSquared = Infinity;
 
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {
@@ -82,24 +83,25 @@ function findFishForBobber() {
 
             const dx = fishing.bobberX - fish.x;
             const dy = fishing.bobberY - fish.y;
-            const distance = Math.hypot(dx, dy);
+            const distanceSquared = dx * dx + dy * dy;
 
-            if (distance < FISH_NOTICE_MIN_DISTANCE || distance > FISH_NOTICE_MAX_DISTANCE) continue;
+            if (distanceSquared < FISH_NOTICE_MIN_DISTANCE_SQUARED || distanceSquared > FISH_NOTICE_MAX_DISTANCE_SQUARED) continue;
 
-            const facing = (Math.cos(fish.heading) * dx + Math.sin(fish.heading) * dy) / distance;
+            const facing = (Math.cos(fish.heading) * dx + Math.sin(fish.heading) * dy) / Math.sqrt(distanceSquared);
 
             if (facing < FISH_NOTICE_DOT || !isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)) {
                 continue;
             }
 
-            if (distance < nearestDistance) {
-                nearest = { fish, chunk };
-                nearestDistance = distance;
+            if (distanceSquared < nearestDistanceSquared) {
+                nearestFish = fish;
+                nearestChunk = chunk;
+                nearestDistanceSquared = distanceSquared;
             }
         }
     }
 
-    return nearest;
+    return nearestFish ? { fish: nearestFish, chunk: nearestChunk } : null;
 }
 
 function releaseTargetFish(flee) {

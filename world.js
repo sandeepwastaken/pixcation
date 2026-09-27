@@ -592,7 +592,7 @@ function getWorldTileKey(tileX, tileY) {
 }
 
 function getChunkKey(chunkX, chunkY) {
-    return `${chunkX},${chunkY}`;
+    return getTileId(chunkX, chunkY);
 }  
 
 function isTileDiscovered(tileX, tileY) {

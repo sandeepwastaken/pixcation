@@ -101,13 +101,15 @@ function labelFishRegions(chunk) {
 }
 
 function isFishPathClear(chunk, fish, targetX, targetY) {
-    const distance = Math.hypot(targetX - fish.x, targetY - fish.y);
+    const dx = targetX - fish.x;
+    const dy = targetY - fish.y;
+    const distance = Math.hypot(dx, dy);
     const steps = Math.ceil(distance / 3);
 
     for (let step = 1; step <= steps; step++) {
         const amount = step / steps;
 
-        if (!canFishSwim(chunk, fish, fish.x + (targetX - fish.x) * amount, fish.y + (targetY - fish.y) * amount)) {
+        if (!canFishSwim(chunk, fish, fish.x + dx * amount, fish.y + dy * amount)) {
             return false;
         }
     }
@@ -378,7 +380,7 @@ function updateLuredFish(chunk, fish, delta) {
 
     const dx = fishing.bobberX - fish.x;
     const dy = fishing.bobberY - fish.y;
-    const distance = Math.max(0.001, Math.hypot(dx, dy));
+    const stopDistance = fish.radius + 3;
     let targetHeading = Math.atan2(dy, dx);
 
     fish.lureTime = (fish.lureTime || 0) + delta;
@@ -407,7 +409,7 @@ function updateLuredFish(chunk, fish, delta) {
     turn = Math.atan2(Math.sin(turn), Math.cos(turn));
     fish.heading += Phaser.Math.Clamp(turn, -FISH_LURE_TURN * seconds, FISH_LURE_TURN * seconds);
 
-    if (distance > fish.radius + 3 && fish.velocity > 0.05) {
+    if (dx * dx + dy * dy > stopDistance * stopDistance && fish.velocity > 0.05) {
         const nextX = fish.x + Math.cos(fish.heading) * fish.velocity * seconds;
         const nextY = fish.y + Math.sin(fish.heading) * fish.velocity * seconds;
 
@@ -497,9 +499,7 @@ function updateFish(delta) {
 
                 const dx = fish.targetX - fish.x;
                 const dy = fish.targetY - fish.y;
-                const distance = Math.hypot(dx, dy);
-
-                if (distance < 2) {
+                if (dx * dx + dy * dy < 4) {
                     fish.state = 'idle';
                     fish.thrusting = false;
                     fish.timer = FISH_IDLE_MIN + Math.random() * FISH_IDLE_RANGE;
