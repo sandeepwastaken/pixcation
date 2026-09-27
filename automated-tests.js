@@ -42,6 +42,13 @@ function runAutomatedTests(scene) {
     const fishingTextures = ['fishing-ui', 'fishing-catch-zone', 'fishing-fish', 'fishing-progress'];
     const texturesPassed = fishingTextures.every(key => scene.textures.exists(key));
     record('Fishing minigame PNGs are loaded', texturesPassed, texturesPassed ? 'Frame, zone, fish and progress assets found' : 'A fishing UI texture is missing');
+    spawnShimmer(scene);
+    const shimmerChunk = [...loadedShimmerChunks].find(chunk => chunk.shimmers.length);
+    const shimmer = shimmerChunk?.shimmers[shimmerChunk.shimmers.length - 1];
+    if (shimmer) finishShimmer(null, null, shimmer);
+    const shimmerPoolPassed = shimmer && !shimmer.active && !shimmer.shimmerChunk &&
+        !shimmerChunk.shimmers.includes(shimmer) && shimmerPool.includes(shimmer);
+    record('Shimmer completion returns sprites to the pool', shimmerPoolPassed, shimmerPoolPassed ? 'Permanent completion handler released one sprite' : 'Shimmer sprite was not released');
     const rodArtPassed = MARKET_RODS.every(rod =>
         scene.textures.exists(rod.texture) && scene.textures.exists(rod.icon) && rod.polePalette?.length === 3 &&
         rod.linePalette?.length === 4 && rod.bobberPalette?.length === 3

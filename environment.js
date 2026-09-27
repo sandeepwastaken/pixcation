@@ -1,6 +1,7 @@
 const activeParticles = [];
 
 function poolShimmer(shimmer) {
+    shimmer.shimmerChunk = null;
     shimmer.stop().setVisible(false).setActive(false);
     shimmerPool.push(shimmer);
 }
@@ -13,6 +14,10 @@ function releaseShimmer(chunk, shimmer) {
     }
 
     poolShimmer(shimmer);
+}
+
+function finishShimmer(animation, frame, shimmer) {
+    if (shimmer.shimmerChunk) releaseShimmer(shimmer.shimmerChunk, shimmer);
 }
 
 function spawnShimmer(scene) {
@@ -34,10 +39,16 @@ function spawnShimmer(scene) {
     }
 
     const cell = Math.floor(Math.random() * (chunk.waterCells.length / 4)) * 4;
-    const shimmer = shimmerPool.pop() || scene.add.sprite(0, 0, 'shimmer')
-        .setOrigin(0)
-        .setDepth(2);
+    let shimmer = shimmerPool.pop();
 
+    if (!shimmer) {
+        shimmer = scene.add.sprite(0, 0, 'shimmer')
+            .setOrigin(0)
+            .setDepth(2);
+        shimmer.on(Phaser.Animations.Events.ANIMATION_COMPLETE, finishShimmer);
+    }
+
+    shimmer.shimmerChunk = chunk;
     shimmer
         .setPosition(
             chunk.waterCells[cell] + Phaser.Math.Between(0, chunk.waterCells[cell + 2] - 12),
@@ -48,7 +59,6 @@ function spawnShimmer(scene) {
 
     chunk.shimmers.push(shimmer);
     shimmer.play('shimmer');
-    shimmer.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => releaseShimmer(chunk, shimmer));
 }
 
 function canHoldProp(type, tileX, tileY) {
