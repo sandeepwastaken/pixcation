@@ -317,9 +317,11 @@ const DIALOGUE_OPTION_TOP = 11;
 const DIALOGUE_OPTION_STEP = 19;
 const DIALOGUE_OPTION_WIDTH = 86;
 const DIALOGUE_OPTION_HEIGHT = 17;
+const MAP_PANEL_HEIGHT = 142;
 const MAP_WIDTH = 296;
-const MAP_HEIGHT = 144;
-const MAP_HIDDEN_Y = -160;
+const MAP_HEIGHT = 114;
+const MAP_TOP = 22;
+const MAP_HIDDEN_Y = -MAP_PANEL_HEIGHT;
 
 const STORE_WIDTH_TILES = 3;
 const STORE_HEIGHT_TILES = 2;
@@ -412,6 +414,7 @@ let mapOpen = false;
 let mapContainer;
 let mapImage;
 let mapTexture;
+let mapTextLayer;
 let mapPalette = null;
 let marketOpen = false;
 let marketContainer;
@@ -3185,18 +3188,77 @@ function createMapUI(scene) {
 
     panel
         .fillStyle(0x230a03, 1)
-        .fillRect(5, 0, 310, 160)
+        .fillRect(5, 0, 310, MAP_PANEL_HEIGHT)
         .fillStyle(0xacccf9, 1)
-        .fillRect(6, 1, 308, 158)
+        .fillRect(6, 1, 308, MAP_PANEL_HEIGHT - 2)
         .fillStyle(0x465989, 1)
-        .fillRect(7, 2, 306, 156)
+        .fillRect(7, 2, 306, MAP_PANEL_HEIGHT - 4)
         .fillStyle(0x36160d, 1)
-        .fillRect(8, 3, 304, 154);
+        .fillRect(8, 3, 304, MAP_PANEL_HEIGHT - 6)
+        .fillStyle(0x465989, 1)
+        .fillRect(12, MARKET_DIVIDER_Y, 296, 1)
+        .fillStyle(0x230a03, 1)
+        .fillRect(11, MAP_TOP - 1, MAP_WIDTH + 2, MAP_HEIGHT + 2);
 
     mapTexture = scene.textures.createCanvas('map', MAP_WIDTH, MAP_HEIGHT);
 
-    mapImage = scene.add.image(12, 8, 'map')
+    mapImage = scene.add.image(12, MAP_TOP, 'map')
         .setOrigin(0);
+
+    const textLayer = document.createElement('div');
+
+    Object.assign(textLayer.style, {
+        position: 'relative',
+        width: '320px',
+        height: `${MAP_PANEL_HEIGHT}px`,
+        fontFamily: 'm6x11',
+        fontSize: '16px',
+        lineHeight: '11px',
+        pointerEvents: 'none'
+    });
+
+    const title = document.createElement('div');
+    title.textContent = 'World Map';
+
+    Object.assign(title.style, {
+        position: 'absolute',
+        left: '14px',
+        top: '5px',
+        color: '#acccf9',
+        whiteSpace: 'nowrap'
+    });
+
+    const hint = document.createElement('div');
+    const keycap = document.createElement('span');
+    keycap.textContent = 'M';
+
+    Object.assign(keycap.style, {
+        color: '#e0f2fd',
+        background: '#465989',
+        padding: '0 2px',
+        marginRight: '4px'
+    });
+
+    hint.append(keycap, 'Close');
+
+    Object.assign(hint.style, {
+        position: 'absolute',
+        right: '14px',
+        top: '6px',
+        fontSize: '11px',
+        color: '#8c7358',
+        whiteSpace: 'nowrap'
+    });
+
+    textLayer.append(title, hint);
+
+    mapTextLayer = scene.add.dom(0, MAP_HIDDEN_Y, textLayer)
+        .setOrigin(0)
+        .setDepth(203)
+        .setScrollFactor(0)
+        .setVisible(false);
+
+    mapTextLayer.pointerEvents = 'none';
 
     mapContainer = scene.add.container(
         0,
@@ -3346,10 +3408,15 @@ function openMap(scene) {
         .setVisible(true)
         .setY(MAP_HIDDEN_Y);
 
+    mapTextLayer
+        .setVisible(true)
+        .setY(MAP_HIDDEN_Y);
+
     scene.tweens.killTweensOf(mapContainer);
+    scene.tweens.killTweensOf(mapTextLayer);
 
     scene.tweens.add({
-        targets: mapContainer,
+        targets: [mapContainer, mapTextLayer],
         y: DIALOGUE_VISIBLE_Y,
         duration: 180,
         ease: 'Cubic.Out',
@@ -3369,9 +3436,10 @@ function closeMap(scene) {
     mapOpen = false;
 
     scene.tweens.killTweensOf(mapContainer);
+    scene.tweens.killTweensOf(mapTextLayer);
 
     scene.tweens.add({
-        targets: mapContainer,
+        targets: [mapContainer, mapTextLayer],
         y: MAP_HIDDEN_Y,
         duration: 140,
         ease: 'Cubic.In',
@@ -3379,6 +3447,7 @@ function closeMap(scene) {
         onComplete: () => {
             if (!mapOpen) {
                 mapContainer.setVisible(false);
+                mapTextLayer.setVisible(false);
             }
         }
     });
