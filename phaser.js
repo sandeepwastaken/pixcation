@@ -408,7 +408,6 @@ let marketHighlight;
 let marketDetailImage;
 let marketDetailName;
 let marketDetailStatus;
-let marketDetailStats;
 let marketDetailAction;
 let marketFeedback = null;
 let selectedMarketOption = 0;
@@ -1717,7 +1716,7 @@ function runAutomatedTests(scene) {
     const catchCardPassed = catchCardTitle.textContent === 'You caught a Bluegill!' &&
         catchCardDetail.textContent.includes('7c') && catchCardContainer.visible;
 
-    record('Catch card presents species and value', catchCardPassed, catchCardPassed ? 'Name, size and price rendered' : 'Catch card content missing');
+    record('Catch card presents species and value', catchCardPassed, catchCardPassed ? 'Name and price rendered' : 'Catch card content missing');
     if (catchCardHideEvent) catchCardHideEvent.remove(false);
     scene.tweens.killTweensOf(catchCardContainer);
     scene.tweens.killTweensOf(catchCardTextLayer);
@@ -6042,8 +6041,7 @@ function refreshInventoryUI(time) {
 
         inventoryRowTexts[index].textContent = caught ? species.name : '???';
         inventoryRowTexts[index].style.color = caught ? '#e0f2fd' : '#6f5b49';
-        const sizeInitial = species.size === 'giant' ? 'XXL' : species.size[0].toUpperCase();
-        inventoryCountTexts[index].textContent = caught ? `${sizeInitial} x${count} ${species.price}c` : '—';
+        inventoryCountTexts[index].textContent = caught ? `x${count} ${species.price}c` : '—';
         inventoryCountTexts[index].style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
     });
 
@@ -6431,10 +6429,7 @@ function createMarketUI(scene) {
 
     marketDetailName = createText(detailTextX, MARKET_LIST_Y + 39, '#e0f2fd', detailTextWidth, 'center');
     marketDetailStatus = createText(detailTextX, MARKET_LIST_Y + 51, '#c0a887', detailTextWidth, 'center');
-    marketDetailStats = createText(detailTextX, MARKET_LIST_Y + 64, '#8c7358', detailTextWidth, 'center', 11);
-    marketDetailStats.style.whiteSpace = 'pre';
-    marketDetailStats.style.lineHeight = '9px';
-    marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 82, '#acccf9', detailTextWidth, 'center');
+    marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 66, '#acccf9', detailTextWidth, 'center');
 
     const footer = createText(12, MARKET_FOOTER_Y, '#8c7358', 296, 'center', 11);
 
@@ -6575,31 +6570,6 @@ function getFishInventorySummary() {
     return { count, value };
 }
 
-function setMarketRodStats(rod) {
-    const square = () => {
-        const separator = document.createElement('span');
-        Object.assign(separator.style, {
-            display: 'inline-block',
-            width: '3px',
-            height: '3px',
-            margin: '0 5px 1px',
-            backgroundColor: '#8c7358'
-        });
-        return separator;
-    };
-    const lineBreak = document.createElement('br');
-
-    marketDetailStats.replaceChildren(
-        document.createTextNode(`Cast ${(rod.castDistance / TILE_SIZE).toFixed(1)}t`),
-        square(),
-        document.createTextNode(`Charge ${(rod.chargeTime / 1000).toFixed(2)}s`),
-        lineBreak,
-        document.createTextNode(`Line ${rod.lineStrength.toFixed(2)}x`),
-        square(),
-        document.createTextNode(`Zone ${rod.catchZone}`)
-    );
-}
-
 function refreshMarketOptions() {
     if (!marketMessageText) {
         return;
@@ -6634,7 +6604,6 @@ function refreshMarketOptions() {
 
     if (!rod) {
         marketDetailImage.setVisible(false);
-        marketDetailStats.textContent = '';
 
         if (selectedMarketOption === MARKET_SELL_INDEX) {
             marketDetailName.textContent = 'Sell fish';
@@ -6648,8 +6617,7 @@ function refreshMarketOptions() {
             marketDetailAction.style.color = marketFeedback ? marketFeedback.color : '#acccf9';
         } else {
             marketDetailName.textContent = 'Leave shop';
-            marketDetailStatus.textContent = 'Come back soon!';
-            marketDetailStatus.style.color = '#c0a887';
+            marketDetailStatus.textContent = '';
             marketDetailAction.textContent = 'Enter - Leave';
             marketDetailAction.style.color = '#acccf9';
         }
@@ -6666,7 +6634,6 @@ function refreshMarketOptions() {
     marketDetailName.textContent = rod.label;
     marketDetailStatus.textContent = status.text;
     marketDetailStatus.style.color = status.color;
-    setMarketRodStats(rod);
 
     if (marketFeedback) {
         marketDetailAction.textContent = marketFeedback.text;
