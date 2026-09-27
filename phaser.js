@@ -273,6 +273,7 @@ let visibleChunkBottom = null;
 let character;
 let characterKeys;
 let characterDirection = 'front';
+let characterWalkPhase = 0;
 let horizontalPriority = 0;
 let lastMenuWheelTime = -Infinity;
 let verticalPriority = 0;
@@ -280,6 +281,7 @@ let verticalPriority = 0;
 const CHARACTER_SIZE = 16;
 const CHARACTER_SPEED = 60;
 const CHARACTER_ANIMATION_SPEED = 8;
+const CHARACTER_SPRINT_MULTIPLIER = 1.65;
 const CHARACTER_WALK_FRAMES = [0, 1, 0, 2];
 const CHARACTER_HITBOX_X = 4;
 const CHARACTER_HITBOX_Y = 12;
@@ -360,7 +362,7 @@ const GUIDE_DIALOGUE = {
         ]
     },
     help: {
-        text: "Walk with WASD or the arrows. E talks or shops, M opens your map. Scroll or 1-9 picks items.",
+        text: "WASD or arrows walk, Shift runs. E talks or shops, M opens your map. Scroll or 1-9 picks items.",
         options: [
             {label: 'Back', next: 'intro'},
             {label: 'Exit', close: true}
@@ -778,7 +780,8 @@ function create() {
         upArrow: Phaser.Input.Keyboard.KeyCodes.UP,
         downArrow: Phaser.Input.Keyboard.KeyCodes.DOWN,
         leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
-        rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT
+        rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT,
+        sprint: Phaser.Input.Keyboard.KeyCodes.SHIFT
     });
 
     this.add.image(HOTBAR_X, HOTBAR_Y, 'hotbar')
@@ -4373,6 +4376,8 @@ function update(time, delta) {
     const isWalking = moveX !== 0 || moveY !== 0;
 
     if (!isWalking) {
+        characterWalkPhase = 1;
+
         const idleTextureKey = `character-${characterDirection}`;
 
         if (idleTextureKey !== characterTextureKey) {
@@ -4382,8 +4387,12 @@ function update(time, delta) {
     }
 
     if (isWalking) {
-        const distance = CHARACTER_SPEED * Math.min(delta, 50) / 1000 *
+        const pace = characterKeys.sprint.isDown ? CHARACTER_SPRINT_MULTIPLIER : 1;
+        const frameDelta = Math.min(delta, 50);
+        const distance = CHARACTER_SPEED * pace * frameDelta / 1000 *
             (moveX !== 0 && moveY !== 0 ? Math.SQRT1_2 : 1);
+
+        characterWalkPhase += frameDelta * CHARACTER_ANIMATION_SPEED * pace / 1000;
 
         characterMoveRemainderX += moveX * distance;
         characterMoveRemainderY += moveY * distance;
@@ -4401,7 +4410,7 @@ function update(time, delta) {
             characterMoveRemainderY = 0;
         }
 
-        const walkFrame = CHARACTER_WALK_FRAMES[Math.floor(time * (CHARACTER_ANIMATION_SPEED / 1000)) % 4];
+        const walkFrame = CHARACTER_WALK_FRAMES[Math.floor(characterWalkPhase) % 4];
 
         const frameSuffix = walkFrame === 0 ? '' : `walk${walkFrame}`;
         const nextTextureKey = `character-${characterDirection}${frameSuffix}`;

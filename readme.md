@@ -20,6 +20,7 @@ Then go to **http://localhost:8000/index.html**
 ## Controls
 
 - **WASD** or arrow keys — move
+- **Shift** — hold to run
 - **Scroll** or **1–9** — hotbar slots (visual for now)
 - **E** — interact with whatever is closest (the guide or the shop); also closes the shop
 - **M** — world map, anywhere
