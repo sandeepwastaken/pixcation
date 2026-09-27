@@ -220,20 +220,22 @@ function generateTreeVariant(trunk, seed) {
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const edge = (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
+            const pixel = y * width + x;
 
             for (let index = puffs.length - 1; index >= 0; index--) {
                 const puff = puffs[index];
                 const dx = x + 0.5 - puff.x;
                 const dy = y + 0.5 - puff.y;
                 const reach = puff.radius + edge;
+                const distanceSquared = dx * dx + dy * dy;
 
-                if (dx * dx + dy * dy <= reach * reach) {
-                    if (index > 0 && ((x + y) & 1) && Math.sqrt(dx * dx + dy * dy) > reach - 1 && owner[y * width + x] === -1) {
-                        owner[y * width + x] = -3;
+                if (distanceSquared <= reach * reach) {
+                    if (index > 0 && ((x + y) & 1) && distanceSquared > (reach - 1) * (reach - 1) && owner[pixel] === -1) {
+                        owner[pixel] = -3;
                         continue;
                     }
 
-                    owner[y * width + x] = index;
+                    owner[pixel] = index;
                     break;
                 }
             }
@@ -245,17 +247,20 @@ function generateTreeVariant(trunk, seed) {
 
         const x = pixel % width;
         const y = Math.floor(pixel / width);
+        const edge = (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
         let front = -1;
 
         for (let index = puffs.length - 1; index >= 0 && front < 0; index--) {
             const dx = x + 0.5 - puffs[index].x;
             const dy = y + 0.5 - puffs[index].y;
-            const reach = puffs[index].radius + (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
+            const reach = puffs[index].radius + edge;
             if (dx * dx + dy * dy <= reach * reach) front = index;
         }
 
         owner[pixel] = front;
     }
+
+    const neighbors = [-1, 1, -width, width];
 
     for (let pass = 0; pass < 2; pass++) {
         for (let y = 1; y < height - 1; y++) {
@@ -264,7 +269,8 @@ function generateTreeVariant(trunk, seed) {
                 let count = 0;
                 let front = -1;
 
-                for (const next of [pixel - 1, pixel + 1, pixel - width, pixel + width]) {
+                for (const offset of neighbors) {
+                    const next = pixel + offset;
                     if (owner[next] < 0) continue;
                     count++;
                     front = Math.max(front, owner[next]);
