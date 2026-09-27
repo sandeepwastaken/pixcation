@@ -148,7 +148,7 @@
                 button.dataset.tileKey = tileKey;
                 button.title = tileKey;
 
-                image.src = withCacheBuster(`media/${tileKey}.png`);
+                image.src = withCacheBuster(`media/environment/terrain/${tileKey}.png`);
                 image.alt = tileKey;
 
                 button.appendChild(image);
@@ -215,7 +215,7 @@
             const y = Number(cell.dataset.y);
 
             mapData[y][x] = selectedTile;
-            cell.querySelector('img').src = withCacheBuster(`media/${selectedTile}.png`);
+            cell.querySelector('img').src = withCacheBuster(`media/environment/terrain/${selectedTile}.png`);
         }
 
         function renderMap() {
@@ -224,7 +224,7 @@
                 const y = Number(cell.dataset.y);
                 const tileKey = mapData[y][x];
 
-                cell.querySelector('img').src = withCacheBuster(`media/${tileKey}.png`);
+                cell.querySelector('img').src = withCacheBuster(`media/environment/terrain/${tileKey}.png`);
             });
         }
 

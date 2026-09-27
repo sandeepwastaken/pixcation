@@ -298,6 +298,7 @@ const SAVE_KEY = 'pixcation-save-v1';
 
 const GUIDE_DIALOGUE = {
     intro: {
+        portrait: 'guide-portrait-friendly',
         text: "Hey! Need something?",
         options: [
             {label: 'Help', next: 'help'},
@@ -306,6 +307,7 @@ const GUIDE_DIALOGUE = {
         ]
     },
     help: {
+        portrait: 'guide-portrait-friendly',
         text: "WASD or arrows walk, Shift runs. E talks or shops, M opens your map, I opens your fishpedia.",
         options: [
             {label: 'Fishing', next: 'fishing'},
@@ -314,6 +316,7 @@ const GUIDE_DIALOGUE = {
         ]
     },
     fishing: {
+        portrait: 'guide-portrait-surprised',
         text: "Ignore small taps. On the big splash, press Space or click. Then hold it to lift the catch bar around the fish.",
         options: [
             {label: 'Back', next: 'help'},
@@ -321,6 +324,7 @@ const GUIDE_DIALOGUE = {
         ]
     },
     greet: {
+        portrait: 'guide-portrait-laughing',
         text: "Hello there! I'm your guide. It's nice to meet you. Enjoy your adventure!",
         options: [
             {label: 'Back', next: 'intro'},
@@ -393,6 +397,7 @@ let guideHasMetPlayer = false;
 let dialogueContainer;
 let dialogueTextLayer;
 let dialogueText;
+let dialoguePortrait;
 let dialogueOptionTexts = [];
 let dialogueHighlight;
 let dialogueOpen = false;
@@ -524,34 +529,37 @@ function preload() {
     characterFrames.forEach(frame => {
         this.load.image(
             `character-${frame}`,
-            withCacheBuster(`media/character/${frame}.png`)
+            withCacheBuster(`media/characters/player/${frame}.png`)
         )
     });
 
     tileKeys.forEach(tileKey => {
-        this.load.image(tileKey, withCacheBuster(`media/${tileKey}.png`));
+        this.load.image(tileKey, withCacheBuster(`media/environment/terrain/${tileKey}.png`));
     });
 
-    this.load.image('hotbar', withCacheBuster('media/hotbar.png'));
-    this.load.image('selected', withCacheBuster('media/selected.png'));
-    this.load.image('bush', withCacheBuster('media/bush.png'));
+    this.load.image('hotbar', withCacheBuster('media/ui/hud/hotbar.png'));
+    this.load.image('selected', withCacheBuster('media/ui/hud/selected.png'));
+    this.load.image('shop-ui', withCacheBuster('media/ui/shop/panel.png'));
+    this.load.image('bush', withCacheBuster('media/environment/objects/bush.png'));
 
-    this.load.image('guide', withCacheBuster('media/guide.png'));
-    this.load.image('headshot', withCacheBuster('media/headshot.png'));
-    this.load.image('store', withCacheBuster('media/store.png'));
-    this.load.image('rod-basic', withCacheBuster('media/basicRod.png'));
-    this.load.image('rod-intermediate', withCacheBuster('media/intermediateRod.png'));
-    this.load.image('rod-master', withCacheBuster('media/masterRod.png'));
-    this.load.image('rod-basic-icon', withCacheBuster('media/basicRodIcon.png'));
-    this.load.image('rod-intermediate-icon', withCacheBuster('media/intermediateRodIcon.png'));
-    this.load.image('rod-master-icon', withCacheBuster('media/masterRodIcon.png'));
-    this.load.image('fishing-ui', withCacheBuster('media/fishing-ui.png'));
-    this.load.image('fishing-catch-zone', withCacheBuster('media/fishing-catch-zone.png'));
-    this.load.image('fishing-fish', withCacheBuster('media/fishing-fish.png'));
-    this.load.image('fishing-progress', withCacheBuster('media/fishing-progress.png'));
+    this.load.image('guide', withCacheBuster('media/characters/guide/sprite.png'));
+    this.load.image('guide-portrait-friendly', withCacheBuster('media/characters/guide/friendly.png'));
+    this.load.image('guide-portrait-laughing', withCacheBuster('media/characters/guide/laughing.png'));
+    this.load.image('guide-portrait-surprised', withCacheBuster('media/characters/guide/surprised.png'));
+    this.load.image('store', withCacheBuster('media/environment/objects/store.png'));
+    this.load.image('rod-basic', withCacheBuster('media/items/rods/basic.png'));
+    this.load.image('rod-intermediate', withCacheBuster('media/items/rods/intermediate.png'));
+    this.load.image('rod-master', withCacheBuster('media/items/rods/master.png'));
+    this.load.image('rod-basic-icon', withCacheBuster('media/items/rods/basic-icon.png'));
+    this.load.image('rod-intermediate-icon', withCacheBuster('media/items/rods/intermediate-icon.png'));
+    this.load.image('rod-master-icon', withCacheBuster('media/items/rods/master-icon.png'));
+    this.load.image('fishing-ui', withCacheBuster('media/ui/fishing/panel.png'));
+    this.load.image('fishing-catch-zone', withCacheBuster('media/ui/fishing/catch-zone.png'));
+    this.load.image('fishing-fish', withCacheBuster('media/ui/fishing/fish.png'));
+    this.load.image('fishing-progress', withCacheBuster('media/ui/fishing/progress.png'));
 
-    this.load.image('waterOverlay', withCacheBuster('media/waterOverlay.png'));
-    this.load.image('shimmer-art', withCacheBuster('media/shimmer.png'));
+    this.load.image('waterOverlay', withCacheBuster('media/environment/effects/water-overlay.png'));
+    this.load.image('shimmer-art', withCacheBuster('media/environment/effects/shimmer.png'));
 }
 
 function extractRodArtStyles(scene) {
@@ -4869,8 +4877,8 @@ function createGuideDialogueUI(scene) {
         .fillStyle(0x4a2216, 1)
         .fillRect(DIALOGUE_OPTION_X - 2, 1, DIALOGUE_OPTION_WIDTH - 2, DIALOGUE_OPTION_HEIGHT - 2);
 
-    const portrait = scene.add.image(12, 13, 'headshot')
-    .setOrigin(0);
+    dialoguePortrait = scene.add.image(12, 13, 'guide-portrait-friendly')
+        .setOrigin(0);
 
     const textLayer = document.createElement('div');
 
@@ -4917,7 +4925,7 @@ function createGuideDialogueUI(scene) {
         [
             panel,
             dialogueHighlight,
-            portrait
+            dialoguePortrait
         ]
     )
     .setDepth(200)
@@ -5673,24 +5681,7 @@ function applyPromptMotion() {
 }
 
 function createMarketUI(scene) {
-    const panel = scene.add.graphics();
-
-    panel
-        .fillStyle(0x230a03, 1)
-        .fillRect(5, 0, 310, MARKET_HEIGHT)
-        .fillStyle(0xacccf9, 1)
-        .fillRect(6, 1, 308, MARKET_HEIGHT - 2)
-        .fillStyle(0x465989, 1)
-        .fillRect(7, 2, 306, MARKET_HEIGHT - 4)
-        .fillStyle(0x36160d, 1)
-        .fillRect(8, 3, 304, MARKET_HEIGHT - 6)
-        .fillStyle(0x465989, 1)
-        .fillRect(12, MARKET_DIVIDER_Y, 296, 1)
-        .fillRect(12, MARKET_FOOTER_Y - 3, 296, 1)
-        .fillStyle(0x230a03, 1)
-        .fillRect(MARKET_DETAIL_X, MARKET_LIST_Y, MARKET_DETAIL_WIDTH, MARKET_ROW_HEIGHT * MARKET_ROW_COUNT - 2)
-        .fillStyle(0x2a0f07, 1)
-        .fillRect(MARKET_DETAIL_X + 1, MARKET_LIST_Y + 1, MARKET_DETAIL_WIDTH - 2, MARKET_ROW_HEIGHT * MARKET_ROW_COUNT - 4);
+    const panel = scene.add.image(0, 0, 'shop-ui').setOrigin(0);
 
     marketHighlight = scene.add.graphics()
         .fillStyle(0xacccf9, 1)
@@ -6307,7 +6298,9 @@ function showGuideDialogueNode(scene, nodeKey) {
 
     dialogueNode = nodeKey;
     selectedDialogueOption = 0;
-    dialogueFullText = GUIDE_DIALOGUE[nodeKey].text;
+    const node = GUIDE_DIALOGUE[nodeKey];
+    dialogueFullText = node.text;
+    dialoguePortrait.setTexture(node.portrait);
 
     dialogueText.textContent = '';
     refreshGuideDialogueOptions();
