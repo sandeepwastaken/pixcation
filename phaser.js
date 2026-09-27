@@ -419,6 +419,8 @@ let mapDrag = null;
 let mapDirty = false;
 const mapPan = { x: 0, y: 0 };
 const MAP_PAN_SPEED = 90;
+const MAP_MAX_ZOOM = 3;
+let mapZoom = 1;
 let mapPalette = null;
 let marketOpen = false;
 let marketContainer;
@@ -849,8 +851,8 @@ function create() {
                 refreshGuideDialogueOptions();
             }
         } else if (mapOpen && mapDrag && pointer.isDown) {
-            mapPan.x = mapDrag.panX + Math.round(mapDrag.x - pointer.x);
-            mapPan.y = mapDrag.panY + Math.round(mapDrag.y - pointer.y);
+            mapPan.x = mapDrag.panX + Math.round((mapDrag.x - pointer.x) / mapZoom);
+            mapPan.y = mapDrag.panY + Math.round((mapDrag.y - pointer.y) / mapZoom);
             mapDirty = true;
         }
     });
@@ -892,12 +894,19 @@ function create() {
 
         if (!step) return;
 
-        if (marketOpen || dialogueOpen) {
+        if (marketOpen || dialogueOpen || mapOpen) {
             if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
             lastMenuWheelTime = pointer.event.timeStamp;
         }
 
-        if (marketOpen) {
+        if (mapOpen) {
+            const zoom = Phaser.Math.Clamp(mapZoom - step, 1, MAP_MAX_ZOOM);
+
+            if (zoom !== mapZoom) {
+                mapZoom = zoom;
+                mapDirty = true;
+            }
+        } else if (marketOpen) {
             moveMarketSelection(step);
         } else if (dialogueOpen) {
             moveGuideDialogueSelection(step);
@@ -3246,7 +3255,7 @@ function createMapUI(scene) {
 
     const hint = document.createElement('div');
 
-    for (const [key, label] of [['WASD', 'Pan'], ['M', 'Close']]) {
+    for (const [key, label] of [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['M', 'Close']]) {
         const keycap = document.createElement('span');
         keycap.textContent = key;
 
@@ -3342,8 +3351,11 @@ function redrawMap(scene) {
 
     const playerTileX = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE);
     const playerTileY = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
-    const originX = playerTileX - Math.floor(MAP_WIDTH / 2) + Math.round(mapPan.x);
-    const originY = playerTileY - Math.floor(MAP_HEIGHT / 2) + Math.round(mapPan.y);
+    const zoom = mapZoom;
+    const viewWidth = Math.ceil(MAP_WIDTH / zoom);
+    const viewHeight = Math.ceil(MAP_HEIGHT / zoom);
+    const originX = playerTileX - Math.floor(MAP_WIDTH / zoom / 2) + Math.round(mapPan.x);
+    const originY = playerTileY - Math.floor(MAP_HEIGHT / zoom / 2) + Math.round(mapPan.y);
 
     const plot = (x, y, color) => {
         if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return;
@@ -3356,25 +3368,27 @@ function redrawMap(scene) {
     };
 
     const marker = (tileX, tileY, width, height, color) => {
-        const x = tileX - originX;
-        const y = tileY - originY;
+        const x = (tileX - originX) * zoom;
+        const y = (tileY - originY) * zoom;
+        const pixelWidth = width * zoom;
+        const pixelHeight = height * zoom;
 
-        for (let offsetY = -1; offsetY <= height; offsetY++) {
-            for (let offsetX = -1; offsetX <= width; offsetX++) {
-                const inside = offsetX >= 0 && offsetY >= 0 && offsetX < width && offsetY < height;
+        for (let offsetY = -1; offsetY <= pixelHeight; offsetY++) {
+            for (let offsetX = -1; offsetX <= pixelWidth; offsetX++) {
+                const inside = offsetX >= 0 && offsetY >= 0 && offsetX < pixelWidth && offsetY < pixelHeight;
                 plot(x + offsetX, y + offsetY, inside ? color : palette.outline);
             }
         }
     };
 
-    for (let y = 0; y < MAP_HEIGHT; y++) {
-        for (let x = 0; x < MAP_WIDTH; x++) {
-            const tileX = originX + x;
-            const tileY = originY + y;
+    for (let viewY = 0; viewY < viewHeight; viewY++) {
+        for (let viewX = 0; viewX < viewWidth; viewX++) {
+            const tileX = originX + viewX;
+            const tileY = originY + viewY;
             let color;
 
             if (!isTileDiscovered(tileX, tileY)) {
-                color = palette.fog[(x + y) & 1];
+                color = -1;
             } else if (hasBushAt(tileX, tileY) || hasBushAt(tileX - 1, tileY)) {
                 color = palette.bush;
             } else {
@@ -3392,7 +3406,13 @@ function redrawMap(scene) {
                 }
             }
 
-            plot(x, y, color);
+            for (let offsetY = 0; offsetY < zoom; offsetY++) {
+                for (let offsetX = 0; offsetX < zoom; offsetX++) {
+                    const x = viewX * zoom + offsetX;
+                    const y = viewY * zoom + offsetY;
+                    plot(x, y, color === -1 ? palette.fog[(x + y) & 1] : color);
+                }
+            }
         }
     }
 
@@ -3453,7 +3473,7 @@ function updateMapPan(scene, delta) {
         (characterKeys.up.isDown || characterKeys.upArrow.isDown ? 1 : 0);
 
     if (panX || panY) {
-        const distance = MAP_PAN_SPEED * Math.min(delta, 50) / 1000;
+        const distance = MAP_PAN_SPEED / mapZoom * Math.min(delta, 50) / 1000;
         const beforeX = Math.round(mapPan.x);
         const beforeY = Math.round(mapPan.y);
 
