@@ -114,7 +114,8 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
 
                     float shore = floor(code(mask.g) / 3.0);
                     float wobble = (fbm(p * 0.045 + warp * 0.6 + vec2(t * 0.05, -t * 0.04)) - 0.5) * 4.0;
-                    float reach = shore + wobble + bayer * 2.2;
+                    float lap = sin(t * 1.3 + (p.x + p.y) * 0.045) * max(0.0, 1.0 - shore / 8.0) * 1.2;
+                    float reach = shore + wobble + bayer * 2.2 - lap;
                     float depth = fbm(p * 0.012 + warp * 1.2 + vec2(t * 0.03, t * 0.01)) + bayer * 0.05 -
                         max(0.0, shore - 15.0) * 0.012;
                     float light = fbm(p * 0.021 - warp * 0.9 + vec2(-t * 0.06, t * 0.04)) + checker * 0.016;
