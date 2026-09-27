@@ -6190,7 +6190,7 @@ function createCatchCardUI(scene) {
 
 function showCatchCard(scene, time, species) {
     catchCardTitle.textContent = `You caught a ${species.name}!`;
-    catchCardDetail.textContent = `${FISH_SIZE_CLASSES[species.size].label} shadow · ${species.price}c`;
+    catchCardDetail.textContent = `${species.price}c`;
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 
