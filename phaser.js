@@ -131,8 +131,9 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
 
                     vec4 result = vec4(color.rgb * color.a, color.a);
 
-                    if (mask.r < 0.75) {
-                        result = result * 0.68 + vec4(0.09 * 0.32, 0.157 * 0.32, 0.231 * 0.32, 0.32);
+                    if (mask.r < 0.9) {
+                        float shade = mask.r < 0.625 ? 0.34 : 0.2;
+                        result = result * (1.0 - shade) + vec4(0.09, 0.157, 0.231, 1.0) * shade;
                     }
 
                     gl_FragColor = result;
@@ -1564,23 +1565,64 @@ function getChunkWoodMask(scene, chunkX, chunkY, woodTiles) {
 
     for (let index = 0; index < tiles.length; index += 3) {
         const tile = tiles[index + 2];
-        const pixels = getTerrainPixels(scene, tile.key).data;
+        const deck = getDeckBounds(scene, tile.key);
+        const rotated = Boolean(tile.rotation);
+        const left = rotated ? TILE_SIZE - deck.bottom : deck.left;
+        const right = rotated ? TILE_SIZE - deck.top : deck.right;
+        const top = rotated ? deck.left : deck.top;
+        const bottom = rotated ? deck.right : deck.bottom;
         const originX = tiles[index] * TILE_SIZE + WOOD_MASK_MARGIN;
         const originY = tiles[index + 1] * TILE_SIZE + WOOD_MASK_MARGIN;
 
-        for (let y = 0; y < TILE_SIZE; y++) {
-            for (let x = 0; x < TILE_SIZE; x++) {
-                const sourceX = tile.rotation ? y : x;
-                const sourceY = tile.rotation ? TILE_SIZE - 1 - x : y;
+        for (let y = top - 1; y <= bottom; y++) {
+            for (let x = left - 1; x <= right; x++) {
+                const maskIndex = (originY + y) * WOOD_MASK_SIZE + originX + x;
+                const core = x >= left && x < right && y >= top && y < bottom;
 
-                if (pixels[(sourceY * TILE_SIZE + sourceX) * 4 + 3]) {
-                    mask[(originY + y) * WOOD_MASK_SIZE + originX + x] = 1;
+                if (core) {
+                    mask[maskIndex] = 2;
+                } else if (mask[maskIndex] === 0 && ((x + y) & 1) === 0) {
+                    mask[maskIndex] = 1;
                 }
             }
         }
     }
 
     return mask;
+}
+
+function getDeckBounds(scene, key) {
+    scene.deckBoundsCache ||= new Map();
+
+    const cached = scene.deckBoundsCache.get(key);
+    if (cached) return cached;
+
+    const pixels = getTerrainPixels(scene, key).data;
+    const bounds = { left: TILE_SIZE, right: 0, top: TILE_SIZE, bottom: 0 };
+
+    for (let y = 0; y < TILE_SIZE; y++) {
+        let opaque = 0;
+        let rowLeft = TILE_SIZE;
+        let rowRight = 0;
+
+        for (let x = 0; x < TILE_SIZE; x++) {
+            if (pixels[(y * TILE_SIZE + x) * 4 + 3]) {
+                opaque++;
+                rowLeft = Math.min(rowLeft, x);
+                rowRight = x + 1;
+            }
+        }
+
+        if (opaque * 2 < TILE_SIZE) continue;
+
+        bounds.top = Math.min(bounds.top, y);
+        bounds.bottom = y + 1;
+        bounds.left = Math.min(bounds.left, rowLeft);
+        bounds.right = Math.max(bounds.right, rowRight);
+    }
+
+    scene.deckBoundsCache.set(key, bounds);
+    return bounds;
 }
 
 function getWaterMaskBase(scene) {
@@ -1827,7 +1869,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
 
                 for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
                     if (data[index] && woodMask[maskRow + x]) {
-                        data[index] = 128;
+                        data[index] = woodMask[maskRow + x] === 2 ? 128 : 192;
                     }
                 }
             }
