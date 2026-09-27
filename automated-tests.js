@@ -153,12 +153,17 @@ function runAutomatedTests(scene) {
         };
 
         migrationProbe.chunk.fish.push(probeFish);
+        fishMigrations.length = 0;
+        queueFishMigration(migrationProbe.chunk, probeFish);
+        const queued = fishMigrations[0] === migrationProbe.chunk &&
+            fishMigrations[1] === migrationProbe.neighbor && fishMigrations[2] === probeFish;
+        fishMigrations.length = 0;
         const migrated = migrateFishToChunk(migrationProbe.chunk, migrationProbe.neighbor, probeFish);
         const targetIndex = migrationProbe.neighbor.fish.indexOf(probeFish);
-        const migrationPassed = migrated && targetIndex !== -1 && migrationProbe.chunk.fish.indexOf(probeFish) === -1;
+        const migrationPassed = queued && migrated && targetIndex !== -1 && migrationProbe.chunk.fish.indexOf(probeFish) === -1;
 
         if (targetIndex !== -1) migrationProbe.neighbor.fish.splice(targetIndex, 1);
-        record('Fish ownership migrates between chunks', migrationPassed, migrationPassed ? 'Source removed and destination adopted fish' : 'Migration failed');
+        record('Fish ownership migrates between chunks', migrationPassed, migrationPassed ? 'Border crossing queued and transferred' : 'Migration failed');
     }
 
     const rope = createFishingRope(0, 0, 0, 0, 88);

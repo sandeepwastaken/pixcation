@@ -3,6 +3,16 @@ let fishRegionStack;
 let fishRegionPixels;
 
 function queueFishMigration(chunk, fish) {
+    const left = chunk.chunkX * CHUNK_PIXEL_SIZE;
+    const top = chunk.chunkY * CHUNK_PIXEL_SIZE;
+
+    if (
+        fish.x >= left && fish.x < left + CHUNK_PIXEL_SIZE &&
+        fish.y >= top && fish.y < top + CHUNK_PIXEL_SIZE
+    ) {
+        return;
+    }
+
     const targetChunk = getFishChunkAt(fish.x, fish.y);
     if (targetChunk && targetChunk !== chunk && loadedWaterChunks.has(targetChunk)) {
         fishMigrations.push(chunk, targetChunk, fish);
