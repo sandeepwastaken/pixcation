@@ -33,15 +33,15 @@ function spawnShimmer(scene) {
         if (chunk.visible && pick-- === 0) break;
     }
 
-    const cell = chunk.waterCells[Math.floor(Math.random() * chunk.waterCells.length)];
+    const cell = Math.floor(Math.random() * (chunk.waterCells.length / 4)) * 4;
     const shimmer = shimmerPool.pop() || scene.add.sprite(0, 0, 'shimmer')
         .setOrigin(0)
         .setDepth(2);
 
     shimmer
         .setPosition(
-            cell.x + Phaser.Math.Between(0, cell.width - 12),
-            cell.y + Phaser.Math.Between(0, cell.height - 1)
+            chunk.waterCells[cell] + Phaser.Math.Between(0, chunk.waterCells[cell + 2] - 12),
+            chunk.waterCells[cell + 1] + Phaser.Math.Between(0, chunk.waterCells[cell + 3] - 1)
         )
         .setVisible(true)
         .setActive(true);

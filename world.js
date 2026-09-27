@@ -1290,15 +1290,10 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 const worldY = tileY * TILE_SIZE;
 
                 for (const cell of shoreline.waterCells) {
-                    const positioned = {
-                        x: worldX + cell.x,
-                        y: worldY + cell.y,
-                        width: cell.width,
-                        height: cell.height
-                    };
-
-                    waterMaskCells.push(positioned);
-                    if (isWater && cell.width >= 12) waterCells.push(positioned);
+                    const x = worldX + cell.x;
+                    const y = worldY + cell.y;
+                    waterMaskCells.push(x, y, cell.width, cell.height);
+                    if (isWater && cell.width >= 12) waterCells.push(x, y, cell.width, cell.height);
                 }
 
                 for (const cell of shoreline.edgeCells) {
@@ -1368,14 +1363,16 @@ function buildChunkWater(scene, chunk) {
 
     data.set(getWaterMaskBase(scene));
 
-    for (const cell of waterMaskCells) {
-        const localX = cell.x - pixelX;
-        const localY = cell.y - pixelY;
+    for (let cell = 0; cell < waterMaskCells.length; cell += 4) {
+        const localX = waterMaskCells[cell] - pixelX;
+        const localY = waterMaskCells[cell + 1] - pixelY;
+        const width = waterMaskCells[cell + 2];
+        const height = waterMaskCells[cell + 3];
 
-        for (let y = localY; y < localY + cell.height; y++) {
+        for (let y = localY; y < localY + height; y++) {
             let index = (y * CHUNK_PIXEL_SIZE + localX) * 4;
 
-            for (let x = 0; x < cell.width; x++, index += 4) {
+            for (let x = 0; x < width; x++, index += 4) {
                 data[index] = 255;
             }
         }
