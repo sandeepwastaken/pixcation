@@ -47,8 +47,9 @@ function runAutomatedTests(scene) {
     const shimmer = shimmerChunk?.shimmers[shimmerChunk.shimmers.length - 1];
     if (shimmer) finishShimmer(null, null, shimmer);
     const shimmerPoolPassed = shimmer && !shimmer.active && !shimmer.shimmerChunk &&
-        !shimmerChunk.shimmers.includes(shimmer) && shimmerPool.includes(shimmer);
-    record('Shimmer completion returns sprites to the pool', shimmerPoolPassed, shimmerPoolPassed ? 'Permanent completion handler released one sprite' : 'Shimmer sprite was not released');
+        !shimmerChunk.shimmers.includes(shimmer) && shimmerPool.includes(shimmer) &&
+        shimmer.listenerCount(Phaser.Animations.Events.ANIMATION_COMPLETE) === 1;
+    record('Shimmer completion returns sprites to the pool', shimmerPoolPassed, shimmerPoolPassed ? 'One permanent completion handler retained' : 'Shimmer lifecycle regressed');
     const rodArtPassed = MARKET_RODS.every(rod =>
         scene.textures.exists(rod.texture) && scene.textures.exists(rod.icon) && rod.polePalette?.length === 3 &&
         rod.linePalette?.length === 4 && rod.bobberPalette?.length === 3

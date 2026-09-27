@@ -1467,7 +1467,6 @@ function destroyWorldChunk(key) {
 
     while (chunk.shimmers.length) {
         const shimmer = chunk.shimmers.pop();
-        shimmer.off(Phaser.Animations.Events.ANIMATION_COMPLETE);
         poolShimmer(shimmer);
     }
 
