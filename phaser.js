@@ -174,8 +174,6 @@ const FISH_LURE_PULSE_TIME = 240;
 const FISH_INSPECT_MIN = 380;
 const FISH_INSPECT_RANGE = 360;
 const FISH_NIBBLE_DIP_TIME = 150;
-const FISH_BITE_MIN_WINDOW = 280;
-const FISH_BITE_MAX_WINDOW = 620;
 const FISH_IDLE_MIN = 700;
 const FISH_IDLE_RANGE = 2600;
 const FISH_SCARE_DISTANCE = 40;
@@ -308,6 +306,8 @@ const availableParticles = [];
 let fishing = null;
 let fishingLine;
 let fishingUi;
+let fishingHintText;
+let fishingHintValue = '';
 let fishingActionHeld = false;
 const CAST_MIN_DISTANCE = 16;
 const CAST_METER_WIDTH = 14;
@@ -752,6 +752,13 @@ function create() {
     fishingUi = this.add.graphics()
         .setDepth(220)
         .setScrollFactor(0);
+    fishingHintText = this.add.text(314, 142, '', {
+        fontFamily: 'm6x11',
+        fontSize: '8px',
+        color: '#e0f2fd',
+        backgroundColor: '#230a03',
+        padding: { x: 3, y: 2 }
+    }).setOrigin(1, 0).setDepth(221).setScrollFactor(0).setVisible(false);
 
     character = this.add.sprite(0, 0, 'character-front')
         .setOrigin(0)
@@ -4143,7 +4150,7 @@ function startFishApproach(time) {
 function startFishBite(scene, time) {
     const fish = fishing.targetFish;
     const difficulty = Phaser.Math.Clamp((fish.length - FISH_LENGTHS[0]) / (FISH_LENGTHS[FISH_LENGTHS.length - 1] - FISH_LENGTHS[0]), 0, 1);
-    const window = Phaser.Math.Linear(FISH_BITE_MAX_WINDOW, FISH_BITE_MIN_WINDOW, difficulty);
+    const window = Phaser.Math.Linear(1050, 720, difficulty);
 
     fishing.state = 'bite';
     fishing.start = time;
@@ -4428,6 +4435,15 @@ function drawFishingRope(rope) {
 function updateFishing(scene, time, delta, isWalking) {
     fishingLine.clear();
     fishingUi.clear();
+
+    const hint = !fishing ? '' : fishing.state === 'bite' ? 'BITE! PRESS SPACE / CLICK' :
+        fishing.state === 'minigame' ? 'HOLD SPACE / CLICK: LIFT' :
+        fishing.state === 'approaching' || fishing.state === 'inspecting' || fishing.state === 'nibbleWait' || fishing.state === 'nibbleDip' ? 'WAIT FOR THE BIG SPLASH' :
+        fishing.state === 'floating' ? 'WAIT FOR A FISH' : '';
+    if (hint !== fishingHintValue) {
+        fishingHintValue = hint;
+        fishingHintText.setText(hint).setVisible(Boolean(hint));
+    }
 
     if (castCharge && (isWalking || dialogueOpen || marketOpen || mapOpen || inventoryOpen || !hasRodSelected())) {
         castCharge = null;
