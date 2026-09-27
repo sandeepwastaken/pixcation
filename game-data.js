@@ -54,7 +54,7 @@ const GUIDE_DIALOGUE = {
     },
     fishing: {
         portrait: 'guide-portrait-surprised',
-        text: "Ignore small taps. On the big splash, press Space or click. Then hold it to lift the catch bar around the fish.",
+        text: "Ignore small taps. On the big splash, press Space or click, then hold to keep the bar on the fish.",
         options: [
             { label: 'Back', next: 'help' },
             { label: 'Exit', close: true }
