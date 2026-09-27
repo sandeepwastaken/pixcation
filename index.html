@@ -39,7 +39,9 @@
     <div id="game-container"></div>
 
     <script>
-        const gameScripts = ['game-data.js', 'water-pipeline.js', 'phaser.js'];
+        const gameScripts = ['game-data.js'];
+        if (new URLSearchParams(window.location.search).has('test')) gameScripts.push('automated-tests.js');
+        gameScripts.push('water-pipeline.js', 'phaser.js');
         const loadGameScript = index => {
             const script = document.createElement('script');
             script.src = `${gameScripts[index]}?v=${window.APP_CACHE_BUSTER}`;
