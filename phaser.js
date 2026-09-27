@@ -63,6 +63,9 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                 uniform float uTime;
                 uniform vec2 uScroll;
                 uniform float uViewHeight;
+                uniform vec4 uFish[16];
+                uniform vec4 uFishShape[16];
+                uniform float uFishCount;
                 varying vec2 outTexCoord;
                 varying vec4 outTint;
 
@@ -170,25 +173,24 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
 
                     float shaded = mask.r < 0.75 ? 1.0 : 0.0;
 
-                    if (shore > 4.0) {
-                        vec2 cell = floor(p / 56.0);
-                        float presence = hash(cell + vec2(71.0, 13.0));
+                    for (int fish = 0; fish < 16; fish++) {
+                        if (float(fish) >= uFishCount) break;
 
-                        if (presence < 0.3) {
-                            float speed = 0.18 + hash(cell + vec2(3.0, 91.0)) * 0.14;
-                            float phase = presence * 40.0;
-                            float angle = t * speed + phase + sin(t * 0.7 + phase) * 0.22;
-                            vec2 center = cell * 56.0 + 28.0 + vec2(cos(angle) * 17.0, sin(angle * 1.3) * 11.0);
-                            vec2 heading = normalize(vec2(-sin(angle) * 17.0, cos(angle * 1.3) * 14.3));
-                            vec2 local = p - floor(center);
-                            float along = dot(local, heading);
-                            float across = dot(local, vec2(-heading.y, heading.x));
-                            float body = (along * along) / 16.0 + (across * across) / 2.6;
-                            float tail = along < -3.5 && along > -6.5 && abs(across) < (-along - 3.0) * 0.9 ? 1.0 : 0.0;
+                        vec4 body = uFish[fish];
+                        vec4 shape = uFishShape[fish];
+                        vec2 local = p + 0.5 - body.xy;
+                        float along = dot(local, body.zw);
+                        float halfLength = shape.x * 0.5;
+                        float spine = clamp((halfLength - along) / shape.x, 0.0, 1.0);
+                        float wave = shape.w * spine * spine * sin(spine * 5.6 - shape.z);
+                        float across = dot(local, vec2(-body.w, body.z)) - wave;
+                        float head = halfLength - shape.y;
 
-                            if (body < 1.0 || tail > 0.5) {
-                                shaded = 1.0;
-                            }
+                        if (
+                            length(vec2(along - head, across)) < shape.y ||
+                            along < head && along > -halfLength && abs(across) < shape.y * (along + halfLength) / (head + halfLength)
+                        ) {
+                            shaded = 1.0;
                         }
                     }
 
@@ -299,6 +301,36 @@ let characterKeys;
 let characterDirection = 'front';
 let characterWalkPhase = 0;
 let characterPace = 1;
+let characterMoving = false;
+const fishUniforms = new Float32Array(64);
+const fishShapeUniforms = new Float32Array(64);
+const FISH_MAX_VISIBLE = 16;
+const FISH_VIEW_MARGIN = 12;
+const FISH_LENGTHS = [5, 6, 8, 10, 12, 14];
+const FISH_MIN_DEPTH = 3;
+const FISH_PER_CHUNK_MAX = 5;
+const FISH_WATER_PER_FISH = 5000;
+const FISH_SWIM_SPEED = 13;
+const FISH_ACCELERATION = 40;
+const FISH_DRAG = 0.6;
+const FISH_COAST_DRAG = 1.6;
+const FISH_BURST_MIN = 300;
+const FISH_BURST_RANGE = 350;
+const FISH_COAST_MIN = 350;
+const FISH_COAST_RANGE = 700;
+const FISH_BEAT_THRUST = 3.2;
+const FISH_BEAT_COAST = 0.9;
+const FISH_BEAT_IDLE = 0.7;
+const FISH_SWEEP_THRUST = 0.16;
+const FISH_SWEEP_FLEE = 0.2;
+const FISH_SWEEP_COAST = 0.05;
+const FISH_SWEEP_IDLE = 0.06;
+const FISH_FLEE_SPEED = 42;
+const FISH_TURN = 2.2;
+const FISH_FLEE_TURN = 7;
+const FISH_IDLE_MIN = 700;
+const FISH_IDLE_RANGE = 2600;
+const FISH_SCARE_DISTANCE = 40;
 let horizontalPriority = 0;
 let lastMenuWheelTime = -Infinity;
 let verticalPriority = 0;
@@ -1672,7 +1704,7 @@ function getTerrainPixels(scene, key) {
     const canvas = document.createElement('canvas');
     canvas.width = source.width;
     canvas.height = source.height;
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
     context.drawImage(source, 0, 0);
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
     scene.terrainPixelCache.set(key, pixels);
@@ -2154,8 +2186,18 @@ function getWaterMaskBase(scene) {
     return base;
 }
 
+function createReadableCanvasTexture(scene, key, width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d', { willReadFrequently: true });
+
+    return scene.textures.addCanvas(key, canvas);
+}
+
 function acquireChunkCanvas(scene) {
-    const texture = chunkCanvasPool.pop() || scene.textures.createCanvas(
+    const texture = chunkCanvasPool.pop() || createReadableCanvasTexture(
+        scene,
         `chunk-canvas-${chunkCanvasCount++}`,
         CHUNK_PIXEL_SIZE,
         CHUNK_PIXEL_SIZE
@@ -2373,6 +2415,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
         waterTexture: null,
         shadowMask,
         bushes,
+        fish: [],
         pixels: null,
         waterBuild: waterMaskCells.length > 0
             ? { waterMaskCells, edgeCells, woodTiles, shorelineTiles }
@@ -2420,6 +2463,9 @@ function buildChunkWater(scene, chunk) {
     }
 
     const shoreDistances = getShoreDistances(scene, chunkX, chunkY);
+    chunk.shoreDistances = shoreDistances;
+    chunk.fish = [];
+    spawnChunkFish(chunk);
 
     for (let pixel = 0, index = 0; pixel < shoreDistances.length; pixel++, index += 4) {
         if (data[index]) {
@@ -2660,6 +2706,231 @@ function updateChunkWater(time) {
     waterPipeline.set1f('uTime', time / 1000);
     waterPipeline.set2f('uScroll', mainCamera.scrollX, mainCamera.scrollY);
     waterPipeline.set1f('uViewHeight', mainCamera.height);
+
+    const left = mainCamera.scrollX - FISH_VIEW_MARGIN;
+    const top = mainCamera.scrollY - FISH_VIEW_MARGIN;
+    const right = mainCamera.scrollX + mainCamera.width + FISH_VIEW_MARGIN;
+    const bottom = mainCamera.scrollY + mainCamera.height + FISH_VIEW_MARGIN;
+    let count = 0;
+
+    for (const chunk of loadedWaterChunks) {
+        if (!chunk.visible) continue;
+
+        for (const fish of chunk.fish) {
+            if (count >= FISH_MAX_VISIBLE) break;
+            if (fish.x < left || fish.x > right || fish.y < top || fish.y > bottom) continue;
+
+            fishUniforms[count * 4] = Math.round(fish.x);
+            fishUniforms[count * 4 + 1] = Math.round(fish.y);
+            fishUniforms[count * 4 + 2] = Math.cos(fish.heading);
+            fishUniforms[count * 4 + 3] = Math.sin(fish.heading);
+            fishShapeUniforms[count * 4] = fish.length;
+            fishShapeUniforms[count * 4 + 1] = fish.radius;
+            fishShapeUniforms[count * 4 + 2] = fish.phase;
+            fishShapeUniforms[count * 4 + 3] = fish.amplitude;
+            count++;
+        }
+    }
+
+    waterPipeline.set4fv('uFish', fishUniforms);
+    waterPipeline.set4fv('uFishShape', fishShapeUniforms);
+    waterPipeline.set1f('uFishCount', count);
+}
+
+function getFishDepth(chunk, x, y) {
+    const localX = Math.floor(x) - chunk.chunkX * CHUNK_PIXEL_SIZE;
+    const localY = Math.floor(y) - chunk.chunkY * CHUNK_PIXEL_SIZE;
+
+    if (localX < 0 || localY < 0 || localX >= CHUNK_PIXEL_SIZE || localY >= CHUNK_PIXEL_SIZE) {
+        return 0;
+    }
+
+    return chunk.shoreDistances[localY * CHUNK_PIXEL_SIZE + localX];
+}
+
+function canFishSwim(chunk, fish, x, y) {
+    return getFishDepth(chunk, x, y) >= FISH_MIN_DEPTH + fish.radius;
+}
+
+function isFishPathClear(chunk, fish, targetX, targetY) {
+    const distance = Math.hypot(targetX - fish.x, targetY - fish.y);
+    const steps = Math.ceil(distance / 3);
+
+    for (let step = 1; step <= steps; step++) {
+        const amount = step / steps;
+
+        if (!canFishSwim(chunk, fish, fish.x + (targetX - fish.x) * amount, fish.y + (targetY - fish.y) * amount)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function spawnChunkFish(chunk) {
+    const originX = chunk.chunkX * CHUNK_PIXEL_SIZE;
+    const originY = chunk.chunkY * CHUNK_PIXEL_SIZE;
+    let openWater = 0;
+
+    for (let pixel = 0; pixel < chunk.shoreDistances.length; pixel += 7) {
+        if (chunk.shoreDistances[pixel] >= FISH_MIN_DEPTH + 4) openWater++;
+    }
+
+    const count = Math.min(FISH_PER_CHUNK_MAX, Math.floor(openWater * 7 / FISH_WATER_PER_FISH));
+
+    for (let index = 0; index < count; index++) {
+        const size = Math.floor(Math.random() * FISH_LENGTHS.length);
+        const fish = {
+            x: 0,
+            y: 0,
+            length: FISH_LENGTHS[size],
+            radius: Math.max(1.5, FISH_LENGTHS[size] * 0.24),
+            heading: Math.random() * Math.PI * 2,
+            topSpeed: 0,
+            velocity: 0,
+            phase: Math.random() * Math.PI * 2,
+            amplitude: 0,
+            thrusting: false,
+            burstTimer: 0,
+            state: 'idle',
+            timer: Math.random() * 2000,
+            targetX: 0,
+            targetY: 0
+        };
+
+        for (let attempt = 0; attempt < 40; attempt++) {
+            const x = originX + Math.random() * CHUNK_PIXEL_SIZE;
+            const y = originY + Math.random() * CHUNK_PIXEL_SIZE;
+
+            if (canFishSwim(chunk, fish, x, y)) {
+                fish.x = x;
+                fish.y = y;
+                chunk.fish.push(fish);
+                break;
+            }
+        }
+    }
+}
+
+function chooseFishTarget(chunk, fish, awayX, awayY) {
+    for (let attempt = 0; attempt < 8; attempt++) {
+        let angle = Math.random() * Math.PI * 2;
+        let distance = 12 + Math.random() * 34;
+
+        if (awayX !== undefined) {
+            angle = Math.atan2(awayY, awayX) + (Math.random() - 0.5) * 1.2;
+            distance = 28 + Math.random() * 20;
+        }
+
+        const targetX = fish.x + Math.cos(angle) * distance;
+        const targetY = fish.y + Math.sin(angle) * distance;
+
+        if (isFishPathClear(chunk, fish, targetX, targetY)) {
+            fish.targetX = targetX;
+            fish.targetY = targetY;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function updateFish(delta) {
+    const seconds = Math.min(delta, 50) / 1000;
+    const playerX = character.x + CHARACTER_SIZE / 2;
+    const playerY = character.y + CHARACTER_SIZE - 2;
+    const running = characterPace > 1 && characterMoving;
+
+    for (const chunk of loadedWaterChunks) {
+        for (const fish of chunk.fish) {
+            const awayX = fish.x - playerX;
+            const awayY = fish.y - playerY;
+
+            if (
+                running &&
+                fish.state !== 'flee' &&
+                awayX * awayX + awayY * awayY < FISH_SCARE_DISTANCE * FISH_SCARE_DISTANCE &&
+                chooseFishTarget(chunk, fish, awayX, awayY)
+            ) {
+                fish.state = 'flee';
+                fish.topSpeed = FISH_FLEE_SPEED;
+                fish.thrusting = true;
+                fish.burstTimer = 900;
+            }
+
+            if (fish.state === 'idle') {
+                fish.timer -= delta;
+
+                if (fish.timer <= 0) {
+                    if (chooseFishTarget(chunk, fish)) {
+                        fish.state = 'swim';
+                        fish.topSpeed = FISH_SWIM_SPEED * (0.7 + Math.random() * 0.6);
+                        fish.thrusting = true;
+                        fish.burstTimer = FISH_BURST_MIN + Math.random() * FISH_BURST_RANGE;
+                    } else {
+                        fish.timer = 500;
+                    }
+                }
+            } else {
+                fish.burstTimer -= delta;
+
+                if (fish.burstTimer <= 0 && fish.state === 'swim') {
+                    fish.thrusting = !fish.thrusting;
+                    fish.burstTimer = fish.thrusting
+                        ? FISH_BURST_MIN + Math.random() * FISH_BURST_RANGE
+                        : FISH_COAST_MIN + Math.random() * FISH_COAST_RANGE;
+                } else if (fish.burstTimer <= 0) {
+                    fish.state = 'swim';
+                    fish.topSpeed = FISH_SWIM_SPEED;
+                }
+
+                const dx = fish.targetX - fish.x;
+                const dy = fish.targetY - fish.y;
+                const distance = Math.hypot(dx, dy);
+
+                if (distance < 2) {
+                    fish.state = 'idle';
+                    fish.thrusting = false;
+                    fish.timer = FISH_IDLE_MIN + Math.random() * FISH_IDLE_RANGE;
+                } else {
+                    let turn = Math.atan2(dy, dx) - fish.heading;
+                    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+                    const maxTurn = (fish.state === 'flee' ? FISH_FLEE_TURN : FISH_TURN) * seconds *
+                        (0.4 + Math.min(1, fish.velocity / FISH_SWIM_SPEED) * 0.6);
+                    fish.heading += Phaser.Math.Clamp(turn, -maxTurn, maxTurn);
+
+                    if (fish.thrusting && Math.cos(turn) > 0) {
+                        fish.velocity = Math.min(fish.topSpeed, fish.velocity + FISH_ACCELERATION * seconds);
+                    }
+                }
+            }
+
+            fish.velocity *= Math.exp(-(fish.thrusting ? FISH_DRAG : FISH_COAST_DRAG) * seconds);
+
+            const beat = fish.thrusting
+                ? FISH_BEAT_THRUST + fish.velocity * 0.12
+                : fish.state === 'idle' ? FISH_BEAT_IDLE : FISH_BEAT_COAST;
+            const sweep = fish.thrusting
+                ? (fish.state === 'flee' ? FISH_SWEEP_FLEE : FISH_SWEEP_THRUST)
+                : fish.state === 'idle' ? FISH_SWEEP_IDLE : FISH_SWEEP_COAST;
+
+            fish.phase = (fish.phase + Math.PI * 2 * beat * seconds) % (Math.PI * 2);
+            fish.amplitude += (fish.length * sweep - fish.amplitude) * Math.min(1, seconds * 6);
+
+            const nextX = fish.x + Math.cos(fish.heading) * fish.velocity * seconds;
+            const nextY = fish.y + Math.sin(fish.heading) * fish.velocity * seconds;
+
+            if (canFishSwim(chunk, fish, nextX, nextY)) {
+                fish.x = nextX;
+                fish.y = nextY;
+            } else {
+                fish.velocity = 0;
+                fish.state = 'idle';
+                fish.thrusting = false;
+                fish.timer = FISH_IDLE_MIN;
+            }
+        }
+    }
 }
 
 function releaseShimmer(chunk, shimmer) {
@@ -4578,6 +4849,7 @@ function update(time, delta) {
     }
 
     const isWalking = moveX !== 0 || moveY !== 0;
+    characterMoving = isWalking;
 
     if (!isWalking) {
         characterWalkPhase = 1;
@@ -4649,5 +4921,6 @@ function update(time, delta) {
     buildPendingChunk(this);
     updateCamera(delta);
     updateChunkVisibility();
+    updateFish(delta);
     updateChunkWater(time);
 }
