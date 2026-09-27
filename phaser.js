@@ -1,5 +1,6 @@
 const APP_CACHE_BUSTER = window.APP_CACHE_BUSTER || new Date().toISOString().slice(0, 10);
 const TEST_MODE = new URLSearchParams(window.location.search).has('test');
+const CHEATS_ENABLED = new URLSearchParams(window.location.search).get('cheats') === 'true';
 
 const withCacheBuster = (path) => `${path}?v=${APP_CACHE_BUSTER}`;
 
@@ -963,6 +964,10 @@ function create() {
         if (event.key.toLowerCase() === 'm') {
             openMap(this);
             return;
+        }
+
+        if (CHEATS_ENABLED && event.key.toLowerCase() === 's') {
+            spawnSturgeonAtCursor(this);
         }
 
         if (event.key.toLowerCase() === 'e') {
@@ -3129,34 +3134,38 @@ function chooseFishSpecies(waterArea) {
     return candidates[0] || FISH_SPECIES[0];
 }
 
+function createFish(species, giantScale) {
+    const sizeDefinition = FISH_SIZE_CLASSES[species.size];
+    const giant = species.size === 'giant';
+
+    return {
+        x: 0,
+        y: 0,
+        length: giant ? FISH_SIZE_CLASSES.large.length * giantScale : sizeDefinition.length,
+        radius: giant ? FISH_SIZE_CLASSES.large.radius * giantScale : sizeDefinition.radius,
+        heading: Math.random() * Math.PI * 2,
+        topSpeed: 0,
+        velocity: 0,
+        phase: Math.random() * Math.PI * 2,
+        amplitude: 0,
+        thrusting: false,
+        burstTimer: 0,
+        idleTurn: (Math.random() - 0.5) * FISH_IDLE_TURN,
+        state: 'idle',
+        timer: Math.random() * 2000,
+        targetX: 0,
+        targetY: 0,
+        region: 0,
+        size: species.size,
+        species
+    };
+}
+
 function spawnRegionFish(chunk, region, label, count, originX, originY) {
     for (let index = 0; index < count; index++) {
         const species = chooseFishSpecies(region.length);
-        const sizeDefinition = FISH_SIZE_CLASSES[species.size];
-        const giantScale = species.size === 'giant' ? 2 + Math.random() * 3 : 1;
-        const length = species.size === 'giant' ? FISH_SIZE_CLASSES.large.length * giantScale : sizeDefinition.length;
-        const radius = species.size === 'giant' ? FISH_SIZE_CLASSES.large.radius * giantScale : sizeDefinition.radius;
-        const fish = {
-            x: 0,
-            y: 0,
-            length,
-            radius,
-            heading: Math.random() * Math.PI * 2,
-            topSpeed: 0,
-            velocity: 0,
-            phase: Math.random() * Math.PI * 2,
-            amplitude: 0,
-            thrusting: false,
-            burstTimer: 0,
-            idleTurn: (Math.random() - 0.5) * FISH_IDLE_TURN,
-            state: 'idle',
-            timer: Math.random() * 2000,
-            targetX: 0,
-            targetY: 0,
-            region: label,
-            size: species.size,
-            species
-        };
+        const fish = createFish(species, 2 + Math.random() * 3);
+        fish.region = label;
 
         for (let attempt = 0; attempt < 40; attempt++) {
             const pixel = region[Math.floor(Math.random() * region.length)];
@@ -3171,6 +3180,45 @@ function spawnRegionFish(chunk, region, label, count, originX, originY) {
             }
         }
     }
+}
+
+function showCheatLabel(scene, text) {
+    if (!itemPrompt) return;
+
+    itemPrompt.label.textContent = text;
+    itemLabelUntil = scene.time.now + ITEM_LABEL_DURATION;
+}
+
+function spawnSturgeonAtCursor(scene) {
+    const pointer = scene.input.activePointer;
+    pointer.updateWorldPoint(mainCamera);
+
+    const x = pointer.worldX;
+    const y = pointer.worldY;
+    const chunk = getFishChunkAt(x, y);
+    const region = getFishRegionAt(chunk, x, y);
+
+    if (!region) {
+        showCheatLabel(scene, 'No fish water there');
+        return;
+    }
+
+    const species = FISH_SPECIES_BY_ID.get('sturgeon');
+
+    for (let scale = 5; scale >= 1; scale -= 0.5) {
+        const fish = createFish(species, scale);
+        fish.region = region;
+
+        if (canFishSwim(chunk, fish, x, y)) {
+            fish.x = x;
+            fish.y = y;
+            chunk.fish.push(fish);
+            showCheatLabel(scene, 'Spawned a Sturgeon');
+            return;
+        }
+    }
+
+    showCheatLabel(scene, 'Too shallow for a Sturgeon');
 }
 
 function chooseFishTarget(chunk, fish, awayX, awayY) {
