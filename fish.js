@@ -1,4 +1,6 @@
 const fishMigrations = [];
+let fishRegionStack;
+let fishRegionPixels;
 
 function queueFishMigration(chunk, fish) {
     const targetChunk = getFishChunkAt(fish.x, fish.y);
@@ -54,14 +56,17 @@ function canFishSwim(chunk, fish, x, y) {
 function labelFishRegions(chunk) {
     const size = CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE;
     const labels = new Uint16Array(size);
-    const stack = new Int32Array(size);
+    fishRegionStack ||= new Int32Array(size);
+    fishRegionPixels ||= new Uint32Array(size);
+    const stack = fishRegionStack;
     const regions = [];
+    let pixelCount = 0;
 
     for (let start = 0; start < size; start++) {
         if (labels[start] || chunk.shoreDistances[start] < FISH_MIN_DEPTH) continue;
 
         const label = regions.length + 1;
-        const pixels = [];
+        const regionStart = pixelCount;
         let top = 0;
 
         stack[top++] = start;
@@ -70,7 +75,7 @@ function labelFishRegions(chunk) {
         while (top > 0) {
             const pixel = stack[--top];
             const x = pixel % CHUNK_PIXEL_SIZE;
-            pixels.push(pixel);
+            fishRegionPixels[pixelCount++] = pixel;
 
             if (x > 0 && !labels[pixel - 1] && chunk.shoreDistances[pixel - 1] >= FISH_MIN_DEPTH) {
                 labels[pixel - 1] = label;
@@ -93,7 +98,7 @@ function labelFishRegions(chunk) {
             }
         }
 
-        regions.push(pixels);
+        regions.push({ start: regionStart, length: pixelCount - regionStart });
     }
 
     chunk.fishRegions = labels;
@@ -188,7 +193,7 @@ function spawnRegionFish(chunk, region, label, count, originX, originY) {
         fish.region = label;
 
         for (let attempt = 0; attempt < 40; attempt++) {
-            const pixel = region[Math.floor(Math.random() * region.length)];
+            const pixel = fishRegionPixels[region.start + Math.floor(Math.random() * region.length)];
             const x = originX + pixel % CHUNK_PIXEL_SIZE + 0.5;
             const y = originY + Math.floor(pixel / CHUNK_PIXEL_SIZE) + 0.5;
 
