@@ -406,6 +406,7 @@ let marketDetailAction;
 let marketFeedback = null;
 let selectedMarketOption = 0;
 let playerCoins = 100;
+const coinDisplay = { value: playerCoins };
 const ownedRods = new Set();
 
 let interactionPromptLayer;
@@ -3713,7 +3714,7 @@ function refreshMarketOptions() {
         return;
     }
 
-    marketMessageText.textContent = `${playerCoins}c`;
+    marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`;
     marketHighlight.setY(MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT);
 
     MARKET_RODS.forEach((rod, index) => {
@@ -3779,6 +3780,17 @@ function buySelectedMarketItem(scene) {
 
     playerCoins -= rod.price;
     ownedRods.add(rod.id);
+
+    scene.tweens.killTweensOf(coinDisplay);
+    scene.tweens.add({
+        targets: coinDisplay,
+        value: playerCoins,
+        duration: 260,
+        ease: 'Quad.Out',
+        onUpdate: () => {
+            marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`;
+        }
+    });
     addHotbarItem(scene, 'rod', rod.label);
     marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
 
@@ -3811,6 +3823,7 @@ function openMarket(scene) {
     marketOpen = true;
     selectedMarketOption = 0;
     marketFeedback = null;
+    coinDisplay.value = playerCoins;
     characterMoveRemainderX = 0;
     characterMoveRemainderY = 0;
     characterTextureKey = `character-${characterDirection}`;
