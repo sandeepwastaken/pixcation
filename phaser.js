@@ -276,6 +276,18 @@ const pixelPathColor = new Int32Array(1024);
 let pixelPathLength = 0;
 let inventoryFooterHints;
 const OWNED_ROD_TINT = 0x8a7c6e;
+const HOOKED_REEL_PULL = 0.55;
+const HOOKED_THRASH_RATE = 0.35;
+const HOOKED_RADIUS_BASE = 3;
+const HOOKED_RADIUS_PER_LENGTH = 0.3;
+const HOOKED_SPIN_BASE = 8;
+const HOOKED_SPIN_PER_LENGTH = 0.25;
+const HOOKED_SPIN_MIN = 4;
+const HOOKED_SQUASH = 0.72;
+const HOOKED_BEAT = 6;
+const HOOKED_SWEEP = 0.22;
+const HOOKED_SPLASH_MIN = 180;
+const HOOKED_SPLASH_RANGE = 160;
 let fishingUiPanel;
 let fishingCatchZoneTop;
 let fishingCatchZoneMiddle;
@@ -3209,6 +3221,80 @@ function scatterFishFromSplash(x, y) {
     }
 }
 
+function updateHookedFish(fish, seconds, delta) {
+    const scene = mainCamera.scene;
+    const spin = fishing.spin || (fishing.spin = {
+        angle: Math.atan2(fish.y - fishing.toY, fish.x - fishing.toX),
+        direction: Math.random() < 0.5 ? -1 : 1,
+        centerX: fishing.toX,
+        centerY: fishing.toY,
+        splashTimer: 0
+    });
+    const progress = fishing.game ? fishing.game.progress : 0;
+    const [tipX, tipY] = getRodTip();
+    const pull = progress * HOOKED_REEL_PULL;
+    const targetX = fishing.toX + (tipX - fishing.toX) * pull;
+    const targetY = fishing.toY + (tipY - fishing.toY) * pull;
+    const nextCenterX = spin.centerX + (targetX - spin.centerX) * Math.min(1, seconds * 2);
+    const nextCenterY = spin.centerY + (targetY - spin.centerY) * Math.min(1, seconds * 2);
+
+    if (isWaterPixel(scene, Math.round(nextCenterX), Math.round(nextCenterY))) {
+        spin.centerX = nextCenterX;
+        spin.centerY = nextCenterY;
+    }
+
+    if (Math.random() < seconds * HOOKED_THRASH_RATE) {
+        spin.direction *= -1;
+    }
+
+    const radius = HOOKED_RADIUS_BASE + fish.length * HOOKED_RADIUS_PER_LENGTH;
+    const speed = Phaser.Math.Clamp(HOOKED_SPIN_BASE - fish.length * HOOKED_SPIN_PER_LENGTH, HOOKED_SPIN_MIN, HOOKED_SPIN_BASE);
+
+    spin.angle += spin.direction * speed * seconds;
+
+    const nextX = spin.centerX + Math.cos(spin.angle) * radius;
+    const nextY = spin.centerY + Math.sin(spin.angle) * radius * HOOKED_SQUASH;
+
+    if (isWaterPixel(scene, Math.round(nextX), Math.round(nextY))) {
+        fish.x = nextX;
+        fish.y = nextY;
+    }
+
+    fish.heading = Math.atan2(
+        Math.cos(spin.angle) * radius * HOOKED_SQUASH * spin.direction,
+        -Math.sin(spin.angle) * radius * spin.direction
+    );
+    fish.thrusting = true;
+    fish.velocity = speed * radius;
+    fish.phase = (fish.phase + Math.PI * 2 * HOOKED_BEAT * seconds) % (Math.PI * 2);
+    fish.amplitude += (fish.length * HOOKED_SWEEP - fish.amplitude) * Math.min(1, seconds * 8);
+
+    spin.splashTimer -= delta;
+
+    if (spin.splashTimer <= 0) {
+        spin.splashTimer = HOOKED_SPLASH_MIN + Math.random() * HOOKED_SPLASH_RANGE;
+        splash(
+            scene,
+            scene.time.now,
+            Math.round(fish.x - Math.cos(fish.heading) * fish.length * 0.5),
+            Math.round(fish.y - Math.sin(fish.heading) * fish.length * 0.5)
+        );
+    }
+}
+
+function getHookedBobber() {
+    const fish = fishing.targetFish;
+
+    if (!fish || !fishing.spin) {
+        return null;
+    }
+
+    return [
+        Math.round(fish.x + Math.cos(fish.heading) * fish.length * 0.5),
+        Math.round(fish.y + Math.sin(fish.heading) * fish.length * 0.5) + 1
+    ];
+}
+
 function updateLuredFish(chunk, fish, delta) {
     if (!fishing || fishing.targetFish !== fish) {
         fish.state = 'idle';
@@ -3218,6 +3304,12 @@ function updateLuredFish(chunk, fish, delta) {
     }
 
     const seconds = Math.min(delta, 50) / 1000;
+
+    if (fishing.state === 'hooked' || fishing.state === 'minigame') {
+        updateHookedFish(fish, seconds, delta);
+        return true;
+    }
+
     const dx = fishing.bobberX - fish.x;
     const dy = fishing.bobberY - fish.y;
     const distance = Math.max(0.001, Math.hypot(dx, dy));
@@ -4705,20 +4797,26 @@ function updateFishing(scene, time, delta, isWalking) {
                 fishing.nextFishScanAt = time + FISH_NOTICE_SCAN_TIME;
             }
         } else if (fishing.state === 'hooked') {
-            const fish = fishing.targetFish;
+            const hooked = getHookedBobber();
 
-            fishing.bobberY = fishing.toY + 2;
-
-            if (fish) {
-                fish.velocity = 0;
-                fish.thrusting = false;
+            if (hooked) {
+                [fishing.bobberX, fishing.bobberY] = hooked;
+            } else {
+                fishing.bobberY = fishing.toY + 2;
             }
 
             if (stateAge >= 220) {
                 startFishingMinigame(time);
             }
         } else if (fishing.state === 'minigame') {
-            fishing.bobberY = fishing.toY + 2;
+            const hooked = getHookedBobber();
+
+            if (hooked) {
+                [fishing.bobberX, fishing.bobberY] = hooked;
+            } else {
+                fishing.bobberY = fishing.toY + 2;
+            }
+
             updateFishingMinigame(scene, time, delta);
 
             if (!fishing) {
