@@ -54,11 +54,24 @@ function canFishSwim(chunk, fish, x, y) {
         ? chunk
         : getFishChunkAt(x, y);
 
-    if (!targetChunk || !targetChunk.fishRegions || getFishDepth(targetChunk, x, y) < FISH_MIN_DEPTH + fish.radius) {
+    if (!targetChunk || !targetChunk.fishRegions) {
         return false;
     }
 
-    const targetRegion = getFishRegionAt(targetChunk, x, y);
+    const localX = Math.floor(x) - targetChunk.chunkX * CHUNK_PIXEL_SIZE;
+    const localY = Math.floor(y) - targetChunk.chunkY * CHUNK_PIXEL_SIZE;
+
+    if (localX < 0 || localY < 0 || localX >= CHUNK_PIXEL_SIZE || localY >= CHUNK_PIXEL_SIZE) {
+        return false;
+    }
+
+    const index = localY * CHUNK_PIXEL_SIZE + localX;
+
+    if (targetChunk.shoreDistances[index] < FISH_MIN_DEPTH + fish.radius) {
+        return false;
+    }
+
+    const targetRegion = targetChunk.fishRegions[index];
 
     return targetRegion > 0 && (targetChunk !== chunk || targetRegion === fish.region);
 }
