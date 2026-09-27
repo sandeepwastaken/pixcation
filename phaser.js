@@ -140,7 +140,12 @@ const fishUniforms = new Float32Array(96);
 const fishShapeUniforms = new Float32Array(96);
 const FISH_MAX_VISIBLE = 24;
 const FISH_VIEW_MARGIN = 12;
-const FISH_LENGTHS = [5, 6, 8, 10, 12, 14];
+const FISH_SIZE_CLASSES = {
+    small: { label: 'Small', length: 6, radius: 1.5, difficulty: 0.15 },
+    medium: { label: 'Medium', length: 10, radius: 2.4, difficulty: 0.48 },
+    large: { label: 'Large', length: 14, radius: 3.4, difficulty: 0.78 },
+    giant: { label: 'Monstrous', length: 42, radius: 10, difficulty: 1.65 }
+};
 const FISH_MIN_DEPTH = 3;
 const FISH_PER_CHUNK_MAX = 5;
 const FISH_WATER_PER_FISH = 5000;
@@ -168,6 +173,7 @@ const FISH_FLEE_TURN = 7;
 const FISH_NOTICE_MIN_DISTANCE = 7;
 const FISH_NOTICE_MAX_DISTANCE = 44;
 const FISH_NOTICE_DOT = 0.48;
+const FISH_NOTICE_SCAN_TIME = 160;
 const FISH_LURE_SPEED = 10;
 const FISH_LURE_TURN = 5;
 const FISH_LURE_PULSE_TIME = 240;
@@ -253,20 +259,40 @@ const SHIMMER_RECOLOR_FROM = [0x87, 0xbe, 0xd8];
 const SHIMMER_RECOLOR_TO = [0x78, 0xaf, 0xd3];
 
 const MARKET_RODS = [
-    { id: 'basic', label: 'Basic Rod', price: 10, castDistance: 72, chargeTime: 1000, lineStrength: 1, catchZone: 24 },
-    { id: 'sturdy', label: 'Sturdy Rod', price: 25, castDistance: 88, chargeTime: 850, lineStrength: 1.35, catchZone: 29 },
-    { id: 'iron', label: 'Iron Rod', price: 50, castDistance: 104, chargeTime: 720, lineStrength: 1.75, catchZone: 34 }
+    { id: 'basic', label: 'Basic Rod', texture: 'rod-basic', icon: 'rod-basic-icon', price: 10, castDistance: 72, chargeTime: 1000, lineStrength: 1, catchZone: 24 },
+    { id: 'intermediate', label: 'Intermediate Rod', texture: 'rod-intermediate', icon: 'rod-intermediate-icon', price: 25, castDistance: 88, chargeTime: 850, lineStrength: 1.35, catchZone: 29 },
+    { id: 'master', label: 'Master Rod', texture: 'rod-master', icon: 'rod-master-icon', price: 50, castDistance: 104, chargeTime: 720, lineStrength: 1.75, catchZone: 34 }
 ];
 const MARKET_SELL_INDEX = MARKET_RODS.length;
 const MARKET_EXIT_INDEX = MARKET_SELL_INDEX + 1;
 const MARKET_ROW_COUNT = MARKET_RODS.length + 2;
 const FISH_SPECIES = [
-    { id: 'minnow', name: 'Pond Minnow', minSize: 0, maxSize: 1, minWater: 1800, weight: 6, price: 4 },
-    { id: 'bluegill', name: 'Bluegill', minSize: 1, maxSize: 3, minWater: 2200, weight: 5, price: 8 },
-    { id: 'carp', name: 'Carp', minSize: 2, maxSize: 4, minWater: 4800, weight: 2.5, price: 16 },
-    { id: 'bass', name: 'Largemouth Bass', minSize: 3, maxSize: 5, minWater: 7000, weight: 1.5, price: 26 },
-    { id: 'catfish', name: 'Catfish', minSize: 4, maxSize: 5, minWater: 8500, weight: 0.9, price: 38 },
-    { id: 'koi', name: 'Koi', minSize: 1, maxSize: 4, minWater: 9000, weight: 0.45, price: 52 }
+    { id: 'bluegill', name: 'Bluegill', size: 'small', minWater: 1800, weight: 7, price: 7 },
+    { id: 'pumpkinseed', name: 'Pumpkinseed', size: 'small', minWater: 1800, weight: 6, price: 8 },
+    { id: 'largemouth-bass', name: 'Largemouth Bass', size: 'large', minWater: 6500, weight: 2.2, price: 28 },
+    { id: 'smallmouth-bass', name: 'Smallmouth Bass', size: 'medium', minWater: 4800, weight: 3, price: 22 },
+    { id: 'yellow-perch', name: 'Yellow Perch', size: 'medium', minWater: 3000, weight: 4.5, price: 14 },
+    { id: 'walleye', name: 'Walleye', size: 'large', minWater: 8000, weight: 1.4, price: 38 },
+    { id: 'rainbow-trout', name: 'Rainbow Trout', size: 'large', minWater: 6500, weight: 1.8, price: 32 },
+    { id: 'brown-trout', name: 'Brown Trout', size: 'large', minWater: 6500, weight: 1.6, price: 34 },
+    { id: 'brook-trout', name: 'Brook Trout', size: 'medium', minWater: 3800, weight: 2.8, price: 24 },
+    { id: 'common-carp', name: 'Common Carp', size: 'large', minWater: 5500, weight: 2.5, price: 25 },
+    { id: 'crucian-carp', name: 'Crucian Carp', size: 'medium', minWater: 3200, weight: 3.6, price: 17 },
+    { id: 'goldfish', name: 'Goldfish', size: 'small', minWater: 2500, weight: 1.1, price: 35 },
+    { id: 'channel-catfish', name: 'Channel Catfish', size: 'large', minWater: 7500, weight: 1.7, price: 36 },
+    { id: 'bullhead-catfish', name: 'Bullhead Catfish', size: 'medium', minWater: 4000, weight: 3, price: 19 },
+    { id: 'freshwater-drum', name: 'Freshwater Drum', size: 'large', minWater: 7500, weight: 1.6, price: 31 },
+    { id: 'white-crappie', name: 'White Crappie', size: 'medium', minWater: 3500, weight: 3.7, price: 16 },
+    { id: 'black-crappie', name: 'Black Crappie', size: 'medium', minWater: 3500, weight: 3.5, price: 17 },
+    { id: 'roach', name: 'Roach', size: 'small', minWater: 1800, weight: 6, price: 6 },
+    { id: 'rudd', name: 'Rudd', size: 'small', minWater: 2200, weight: 5, price: 8 },
+    { id: 'common-bream', name: 'Common Bream', size: 'medium', minWater: 4000, weight: 3.3, price: 18 },
+    { id: 'tench', name: 'Tench', size: 'medium', minWater: 4500, weight: 2.8, price: 21 },
+    { id: 'common-dace', name: 'Common Dace', size: 'small', minWater: 1800, weight: 5.5, price: 7 },
+    { id: 'common-minnow', name: 'Common Minnow', size: 'small', minWater: 1800, weight: 7.5, price: 4 },
+    { id: 'mosquitofish', name: 'Mosquitofish', size: 'small', minWater: 1800, weight: 7, price: 3 },
+    { id: 'zebra-danio', name: 'Zebra Danio', size: 'small', minWater: 2000, weight: 3, price: 12 },
+    { id: 'sturgeon', name: 'Sturgeon', size: 'giant', minWater: 12000, weight: 0.12, price: 250 }
 ];
 const SAVE_KEY = 'pixcation-save-v1';
 
@@ -282,7 +308,15 @@ const GUIDE_DIALOGUE = {
     help: {
         text: "WASD or arrows walk, Shift runs. E talks or shops, M opens your map, I opens your fishpedia.",
         options: [
+            {label: 'Fishing', next: 'fishing'},
             {label: 'Back', next: 'intro'},
+            {label: 'Exit', close: true}
+        ]
+    },
+    fishing: {
+        text: "Ignore small taps. On the big splash, press Space or click. Then hold it to lift the catch bar around the fish.",
+        options: [
+            {label: 'Back', next: 'help'},
             {label: 'Exit', close: true}
         ]
     },
@@ -305,9 +339,10 @@ const particlePool = [];
 const availableParticles = [];
 let fishing = null;
 let fishingLine;
-let fishingUi;
-let fishingHintText;
-let fishingHintValue = '';
+let fishingUiPanel;
+let fishingCatchZone;
+let fishingFishMarker;
+let fishingProgressFill;
 let fishingActionHeld = false;
 const CAST_MIN_DISTANCE = 16;
 const CAST_METER_WIDTH = 14;
@@ -335,7 +370,6 @@ const FISHING_GAME_PLAY_HEIGHT = 91;
 const CATCH_CARD_Y = 116;
 const CATCH_CARD_DURATION = 2400;
 const BOBBER_TOP_COLOR = 0xb46044;
-const ROD_COLOR = 0xa4694b;
 const BOBBER_BOTTOM_COLOR = 0xf6f5e5;
 const LEAVES_PER_RUSTLE = 2;
 const LEAF_LIFETIME = 420;
@@ -503,10 +537,45 @@ function preload() {
     this.load.image('guide', withCacheBuster('media/guide.png'));
     this.load.image('headshot', withCacheBuster('media/headshot.png'));
     this.load.image('store', withCacheBuster('media/store.png'));
-    this.load.image('rod', withCacheBuster('media/rod.png'));
+    this.load.image('rod-basic', withCacheBuster('media/basicRod.png'));
+    this.load.image('rod-intermediate', withCacheBuster('media/intermediateRod.png'));
+    this.load.image('rod-master', withCacheBuster('media/masterRod.png'));
+    this.load.image('rod-basic-icon', withCacheBuster('media/basicRodIcon.png'));
+    this.load.image('rod-intermediate-icon', withCacheBuster('media/intermediateRodIcon.png'));
+    this.load.image('rod-master-icon', withCacheBuster('media/masterRodIcon.png'));
+    this.load.image('fishing-ui', withCacheBuster('media/fishing-ui.png'));
+    this.load.image('fishing-catch-zone', withCacheBuster('media/fishing-catch-zone.png'));
+    this.load.image('fishing-fish', withCacheBuster('media/fishing-fish.png'));
+    this.load.image('fishing-progress', withCacheBuster('media/fishing-progress.png'));
 
     this.load.image('waterOverlay', withCacheBuster('media/waterOverlay.png'));
     this.load.image('shimmer-art', withCacheBuster('media/shimmer.png'));
+}
+
+function extractRodArtStyles(scene) {
+    const colorAt = (texture, x, y, fallback) => {
+        const color = scene.textures.getPixel(x, y, texture);
+        return color ? Phaser.Display.Color.GetColor(color.red, color.green, color.blue) : fallback;
+    };
+
+    for (const rod of MARKET_RODS) {
+        rod.polePalette = [
+            colorAt(rod.texture, 19, 4, 0x4c3e32),
+            colorAt(rod.texture, 19, 6, 0x6b533b),
+            colorAt(rod.texture, 19, 5, 0x806953)
+        ];
+        rod.linePalette = [
+            colorAt(rod.texture, 28, 2, 0xa78178),
+            colorAt(rod.texture, 29, 3, 0xb99f92),
+            colorAt(rod.texture, 29, 5, 0xc8b8a8),
+            colorAt(rod.texture, 30, 9, FISHING_LINE_COLOR)
+        ];
+        rod.bobberPalette = [
+            colorAt(rod.texture, 27, 26, BOBBER_TOP_COLOR),
+            colorAt(rod.texture, 25, 26, BOBBER_TOP_COLOR),
+            colorAt(rod.texture, 23, 25, BOBBER_BOTTOM_COLOR)
+        ];
+    }
 }
 
 function createShimmerSheet(scene) {
@@ -738,6 +807,7 @@ function create() {
     createBushSlices(this);
     createRoundedCliffTextures(this);
     createShimmerSheet(this);
+    extractRodArtStyles(this);
 
     this.anims.create({
         key: 'shimmer',
@@ -749,16 +819,14 @@ function create() {
     createCharacterShadow(this);
     fishingLine = this.add.graphics();
     worldObjectLayer.add(fishingLine);
-    fishingUi = this.add.graphics()
-        .setDepth(220)
-        .setScrollFactor(0);
-    fishingHintText = this.add.text(314, 142, '', {
-        fontFamily: 'm6x11',
-        fontSize: '8px',
-        color: '#e0f2fd',
-        backgroundColor: '#230a03',
-        padding: { x: 3, y: 2 }
-    }).setOrigin(1, 0).setDepth(221).setScrollFactor(0).setVisible(false);
+    fishingUiPanel = this.add.image(FISHING_GAME_X, FISHING_GAME_Y, 'fishing-ui')
+        .setOrigin(0).setDepth(220).setScrollFactor(0).setVisible(false);
+    fishingCatchZone = this.add.image(0, 0, 'fishing-catch-zone')
+        .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
+    fishingFishMarker = this.add.image(0, 0, 'fishing-fish')
+        .setOrigin(0).setDepth(222).setScrollFactor(0).setVisible(false);
+    fishingProgressFill = this.add.image(0, 0, 'fishing-progress')
+        .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
 
     character = this.add.sprite(0, 0, 'character-front')
         .setOrigin(0)
@@ -1018,7 +1086,15 @@ function create() {
     const testMode = new URLSearchParams(window.location.search).has('test');
 
     if (testMode) {
-        window.PIXCATION_TEST_RESULTS = runAutomatedTests(this);
+        try {
+            window.PIXCATION_TEST_RESULTS = runAutomatedTests(this);
+        } catch (error) {
+            window.PIXCATION_TEST_RESULTS = {
+                passed: false,
+                error: error instanceof Error ? error.message : String(error),
+                results: []
+            };
+        }
     } else {
         loadProgress(this);
     }
@@ -1060,22 +1136,36 @@ function loadProgress(scene) {
 
     guideHasMetPlayer = saved.guideMet === true;
 
-    for (const id of Array.isArray(saved.rods) ? saved.rods : []) {
+    const legacyRodIds = { sturdy: 'intermediate', iron: 'master' };
+
+    for (const savedId of Array.isArray(saved.rods) ? saved.rods : []) {
+        const id = legacyRodIds[savedId] || savedId;
         const rod = MARKET_RODS.find(candidate => candidate.id === id);
 
         if (rod && !ownedRods.has(id)) {
             ownedRods.add(id);
-            addHotbarItem(scene, 'rod', rod.label);
+            addHotbarItem(scene, rod.icon, rod.label);
         }
     }
 
-    for (const [id, count] of Array.isArray(saved.fish) ? saved.fish : []) {
+    const legacySpecies = {
+        minnow: 'common-minnow',
+        carp: 'common-carp',
+        bass: 'largemouth-bass',
+        catfish: 'channel-catfish',
+        koi: 'goldfish'
+    };
+    const currentSpeciesId = id => legacySpecies[id] || id;
+
+    for (const [savedId, count] of Array.isArray(saved.fish) ? saved.fish : []) {
+        const id = currentSpeciesId(savedId);
         if (FISH_SPECIES.some(species => species.id === id) && Number.isInteger(count) && count > 0) {
-            fishInventory.set(id, count);
+            fishInventory.set(id, (fishInventory.get(id) || 0) + count);
         }
     }
 
-    for (const id of Array.isArray(saved.catchLog) ? saved.catchLog : []) {
+    for (const savedId of Array.isArray(saved.catchLog) ? saved.catchLog : []) {
+        const id = currentSpeciesId(savedId);
         if (FISH_SPECIES.some(species => species.id === id)) catchLog.add(id);
     }
 
@@ -1109,6 +1199,21 @@ function saveProgress() {
 function runAutomatedTests(scene) {
     const results = [];
     const record = (name, passed, detail) => results.push({ name, passed, detail });
+    const speciesIds = new Set(FISH_SPECIES.map(species => species.id));
+    const ordinarySizesValid = FISH_SPECIES
+        .filter(species => species.id !== 'sturgeon')
+        .every(species => species.size === 'small' || species.size === 'medium' || species.size === 'large');
+    const sturgeon = FISH_SPECIES.find(species => species.id === 'sturgeon');
+    const speciesPassed = FISH_SPECIES.length === 26 && speciesIds.size === 26 && ordinarySizesValid && sturgeon?.size === 'giant';
+    record('Fish species have fixed size classes', speciesPassed, speciesPassed ? '26 unique species; sturgeon is the giant exception' : 'Species size table is invalid');
+    const fishingTextures = ['fishing-ui', 'fishing-catch-zone', 'fishing-fish', 'fishing-progress'];
+    const texturesPassed = fishingTextures.every(key => scene.textures.exists(key));
+    record('Fishing minigame PNGs are loaded', texturesPassed, texturesPassed ? 'Frame, zone, fish and progress assets found' : 'A fishing UI texture is missing');
+    const rodArtPassed = MARKET_RODS.every(rod =>
+        scene.textures.exists(rod.texture) && scene.textures.exists(rod.icon) && rod.polePalette?.length === 3 &&
+        rod.linePalette?.length === 4 && rod.bobberPalette?.length === 3
+    ) && new Set(MARKET_RODS.map(rod => rod.linePalette.join(','))).size === MARKET_RODS.length;
+    record('Rod art palettes are extracted', rodArtPassed, rodArtPassed ? 'Three distinct rod, line and bobber palettes found' : 'Rod artwork or palette extraction failed');
     const rodsImprove = MARKET_RODS.slice(1).every((rod, index) => {
         const previous = MARKET_RODS[index];
         return rod.castDistance > previous.castDistance &&
@@ -1252,9 +1357,9 @@ function runAutomatedTests(scene) {
     if (reusedImage) releaseParticle(reusedImage);
     record('Particle pool reuses objects in constant time', reusedParticle, reusedParticle ? 'Free-list object reused' : 'Unexpected allocation');
 
-    showCatchCard(scene, scene.time.now, FISH_SPECIES[1], 2);
+    showCatchCard(scene, scene.time.now, FISH_SPECIES[0]);
     const catchCardPassed = catchCardTitle.textContent === 'You caught a Bluegill!' &&
-        catchCardDetail.textContent.includes('8c') && catchCardContainer.visible;
+        catchCardDetail.textContent.includes('7c') && catchCardContainer.visible;
 
     record('Catch card presents species and value', catchCardPassed, catchCardPassed ? 'Name, size and price rendered' : 'Catch card content missing');
     if (catchCardHideEvent) catchCardHideEvent.remove(false);
@@ -3078,10 +3183,8 @@ function spawnChunkFish(chunk) {
     }
 }
 
-function chooseFishSpecies(size, waterArea) {
-    const candidates = FISH_SPECIES.filter(species =>
-        size >= species.minSize && size <= species.maxSize && waterArea >= species.minWater
-    );
+function chooseFishSpecies(waterArea) {
+    const candidates = FISH_SPECIES.filter(species => waterArea >= species.minWater);
     const totalWeight = candidates.reduce((total, species) => total + species.weight, 0);
     let roll = Math.random() * totalWeight;
 
@@ -3095,12 +3198,16 @@ function chooseFishSpecies(size, waterArea) {
 
 function spawnRegionFish(chunk, region, label, count, originX, originY) {
     for (let index = 0; index < count; index++) {
-        const size = Math.floor(Math.random() * FISH_LENGTHS.length);
+        const species = chooseFishSpecies(region.length);
+        const sizeDefinition = FISH_SIZE_CLASSES[species.size];
+        const giantScale = species.size === 'giant' ? 2 + Math.random() * 3 : 1;
+        const length = species.size === 'giant' ? FISH_SIZE_CLASSES.large.length * giantScale : sizeDefinition.length;
+        const radius = species.size === 'giant' ? FISH_SIZE_CLASSES.large.radius * giantScale : sizeDefinition.radius;
         const fish = {
             x: 0,
             y: 0,
-            length: FISH_LENGTHS[size],
-            radius: Math.max(1.5, FISH_LENGTHS[size] * 0.24),
+            length,
+            radius,
             heading: Math.random() * Math.PI * 2,
             topSpeed: 0,
             velocity: 0,
@@ -3114,8 +3221,8 @@ function spawnRegionFish(chunk, region, label, count, originX, originY) {
             targetX: 0,
             targetY: 0,
             region: label,
-            size,
-            species: chooseFishSpecies(size, region.length)
+            size: species.size,
+            species
         };
 
         for (let attempt = 0; attempt < 40; attempt++) {
@@ -4053,6 +4160,7 @@ function drawCastCharge(time) {
     if (!castCharge) return;
 
     const power = getCastPower(time);
+    const palette = castCharge.rod.polePalette || [0x78afd3, 0xd1edf1];
     const x = Math.round(character.x + CHARACTER_SIZE / 2 - CAST_METER_WIDTH / 2);
     const y = Math.round(character.y) - 5;
     const filled = Math.round((CAST_METER_WIDTH - 2) * power);
@@ -4062,7 +4170,7 @@ function drawCastCharge(time) {
     fishingLine.fillRect(x, y, CAST_METER_WIDTH, 4);
     fishingLine.fillStyle(0x36160d, 1);
     fishingLine.fillRect(x + 1, y + 1, CAST_METER_WIDTH - 2, 2);
-    fishingLine.fillStyle(power > 0.9 ? 0xd1edf1 : 0x78afd3, 1);
+    fishingLine.fillStyle(power > 0.9 ? palette[palette.length - 1] : palette[1] || palette[0], 1);
     fishingLine.fillRect(x + 1, y + 1, filled, 2);
 }
 
@@ -4133,8 +4241,10 @@ function startFishApproach(time) {
     const match = findFishForBobber();
 
     if (!match) {
+        const alreadyFloating = fishing.state === 'floating';
         fishing.state = 'floating';
-        fishing.start = time;
+        if (!alreadyFloating) fishing.start = time;
+        fishing.nextFishScanAt = time + FISH_NOTICE_SCAN_TIME;
         return;
     }
 
@@ -4149,7 +4259,7 @@ function startFishApproach(time) {
 
 function startFishBite(scene, time) {
     const fish = fishing.targetFish;
-    const difficulty = Phaser.Math.Clamp((fish.length - FISH_LENGTHS[0]) / (FISH_LENGTHS[FISH_LENGTHS.length - 1] - FISH_LENGTHS[0]), 0, 1);
+    const difficulty = FISH_SIZE_CLASSES[fish.size].difficulty;
     const window = Phaser.Math.Linear(1050, 720, difficulty);
 
     fishing.state = 'bite';
@@ -4160,19 +4270,20 @@ function startFishBite(scene, time) {
 
 function startFishingMinigame(time) {
     const fish = fishing.targetFish;
-    const size = FISH_LENGTHS.indexOf(fish.length);
-    const difficulty = size / (FISH_LENGTHS.length - 1);
+    const difficulty = FISH_SIZE_CLASSES[fish.size].difficulty;
     const zoneHeight = fishing.rod.catchZone;
+    const zoneY = FISHING_GAME_PLAY_HEIGHT - zoneHeight;
+    const initialFishY = zoneY + zoneHeight / 2;
 
     fishing.state = 'minigame';
     fishing.start = time;
     fishing.game = {
-        zoneY: FISHING_GAME_PLAY_HEIGHT - zoneHeight,
+        zoneY,
         zoneHeight,
         zoneVelocity: 0,
-        fishY: FISHING_GAME_PLAY_HEIGHT * 0.5,
+        fishY: initialFishY,
         fishVelocity: 0,
-        fishTargetY: FISHING_GAME_PLAY_HEIGHT * 0.5,
+        fishTargetY: initialFishY,
         targetTimer: 0,
         difficulty,
         progress: 0.22
@@ -4208,7 +4319,7 @@ function finishFishingMinigame(scene, time, caught) {
     fishing.fromX = fishing.bobberX;
     fishing.fromY = fishing.bobberY;
 
-    showCatchCard(scene, time, species, fish.size);
+    showCatchCard(scene, time, species);
 }
 
 function spawnLineSnap(scene, time, rope) {
@@ -4218,6 +4329,8 @@ function spawnLineSnap(scene, time, rope) {
 
     for (let index = stride; index < rope.points.length; index += stride) {
         const point = rope.points[index];
+        const amount = index / Math.max(1, rope.points.length - 1);
+        const color = samplePalette(fishing?.rod?.linePalette, 1 - Math.abs(amount * 2 - 1));
 
         spawnParticle(scene, worldObjectLayer, {
             born: time,
@@ -4227,7 +4340,7 @@ function spawnLineSnap(scene, time, rope) {
             rise: 1,
             lifetime: 300,
             depth: Math.max(character.depth + 0.2, point.y)
-        }, FISHING_LINE_COLOR);
+        }, color);
     }
 }
 
@@ -4255,7 +4368,7 @@ function updateFishingMinigame(scene, time, delta) {
     if (gameState.targetTimer <= 0) {
         const margin = 4;
         gameState.fishTargetY = margin + Math.random() * (FISHING_GAME_PLAY_HEIGHT - margin * 2);
-        gameState.targetTimer = Phaser.Math.Linear(780, 230, difficulty) * (0.65 + Math.random() * 0.7);
+        gameState.targetTimer = Math.max(90, Phaser.Math.Linear(780, 230, difficulty)) * (0.65 + Math.random() * 0.7);
     }
 
     const fishAcceleration = Phaser.Math.Linear(75, 220, difficulty);
@@ -4289,42 +4402,50 @@ function updateFishingMinigame(scene, time, delta) {
 }
 
 function drawFishingMinigame() {
-    if (!fishing || fishing.state !== 'minigame') return;
+    const pieces = [fishingUiPanel, fishingCatchZone, fishingFishMarker, fishingProgressFill];
+
+    if (!fishing || fishing.state !== 'minigame') {
+        pieces.forEach(piece => piece.setVisible(false));
+        return;
+    }
 
     const gameState = fishing.game;
     const x = FISHING_GAME_X;
     const y = FISHING_GAME_Y;
     const playX = x + 5;
     const playY = y + FISHING_GAME_PLAY_TOP;
+    const progressHeight = Math.max(1, Math.round(FISHING_GAME_PLAY_HEIGHT * gameState.progress));
 
-    fishingUi
-        .fillStyle(0x230a03, 1)
-        .fillRect(x, y, FISHING_GAME_WIDTH, FISHING_GAME_HEIGHT)
-        .fillStyle(0xacccf9, 1)
-        .fillRect(x + 1, y + 1, FISHING_GAME_WIDTH - 2, FISHING_GAME_HEIGHT - 2)
-        .fillStyle(0x36160d, 1)
-        .fillRect(x + 2, y + 2, FISHING_GAME_WIDTH - 4, FISHING_GAME_HEIGHT - 4)
-        .fillStyle(0x465989, 1)
-        .fillRect(playX - 1, playY - 1, 10, FISHING_GAME_PLAY_HEIGHT + 2)
-        .fillStyle(0x230a03, 1)
-        .fillRect(playX, playY, 8, FISHING_GAME_PLAY_HEIGHT)
-        .fillStyle(0x78afd3, 0.9)
-        .fillRect(playX, playY + Math.round(gameState.zoneY), 8, Math.round(gameState.zoneHeight))
-        .fillStyle(0xe0f2fd, 1)
-        .fillRect(playX + 2, playY + Math.round(gameState.fishY) - 1, 4, 2)
-        .fillRect(playX + 1, playY + Math.round(gameState.fishY), 1, 1)
-        .fillStyle(0x230a03, 1)
-        .fillRect(x + 17, playY, FISHING_GAME_PROGRESS_WIDTH, FISHING_GAME_PLAY_HEIGHT)
-        .fillStyle(0x8fbf7a, 1)
-        .fillRect(
-            x + 17,
-            playY + Math.round(FISHING_GAME_PLAY_HEIGHT * (1 - gameState.progress)),
-            FISHING_GAME_PROGRESS_WIDTH,
-            Math.round(FISHING_GAME_PLAY_HEIGHT * gameState.progress)
-        );
+    fishingUiPanel.setVisible(true);
+    fishingCatchZone
+        .setPosition(playX, playY + Math.round(gameState.zoneY))
+        .setDisplaySize(8, Math.round(gameState.zoneHeight))
+        .setVisible(true);
+    fishingFishMarker
+        .setPosition(playX + 1, playY + Math.round(gameState.fishY) - 1)
+        .setVisible(true);
+    fishingProgressFill
+        .setPosition(x + 17, playY + FISHING_GAME_PLAY_HEIGHT - progressHeight)
+        .setDisplaySize(FISHING_GAME_PROGRESS_WIDTH, progressHeight)
+        .setVisible(true);
 }
 
-function plotFishingLine(fromX, fromY, toX, toY, sag) {
+function samplePalette(palette, amount) {
+    if (!palette || palette.length === 0) return FISHING_LINE_COLOR;
+    if (palette.length === 1) return palette[0];
+
+    const position = Phaser.Math.Clamp(amount, 0, 1) * (palette.length - 1);
+    const index = Math.min(palette.length - 2, Math.floor(position));
+    const blend = position - index;
+    const first = palette[index];
+    const second = palette[index + 1];
+    const red = Math.round(((first >> 16) & 255) + (((second >> 16) & 255) - ((first >> 16) & 255)) * blend);
+    const green = Math.round(((first >> 8) & 255) + (((second >> 8) & 255) - ((first >> 8) & 255)) * blend);
+    const blue = Math.round((first & 255) + ((second & 255) - (first & 255)) * blend);
+    return Phaser.Display.Color.GetColor(red, green, blue);
+}
+
+function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
     const controlX = (fromX + toX) / 2;
     const controlY = (fromY + toY) / 2 + sag;
     const steps = Math.max(2, Math.ceil(Math.hypot(toX - fromX, toY - fromY) * 1.5));
@@ -4339,6 +4460,7 @@ function plotFishingLine(fromX, fromY, toX, toY, sag) {
 
         if (x === lastX && y === lastY) continue;
 
+        if (palette) fishingLine.fillStyle(samplePalette(palette, amount), 1);
         fishingLine.fillRect(x, y, 1, 1);
         lastX = x;
         lastY = y;
@@ -4409,7 +4531,7 @@ function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
     }
 }
 
-function drawFishingRope(rope) {
+function drawFishingRope(rope, palette) {
     let lastX = null;
     let lastY = null;
 
@@ -4417,6 +4539,10 @@ function drawFishingRope(rope) {
         const first = rope.points[index];
         const second = rope.points[index + 1];
         const distance = Math.max(1, Math.ceil(Math.hypot(second.x - first.x, second.y - first.y)));
+        const amount = index / Math.max(1, rope.points.length - 2);
+        const brightness = 1 - Math.abs(amount * 2 - 1);
+
+        fishingLine.fillStyle(samplePalette(palette, brightness), 1);
 
         for (let step = 0; step <= distance; step++) {
             const amount = step / distance;
@@ -4434,16 +4560,6 @@ function drawFishingRope(rope) {
 
 function updateFishing(scene, time, delta, isWalking) {
     fishingLine.clear();
-    fishingUi.clear();
-
-    const hint = !fishing ? '' : fishing.state === 'bite' ? 'BITE! PRESS SPACE / CLICK' :
-        fishing.state === 'minigame' ? 'HOLD SPACE / CLICK: LIFT' :
-        fishing.state === 'approaching' || fishing.state === 'inspecting' || fishing.state === 'nibbleWait' || fishing.state === 'nibbleDip' ? 'WAIT FOR THE BIG SPLASH' :
-        fishing.state === 'floating' ? 'WAIT FOR A FISH' : '';
-    if (hint !== fishingHintValue) {
-        fishingHintValue = hint;
-        fishingHintText.setText(hint).setVisible(Boolean(hint));
-    }
 
     if (castCharge && (isWalking || dialogueOpen || marketOpen || mapOpen || inventoryOpen || !hasRodSelected())) {
         castCharge = null;
@@ -4451,7 +4567,10 @@ function updateFishing(scene, time, delta, isWalking) {
 
     drawCastCharge(time);
 
-    if (!fishing) return;
+    if (!fishing) {
+        drawFishingMinigame();
+        return;
+    }
 
     if (fishing.state !== 'reeling' && (isWalking || dialogueOpen || marketOpen || mapOpen || inventoryOpen || !hasRodSelected())) {
         reelIn(time);
@@ -4526,13 +4645,16 @@ function updateFishing(scene, time, delta, isWalking) {
         fishing.bobberX = baseX;
         fishing.bobberY = baseY + (Math.floor(age / BOBBER_BOB_TIME) % 2);
 
-        if (fishing.state === 'approaching') {
+        if (fishing.state === 'floating' && time >= (fishing.nextFishScanAt || 0)) {
+            startFishApproach(time);
+        } else if (fishing.state === 'approaching') {
             const fish = fishing.targetFish;
 
             if (!fish || fish.state !== 'lure') {
                 releaseTargetFish(false);
                 fishing.state = 'floating';
                 fishing.start = time;
+                fishing.nextFishScanAt = time + FISH_NOTICE_SCAN_TIME;
             } else if (Math.hypot(fish.x - fishing.bobberX, fish.y - fishing.bobberY) <= fish.radius + 4) {
                 fishing.state = 'inspecting';
                 fishing.start = time;
@@ -4575,6 +4697,7 @@ function updateFishing(scene, time, delta, isWalking) {
                 releaseTargetFish(true);
                 fishing.state = 'floating';
                 fishing.start = time;
+                fishing.nextFishScanAt = time + FISH_NOTICE_SCAN_TIME;
             }
         } else if (fishing.state === 'hooked') {
             const fish = fishing.targetFish;
@@ -4594,6 +4717,7 @@ function updateFishing(scene, time, delta, isWalking) {
             updateFishingMinigame(scene, time, delta);
 
             if (!fishing) {
+                drawFishingMinigame();
                 return;
             }
         }
@@ -4605,6 +4729,7 @@ function updateFishing(scene, time, delta, isWalking) {
 
         if (amount >= 1) {
             fishing = null;
+            drawFishingMinigame();
             return;
         }
     }
@@ -4613,8 +4738,11 @@ function updateFishing(scene, time, delta, isWalking) {
     fishingLine.setDepth(fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY));
     const [handX, handY] = getRodHand();
 
-    fishingLine.fillStyle(ROD_COLOR, 1);
-    plotFishingLine(handX, handY, tipX, tipY, 0);
+    const rodPalette = fishing.rod.polePalette;
+    const linePalette = fishing.rod.linePalette;
+    const bobberPalette = fishing.rod.bobberPalette;
+
+    plotFishingLine(handX, handY, tipX, tipY, 0, rodPalette);
 
     if (fishing.state === 'casting') {
         return;
@@ -4625,7 +4753,6 @@ function updateFishing(scene, time, delta, isWalking) {
         fishing.rope = createFishingRope(tipX, tipY, fishing.bobberX, fishing.bobberY - 2, distance + 5);
     }
 
-    fishingLine.fillStyle(FISHING_LINE_COLOR, 1);
     updateFishingRope(
         fishing.rope,
         tipX,
@@ -4637,12 +4764,14 @@ function updateFishing(scene, time, delta, isWalking) {
             ? 1
             : fishing.state === 'flying' ? 0.7 : 0
     );
-    drawFishingRope(fishing.rope);
+    drawFishingRope(fishing.rope, linePalette);
     drawFishingMinigame();
-    fishingLine.fillStyle(BOBBER_TOP_COLOR, 1);
+    fishingLine.fillStyle(bobberPalette?.[2] || BOBBER_BOTTOM_COLOR, 1);
     fishingLine.fillRect(fishing.bobberX - 1, fishing.bobberY - 2, 2, 1);
-    fishingLine.fillStyle(BOBBER_BOTTOM_COLOR, 1);
-    fishingLine.fillRect(fishing.bobberX - 1, fishing.bobberY - 1, 2, 1);
+    fishingLine.fillStyle(bobberPalette?.[1] || BOBBER_TOP_COLOR, 1);
+    fishingLine.fillRect(fishing.bobberX - 1, fishing.bobberY - 1, 1, 1);
+    fishingLine.fillStyle(bobberPalette?.[0] || BOBBER_TOP_COLOR, 1);
+    fishingLine.fillRect(fishing.bobberX, fishing.bobberY - 1, 1, 1);
 }
 
 function createCharacterShadow(scene) {
@@ -5114,7 +5243,7 @@ function createInventoryUI(scene) {
         .fillRect(8, 3, 304, INVENTORY_HEIGHT - 6)
         .fillStyle(0x465989, 1)
         .fillRect(12, 19, 296, 1)
-        .fillRect(12, 121, 296, 1);
+        .fillRect(12, 127, 296, 1);
 
     const textLayer = document.createElement('div');
 
@@ -5155,12 +5284,21 @@ function createInventoryUI(scene) {
     inventoryCountTexts = [];
 
     for (let index = 0; index < FISH_SPECIES.length; index++) {
-        const y = 25 + index * 15;
-        inventoryRowTexts.push(createText(16, y, 190));
-        inventoryCountTexts.push(createText(205, y, 101, 'right'));
+        const column = Math.floor(index / 13);
+        const row = index % 13;
+        const x = 14 + column * 147;
+        const y = 22 + row * 8;
+        const name = createText(x, y, 87);
+        const detail = createText(x + 87, y, 56, 'right');
+        name.style.fontSize = '9px';
+        name.style.lineHeight = '8px';
+        detail.style.fontSize = '8px';
+        detail.style.lineHeight = '8px';
+        inventoryRowTexts.push(name);
+        inventoryCountTexts.push(detail);
     }
 
-    const footer = createText(12, 126, 296, 'center');
+    const footer = createText(12, 129, 296, 'center');
     footer.style.fontSize = '11px';
     footer.style.color = '#8c7358';
     footer.textContent = 'I / Esc  Close     N  New Game';
@@ -5194,7 +5332,8 @@ function refreshInventoryUI(time) {
 
         inventoryRowTexts[index].textContent = caught ? species.name : '???';
         inventoryRowTexts[index].style.color = caught ? '#e0f2fd' : '#6f5b49';
-        inventoryCountTexts[index].textContent = caught ? `x${count}   ${species.price}c` : 'Undiscovered';
+        const sizeInitial = species.size === 'giant' ? 'XXL' : species.size[0].toUpperCase();
+        inventoryCountTexts[index].textContent = caught ? `${sizeInitial} x${count} ${species.price}c` : '—';
         inventoryCountTexts[index].style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
     });
 
@@ -5337,11 +5476,9 @@ function createCatchCardUI(scene) {
     catchCardTextLayer.pointerEvents = 'none';
 }
 
-function showCatchCard(scene, time, species, size) {
-    const sizeLabels = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Giant'];
-
+function showCatchCard(scene, time, species) {
     catchCardTitle.textContent = `You caught a ${species.name}!`;
-    catchCardDetail.textContent = `${sizeLabels[size] || 'Unknown'} shadow · ${species.price}c`;
+    catchCardDetail.textContent = `${FISH_SIZE_CLASSES[species.size].label} shadow · ${species.price}c`;
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 
@@ -5534,18 +5671,18 @@ function createMarketUI(scene) {
         .fillRect(MARKET_LIST_X + 1, 1, MARKET_LIST_WIDTH - 2, MARKET_ROW_HEIGHT - 4);
 
     marketRodImages = MARKET_RODS.map((rod, index) => {
-        return scene.add.image(MARKET_LIST_X + 3, MARKET_LIST_Y + index * MARKET_ROW_HEIGHT + 2, 'rod')
+        return scene.add.image(MARKET_LIST_X + 3, MARKET_LIST_Y + index * MARKET_ROW_HEIGHT + 2, rod.icon)
             .setOrigin(0)
             .setDisplaySize(16, 16);
     });
 
     marketDetailImage = scene.add.image(
-        MARKET_DETAIL_X + (MARKET_DETAIL_WIDTH - 32) / 2,
+        MARKET_DETAIL_X + 50,
         MARKET_LIST_Y + 8,
-        'rod'
+        MARKET_RODS[0].texture
     )
         .setOrigin(0)
-        .setDisplaySize(32, 32);
+        .setDisplaySize(31, 32);
 
     const textLayer = document.createElement('div');
 
@@ -5673,24 +5810,19 @@ function addHotbarItem(scene, textureKey, name) {
     const centerY = HOTBAR_Y + 13;
     const image = scene.add.image(centerX, centerY, textureKey)
         .setDepth(100.5)
-        .setScrollFactor(0);
-    const grow = { size: 10 };
-
-    const applySize = () => {
-        const size = Math.round(grow.size / 2) * 2;
-        image.setDisplaySize(size, size).setPosition(centerX, centerY);
-    };
-
-    applySize();
+        .setScrollFactor(0)
+        .setDisplaySize(16, 16)
+        .setPosition(centerX, centerY + 2)
+        .setAlpha(0);
     hotbarItemImages.push(image);
 
     scene.tweens.add({
-        targets: grow,
-        size: 16,
-        duration: 200,
-        ease: 'Back.Out',
-        onUpdate: applySize,
-        onComplete: applySize
+        targets: image,
+        y: centerY,
+        alpha: 1,
+        duration: 140,
+        ease: 'Quad.Out',
+        onUpdate: snapTweenTarget
     });
 }
 
@@ -5811,7 +5943,10 @@ function refreshMarketOptions() {
 
     const status = getMarketRodStatus(rod);
 
-    marketDetailImage.setVisible(true).setAlpha(ownedRods.has(rod.id) ? 0.45 : 1);
+    marketDetailImage
+        .setTexture(rod.texture)
+        .setVisible(true)
+        .setAlpha(ownedRods.has(rod.id) ? 0.45 : 1);
     marketDetailName.textContent = rod.label;
     marketDetailStatus.textContent = status.text;
     marketDetailStatus.style.color = status.color;
@@ -5879,7 +6014,7 @@ function buySelectedMarketItem(scene) {
             marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`;
         }
     });
-    addHotbarItem(scene, 'rod', rod.label);
+    addHotbarItem(scene, rod.icon, rod.label);
     marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
 
     refreshMarketOptions();
