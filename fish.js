@@ -362,10 +362,9 @@ function getHookedBobber() {
         return null;
     }
 
-    return [
-        Math.round(fish.x + Math.cos(fish.heading) * fish.length * 0.5),
-        Math.round(fish.y + Math.sin(fish.heading) * fish.length * 0.5) + 1
-    ];
+    hookedBobberPosition[0] = Math.round(fish.x + Math.cos(fish.heading) * fish.length * 0.5);
+    hookedBobberPosition[1] = Math.round(fish.y + Math.sin(fish.heading) * fish.length * 0.5) + 1;
+    return hookedBobberPosition;
 }
 
 function updateLuredFish(chunk, fish, delta) {

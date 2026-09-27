@@ -2,37 +2,44 @@ function hasRodSelected() {
     return (hotbarItemNames[selectedHotbarSlot] || '').endsWith('Rod');
 }
 
+const castDirections = {
+    left: [-1, 0],
+    right: [1, 0],
+    back: [0, -1],
+    front: [0, 1]
+};
+const rodHandPosition = new Int32Array(2);
+const rodTipPosition = new Int32Array(2);
+const hookedBobberPosition = new Int32Array(2);
+let fishingMinigameVisible = false;
+
 function getSelectedRod() {
     const name = hotbarItemNames[selectedHotbarSlot];
     return MARKET_RODS_BY_LABEL.get(name) || MARKET_RODS[0];
 }
 
 function getCastDirection() {
-    return characterDirection === 'left' ? [-1, 0]
-        : characterDirection === 'right' ? [1, 0]
-        : characterDirection === 'back' ? [0, -1]
-        : [0, 1];
+    return castDirections[characterDirection] || castDirections.front;
 }
 
 function getRodHand() {
     const [directionX, directionY] = getCastDirection();
     const centerX = Math.round(character.x + CHARACTER_SIZE / 2);
 
-    return directionY === 0
-        ? [centerX + directionX * 3, Math.round(character.y) + 11]
-        : [centerX + 3, Math.round(character.y) + 11];
+    rodHandPosition[0] = centerX + (directionY === 0 ? directionX * 3 : 3);
+    rodHandPosition[1] = Math.round(character.y) + 11;
+    return rodHandPosition;
 }
 
 function getRodTip(time) {
     const [directionX, directionY] = getCastDirection();
     const [handX, handY] = getRodHand();
 
-    const tip = directionY === 0
-        ? [handX + directionX * 6, handY - 6]
-        : [handX + 1, handY + directionY * 7];
+    rodTipPosition[0] = directionY === 0 ? handX + directionX * 6 : handX + 1;
+    rodTipPosition[1] = directionY === 0 ? handY - 6 : handY + directionY * 7;
 
     if (!fishing || time === undefined) {
-        return tip;
+        return rodTipPosition;
     }
 
     if (fishing.state === 'casting') {
@@ -42,8 +49,8 @@ function getRodTip(time) {
             : -3 + 6 * (phase - 0.35) / 0.65;
         const lift = Math.round(Math.sin(phase * Math.PI) * 3);
 
-        tip[0] += Math.round(directionX * reach + (directionY === 0 ? 0 : lift));
-        tip[1] += Math.round(directionY * reach - (directionY === 0 ? lift : 0));
+        rodTipPosition[0] += Math.round(directionX * reach + (directionY === 0 ? 0 : lift));
+        rodTipPosition[1] += Math.round(directionY * reach - (directionY === 0 ? lift : 0));
     } else if (
         fishing.state === 'floating' ||
         fishing.state === 'landing' ||
@@ -57,11 +64,11 @@ function getRodTip(time) {
     ) {
         const wobble = Math.sin((time - fishing.start) / 95 + fishing.driftPhase);
 
-        tip[0] += directionY === 0 ? 0 : Math.round(wobble);
-        tip[1] += directionY === 0 ? Math.round(wobble) : 0;
+        rodTipPosition[0] += directionY === 0 ? 0 : Math.round(wobble);
+        rodTipPosition[1] += directionY === 0 ? Math.round(wobble) : 0;
     }
 
-    return tip;
+    return rodTipPosition;
 }
 
 function isWaterPixel(scene, x, y) {
@@ -461,17 +468,16 @@ function updateFishingMinigame(scene, time, delta) {
 }
 
 function drawFishingMinigame() {
-    const pieces = [
-        fishingUiPanel,
-        fishingCatchZoneTop,
-        fishingCatchZoneMiddle,
-        fishingCatchZoneBottom,
-        fishingFishMarker,
-        fishingProgressFill
-    ];
-
     if (!fishing || fishing.state !== 'minigame') {
-        pieces.forEach(piece => piece.setVisible(false));
+        if (!fishingMinigameVisible) return;
+
+        fishingMinigameVisible = false;
+        fishingUiPanel.setVisible(false);
+        fishingCatchZoneTop.setVisible(false);
+        fishingCatchZoneMiddle.setVisible(false);
+        fishingCatchZoneBottom.setVisible(false);
+        fishingFishMarker.setVisible(false);
+        fishingProgressFill.setVisible(false);
         return;
     }
 
@@ -486,6 +492,7 @@ function drawFishingMinigame() {
     const zoneHeight = Math.round(gameState.zoneHeight);
     const zoneMiddleHeight = Math.max(1, zoneHeight - 6);
 
+    fishingMinigameVisible = true;
     fishingUiPanel.setVisible(true);
     fishingCatchZoneTop
         .setPosition(playX, zoneY)

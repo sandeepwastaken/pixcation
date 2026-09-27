@@ -56,6 +56,11 @@ function runAutomatedTests(scene) {
     });
 
     record('Rod upgrades improve all fishing stats', rodsImprove, rodsImprove ? 'Distance, speed, strength and zone are monotonic' : 'Rod progression regressed');
+    const directionBuffer = getCastDirection();
+    const handBuffer = getRodHand();
+    const tipBuffer = getRodTip();
+    const fishingBuffersPassed = directionBuffer === getCastDirection() && handBuffer === getRodHand() && tipBuffer === getRodTip();
+    record('Fishing coordinates reuse stable buffers', fishingBuffersPassed, fishingBuffersPassed ? 'Direction, hand and tip buffers reused' : 'Fishing coordinates allocated again');
     const originalX = character.x;
     const originalY = character.y;
     let seed = 0x51f15e;
