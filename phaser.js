@@ -855,6 +855,10 @@ function create() {
             mapPan.y = mapDrag.panY + Math.round((mapDrag.y - pointer.y) / mapZoom);
             mapDirty = true;
         }
+
+        this.input.setDefaultCursor(
+            !marketOpen && !dialogueOpen && !mapOpen && getClickedWorldTarget(pointer) ? 'pointer' : 'default'
+        );
     });
 
     this.input.on('pointerup', () => {
@@ -880,7 +884,15 @@ function create() {
                 selectedDialogueOption = option;
                 selectGuideDialogueOption(this);
             }
-        } else if (mapOpen) {
+        } else if (!mapOpen) {
+            const target = getClickedWorldTarget(pointer);
+
+            if (target === 'guide') {
+                openGuideDialogue(this);
+            } else if (target === 'market') {
+                openMarket(this);
+            }
+        } else {
             if (pointer.y < DIALOGUE_VISIBLE_Y + MAP_PANEL_HEIGHT) {
                 mapDrag = { x: pointer.x, y: pointer.y, panX: mapPan.x, panY: mapPan.y };
             } else {
@@ -4112,6 +4124,29 @@ function isMarketNear() {
 
 function isGuideNear() {
     return getGuideReach() < 1;
+}
+
+function getClickedWorldTarget(pointer) {
+    const x = pointer.worldX;
+    const y = pointer.worldY;
+
+    if (
+        guide && isGuideNear() &&
+        x >= guide.x && x < guide.x + GUIDE_SIZE &&
+        y >= guide.y && y < guide.y + GUIDE_SIZE
+    ) {
+        return 'guide';
+    }
+
+    if (
+        store && isMarketNear() &&
+        x >= store.x && x < store.x + STORE_WIDTH &&
+        y >= store.y && y < store.y + STORE_HEIGHT
+    ) {
+        return 'market';
+    }
+
+    return null;
 }
 
 function getFacingPenalty(targetX, targetY) {
