@@ -164,19 +164,19 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                         }
                     }
 
+                    if (mask.r < 0.75) {
+                        index = max(index - 1.0, 0.0);
+                    }
+
                     if (rippleCode > 250.0) {
                         float frame = floor(t * 12.0);
                         float edge = noise(vec2(p.x - frame, p.y + frame * 0.25) / 24.0 + vec2(41.0, 17.0));
 
-                        if (edge >= 0.76) {
+                        if (edge >= 0.58 || edge >= 0.39 && edge < 0.42) {
                             index = 8.0;
-                        } else if (edge >= 0.5 || edge >= 0.39 && edge < 0.42) {
-                            index = min(index + 1.0, 7.0);
+                        } else if (edge >= 0.46) {
+                            index = 7.0;
                         }
-                    }
-
-                    if (mask.r < 0.75) {
-                        index = max(index - 1.0, 0.0);
                     }
 
                     gl_FragColor = vec4(tone(index), 1.0);
