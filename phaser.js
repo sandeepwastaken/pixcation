@@ -779,7 +779,17 @@ function create() {
 
     const selectHotBarSlot = slot => {
         selectedHotbarSlot = Phaser.Math.Wrap(slot, 0, 9);
-        hotbarSelector.x = HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE;
+
+        this.tweens.killTweensOf(hotbarSelector);
+        this.tweens.add({
+            targets: hotbarSelector,
+            x: HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE,
+            duration: 70,
+            ease: 'Quad.Out',
+            onUpdate: (tween, target) => {
+                target.x = Math.round(target.x);
+            }
+        });
 
         const name = hotbarItemNames[selectedHotbarSlot];
 
