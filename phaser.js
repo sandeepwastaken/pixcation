@@ -117,7 +117,7 @@ const terrainTypeCache = new Map();
 const worldTileCache = new Map();
 const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
-const bushPlacementCache = new Map();
+const propPlacementCache = new Map();
 const discoveredChunks = new Set();
 const pendingChunks = [];
 const pendingWaterChunks = [];
@@ -202,7 +202,6 @@ const CHARACTER_HITBOX_HEIGHT = 4;
 const CHARACTER_CORNER_NUDGE = 4;
 
 const GUIDE_SIZE = 16;
-const BUSH_HEIGHT = 22;
 const ACTOR_SHADOW_X = 3;
 const ACTOR_SHADOW_Y = 14;
 const ACTOR_SHADOW_SHAPE = [
@@ -265,7 +264,8 @@ let guide;
 let shadowLayer;
 let characterShadow;
 const shadowLut = new Map();
-const bushShadowPoints = [];
+const propArt = new Map();
+const treeVariants = [];
 const staticShadowCasters = [];
 const particlePool = [];
 const availableParticles = [];
@@ -332,6 +332,30 @@ const BUSH_FOOTPRINT_HEIGHT = 12;
 const BUSH_RUSTLE_PATTERN = [1, 0, -1, 0, 1, 0];
 const BUSH_RUSTLE_STEP = 55;
 const BUSH_RUSTLE_REPEAT = 420;
+const PROP_TYPES = {
+    bush: { width: 2, solid: false, onDirt: false, hitbox: null },
+    rock: { width: 1, solid: true, onDirt: true, hitbox: [2, 6] },
+    boulder: { width: 2, solid: true, onDirt: true, hitbox: [2, 8] },
+    tree: { width: 2, solid: true, onDirt: false, hitbox: null }
+};
+const PROP_SPAWN_CLEARANCE = 3;
+const PROP_FOREST_SCALE = 14;
+const PROP_FOREST_LEVEL = 0.72;
+const TREE_CANOPY_TILES = 4;
+const TREE_HITBOX_HEIGHT = 5;
+const TREE_VARIANT_COUNT = 24;
+const TREE_TONE_SHARES = [0.09, 0.42, 0.75, 0.97];
+const TREE_DITHER_SHARE = 0.05;
+const TREE_PAD_X = 14;
+const TREE_PAD_TOP = 8;
+const TREE_LEAF_PALETTES = [
+    { weight: 6, colors: [0x376451, 0x4a7a52, 0x6c955d, 0x8eb067, 0xb0c579], extras: [0x7e4332, 0xc0493b] },
+    { weight: 2, colors: [0x3f5f3c, 0x587a45, 0x7a9a50, 0x9fb862, 0xc3d27e], extras: [] },
+    { weight: 1, colors: [0x2c5348, 0x3a6a55, 0x4f8260, 0x6c9a6a, 0x8db47c], extras: [] },
+    { weight: 1, colors: [0x7a4030, 0x9c5634, 0xbd7640, 0xd69a55, 0xe8bd72], extras: [] },
+    { weight: 0.8, colors: [0x6b3a3a, 0x8c4a40, 0xae6249, 0xc9825a, 0xdea675], extras: [] },
+    { weight: 0.6, colors: [0x8a5a6e, 0xab7085, 0xc98e9e, 0xe0aeb6, 0xf2cdcc], extras: [] }
+];
 const DUST_PER_STEP = 3;
 const DUST_LIFETIME = 330;
 const DUST_COLORS = [0xa7825a, 0xb69a6c, 0x9f7751];
@@ -487,6 +511,9 @@ function preload() {
     this.load.image('selected', withCacheBuster('media/ui/hud/selected.png'));
     this.load.image('shop-ui', withCacheBuster('media/ui/shop/panel.png'));
     this.load.image('bush', withCacheBuster('media/environment/objects/bush.png'));
+    this.load.image('boulder', withCacheBuster('media/environment/objects/boulder.png'));
+    this.load.image('rock', withCacheBuster('media/environment/objects/rock.png'));
+    this.load.image('tree-bare', withCacheBuster('media/environment/objects/tree-bare.png'));
 
     this.load.image('guide', withCacheBuster('media/characters/guide/sprite.png'));
     this.load.image('guide-portrait-friendly', withCacheBuster('media/characters/guide/friendly.png'));
@@ -559,19 +586,43 @@ function createShimmerSheet(scene) {
     scene.textures.addSpriteSheet('shimmer', canvas, { frameWidth: 12, frameHeight: 1 });
 }
 
-function extractBushShadow(scene) {
-    const pixels = getTerrainPixels(scene, 'bush');
+function extractSilhouetteShadow(scene, key) {
+    const pixels = getTerrainPixels(scene, key);
     const { width, height } = pixels;
     const solid = (x, y) => x >= 0 && y >= 0 && x < width && y < height && pixels.data[(y * width + x) * 4 + 3] > 0;
-
-    bushShadowPoints.length = 0;
+    const points = [];
 
     for (let y = 0; y < height + WOOD_SHADOW_OFFSET; y++) {
         for (let x = 0; x < width + WOOD_SHADOW_OFFSET; x++) {
             if (solid(x - WOOD_SHADOW_OFFSET, y - WOOD_SHADOW_OFFSET) && !solid(x, y)) {
-                bushShadowPoints.push(x, y);
+                points.push(x, y);
             }
         }
+    }
+
+    return points;
+}
+
+function createPropArt(scene) {
+    for (const key of ['bush', 'rock', 'boulder']) {
+        const source = getTextureSource(scene, key);
+        propArt.set(key, { width: source.width, height: source.height, shadow: extractSilhouetteShadow(scene, key) });
+    }
+
+    const trunk = getTerrainPixels(scene, 'tree-bare');
+    treeVariants.length = 0;
+
+    for (let index = 0; index < TREE_VARIANT_COUNT; index++) {
+        const variant = generateTreeVariant(trunk, Math.floor(worldHash(index, 0, 766) * 4294967295));
+        variant.key = `tree-${index}`;
+
+        if (!scene.textures.exists(variant.key)) {
+            const texture = scene.textures.createCanvas(variant.key, variant.width, variant.height);
+            texture.getContext().putImageData(new ImageData(variant.data, variant.width, variant.height), 0, 0);
+            texture.refresh();
+        }
+
+        treeVariants.push(variant);
     }
 }
 
@@ -605,6 +656,361 @@ function createBushSlices(scene) {
         context.putImageData(image, 0, 0);
         texture.refresh();
     }
+}
+
+function createSeededRandom(seed) {
+    let state = seed >>> 0;
+
+    return () => {
+        state = (state + 0x6d2b79f5) >>> 0;
+        let value = Math.imul(state ^ (state >>> 15), state | 1);
+        value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+        return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+function leafHash(x, y, salt) {
+    return coordinateHash(x, y, Math.imul(salt, 2246822519));
+}
+
+function pickTreePalette(random) {
+    const total = TREE_LEAF_PALETTES.reduce((sum, palette) => sum + palette.weight, 0);
+    let roll = random() * total;
+
+    for (const palette of TREE_LEAF_PALETTES) {
+        roll -= palette.weight;
+        if (roll < 0) return palette;
+    }
+
+    return TREE_LEAF_PALETTES[0];
+}
+
+function writeTreePixel(data, pixel, color) {
+    data[pixel * 4] = color >> 16;
+    data[pixel * 4 + 1] = (color >> 8) & 255;
+    data[pixel * 4 + 2] = color & 255;
+    data[pixel * 4 + 3] = 255;
+}
+
+function readTreePixel(data, pixel) {
+    return (data[pixel * 4] << 16) | (data[pixel * 4 + 1] << 8) | data[pixel * 4 + 2];
+}
+
+function generateTreeVariant(trunk, seed) {
+    const random = createSeededRandom(seed);
+    const flip = random() < 0.5;
+    const width = trunk.width + TREE_PAD_X * 2;
+    const height = trunk.height + TREE_PAD_TOP;
+    const data = new Uint8ClampedArray(width * height * 4);
+
+    for (let y = 0; y < trunk.height; y++) {
+        for (let x = 0; x < trunk.width; x++) {
+            const source = (y * trunk.width + (flip ? trunk.width - 1 - x : x)) * 4;
+            if (!trunk.data[source + 3]) continue;
+
+            const pixel = (y + TREE_PAD_TOP) * width + x + TREE_PAD_X;
+            writeTreePixel(data, pixel, (trunk.data[source] << 16) | (trunk.data[source + 1] << 8) | trunk.data[source + 2]);
+        }
+    }
+
+    const palette = pickTreePalette(random);
+    const colors = palette.colors;
+    const radiusX = 23 + random() * 5;
+    const radiusY = 17 + random() * 3;
+    const centerX = width / 2 + (flip ? -1 : 1) + (random() - 0.5) * 3;
+    const centerY = TREE_PAD_TOP + 22 + random() * 2;
+    const puffs = [{ x: centerX, y: centerY, radius: Math.min(radiusX, radiusY) - 4, core: true }];
+    const ringCount = 7 + Math.floor(random() * 3);
+    const ringPhase = random() * Math.PI * 2;
+
+    for (let index = 0; index < ringCount; index++) {
+        const angle = ringPhase + index / ringCount * Math.PI * 2 + (random() - 0.5) * 0.5;
+        const radius = 6.5 + random() * 3;
+
+        puffs.push({
+            x: centerX + Math.cos(angle) * (radiusX - radius),
+            y: centerY + Math.sin(angle) * (radiusY - radius),
+            radius,
+            core: false
+        });
+    }
+
+    const innerCount = 3 + Math.floor(random() * 3);
+
+    for (let index = 0; index < innerCount; index++) {
+        const angle = random() * Math.PI * 2;
+        const distance = Math.sqrt(random()) * 0.5;
+
+        puffs.push({
+            x: centerX + Math.cos(angle) * distance * radiusX,
+            y: centerY + Math.sin(angle) * distance * radiusY + 2,
+            radius: 7 + random() * 3,
+            core: false
+        });
+    }
+
+    puffs.sort((a, b) => (a.core ? -1 : b.core ? 1 : a.y - b.y));
+
+    const owner = new Int16Array(width * height).fill(-1);
+    const edgeSalt = Math.floor(random() * 100000);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const edge = (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
+
+            for (let index = puffs.length - 1; index >= 0; index--) {
+                const puff = puffs[index];
+                const dx = x + 0.5 - puff.x;
+                const dy = y + 0.5 - puff.y;
+                const reach = puff.radius + edge;
+
+                if (dx * dx + dy * dy <= reach * reach) {
+                    if (index > 0 && ((x + y) & 1) && Math.sqrt(dx * dx + dy * dy) > reach - 1 && owner[y * width + x] === -1) {
+                        owner[y * width + x] = -3;
+                        continue;
+                    }
+
+                    owner[y * width + x] = index;
+                    break;
+                }
+            }
+        }
+    }
+
+    for (let pixel = 0; pixel < owner.length; pixel++) {
+        if (owner[pixel] !== -3) continue;
+
+        const x = pixel % width;
+        const y = Math.floor(pixel / width);
+        let front = -1;
+
+        for (let index = puffs.length - 1; index >= 0 && front < 0; index--) {
+            const dx = x + 0.5 - puffs[index].x;
+            const dy = y + 0.5 - puffs[index].y;
+            const reach = puffs[index].radius + (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
+            if (dx * dx + dy * dy <= reach * reach) front = index;
+        }
+
+        owner[pixel] = front;
+    }
+
+    for (let pass = 0; pass < 2; pass++) {
+        for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+                const pixel = y * width + x;
+                let count = 0;
+                let front = -1;
+
+                for (const next of [pixel - 1, pixel + 1, pixel - width, pixel + width]) {
+                    if (owner[next] < 0) continue;
+                    count++;
+                    front = Math.max(front, owner[next]);
+                }
+
+                if (owner[pixel] >= 0 && count <= 1) owner[pixel] = -1;
+                else if (owner[pixel] < 0 && count >= 3) owner[pixel] = front;
+            }
+        }
+    }
+
+    let top = height;
+    let bottom = 0;
+
+    for (let pixel = 0; pixel < owner.length; pixel++) {
+        if (owner[pixel] < 0) continue;
+        top = Math.min(top, Math.floor(pixel / width));
+        bottom = Math.max(bottom, Math.floor(pixel / width));
+    }
+
+    const heights = new Float32Array(width * height);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const pixel = y * width + x;
+            if (owner[pixel] < 0) continue;
+
+            let best = 0;
+
+            for (const puff of puffs) {
+                const dx = x + 0.5 - puff.x;
+                const dy = y + 0.5 - puff.y;
+                const lift = puff.radius * puff.radius - dx * dx - dy * dy;
+                if (lift > 0) best = Math.max(best, Math.sqrt(lift) * (puff.core ? 0.8 : 1));
+            }
+
+            heights[pixel] = best;
+        }
+    }
+
+    const smooth = new Float32Array(width * height);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const pixel = y * width + x;
+            if (owner[pixel] < 0) continue;
+
+            let total = 0;
+            let count = 0;
+
+            for (let offsetY = -1; offsetY <= 1; offsetY++) {
+                for (let offsetX = -1; offsetX <= 1; offsetX++) {
+                    const sampleX = x + offsetX;
+                    const sampleY = y + offsetY;
+                    if (sampleX < 0 || sampleY < 0 || sampleX >= width || sampleY >= height) continue;
+                    total += heights[sampleY * width + sampleX];
+                    count++;
+                }
+            }
+
+            smooth[pixel] = total / count;
+        }
+    }
+
+    const textureSalt = Math.floor(random() * 100000);
+    const levels = new Int8Array(width * height).fill(-1);
+    const values = new Float32Array(width * height);
+    const span = Math.max(1, bottom - top);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const pixel = y * width + x;
+            if (owner[pixel] < 0) continue;
+
+            const depth = (y - top) / span;
+            const left = x > 0 ? smooth[pixel - 1] : 0;
+            const right = x + 1 < width ? smooth[pixel + 1] : 0;
+            const up = y > 0 ? smooth[pixel - width] : 0;
+            const down = y + 1 < height ? smooth[pixel + width] : 0;
+            const nx = (left - right) * 0.5;
+            const ny = (up - down) * 0.5;
+            const length = Math.hypot(nx, ny, 1.6);
+            const puff = puffs[owner[pixel]];
+            const puffX = (x + 0.5 - puff.x) / puff.radius;
+            const puffY = (y + 0.5 - puff.y) / puff.radius;
+            const puffZ = Math.sqrt(Math.max(0, 1 - puffX * puffX - puffY * puffY));
+            const local = puff.core ? 0.5 : -0.45 * puffX - 0.7 * puffY + 0.35 * puffZ;
+            const lit = (-0.5 * nx - 0.65 * ny + 0.57 * 1.6) / length * 0.5 + (local * 0.5 + 0.3) * 0.5;
+            const global = -0.2 * (x + 0.5 - centerX) / radiusX - 0.6 * (depth - 0.45);
+            let value = (lit - 0.62) * 1.9 + global;
+
+            const speck = leafHash((x + (y & 1)) >> 1, y >> 1, textureSalt);
+            if (speck > 0.8) value += 0.28;
+            else if (speck < 0.2) value -= 0.28;
+
+            values[pixel] = value;
+        }
+    }
+
+    const sorted = [];
+    for (let pixel = 0; pixel < owner.length; pixel++) {
+        if (owner[pixel] >= 0) sorted.push(values[pixel]);
+    }
+
+    sorted.sort((a, b) => a - b);
+
+    const quantile = amount => sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(amount * sorted.length)))];
+    const bands = TREE_TONE_SHARES.map(share => [quantile(share - TREE_DITHER_SHARE), quantile(share + TREE_DITHER_SHARE)]);
+
+    for (let pixel = 0; pixel < owner.length; pixel++) {
+        if (owner[pixel] < 0) continue;
+
+        const value = values[pixel];
+        const checker = (pixel % width + Math.floor(pixel / width)) & 1;
+        let level = 0;
+
+        for (const [low, high] of bands) {
+            if (value >= high || (value >= low && checker)) level++;
+        }
+
+        levels[pixel] = level;
+    }
+
+    for (let y = 0; y < bottom - 3; y++) {
+        for (let x = 0; x < width; x++) {
+            if (owner[y * width + x] < 0) data[(y * width + x) * 4 + 3] = 0;
+        }
+    }
+
+    for (let pixel = 0; pixel < levels.length; pixel++) {
+        if (levels[pixel] >= 0) writeTreePixel(data, pixel, colors[levels[pixel]]);
+    }
+
+    if (palette.extras.length && random() < 0.4) {
+        const extra = palette.extras[Math.floor(random() * palette.extras.length)];
+        const count = 5 + Math.floor(random() * 6);
+
+        for (let attempt = 0, placed = 0; attempt < 500 && placed < count; attempt++) {
+            const pixel = Math.floor(random() * levels.length);
+            if (levels[pixel] < 1 || levels[pixel] > 2 || levels[pixel + 1] < 0 || levels[pixel - width] < 0) continue;
+
+            writeTreePixel(data, pixel, extra);
+            placed++;
+        }
+    }
+
+    const bark = [];
+
+    for (let pixel = 0; pixel < levels.length; pixel++) {
+        if (levels[pixel] >= 0 || !data[pixel * 4 + 3]) continue;
+        const color = readTreePixel(data, pixel);
+        if (!bark.includes(color)) bark.push(color);
+    }
+
+    const luma = color => (color >> 16) * 0.299 + ((color >> 8) & 255) * 0.587 + (color & 255) * 0.114;
+    bark.sort((a, b) => luma(a) - luma(b));
+
+    for (let x = 0; x < width; x++) {
+        let shade = 0;
+
+        for (let y = 0; y < height; y++) {
+            const pixel = y * width + x;
+
+            if (levels[pixel] >= 0) {
+                shade = 4;
+                continue;
+            }
+
+            if (shade > 0 && data[pixel * 4 + 3] && (shade > 2 || (x + y) & 1)) {
+                writeTreePixel(data, pixel, bark[Math.max(0, bark.indexOf(readTreePixel(data, pixel)) - 1)]);
+            }
+
+            shade--;
+        }
+    }
+
+    const shadow = new Set();
+    const groundY = height - 1;
+
+    for (const puff of puffs) {
+        const shadowX = centerX + (puff.x - centerX) * 0.8 + 3;
+        const shadowY = groundY + (puff.y - centerY) * 0.35;
+        const reachX = puff.radius * 0.85;
+        const reachY = puff.radius * 0.55;
+
+        for (let y = Math.floor(shadowY - reachY); y <= Math.ceil(shadowY + reachY); y++) {
+            for (let x = Math.floor(shadowX - reachX); x <= Math.ceil(shadowX + reachX); x++) {
+                const dx = (x + 0.5 - shadowX) / reachX;
+                const dy = (y + 0.5 - shadowY) / reachY;
+                if (dx * dx + dy * dy <= 1 + (leafHash(x, y, edgeSalt + 1) - 0.5) * 0.25) shadow.add(y * 1024 + x);
+            }
+        }
+    }
+
+    const shadowPoints = [];
+    for (const point of shadow) shadowPoints.push(point % 1024, Math.floor(point / 1024));
+
+    let hitLeft = width;
+    let hitRight = 0;
+
+    for (let y = height - 12; y < height - 8; y++) {
+        for (let x = 0; x < width; x++) {
+            if (!data[(y * width + x) * 4 + 3]) continue;
+            hitLeft = Math.min(hitLeft, x);
+            hitRight = Math.max(hitRight, x + 1);
+        }
+    }
+
+    return { width, height, data, flip, shadowPoints, hitLeft, hitRight, color: colors[2] };
 }
 
 function createRoundedCliffTextures(scene) {
@@ -714,7 +1120,7 @@ function create() {
     worldObjectLayer = this.add.layer().setDepth(3);
     waterPipeline = this.game.renderer.pipelines.add('WaterWarp', new WaterWarpPipeline(this.game));
     buildShadowLut(this);
-    extractBushShadow(this);
+    createPropArt(this);
     createBushSlices(this);
     createRoundedCliffTextures(this);
     createShimmerSheet(this);
@@ -1131,25 +1537,31 @@ function runAutomatedTests(scene) {
     const solidDirtPatch = getTerrainCornerPatch('grass', 'dirt', 'dirt', 'dirt', 1);
     const terrainCornersPassed = diagonalGrassPatch === null && solidDirtPatch === 'dirtEdgeCorner';
     record('Diagonal grass connections stay clean', terrainCornersPassed, terrainCornersPassed ? 'Dirt corners yield to connected grass' : 'Diagonal terrain rule regressed');
-    let nearbyBushes = 0;
-    let sampledBushes = 0;
+    let crowdedProps = 0;
+    let sampledProps = 0;
 
     for (let tileY = -96; tileY <= 96; tileY++) {
         for (let tileX = -96; tileX <= 96; tileX++) {
-            if (!hasBushAt(tileX, tileY)) continue;
-            sampledBushes++;
+            const type = getPropAt(tileX, tileY);
+            if (!type) continue;
+            sampledProps++;
 
-            for (let offsetX = 1; offsetX <= 2; offsetX++) {
-                if (hasBushAt(tileX + offsetX, tileY)) nearbyBushes++;
-            }
+            for (let offsetY = 0; offsetY <= TREE_CANOPY_TILES; offsetY++) {
+                for (let offsetX = -3; offsetX <= 3; offsetX++) {
+                    if (offsetY === 0 && offsetX <= 0) continue;
 
-            for (let offsetX = -2; offsetX <= 2; offsetX++) {
-                if (hasBushAt(tileX + offsetX, tileY + 1)) nearbyBushes++;
+                    const nearby = getPropAt(tileX + offsetX, tileY + offsetY);
+                    if (nearby && propsConflict(type, tileX, tileY, nearby, tileX + offsetX, tileY + offsetY)) crowdedProps++;
+                }
             }
         }
     }
 
-    record('Bushes keep a clear tile gap', nearbyBushes === 0, `${sampledBushes} generated bushes checked`);
+    record('Props keep a clear tile gap', crowdedProps === 0, `${sampledProps} generated props checked`);
+    const leafyTrees = treeVariants.length === TREE_VARIANT_COUNT && treeVariants.every(variant =>
+        scene.textures.exists(variant.key) && variant.hitRight > variant.hitLeft && variant.shadowPoints.length > 0
+    );
+    record('Trees grow seeded leaves', leafyTrees, leafyTrees ? `${treeVariants.length} canopy variants generated` : 'Tree variant generation failed');
     const fishingTextures = ['fishing-ui', 'fishing-catch-zone', 'fishing-fish', 'fishing-progress'];
     const texturesPassed = fishingTextures.every(key => scene.textures.exists(key));
     record('Fishing minigame PNGs are loaded', texturesPassed, texturesPassed ? 'Frame, zone, fish and progress assets found' : 'A fishing UI texture is missing');
@@ -2281,31 +2693,27 @@ function getShoreDistances(scene, chunkX, chunkY) {
 }
 
 function forEachStaticShadowPoint(chunkX, chunkY, callback) {
-    const minTileX = chunkX * CHUNK_SIZE - 2;
+    const minTileX = chunkX * CHUNK_SIZE - 3;
     const minTileY = chunkY * CHUNK_SIZE - 1;
     const maxTileX = (chunkX + 1) * CHUNK_SIZE;
     const maxTileY = (chunkY + 1) * CHUNK_SIZE + 1;
 
     for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
         for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
-            if (!hasBushAt(tileX, tileY)) continue;
+            const type = getPropAt(tileX, tileY);
+            if (!type) continue;
 
-            const originX = tileX * TILE_SIZE;
-            const originY = (tileY + 1) * TILE_SIZE - BUSH_HEIGHT;
+            const sprite = getPropSprite(type, tileX, tileY);
 
-            for (let point = 0; point < bushShadowPoints.length; point += 2) {
-                callback(originX + bushShadowPoints[point], originY + bushShadowPoints[point + 1]);
+            for (let point = 0; point < sprite.shadow.length; point += 2) {
+                callback(sprite.x + sprite.shadow[point], sprite.y + sprite.shadow[point + 1]);
             }
         }
     }
 
     for (const caster of staticShadowCasters) {
-        for (let row = 0; row < caster.shape.length; row++) {
-            for (let column = 0; column < caster.shape[row].length; column++) {
-                if (caster.shape[row][column] === '#') {
-                    callback(caster.x + column, caster.y + row);
-                }
-            }
+        for (let point = 0; point < caster.points.length; point += 2) {
+            callback(caster.x + caster.points[point], caster.y + caster.points[point + 1]);
         }
     }
 }
@@ -2348,6 +2756,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
             context.fillStyle = runColor;
             context.fillRect(runStart, localY, end - runStart, 1);
             runStart = -1;
+            runColor = null;
         };
 
         for (let localX = 0; localX < CHUNK_PIXEL_SIZE; localX++) {
@@ -2403,21 +2812,6 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     }
 
     context.putImageData(image, minX, minY);
-}
-
-function getShadowStyle(scene, key) {
-    scene.shadowStyleCache ||= new Map();
-
-    let style = scene.shadowStyleCache.get(key);
-
-    if (!style) {
-        const base = getDominantColor(scene, key);
-        const shaded = shadeColor(base[0], base[1], base[2]);
-        style = `rgb(${shaded[0]}, ${shaded[1]}, ${shaded[2]})`;
-        scene.shadowStyleCache.set(key, style);
-    }
-
-    return style;
 }
 
 function getWaterMaskBase(scene) {
@@ -2601,7 +2995,9 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 woodTiles.push(localX, localY, worldTile);
             }
 
-            if (hasBushAt(tileX, tileY)) {
+            const prop = getPropAt(tileX, tileY);
+
+            if (prop === 'bush') {
                 const baseY = (tileY + 1) * TILE_SIZE;
                 const bush = { x: tileX * TILE_SIZE, y: baseY, slices: [], rustleStart: -Infinity, touching: false, offset: 0 };
 
@@ -2618,6 +3014,14 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 }
 
                 bushes.push(bush);
+            } else if (prop) {
+                const sprite = getPropSprite(prop, tileX, tileY);
+                const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
+                    .setOrigin(0)
+                    .setDepth((tileY + 1) * TILE_SIZE);
+
+                worldObjectLayer.add(image);
+                tileSprites.push(image);
             }
 
             if (shoreline) {
@@ -3588,59 +3992,160 @@ function spawnShimmer(scene) {
     shimmer.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => releaseShimmer(chunk, shimmer));
 }
 
-function isBushCandidate(tileX, tileY) {
-    return getTerrainType(tileX, tileY) === 'grass' &&
-        getTerrainType(tileX + 1, tileY) === 'grass' &&
-        worldHash(tileX, tileY, 760) > 0.992;
-}
+function canHoldProp(type, tileX, tileY) {
+    for (let offsetX = 0; offsetX < PROP_TYPES[type].width; offsetX++) {
+        const terrain = getTerrainType(tileX + offsetX, tileY);
+        if (terrain !== 'grass' && (terrain !== 'dirt' || !PROP_TYPES[type].onDirt)) return false;
+        if (type === 'bush') continue;
 
-function cacheBushPlacement(key, value) {
-    if (bushPlacementCache.size >= WORLD_CACHE_LIMIT) {
-        bushPlacementCache.clear();
+        const tile = getWorldTile(tileX + offsetX, tileY);
+        if (tile.blocking || tile.bridge || tile.key.startsWith('wood')) return false;
     }
 
-    bushPlacementCache.set(key, value);
+    return true;
+}
+
+function getPropCandidate(tileX, tileY) {
+    if (Math.abs(tileX) <= PROP_SPAWN_CLEARANCE && Math.abs(tileY) <= PROP_SPAWN_CLEARANCE) return null;
+
+    const score = worldHash(tileX, tileY, 760);
+    let type = null;
+
+    if (score > 0.992) {
+        type = 'bush';
+    } else if (score > 0.985) {
+        const roll = worldHash(tileX, tileY, 763);
+        type = roll < 0.4 ? 'rock' : roll < 0.65 ? 'boulder' : 'tree';
+    } else if (score > 0.94 && valueNoise(tileX, tileY, PROP_FOREST_SCALE, 764) > PROP_FOREST_LEVEL) {
+        type = 'tree';
+    }
+
+    return type && canHoldProp(type, tileX, tileY) ? type : null;
+}
+
+function isUnderCanopy(treeX, treeY, otherX, otherY, otherWidth) {
+    return otherY < treeY && otherY >= treeY - TREE_CANOPY_TILES &&
+        otherX < treeX + 3 && otherX + otherWidth > treeX - 1;
+}
+
+function propsConflict(typeA, ax, ay, typeB, bx, by) {
+    const widthA = PROP_TYPES[typeA].width;
+    const widthB = PROP_TYPES[typeB].width;
+    const apart = bx >= ax + widthA + 1 || ax >= bx + widthB + 1;
+
+    if (Math.abs(ay - by) <= 1 && !apart) return true;
+
+    return typeA === 'tree' && isUnderCanopy(ax, ay, bx, by, widthB) ||
+        typeB === 'tree' && isUnderCanopy(bx, by, ax, ay, widthA);
+}
+
+function cachePropPlacement(key, value) {
+    if (propPlacementCache.size >= WORLD_CACHE_LIMIT) {
+        propPlacementCache.clear();
+    }
+
+    propPlacementCache.set(key, value);
     return value;
 }
 
-function hasBushAt(tileX, tileY) {
+function getPropAt(tileX, tileY) {
     const key = getTileId(tileX, tileY);
-    const cached = bushPlacementCache.get(key);
+    const cached = propPlacementCache.get(key);
 
     if (cached !== undefined) return cached;
-    if (!isBushCandidate(tileX, tileY)) return cacheBushPlacement(key, false);
 
-    const score = worldHash(tileX, tileY, 760);
+    const type = getPropCandidate(tileX, tileY);
+    if (!type) return cachePropPlacement(key, null);
 
-    for (let offsetY = -1; offsetY <= 1; offsetY++) {
-        for (let offsetX = -2; offsetX <= 2; offsetX++) {
+    const priority = worldHash(tileX, tileY, 765);
+
+    for (let offsetY = -TREE_CANOPY_TILES; offsetY <= TREE_CANOPY_TILES; offsetY++) {
+        for (let offsetX = -3; offsetX <= 3; offsetX++) {
             if (offsetX === 0 && offsetY === 0) continue;
 
             const nearbyX = tileX + offsetX;
             const nearbyY = tileY + offsetY;
+            const nearby = getPropCandidate(nearbyX, nearbyY);
 
-            if (!isBushCandidate(nearbyX, nearbyY)) continue;
+            if (!nearby || !propsConflict(type, tileX, tileY, nearby, nearbyX, nearbyY)) continue;
 
-            const nearbyScore = worldHash(nearbyX, nearbyY, 760);
-            const nearbyWins = nearbyScore > score || nearbyScore === score &&
+            const nearbyPriority = worldHash(nearbyX, nearbyY, 765);
+            const nearbyWins = nearbyPriority > priority || nearbyPriority === priority &&
                 (nearbyY < tileY || nearbyY === tileY && nearbyX < tileX);
 
-            if (nearbyWins) return cacheBushPlacement(key, false);
+            if (nearbyWins) return cachePropPlacement(key, null);
         }
     }
 
-    return cacheBushPlacement(key, true);
+    return cachePropPlacement(key, type);
+}
+
+function getPropCovering(tileX, tileY) {
+    const here = getPropAt(tileX, tileY);
+    if (here) return { type: here, tileX };
+
+    const left = getPropAt(tileX - 1, tileY);
+    return left && PROP_TYPES[left].width > 1 ? { type: left, tileX: tileX - 1 } : null;
+}
+
+function isTileClearOfProps(tileX, tileY) {
+    if (getPropCovering(tileX, tileY)) return false;
+
+    for (let offsetY = 1; offsetY <= TREE_CANOPY_TILES; offsetY++) {
+        for (let treeX = tileX - 2; treeX <= tileX + 1; treeX++) {
+            if (getPropAt(treeX, tileY + offsetY) === 'tree') return false;
+        }
+    }
+
+    return true;
+}
+
+function getTreeVariant(tileX, tileY) {
+    const index = Math.floor(worldHash(tileX, tileY, 766) * treeVariants.length);
+    return treeVariants[Math.min(index, treeVariants.length - 1)];
+}
+
+function getPropSprite(type, tileX, tileY) {
+    const baseY = (tileY + 1) * TILE_SIZE;
+
+    if (type === 'tree') {
+        const variant = getTreeVariant(tileX, tileY);
+        const x = tileX * TILE_SIZE + TILE_SIZE - variant.width / 2;
+
+        return {
+            texture: variant.key,
+            x,
+            y: baseY - variant.height,
+            shadow: variant.shadowPoints,
+            hitLeft: x + variant.hitLeft,
+            hitRight: x + variant.hitRight,
+            hitHeight: TREE_HITBOX_HEIGHT
+        };
+    }
+
+    const art = propArt.get(type);
+    const x = tileX * TILE_SIZE + Math.floor((PROP_TYPES[type].width * TILE_SIZE - art.width) / 2);
+    const hitbox = PROP_TYPES[type].hitbox;
+
+    return {
+        texture: type,
+        x,
+        y: baseY - art.height,
+        shadow: art.shadow,
+        hitLeft: hitbox ? x + hitbox[0] : x,
+        hitRight: hitbox ? x + art.width - hitbox[0] : x,
+        hitHeight: hitbox ? hitbox[1] : 0
+    };
 }
 
 function isGuideSpawnTile(tileX, tileY) {
     const tileKey = getWorldTileKey(tileX, tileY).toLowerCase();
 
-    return ((getTerrainType(tileX, tileY) !== 'water' &&
+    return getTerrainType(tileX, tileY) !== 'water' &&
         !tileKey.includes('edge') &&
         !tileKey.includes('wood') &&
         !tileKey.includes('water') &&
-        !hasBushAt(tileX, tileY)) &&
-        !hasBushAt(tileX - 1, tileY));
+        isTileClearOfProps(tileX, tileY);
 }
 
 function canPlaceStoreAt(storeTileX, storeTileY) {
@@ -3720,25 +4225,46 @@ function spawnGuideAndStore(scene) {
     worldObjectLayer.add(guide);
 
     staticShadowCasters.push(
-        { x: guide.x + ACTOR_SHADOW_X, y: guide.y + ACTOR_SHADOW_Y, shape: ACTOR_SHADOW_SHAPE },
-        { x: store.x + WOOD_SHADOW_OFFSET, y: store.y + WOOD_SHADOW_OFFSET, shape: getStoreShadowShape() }
+        { x: guide.x + ACTOR_SHADOW_X, y: guide.y + ACTOR_SHADOW_Y, points: getShapePoints(ACTOR_SHADOW_SHAPE) },
+        { x: store.x, y: store.y, points: extractSilhouetteShadow(scene, 'store') }
     );
+    rebakeLoadedShadows(scene);
 }
 
-function getStoreShadowShape() {
-    const rows = [];
+function rebakeLoadedShadows(scene) {
+    for (const chunk of loadedChunks.values()) {
+        const mask = getStaticShadowMask(chunk.chunkX, chunk.chunkY);
+        if (!mask) continue;
 
-    for (let y = 0; y < STORE_HEIGHT; y++) {
-        let row = '';
+        const added = new Uint8Array(mask.length);
+        let changed = false;
 
-        for (let x = 0; x < STORE_WIDTH; x++) {
-            row += x < STORE_WIDTH - WOOD_SHADOW_OFFSET && y < STORE_HEIGHT - WOOD_SHADOW_OFFSET ? '.' : '#';
+        for (let pixel = 0; pixel < mask.length; pixel++) {
+            if (mask[pixel] && !chunk.shadowMask?.[pixel]) {
+                added[pixel] = 1;
+                changed = true;
+            }
         }
 
-        rows.push(row);
+        if (!changed) continue;
+
+        bakeGroundShadows(scene, chunk.groundTexture.getContext(), chunk.chunkX, chunk.chunkY, added);
+        chunk.groundTexture.refresh();
+        chunk.shadowMask = mask;
+        chunk.pixels = null;
+    }
+}
+
+function getShapePoints(shape) {
+    const points = [];
+
+    for (let row = 0; row < shape.length; row++) {
+        for (let column = 0; column < shape[row].length; column++) {
+            if (shape[row][column] === '#') points.push(column, row);
+        }
     }
 
-    return rows;
+    return points;
 }
 
 function buildShadowLut(scene) {
@@ -3797,6 +4323,21 @@ function buildShadowLut(scene) {
 
         shadowLut.set(color.key, best ? best.rgb : color.rgb.map(value => Math.round(value * 0.86)));
     }
+}
+
+function getShadowStyle(scene, key) {
+    scene.shadowStyleCache ||= new Map();
+
+    let style = scene.shadowStyleCache.get(key);
+
+    if (!style) {
+        const base = getDominantColor(scene, key);
+        const shaded = shadeColor(base[0], base[1], base[2]);
+        style = `rgb(${shaded[0]}, ${shaded[1]}, ${shaded[2]})`;
+        scene.shadowStyleCache.set(key, style);
+    }
+
+    return style;
 }
 
 function shadeColor(r, g, b) {
@@ -5166,6 +5707,8 @@ function getMapPalette(scene) {
         dirt: pack(dirt),
         dirtEdge: pack(shadeColor(...dirt)),
         bush: 0x4a7a52,
+        rock: pack(getDominantColor(scene, 'rock')),
+        boulder: pack(getDominantColor(scene, 'boulder')),
         wood: pack(getDominantColor(scene, 'wood')),
         store: pack(getDominantColor(scene, 'store')),
         water: [0x87bed8, 0x72a8cf, 0x6890ca],
@@ -5237,12 +5780,13 @@ function redrawMap(scene) {
         for (let viewX = 0; viewX < viewWidth; viewX++) {
             const tileX = originX + viewX;
             const tileY = originY + viewY;
+            const covering = isTileDiscovered(tileX, tileY) ? getPropCovering(tileX, tileY) : null;
             let color;
 
             if (!isTileDiscovered(tileX, tileY)) {
                 color = -1;
-            } else if (hasBushAt(tileX, tileY) || hasBushAt(tileX - 1, tileY)) {
-                color = palette.bush;
+            } else if (covering) {
+                color = covering.type === 'tree' ? getTreeVariant(covering.tileX, tileY).color : palette[covering.type];
             } else {
                 const tile = getWorldTile(tileX, tileY);
                 const terrain = getTerrainType(tileX, tileY);
@@ -6609,6 +7153,27 @@ function updateGuideInteraction(scene, guideIsNear) {
     guideWasNear = guideIsNear;
 }
 
+function isBlockedByProp(left, top, right, bottom) {
+    const bottomTile = Math.floor((bottom - 1) / TILE_SIZE);
+    const rightTile = Math.floor((right - 1) / TILE_SIZE);
+
+    for (let tileY = Math.floor(top / TILE_SIZE); tileY <= bottomTile; tileY++) {
+        for (let tileX = Math.floor(left / TILE_SIZE) - 1; tileX <= rightTile; tileX++) {
+            const type = getPropAt(tileX, tileY);
+            if (!type || !PROP_TYPES[type].solid) continue;
+
+            const sprite = getPropSprite(type, tileX, tileY);
+            const baseY = (tileY + 1) * TILE_SIZE;
+
+            if (left < sprite.hitRight && right > sprite.hitLeft && top < baseY && bottom > baseY - sprite.hitHeight) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 function canCharacterOccupy(scene, x, y) {
     const left = x + CHARACTER_HITBOX_X;
     const top = y + CHARACTER_HITBOX_Y;
@@ -6632,6 +7197,10 @@ function canCharacterOccupy(scene, x, y) {
         top < store.y + STORE_HITBOX_Y + STORE_HITBOX_HEIGHT &&
         bottom > store.y + STORE_HITBOX_Y
     ) {
+        return false;
+    }
+
+    if (isBlockedByProp(left, top, right, bottom)) {
         return false;
     }
 
