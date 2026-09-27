@@ -397,6 +397,8 @@ const BUSH_RUSTLE_REPEAT = 420;
 const DUST_PER_STEP = 3;
 const DUST_LIFETIME = 330;
 const DUST_COLORS = [0xa7825a, 0xb69a6c, 0x9f7751];
+const GRASS_FLECK_COLORS = [0xb0c579, 0x8eb067];
+const GRASS_FLECKS_PER_STEP = 2;
 let store;
 let guideWasNear = false;
 let guideHasMetPlayer = false;
@@ -2921,11 +2923,17 @@ function kickUpDust(scene, time, moveX, moveY) {
     const tileY = Math.floor(footY / TILE_SIZE);
     const tile = getWorldTile(tileX, tileY);
 
-    if (getTerrainType(tileX, tileY) !== 'dirt' || tile.key.startsWith('wood')) {
+    const terrain = getTerrainType(tileX, tileY);
+    const colors = tile.key.startsWith('wood') ? null
+        : terrain === 'dirt' ? DUST_COLORS
+        : terrain === 'grass' && characterPace > 1 ? GRASS_FLECK_COLORS
+        : null;
+
+    if (!colors) {
         return;
     }
 
-    for (let index = 0; index < DUST_PER_STEP; index++) {
+    for (let index = 0; index < (colors === DUST_COLORS ? DUST_PER_STEP : GRASS_FLECKS_PER_STEP); index++) {
         const side = index % 2 === 0 ? -1 : 1;
         const spread = Math.floor(Math.random() * 2);
         const offsetX = moveX !== 0
@@ -2942,7 +2950,7 @@ function kickUpDust(scene, time, moveX, moveY) {
             drift: moveX !== 0 ? -moveX : side,
             rise: -1,
             lifetime: DUST_LIFETIME
-        }, DUST_COLORS[index % DUST_COLORS.length]);
+        }, colors[index % colors.length]);
     }
 }
 
