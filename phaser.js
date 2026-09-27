@@ -71,8 +71,24 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                     return noise(r) * 0.65 + noise(mat2(0.8, 0.6, -0.6, 0.8) * x * 2.03 + vec2(7.3, 2.9)) * 0.35;
                 }
 
+                vec3 tone(float index) {
+                    if (index < 0.5) return vec3(0.302, 0.420, 0.631);
+                    if (index < 1.5) return vec3(0.345, 0.478, 0.686);
+                    if (index < 2.5) return vec3(0.376, 0.522, 0.741);
+                    if (index < 3.5) return vec3(0.408, 0.565, 0.792);
+                    if (index < 4.5) return vec3(0.424, 0.608, 0.804);
+                    if (index < 5.5) return vec3(0.447, 0.659, 0.812);
+                    if (index < 6.5) return vec3(0.482, 0.706, 0.820);
+                    if (index < 7.5) return vec3(0.529, 0.745, 0.847);
+                    return vec3(0.820, 0.929, 0.945);
+                }
+
+                float code(float channel) {
+                    return floor(channel * 255.0 + 0.5);
+                }
+
                 float caustic(vec2 p) {
-                    return texture2D(uMainSampler, (mod(p, 32.0) + 0.5) / 256.0).g;
+                    return mod(code(texture2D(uMainSampler, (mod(p, 32.0) + 0.5) / 256.0).g), 3.0) * 0.5;
                 }
 
                 void main() {
@@ -84,6 +100,10 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
 
                     vec2 p = floor(vec2(gl_FragCoord.x, uViewHeight - gl_FragCoord.y)) + uScroll;
                     float t = uTime;
+                    float checker = mod(p.x + p.y, 2.0) - 0.5;
+                    float bayerX = mod(p.x, 2.0);
+                    float bayerY = mod(p.y, 2.0);
+                    float bayer = (bayerX < 0.5 ? (bayerY < 0.5 ? 0.0 : 3.0) : (bayerY < 0.5 ? 2.0 : 1.0)) / 3.0 - 0.5;
 
                     vec2 swell = p * 0.011 + vec2(t * 0.045, -t * 0.03);
                     vec2 warp = vec2(noise(swell), noise(swell + vec2(31.7, 11.3))) - 0.5;
@@ -92,44 +112,44 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                     vec2 ripple = vec2(noise(rippleField), noise(rippleField + vec2(5.2, 1.3))) - 0.5;
                     vec2 offset = warp * strength + ripple * 3.0;
 
+                    float shore = floor(code(mask.g) / 3.0);
+                    float wobble = (fbm(p * 0.045 + warp * 0.6 + vec2(t * 0.05, -t * 0.04)) - 0.5) * 4.0;
+                    float reach = shore + wobble + bayer * 2.2;
+                    float depth = fbm(p * 0.012 + warp * 1.2 + vec2(t * 0.03, t * 0.01)) + bayer * 0.05 -
+                        max(0.0, shore - 15.0) * 0.012;
+                    float light = fbm(p * 0.021 - warp * 0.9 + vec2(-t * 0.06, t * 0.04)) + checker * 0.016;
+
+                    float index = 3.0;
+
+                    if (reach < 1.5) {
+                        index = 7.0;
+                    } else if (reach < 4.5) {
+                        index = 6.0;
+                    } else if (reach < 9.0) {
+                        index = 5.0;
+                    } else if (reach < 15.0) {
+                        index = 4.0;
+                    } else if (depth < 0.34) {
+                        index = 1.0;
+                    } else if (depth < 0.44) {
+                        index = 2.0;
+                    }
+
                     float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
                     float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
-                    float dither = (mod(p.x + p.y, 2.0) - 0.5) * 0.016;
-                    float depth = fbm(p * 0.012 + warp * 1.2 + vec2(t * 0.03, t * 0.01)) + dither;
-                    float light = fbm(p * 0.021 - warp * 0.9 + vec2(-t * 0.06, t * 0.04)) + dither;
+                    float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08;
 
-                    vec4 color = vec4(0.0);
-
-                    if (depth < 0.34) {
-                        color = vec4(0.231, 0.357, 0.604, 0.32);
-                    } else if (depth < 0.44) {
-                        color = vec4(0.231, 0.357, 0.604, 0.16);
-                    } else if (depth > 0.66) {
-                        color = vec4(0.529, 0.745, 0.847, 0.12);
+                    if (first > 0.9 && second > 0.9 && gate > 0.68) {
+                        index = 8.0;
+                    } else if (first > 0.9 && second > 0.9 && gate > 0.6) {
+                        index = 7.0;
+                    } else if (first > 0.9 && gate > 0.56) {
+                        index = min(index + (gate > 0.63 ? 2.0 : 1.0), 7.0);
+                    } else if (first > 0.4 && gate > 0.64) {
+                        index = min(index + 1.0, 7.0);
                     }
 
-                    float shallow = light + (depth - 0.5) * 0.5;
-                    if (first > 0.9 && second > 0.9 && shallow > 0.6) {
-                        color = vec4(0.82, 0.93, 0.945, 0.8);
-                    } else if (first > 0.9 && shallow > 0.555) {
-                        color = vec4(0.529, 0.745, 0.847, shallow > 0.62 ? 0.42 : 0.24);
-                    } else if (first > 0.4 && shallow > 0.63) {
-                        color = vec4(0.529, 0.745, 0.847, 0.16);
-                    }
-
-                    float gust = fbm((p + vec2(-t * 22.0, -t * 7.0)) * vec2(0.016, 0.028) + vec2(3.1, 8.7)) + dither * 2.0;
-
-                    if (gust > 0.64) {
-                        float ripple = mod(p.x * 0.5 + p.y * 1.5 + floor(t * 9.0), 7.0);
-
-                        if (mod(p.y, 3.0) < 1.0 && ripple < 2.0) {
-                            color = vec4(0.529, 0.745, 0.847, gust > 0.7 ? 0.34 : 0.2);
-                        } else if (gust > 0.7) {
-                            color = vec4(0.231, 0.357, 0.604, max(color.a, 0.12));
-                        }
-                    }
-
-                    float rippleCode = mask.b * 255.0;
+                    float rippleCode = code(mask.b);
 
                     if (rippleCode > 30.0 && rippleCode < 200.0) {
                         float distance = (rippleCode - 40.0) / 20.0;
@@ -138,31 +158,28 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                             float phase = fract(t * 0.45 + float(ring) * 0.5);
                             float radius = 1.5 + phase * 5.5;
 
-                            if (abs(distance - radius) < 0.55) {
-                                color = vec4(0.82, 0.93, 0.945, (1.0 - phase) * 0.75);
+                            if (abs(distance - radius) < 0.55 && phase < 0.8) {
+                                index = phase < 0.35 ? 7.0 : min(index + 1.0, 7.0);
                             }
                         }
                     }
 
-                    if (mask.b > 0.9) {
+                    if (rippleCode > 250.0) {
                         float frame = floor(t * 12.0);
                         float edge = noise(vec2(p.x - frame, p.y + frame * 0.25) / 24.0 + vec2(41.0, 17.0));
 
                         if (edge >= 0.76) {
-                            color = vec4(0.82, 0.93, 0.945, 1.0);
+                            index = 8.0;
                         } else if (edge >= 0.5 || edge >= 0.39 && edge < 0.42) {
-                            color = vec4(0.529, 0.745, 0.847, 1.0);
+                            index = min(index + 1.0, 7.0);
                         }
                     }
 
-                    vec4 result = vec4(color.rgb * color.a, color.a);
-
-                    if (mask.r < 0.9) {
-                        float shade = mask.r < 0.625 ? 0.34 : 0.2;
-                        result = result * (1.0 - shade) + vec4(0.09, 0.157, 0.231, 1.0) * shade;
+                    if (mask.r < 0.75) {
+                        index = max(index - 1.0, 0.0);
                     }
 
-                    gl_FragColor = result;
+                    gl_FragColor = vec4(tone(index), 1.0);
                 }
             `
         });
@@ -206,6 +223,9 @@ const WOOD_MASK_MARGIN = TILE_SIZE;
 const WOOD_MASK_SIZE = CHUNK_PIXEL_SIZE + WOOD_MASK_MARGIN;
 const WOOD_SHADOW_OFFSET = 2;
 const RIPPLE_RADIUS = 7;
+const SHORE_DISTANCE_MARGIN_TILES = 2;
+const SHORE_DISTANCE_MAX = 24;
+const WATER_BASE_COLOR = [0x68, 0x90, 0xca];
 const RIPPLE_SQUASH = 1.7;
 
 const CHUNK_LOAD_RADIUS = 1;
@@ -1730,6 +1750,82 @@ function getDeckBounds(scene, key) {
     return bounds;
 }
 
+function getShoreDistances(scene, chunkX, chunkY) {
+    const margin = SHORE_DISTANCE_MARGIN_TILES * TILE_SIZE;
+    const size = CHUNK_PIXEL_SIZE + margin * 2;
+    const distances = new Uint16Array(size * size);
+
+    for (let localY = -SHORE_DISTANCE_MARGIN_TILES; localY < CHUNK_SIZE + SHORE_DISTANCE_MARGIN_TILES; localY++) {
+        for (let localX = -SHORE_DISTANCE_MARGIN_TILES; localX < CHUNK_SIZE + SHORE_DISTANCE_MARGIN_TILES; localX++) {
+            const tileX = chunkX * CHUNK_SIZE + localX;
+            const tileY = chunkY * CHUNK_SIZE + localY;
+            let tile = getWorldTile(tileX, tileY);
+
+            if (tile.key.startsWith('wood')) {
+                tile = getTerrainTile(tileX, tileY);
+            }
+
+            const water = getTerrainSurface(scene, tile).water;
+            const originX = localX * TILE_SIZE + margin;
+            const originY = localY * TILE_SIZE + margin;
+
+            for (let y = 0; y < TILE_SIZE; y++) {
+                const row = (originY + y) * size + originX;
+
+                for (let x = 0; x < TILE_SIZE; x++) {
+                    distances[row + x] = water[y * TILE_SIZE + x] ? 65535 : 0;
+                }
+            }
+        }
+    }
+
+    for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+            const index = y * size + x;
+            let value = distances[index];
+            if (value === 0) continue;
+
+            if (x > 0) value = Math.min(value, distances[index - 1] + 3);
+            if (y > 0) {
+                value = Math.min(value, distances[index - size] + 3);
+                if (x > 0) value = Math.min(value, distances[index - size - 1] + 4);
+                if (x < size - 1) value = Math.min(value, distances[index - size + 1] + 4);
+            }
+
+            distances[index] = value;
+        }
+    }
+
+    for (let y = size - 1; y >= 0; y--) {
+        for (let x = size - 1; x >= 0; x--) {
+            const index = y * size + x;
+            let value = distances[index];
+            if (value === 0) continue;
+
+            if (x < size - 1) value = Math.min(value, distances[index + 1] + 3);
+            if (y < size - 1) {
+                value = Math.min(value, distances[index + size] + 3);
+                if (x < size - 1) value = Math.min(value, distances[index + size + 1] + 4);
+                if (x > 0) value = Math.min(value, distances[index + size - 1] + 4);
+            }
+
+            distances[index] = value;
+        }
+    }
+
+    const result = new Uint8Array(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE);
+
+    for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
+        const row = (y + margin) * size + margin;
+
+        for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
+            result[y * CHUNK_PIXEL_SIZE + x] = Math.min(SHORE_DISTANCE_MAX, Math.round(distances[row + x] / 3));
+        }
+    }
+
+    return result;
+}
+
 function getWaterMaskBase(scene) {
     if (scene.waterMaskBase) return scene.waterMaskBase;
 
@@ -1739,7 +1835,8 @@ function getWaterMaskBase(scene) {
     for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
             const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
-            base[index + 1] = pattern.data[((y % pattern.height) * pattern.width + x % pattern.width) * 4 + 3];
+            const alpha = pattern.data[((y % pattern.height) * pattern.width + x % pattern.width) * 4 + 3];
+            base[index + 1] = alpha > 192 ? 2 : alpha > 64 ? 1 : 0;
             base[index + 3] = 255;
         }
     }
@@ -1811,6 +1908,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
     const waterMaskCells = [];
     const edgeCells = [];
     const woodTiles = [];
+    const shorelineTiles = [];
     const groundTexture = acquireChunkCanvas(scene);
     const groundContext = groundTexture.getContext();
     let upperTexture = null;
@@ -1844,6 +1942,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
                     ? getTerrainTile(tileX, tileY - 1)
                     : northWorldTile;
                 shoreline = getShorelineTile(scene, terrainTile, northTile);
+                shorelineTiles.push(localX, localY, shoreline.textureKey);
             }
 
             const drawX = localX * TILE_SIZE;
@@ -1964,6 +2063,37 @@ function createWorldChunk(scene, chunkX, chunkY) {
             }
         }
 
+        const shoreDistances = getShoreDistances(scene, chunkX, chunkY);
+
+        for (let pixel = 0, index = 0; pixel < shoreDistances.length; pixel++, index += 4) {
+            if (data[index]) {
+                data[index + 1] += shoreDistances[pixel] * 3;
+            }
+        }
+
+        for (let tile = 0; tile < shorelineTiles.length; tile += 3) {
+            const art = getTerrainPixels(scene, shorelineTiles[tile + 2]).data;
+            const originX = shorelineTiles[tile] * TILE_SIZE;
+            const originY = shorelineTiles[tile + 1] * TILE_SIZE;
+
+            for (let y = 0; y < TILE_SIZE; y++) {
+                for (let x = 0; x < TILE_SIZE; x++) {
+                    const source = (y * TILE_SIZE + x) * 4;
+                    const target = ((originY + y) * CHUNK_PIXEL_SIZE + originX + x) * 4;
+
+                    if (
+                        data[target] &&
+                        art[source + 3] &&
+                        (art[source] !== WATER_BASE_COLOR[0] ||
+                            art[source + 1] !== WATER_BASE_COLOR[1] ||
+                            art[source + 2] !== WATER_BASE_COLOR[2])
+                    ) {
+                        data[target] = 128;
+                    }
+                }
+            }
+        }
+
         const nearbyWood = gatherNearbyWoodTiles(chunkX, chunkY, woodTiles);
         const woodMask = getChunkWoodMask(scene, nearbyWood);
 
@@ -1975,7 +2105,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
 
                 for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
                     if (data[index] && woodMask[maskRow + x]) {
-                        data[index] = woodMask[maskRow + x] === 2 ? 128 : 192;
+                        data[index] = 128;
                     }
                 }
             }
