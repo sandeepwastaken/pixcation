@@ -149,26 +149,13 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                         index = min(index + 1.0, 7.0);
                     }
 
-                    float rippleCode = code(mask.b);
-
-                    if (rippleCode > 30.0 && rippleCode < 200.0) {
-                        float distance = (rippleCode - 40.0) / 20.0;
-
-                        for (int ring = 0; ring < 2; ring++) {
-                            float phase = fract(t * 0.45 + float(ring) * 0.5);
-                            float radius = 1.5 + phase * 5.5;
-
-                            if (abs(distance - radius) < 0.55 && phase < 0.8) {
-                                index = phase < 0.35 ? 7.0 : min(index + 1.0, 7.0);
-                            }
-                        }
-                    }
+                    float edgeCode = code(mask.b);
 
                     if (mask.r < 0.75) {
                         index = max(index - 1.0, 0.0);
                     }
 
-                    if (rippleCode > 250.0) {
+                    if (edgeCode > 250.0) {
                         float frame = floor(t * 12.0);
                         float edge = noise(vec2(p.x - frame, p.y + frame * 0.25) / 24.0 + vec2(41.0, 17.0));
 
@@ -222,11 +209,9 @@ const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
 const WOOD_MASK_MARGIN = TILE_SIZE;
 const WOOD_MASK_SIZE = CHUNK_PIXEL_SIZE + WOOD_MASK_MARGIN;
 const WOOD_SHADOW_OFFSET = 2;
-const RIPPLE_RADIUS = 7;
 const SHORE_DISTANCE_MARGIN_TILES = 2;
 const SHORE_DISTANCE_MAX = 24;
 const WATER_BASE_COLOR = [0x68, 0x90, 0xca];
-const RIPPLE_SQUASH = 1.7;
 
 const CHUNK_LOAD_RADIUS = 1;
 const CHUNK_DISCOVERY_RADIUS = 2;
@@ -1610,75 +1595,6 @@ function gatherNearbyWoodTiles(chunkX, chunkY, woodTiles) {
     return tiles;
 }
 
-function getPierLegs(scene, key) {
-    scene.pierLegCache ||= new Map();
-
-    const cached = scene.pierLegCache.get(key);
-    if (cached) return cached;
-
-    const pixels = getTerrainPixels(scene, key).data;
-    const deck = getDeckBounds(scene, key);
-    const legs = [];
-    let bottom = -1;
-
-    for (let y = TILE_SIZE - 1; y >= deck.bottom && bottom === -1; y--) {
-        for (let x = 0; x < TILE_SIZE; x++) {
-            if (pixels[(y * TILE_SIZE + x) * 4 + 3]) {
-                bottom = y;
-                break;
-            }
-        }
-    }
-
-    for (let x = 0; bottom !== -1 && x < TILE_SIZE; x++) {
-        if (!pixels[(bottom * TILE_SIZE + x) * 4 + 3]) continue;
-
-        const start = x;
-        while (x < TILE_SIZE && pixels[(bottom * TILE_SIZE + x) * 4 + 3]) x++;
-        legs.push((start + x - 1) / 2, bottom + 1);
-    }
-
-    scene.pierLegCache.set(key, legs);
-    return legs;
-}
-
-function stampPierRipples(scene, tiles, data) {
-    for (let index = 0; index < tiles.length; index += 3) {
-        const key = tiles[index + 2].key;
-
-        if (key !== 'woodLeft' && key !== 'woodRight') continue;
-
-        const legs = getPierLegs(scene, key);
-
-        for (let leg = 0; leg < legs.length; leg += 2) {
-            const centerX = tiles[index] * TILE_SIZE + legs[leg];
-            const centerY = tiles[index + 1] * TILE_SIZE + legs[leg + 1];
-            const minX = Math.max(0, Math.floor(centerX - RIPPLE_RADIUS));
-            const maxX = Math.min(CHUNK_PIXEL_SIZE - 1, Math.ceil(centerX + RIPPLE_RADIUS));
-            const minY = Math.max(0, Math.floor(centerY - RIPPLE_RADIUS / RIPPLE_SQUASH));
-            const maxY = Math.min(CHUNK_PIXEL_SIZE - 1, Math.ceil(centerY + RIPPLE_RADIUS / RIPPLE_SQUASH));
-
-            for (let y = minY; y <= maxY; y++) {
-                for (let x = minX; x <= maxX; x++) {
-                    const pixel = (y * CHUNK_PIXEL_SIZE + x) * 4;
-
-                    if (!data[pixel] || data[pixel + 2] === 255) continue;
-
-                    const distance = Math.hypot(x - centerX, (y - centerY) * RIPPLE_SQUASH);
-
-                    if (distance > RIPPLE_RADIUS) continue;
-
-                    const encoded = 40 + Math.round(distance * 20);
-
-                    if (!data[pixel + 2] || encoded < data[pixel + 2]) {
-                        data[pixel + 2] = encoded;
-                    }
-                }
-            }
-        }
-    }
-}
-
 function getChunkWoodMask(scene, tiles) {
     if (tiles.length === 0) {
         return null;
@@ -2118,8 +2034,6 @@ function createWorldChunk(scene, chunkX, chunkY) {
                 data[index] = 255;
             }
         }
-
-        stampPierRipples(scene, nearbyWood, data);
 
         context.putImageData(image, 0, 0);
         waterTexture.refresh();
