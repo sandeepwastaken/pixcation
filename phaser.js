@@ -313,6 +313,7 @@ const FISH_WATER_PER_FISH = 5000;
 const FISH_SWIM_SPEED = 13;
 const FISH_ACCELERATION = 40;
 const FISH_FLEE_ACCELERATION = 220;
+const FISH_IDLE_TURN = 0.5;
 const FISH_DRAG = 0.6;
 const FISH_COAST_DRAG = 1.6;
 const FISH_BURST_MIN = 300;
@@ -2793,6 +2794,7 @@ function spawnChunkFish(chunk) {
             amplitude: 0,
             thrusting: false,
             burstTimer: 0,
+            idleTurn: (Math.random() - 0.5) * FISH_IDLE_TURN,
             state: 'idle',
             timer: Math.random() * 2000,
             targetX: 0,
@@ -2861,6 +2863,7 @@ function updateFish(delta) {
 
             if (fish.state === 'idle') {
                 fish.timer -= delta;
+                fish.heading += fish.idleTurn * seconds;
 
                 if (fish.timer <= 0) {
                     if (chooseFishTarget(chunk, fish)) {
@@ -2893,6 +2896,7 @@ function updateFish(delta) {
                     fish.state = 'idle';
                     fish.thrusting = false;
                     fish.timer = FISH_IDLE_MIN + Math.random() * FISH_IDLE_RANGE;
+                    fish.idleTurn = (Math.random() - 0.5) * FISH_IDLE_TURN;
                 } else {
                     let turn = Math.atan2(dy, dx) - fish.heading;
                     turn = Math.atan2(Math.sin(turn), Math.cos(turn));
