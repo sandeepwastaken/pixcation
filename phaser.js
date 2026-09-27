@@ -310,6 +310,7 @@ const FISH_LENGTHS = [5, 6, 8, 10, 12, 14];
 const FISH_MIN_DEPTH = 3;
 const FISH_PER_CHUNK_MAX = 5;
 const FISH_WATER_PER_FISH = 5000;
+const FISH_MIN_REGION = 1800;
 const FISH_SWIM_SPEED = 13;
 const FISH_ACCELERATION = 40;
 const FISH_FLEE_ACCELERATION = 220;
@@ -2751,7 +2752,63 @@ function getFishDepth(chunk, x, y) {
 }
 
 function canFishSwim(chunk, fish, x, y) {
-    return getFishDepth(chunk, x, y) >= FISH_MIN_DEPTH + fish.radius;
+    if (getFishDepth(chunk, x, y) < FISH_MIN_DEPTH + fish.radius) {
+        return false;
+    }
+
+    const localX = Math.floor(x) - chunk.chunkX * CHUNK_PIXEL_SIZE;
+    const localY = Math.floor(y) - chunk.chunkY * CHUNK_PIXEL_SIZE;
+
+    return chunk.fishRegions[localY * CHUNK_PIXEL_SIZE + localX] === fish.region;
+}
+
+function labelFishRegions(chunk) {
+    const size = CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE;
+    const labels = new Uint16Array(size);
+    const stack = new Int32Array(size);
+    const regions = [];
+
+    for (let start = 0; start < size; start++) {
+        if (labels[start] || chunk.shoreDistances[start] < FISH_MIN_DEPTH) continue;
+
+        const label = regions.length + 1;
+        const pixels = [];
+        let top = 0;
+
+        stack[top++] = start;
+        labels[start] = label;
+
+        while (top > 0) {
+            const pixel = stack[--top];
+            const x = pixel % CHUNK_PIXEL_SIZE;
+            pixels.push(pixel);
+
+            if (x > 0 && !labels[pixel - 1] && chunk.shoreDistances[pixel - 1] >= FISH_MIN_DEPTH) {
+                labels[pixel - 1] = label;
+                stack[top++] = pixel - 1;
+            }
+
+            if (x < CHUNK_PIXEL_SIZE - 1 && !labels[pixel + 1] && chunk.shoreDistances[pixel + 1] >= FISH_MIN_DEPTH) {
+                labels[pixel + 1] = label;
+                stack[top++] = pixel + 1;
+            }
+
+            if (pixel >= CHUNK_PIXEL_SIZE && !labels[pixel - CHUNK_PIXEL_SIZE] && chunk.shoreDistances[pixel - CHUNK_PIXEL_SIZE] >= FISH_MIN_DEPTH) {
+                labels[pixel - CHUNK_PIXEL_SIZE] = label;
+                stack[top++] = pixel - CHUNK_PIXEL_SIZE;
+            }
+
+            if (pixel < size - CHUNK_PIXEL_SIZE && !labels[pixel + CHUNK_PIXEL_SIZE] && chunk.shoreDistances[pixel + CHUNK_PIXEL_SIZE] >= FISH_MIN_DEPTH) {
+                labels[pixel + CHUNK_PIXEL_SIZE] = label;
+                stack[top++] = pixel + CHUNK_PIXEL_SIZE;
+            }
+        }
+
+        regions.push(pixels);
+    }
+
+    chunk.fishRegions = labels;
+    return regions;
 }
 
 function isFishPathClear(chunk, fish, targetX, targetY) {
@@ -2772,14 +2829,23 @@ function isFishPathClear(chunk, fish, targetX, targetY) {
 function spawnChunkFish(chunk) {
     const originX = chunk.chunkX * CHUNK_PIXEL_SIZE;
     const originY = chunk.chunkY * CHUNK_PIXEL_SIZE;
-    let openWater = 0;
+    const regions = labelFishRegions(chunk);
 
-    for (let pixel = 0; pixel < chunk.shoreDistances.length; pixel += 7) {
-        if (chunk.shoreDistances[pixel] >= FISH_MIN_DEPTH + 4) openWater++;
+    for (let regionIndex = 0; regionIndex < regions.length; regionIndex++) {
+        const region = regions[regionIndex];
+
+        if (region.length < FISH_MIN_REGION) continue;
+
+        const count = Math.min(
+            FISH_PER_CHUNK_MAX - chunk.fish.length,
+            Math.max(1, Math.floor(region.length / FISH_WATER_PER_FISH))
+        );
+
+        spawnRegionFish(chunk, region, regionIndex + 1, count, originX, originY);
     }
+}
 
-    const count = Math.min(FISH_PER_CHUNK_MAX, Math.floor(openWater * 7 / FISH_WATER_PER_FISH));
-
+function spawnRegionFish(chunk, region, label, count, originX, originY) {
     for (let index = 0; index < count; index++) {
         const size = Math.floor(Math.random() * FISH_LENGTHS.length);
         const fish = {
@@ -2798,12 +2864,14 @@ function spawnChunkFish(chunk) {
             state: 'idle',
             timer: Math.random() * 2000,
             targetX: 0,
-            targetY: 0
+            targetY: 0,
+            region: label
         };
 
         for (let attempt = 0; attempt < 40; attempt++) {
-            const x = originX + Math.random() * CHUNK_PIXEL_SIZE;
-            const y = originY + Math.random() * CHUNK_PIXEL_SIZE;
+            const pixel = region[Math.floor(Math.random() * region.length)];
+            const x = originX + pixel % CHUNK_PIXEL_SIZE + 0.5;
+            const y = originY + Math.floor(pixel / CHUNK_PIXEL_SIZE) + 0.5;
 
             if (canFishSwim(chunk, fish, x, y)) {
                 fish.x = x;
