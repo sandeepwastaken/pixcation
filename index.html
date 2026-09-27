@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixcation</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script>
+        window.APP_CACHE_BUSTER = Date.now();
+        const fontStyle = document.createElement('style');
+        fontStyle.textContent = `
+            @font-face {
+                font-family: 'm6x11';
+                src: url('media/m6x11plus.ttf?v=${window.APP_CACHE_BUSTER}') format('truetype');
+                font-weight: normal;
+                font-style: normal;
+                font-display: block;
+            }
+        `;
+        document.head.appendChild(fontStyle);
+    </script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container"></div>
+
+    <script>
+        const phaserScript = document.createElement('script');
+        phaserScript.src = `phaser.js?v=${window.APP_CACHE_BUSTER}`;
+        document.body.appendChild(phaserScript);
+    </script>
+</body>
