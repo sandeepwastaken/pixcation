@@ -358,6 +358,10 @@ let characterShadow;
 const shadowLut = new Map();
 const bushShadowPoints = [];
 const staticShadowCasters = [];
+const dustPool = [];
+const DUST_PER_STEP = 3;
+const DUST_LIFETIME = 330;
+const DUST_COLORS = [0xa7825a, 0xb69a6c, 0x9f7751];
 let store;
 let guideWasNear = false;
 let guideHasMetPlayer = false;
@@ -2813,6 +2817,71 @@ function getGroundShadowColor(scene, worldX, worldY) {
     return shadeColor(base[0], base[1], base[2]);
 }
 
+function kickUpDust(scene, time, moveX, moveY) {
+    const footX = character.x + CHARACTER_SIZE / 2;
+    const footY = character.y + CHARACTER_SIZE - 1;
+    const tileX = Math.floor(footX / TILE_SIZE);
+    const tileY = Math.floor(footY / TILE_SIZE);
+    const tile = getWorldTile(tileX, tileY);
+
+    if (getTerrainType(tileX, tileY) !== 'dirt' || tile.key.startsWith('wood')) {
+        return;
+    }
+
+    for (let index = 0; index < DUST_PER_STEP; index++) {
+        const image = dustPool.find(dust => !dust.active) || createDust(scene);
+        const side = index % 2 === 0 ? -1 : 1;
+        const spread = Math.floor(Math.random() * 2);
+        const offsetX = moveX !== 0
+            ? -moveX * (5 + spread + index)
+            : side * (5 + spread);
+        const offsetY = moveY < 0
+            ? 1 + spread
+            : moveX !== 0 ? -spread : -1 - spread;
+
+        image.dust = {
+            born: time,
+            x: Math.round(footX + offsetX),
+            y: footY + offsetY,
+            drift: moveX !== 0 ? -moveX : side
+        };
+
+        image
+            .setTint(DUST_COLORS[index % DUST_COLORS.length])
+            .setPosition(image.dust.x, image.dust.y)
+            .setActive(true)
+            .setVisible(true);
+    }
+}
+
+function createDust(scene) {
+    const image = scene.add.image(0, 0, '__WHITE')
+        .setOrigin(0)
+        .setDisplaySize(1, 1)
+        .setActive(false)
+        .setVisible(false);
+
+    shadowLayer.add(image);
+    dustPool.push(image);
+    return image;
+}
+
+function updateDust(time) {
+    for (const image of dustPool) {
+        if (!image.active) continue;
+
+        const age = time - image.dust.born;
+
+        if (age >= DUST_LIFETIME) {
+            image.setActive(false).setVisible(false);
+            continue;
+        }
+
+        const step = Math.floor(age / (DUST_LIFETIME / 3));
+        image.setPosition(image.dust.x + (step > 1 ? image.dust.drift : 0), image.dust.y - step);
+    }
+}
+
 function createCharacterShadow(scene) {
     const width = ACTOR_SHADOW_SHAPE[0].length;
     const height = ACTOR_SHADOW_SHAPE.length;
@@ -4106,6 +4175,10 @@ function update(time, delta) {
         const nextTextureKey = `character-${characterDirection}${frameSuffix}`;
 
         if (nextTextureKey !== characterTextureKey) {
+            if (walkFrame !== 0) {
+                kickUpDust(this, time, moveX, moveY);
+            }
+
             characterTextureKey = nextTextureKey;
             character.setTexture(characterTextureKey);
         }
@@ -4115,6 +4188,7 @@ function update(time, delta) {
     character.y = Math.round(character.y);
     character.setDepth(character.y + CHARACTER_SIZE);
     updateCharacterShadow(this);
+    updateDust(time);
 
     const guideIsNear = isGuideNear();
     updateGuideInteraction(this, guideIsNear);
