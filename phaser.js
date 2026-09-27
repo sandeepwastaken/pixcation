@@ -358,7 +358,10 @@ let characterShadow;
 const shadowLut = new Map();
 const bushShadowPoints = [];
 const staticShadowCasters = [];
-const dustPool = [];
+const particlePool = [];
+const LEAVES_PER_RUSTLE = 2;
+const LEAF_LIFETIME = 420;
+const LEAF_COLORS = [0x6c955d, 0x4a7a52];
 const BUSH_FOOTPRINT_LEFT = 3;
 const BUSH_FOOTPRINT_RIGHT = 29;
 const BUSH_FOOTPRINT_HEIGHT = 12;
@@ -2841,7 +2844,6 @@ function kickUpDust(scene, time, moveX, moveY) {
     }
 
     for (let index = 0; index < DUST_PER_STEP; index++) {
-        const image = dustPool.find(dust => !dust.active) || createDust(scene);
         const side = index % 2 === 0 ? -1 : 1;
         const spread = Math.floor(Math.random() * 2);
         const offsetX = moveX !== 0
@@ -2851,50 +2853,72 @@ function kickUpDust(scene, time, moveX, moveY) {
             ? 1 + spread
             : moveX !== 0 ? -spread : -1 - spread;
 
-        image.dust = {
+        spawnParticle(scene, shadowLayer, {
             born: time,
             x: Math.round(footX + offsetX),
             y: footY + offsetY,
-            drift: moveX !== 0 ? -moveX : side
-        };
-
-        image
-            .setTint(DUST_COLORS[index % DUST_COLORS.length])
-            .setPosition(image.dust.x, image.dust.y)
-            .setActive(true)
-            .setVisible(true);
+            drift: moveX !== 0 ? -moveX : side,
+            rise: -1,
+            lifetime: DUST_LIFETIME
+        }, DUST_COLORS[index % DUST_COLORS.length]);
     }
 }
 
-function createDust(scene) {
-    const image = scene.add.image(0, 0, '__WHITE')
-        .setOrigin(0)
-        .setDisplaySize(1, 1)
-        .setActive(false)
-        .setVisible(false);
-
-    shadowLayer.add(image);
-    dustPool.push(image);
-    return image;
+function dropLeaves(scene, time, bush) {
+    for (let index = 0; index < LEAVES_PER_RUSTLE; index++) {
+        spawnParticle(scene, worldObjectLayer, {
+            born: time,
+            x: bush.x + BUSH_FOOTPRINT_LEFT + Math.floor(Math.random() * (BUSH_FOOTPRINT_RIGHT - BUSH_FOOTPRINT_LEFT)),
+            y: bush.y - BUSH_FOOTPRINT_HEIGHT + Math.floor(Math.random() * 4),
+            drift: Math.random() < 0.5 ? -1 : 1,
+            rise: 1,
+            lifetime: LEAF_LIFETIME,
+            depth: bush.y + 1
+        }, LEAF_COLORS[index % LEAF_COLORS.length]);
+    }
 }
 
-function updateDust(time) {
-    for (const image of dustPool) {
+function spawnParticle(scene, layer, particle, color) {
+    let image = particlePool.find(candidate => !candidate.active);
+
+    if (!image) {
+        image = scene.add.image(0, 0, '__WHITE')
+            .setOrigin(0)
+            .setDisplaySize(1, 1);
+        particlePool.push(image);
+    }
+
+    if (image.displayList !== layer) {
+        layer.add(image);
+    }
+
+    image.particle = particle;
+    image
+        .setTint(color)
+        .setDepth(particle.depth || 0)
+        .setPosition(particle.x, particle.y)
+        .setActive(true)
+        .setVisible(true);
+}
+
+function updateParticles(time) {
+    for (const image of particlePool) {
         if (!image.active) continue;
 
-        const age = time - image.dust.born;
+        const particle = image.particle;
+        const age = time - particle.born;
 
-        if (age >= DUST_LIFETIME) {
+        if (age >= particle.lifetime) {
             image.setActive(false).setVisible(false);
             continue;
         }
 
-        const step = Math.floor(age / (DUST_LIFETIME / 3));
-        image.setPosition(image.dust.x + (step > 1 ? image.dust.drift : 0), image.dust.y - step);
+        const step = Math.floor(age / (particle.lifetime / 3));
+        image.setPosition(particle.x + (step > 1 ? particle.drift : 0), particle.y + step * particle.rise);
     }
 }
 
-function updateBushRustle(time, isWalking) {
+function updateBushRustle(scene, time, isWalking) {
     const left = character.x + CHARACTER_HITBOX_X;
     const top = character.y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH;
@@ -2910,6 +2934,7 @@ function updateBushRustle(time, isWalking) {
 
             if (touching && isWalking && (!bush.touching || time - bush.rustleStart > BUSH_RUSTLE_REPEAT)) {
                 bush.rustleStart = time;
+                dropLeaves(scene, time, bush);
             }
 
             bush.touching = touching;
@@ -4236,8 +4261,8 @@ function update(time, delta) {
     character.y = Math.round(character.y);
     character.setDepth(character.y + CHARACTER_SIZE);
     updateCharacterShadow(this);
-    updateDust(time);
-    updateBushRustle(time, isWalking);
+    updateParticles(time);
+    updateBushRustle(this, time, isWalking);
 
     const guideIsNear = isGuideNear();
     updateGuideInteraction(this, guideIsNear);
