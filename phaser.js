@@ -287,6 +287,11 @@ const GUIDE_HITBOX_WIDTH = 8;
 const GUIDE_HITBOX_HEIGHT = 4;
 const DIALOGUE_HIDDEN_Y = -78;
 const DIALOGUE_VISIBLE_Y = 6;
+const DIALOGUE_OPTION_X = 222;
+const DIALOGUE_OPTION_TOP = 11;
+const DIALOGUE_OPTION_STEP = 19;
+const DIALOGUE_OPTION_WIDTH = 86;
+const DIALOGUE_OPTION_HEIGHT = 17;
 const MAP_WIDTH = 296;
 const MAP_HEIGHT = 144;
 const MAP_HIDDEN_Y = -160;
@@ -331,7 +336,7 @@ const GUIDE_DIALOGUE = {
         ]
     },
     help: {
-        text: "You can move around using WASD or the arrow keys. Scroll or press 1-9 to select items.",
+        text: "Walk with WASD or the arrows. E talks or shops, M opens your map. Scroll or 1-9 picks items.",
         options: [
             {label: 'Back', next: 'intro'},
             {label: 'Exit', close: true}
@@ -359,6 +364,7 @@ let dialogueContainer;
 let dialogueTextLayer;
 let dialogueText;
 let dialogueOptionTexts = [];
+let dialogueHighlight;
 let dialogueOpen = false;
 let mapOpen = false;
 let mapContainer;
@@ -2836,7 +2842,15 @@ function createGuideDialogueUI(scene) {
         .fillStyle(0x465989, 1)
         .fillRect(7, 2, 306, 74)
         .fillStyle(0x36160d, 1)
-        .fillRect(8, 3, 304, 72);
+        .fillRect(8, 3, 304, 72)
+        .fillStyle(0x465989, 1)
+        .fillRect(DIALOGUE_OPTION_X - 7, 8, 1, 62);
+
+    dialogueHighlight = scene.add.graphics()
+        .fillStyle(0xacccf9, 1)
+        .fillRect(DIALOGUE_OPTION_X - 3, 0, DIALOGUE_OPTION_WIDTH, DIALOGUE_OPTION_HEIGHT)
+        .fillStyle(0x4a2216, 1)
+        .fillRect(DIALOGUE_OPTION_X - 2, 1, DIALOGUE_OPTION_WIDTH - 2, DIALOGUE_OPTION_HEIGHT - 2);
 
     const portrait = scene.add.image(12, 13, 'headshot')
     .setOrigin(0);
@@ -2874,10 +2888,10 @@ function createGuideDialogueUI(scene) {
     const nameText = createText(64, 5, '#acccf9');
     nameText.textContent = 'Guide';
 
-    dialogueText = createText(64, 21, '#e0f2fd', 154);
+    dialogueText = createText(64, 21, '#e0f2fd', 146);
 
     dialogueOptionTexts = [0, 1, 2].map(index => {
-        return createText(222, 14 + index * 17, '#c0a887');
+        return createText(DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 4 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });
 
     dialogueContainer = scene.add.container(
@@ -2885,6 +2899,7 @@ function createGuideDialogueUI(scene) {
         DIALOGUE_HIDDEN_Y,
         [
             panel,
+            dialogueHighlight,
             portrait
         ]
     )
@@ -3382,11 +3397,11 @@ function getMarketRowAt(x, y) {
 }
 
 function getDialogueOptionAt(x, y) {
-    const option = Math.floor((y - DIALOGUE_VISIBLE_Y - 11) / 17);
+    const option = Math.floor((y - DIALOGUE_VISIBLE_Y - DIALOGUE_OPTION_TOP) / DIALOGUE_OPTION_STEP);
 
     if (
-        x < 216 ||
-        x > 312 ||
+        x < DIALOGUE_OPTION_X - 3 ||
+        x >= DIALOGUE_OPTION_X - 3 + DIALOGUE_OPTION_WIDTH ||
         option < 0 ||
         option >= GUIDE_DIALOGUE[dialogueNode].options.length
     ) {
@@ -3663,11 +3678,13 @@ function refreshGuideDialogueOptions() {
         }
 
         optionText.style.display = 'block';
-        optionText.textContent = `${index === selectedDialogueOption ? '> ' : '  '}${option.label}`;
+        optionText.textContent = option.label;
         optionText.style.color = index === selectedDialogueOption
-            ? '#d1edf1'
+            ? '#e0f2fd'
             : '#c0a887';
     });
+
+    dialogueHighlight.setY(DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP);
 }
 
 function finishGuideDialogueText() {
