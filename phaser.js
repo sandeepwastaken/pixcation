@@ -892,7 +892,7 @@ function create() {
     }
 
     this.time.addEvent({
-        delay: 225,
+        delay: 320,
         callback: () => spawnShimmer(this),
         loop: true
     });
@@ -2532,15 +2532,21 @@ function releaseShimmer(chunk, shimmer) {
 }
 
 function spawnShimmer(scene) {
-    if (loadedShimmerChunks.size === 0) {
+    let visibleCount = 0;
+
+    for (const candidate of loadedShimmerChunks) {
+        if (candidate.visible) visibleCount++;
+    }
+
+    if (visibleCount === 0) {
         return;
     }
 
-    let pick = Math.floor(Math.random() * loadedShimmerChunks.size);
+    let pick = Math.floor(Math.random() * visibleCount);
     let chunk;
 
     for (chunk of loadedShimmerChunks) {
-        if (pick-- === 0) break;
+        if (chunk.visible && pick-- === 0) break;
     }
 
     const cell = chunk.waterCells[Math.floor(Math.random() * chunk.waterCells.length)];
