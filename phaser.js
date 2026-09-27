@@ -200,6 +200,10 @@ const HOTBAR_SLOT_SIZE = 26;
 
 let hotbarSelector;
 const hotbarItemImages = [];
+const hotbarItemNames = [];
+const ITEM_LABEL_DURATION = 1300;
+let itemLabelUntil = 0;
+let itemPrompt;
 let selectedHotbarSlot = 0;
 let worldObjectLayer;
 
@@ -751,6 +755,15 @@ function create() {
     const selectHotBarSlot = slot => {
         selectedHotbarSlot = Phaser.Math.Wrap(slot, 0, 9);
         hotbarSelector.x = HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE;
+
+        const name = hotbarItemNames[selectedHotbarSlot];
+
+        if (name && itemPrompt) {
+            itemPrompt.label.textContent = name;
+            itemLabelUntil = this.time.now + ITEM_LABEL_DURATION;
+        } else {
+            itemLabelUntil = 0;
+        }
     };
 
     this.input.on('pointermove', pointer => {
@@ -3344,7 +3357,7 @@ function createInteractionPromptUI(scene) {
         });
 
         const keycap = document.createElement('span');
-        keycap.textContent = key;
+        keycap.textContent = key || '';
 
         Object.assign(keycap.style, {
             display: 'inline-block',
@@ -3359,7 +3372,8 @@ function createInteractionPromptUI(scene) {
         const text = document.createElement('span');
         text.textContent = label;
 
-        box.append(keycap, text);
+        box.append(...(key ? [keycap, text] : [text]));
+        box.label = text;
         row.appendChild(box);
 
         return box;
@@ -3367,6 +3381,7 @@ function createInteractionPromptUI(scene) {
 
     marketPrompt = makePrompt('E', 'Market');
     guidePrompt = makePrompt('E', 'Talk to the Guide');
+    itemPrompt = makePrompt(null, '');
 
     interactionPromptLayer = scene.add.dom(0, PROMPT_Y, wrapper)
         .setOrigin(0)
@@ -3386,8 +3401,9 @@ function updateInteractionPrompt(scene, guideIsNear) {
         : null;
     const showMarket = target === 'market';
     const showGuide = target === 'guide';
+    const showItem = available && !target && scene.time.now < itemLabelUntil;
 
-    const state = (showMarket ? 1 : 0) | (showGuide ? 2 : 0);
+    const state = (showMarket ? 1 : 0) | (showGuide ? 2 : 0) | (showItem ? 4 : 0);
 
     if (state === promptState) return;
 
@@ -3413,6 +3429,7 @@ function updateInteractionPrompt(scene, guideIsNear) {
 
     marketPrompt.style.display = showMarket ? 'flex' : 'none';
     guidePrompt.style.display = showGuide ? 'flex' : 'none';
+    itemPrompt.style.display = showItem ? 'flex' : 'none';
     interactionPromptLayer.setVisible(true);
 
     if (!wasShowing) {
@@ -3585,12 +3602,14 @@ function createMarketUI(scene) {
     refreshMarketOptions();
 }
 
-function addHotbarItem(scene, textureKey) {
+function addHotbarItem(scene, textureKey, name) {
     const slot = hotbarItemImages.length;
 
     if (slot >= 9) {
         return;
     }
+
+    hotbarItemNames[slot] = name;
 
     hotbarItemImages.push(
         scene.add.image(HOTBAR_X + slot * HOTBAR_SLOT_SIZE + 5, HOTBAR_Y + 5, textureKey)
@@ -3716,7 +3735,7 @@ function buySelectedMarketItem(scene) {
 
     playerCoins -= rod.price;
     ownedRods.add(rod.id);
-    addHotbarItem(scene, 'rod');
+    addHotbarItem(scene, 'rod', rod.label);
     marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
 
     refreshMarketOptions();
