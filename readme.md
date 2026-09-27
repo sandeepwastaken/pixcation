@@ -41,7 +41,7 @@ First time you meet the guide, dialogue pops up on its own. After that, walking 
 
 - Infinite-ish procedural terrain (grass, dirt, water, bridges, piers, bushes)
 - Chunk streaming around the player, spread across frames so walking never hitches
-- **Water** — pixel-perfect shader with warped caustics, depth by distance to shore (teal-leaning shallows), coastline shimmer, and sparkle sprites
+- **Water** — pixel-perfect shader with warped caustics, depth by distance to shore, lapping shallows, coastline shimmer, sparkles, and fish shadows swimming around
 - **Shadows** — one-step palette shifts (never dark overlays) for bridges, piers, bushes, the store, the guide, and the player; overlapping shadows merge instead of stacking
 - Footstep dust on dirt, bushes that rustle and drop leaves when you walk through them
 - Guide NPC with dialogue box (pixel font `m6x11`); keyboard, scroll wheel, or mouse to pick options

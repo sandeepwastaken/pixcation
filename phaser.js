@@ -177,7 +177,7 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                         if (presence < 0.3) {
                             float speed = 0.18 + hash(cell + vec2(3.0, 91.0)) * 0.14;
                             float phase = presence * 40.0;
-                            float angle = t * speed + phase;
+                            float angle = t * speed + phase + sin(t * 0.7 + phase) * 0.22;
                             vec2 center = cell * 56.0 + 28.0 + vec2(cos(angle) * 17.0, sin(angle * 1.3) * 11.0);
                             vec2 heading = normalize(vec2(-sin(angle) * 17.0, cos(angle * 1.3) * 14.3));
                             vec2 local = p - floor(center);
