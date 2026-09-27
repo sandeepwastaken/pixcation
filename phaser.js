@@ -888,14 +888,7 @@ function create() {
     cameraScrollX = mainCamera.scrollX;
     cameraScrollY = mainCamera.scrollY;
 
-    updateLoadedChunks(this, true);
-
     spawnGuideAndStore(this);
-
-    for (const key of [...loadedChunks.keys()]) {
-        destroyWorldChunk(key);
-    }
-
     updateLoadedChunks(this, true);
     createGuideDialogueUI(this);
     createMapUI(this);
