@@ -109,13 +109,24 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                     }
 
                     float shallow = light + (depth - 0.5) * 0.5;
-
                     if (first > 0.9 && second > 0.9 && shallow > 0.6) {
                         color = vec4(0.82, 0.93, 0.945, 0.8);
                     } else if (first > 0.9 && shallow > 0.555) {
                         color = vec4(0.529, 0.745, 0.847, shallow > 0.62 ? 0.42 : 0.24);
                     } else if (first > 0.4 && shallow > 0.63) {
                         color = vec4(0.529, 0.745, 0.847, 0.16);
+                    }
+
+                    float gust = fbm((p + vec2(-t * 22.0, -t * 7.0)) * vec2(0.016, 0.028) + vec2(3.1, 8.7)) + dither * 2.0;
+
+                    if (gust > 0.64) {
+                        float ripple = mod(p.x * 0.5 + p.y * 1.5 + floor(t * 9.0), 7.0);
+
+                        if (mod(p.y, 3.0) < 1.0 && ripple < 2.0) {
+                            color = vec4(0.529, 0.745, 0.847, gust > 0.7 ? 0.34 : 0.2);
+                        } else if (gust > 0.7) {
+                            color = vec4(0.231, 0.357, 0.604, max(color.a, 0.12));
+                        }
                     }
 
                     if (mask.b > 0.5) {
