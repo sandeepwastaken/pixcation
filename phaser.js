@@ -78,7 +78,7 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                 void main() {
                     vec4 mask = texture2D(uMainSampler, outTexCoord);
 
-                    if (mask.r < 0.5) {
+                    if (mask.r < 0.25) {
                         discard;
                     }
 
@@ -129,7 +129,13 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                         }
                     }
 
-                    gl_FragColor = vec4(color.rgb * color.a, color.a);
+                    vec4 result = vec4(color.rgb * color.a, color.a);
+
+                    if (mask.r < 0.75) {
+                        result = result * 0.68 + vec4(0.09 * 0.32, 0.157 * 0.32, 0.231 * 0.32, 0.32);
+                    }
+
+                    gl_FragColor = result;
                 }
             `
         });
@@ -167,6 +173,10 @@ let worldObjectLayer;
 
 const CHUNK_SIZE = 16;
 const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
+
+const WOOD_MASK_MARGIN = TILE_SIZE;
+const WOOD_MASK_SIZE = CHUNK_PIXEL_SIZE + WOOD_MASK_MARGIN;
+const WOOD_SHADOW_OFFSET = 2;
 
 const CHUNK_LOAD_RADIUS = 1;
 const CHUNK_DISCOVERY_RADIUS = 2;
@@ -1532,6 +1542,46 @@ function getShorelineTile(scene, tile, northTile) {
     return shoreline;
 }
 
+function getChunkWoodMask(scene, chunkX, chunkY, woodTiles) {
+    const tiles = woodTiles.slice();
+
+    for (let local = -1; local < CHUNK_SIZE; local++) {
+        for (const [localX, localY] of local === -1 ? [[-1, -1]] : [[-1, local], [local, -1]]) {
+            const tile = getWorldTile(chunkX * CHUNK_SIZE + localX, chunkY * CHUNK_SIZE + localY);
+
+            if (tile.key.startsWith('wood')) {
+                tiles.push(localX, localY, tile);
+            }
+        }
+    }
+
+    if (tiles.length === 0) {
+        return null;
+    }
+
+    const mask = new Uint8Array(WOOD_MASK_SIZE * WOOD_MASK_SIZE);
+
+    for (let index = 0; index < tiles.length; index += 3) {
+        const tile = tiles[index + 2];
+        const pixels = getTerrainPixels(scene, tile.key).data;
+        const originX = tiles[index] * TILE_SIZE + WOOD_MASK_MARGIN;
+        const originY = tiles[index + 1] * TILE_SIZE + WOOD_MASK_MARGIN;
+
+        for (let y = 0; y < TILE_SIZE; y++) {
+            for (let x = 0; x < TILE_SIZE; x++) {
+                const sourceX = tile.rotation ? y : x;
+                const sourceY = tile.rotation ? TILE_SIZE - 1 - x : y;
+
+                if (pixels[(sourceY * TILE_SIZE + sourceX) * 4 + 3]) {
+                    mask[(originY + y) * WOOD_MASK_SIZE + originX + x] = 1;
+                }
+            }
+        }
+    }
+
+    return mask;
+}
+
 function getWaterMaskBase(scene) {
     if (scene.waterMaskBase) return scene.waterMaskBase;
 
@@ -1612,7 +1662,7 @@ function createWorldChunk(scene, chunkX, chunkY) {
     const waterCells = [];
     const waterMaskCells = [];
     const edgeCells = [];
-    const bridgeCells = [];
+    const woodTiles = [];
     const groundTexture = acquireChunkCanvas(scene);
     const groundContext = groundTexture.getContext();
     let upperTexture = null;
@@ -1693,12 +1743,10 @@ function createWorldChunk(scene, chunkX, chunkY) {
                     worldTile.rotation
                 );
 
-                if (isWater) {
-                    bridgeCells.push({
-                        x: tileX * TILE_SIZE,
-                        y: tileY * TILE_SIZE
-                    });
-                }
+            }
+
+            if (worldTile.key.startsWith('wood')) {
+                woodTiles.push(localX, localY, worldTile);
             }
 
             if (hasBushAt(tileX, tileY)) {
@@ -1743,17 +1791,6 @@ function createWorldChunk(scene, chunkX, chunkY) {
     const upperLayer = upperTexture
         ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5)
         : null;
-    const bridgeShadow = bridgeCells.length > 0
-        ? scene.add.graphics().setDepth(1.25)
-        : null;
-
-    if (bridgeShadow) {
-        bridgeShadow.fillStyle(0x17283b, 0.32);
-
-        for (const cell of bridgeCells) {
-            bridgeShadow.fillRect(cell.x + 2, cell.y + 2, TILE_SIZE, TILE_SIZE);
-        }
-    }
 
     let overlay = null;
     let waterTexture = null;
@@ -1775,6 +1812,22 @@ function createWorldChunk(scene, chunkX, chunkY) {
 
                 for (let x = 0; x < cell.width; x++, index += 4) {
                     data[index] = 255;
+                }
+            }
+        }
+
+        const woodMask = getChunkWoodMask(scene, chunkX, chunkY, woodTiles);
+
+        if (woodMask) {
+            for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
+                const maskRow = (y + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET) * WOOD_MASK_SIZE +
+                    WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
+                let index = y * CHUNK_PIXEL_SIZE * 4;
+
+                for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
+                    if (data[index] && woodMask[maskRow + x]) {
+                        data[index] = 128;
+                    }
                 }
             }
         }
@@ -1805,7 +1858,6 @@ function createWorldChunk(scene, chunkX, chunkY) {
         groundTexture,
         upperLayer,
         upperTexture,
-        bridgeShadow,
         waterCells,
         visible: true,
         shimmers: [],
@@ -1846,9 +1898,6 @@ function destroyWorldChunk(key) {
         chunk.overlay.destroy();
     }
 
-    if (chunk.bridgeShadow) {
-        chunk.bridgeShadow.destroy();
-    }
 
 
     if (chunk.waterTexture) {
@@ -1967,7 +2016,6 @@ function updateChunkVisibility() {
         chunk.groundLayer.setVisible(visible);
         if (chunk.upperLayer) chunk.upperLayer.setVisible(visible);
         if (chunk.overlay) chunk.overlay.setVisible(visible);
-        if (chunk.bridgeShadow) chunk.bridgeShadow.setVisible(visible);
     }
 }
 
