@@ -121,26 +121,6 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
 
                     float edgeCode = code(mask.b);
 
-                    if (shore > 3.0) {
-                        vec2 glintCell = floor(p / 23.0);
-                        float glintSeed = hash(glintCell + vec2(19.0, 47.0));
-                        float glintCycle = 5.0 + glintSeed * 6.0;
-                        float glintTime = mod(t + glintSeed * 37.0, glintCycle);
-
-                        if (glintTime < 0.6) {
-                            vec2 glintPos = glintCell * 23.0 + floor(vec2(hash(glintCell + 3.1), hash(glintCell + 7.7)) * 17.0) + 3.0;
-                            vec2 d = abs(p - glintPos);
-                            float frame = floor(glintTime / 0.12);
-                            float arm = frame < 0.5 ? 0.0 : frame < 1.5 ? 1.0 : frame < 3.5 ? 2.0 : 1.0;
-
-                            if (d.x + d.y < 0.5) {
-                                index = 8.0;
-                            } else if ((d.x < 0.5 && d.y <= arm) || (d.y < 0.5 && d.x <= arm)) {
-                                index = max(index, 7.0);
-                            }
-                        }
-                    }
-
                     float shaded = mask.r < 0.75 ? 1.0 : 0.0;
                     float fishShaded = 0.0;
 
