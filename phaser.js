@@ -168,6 +168,7 @@ const HOTBAR_Y = 155;
 const HOTBAR_SLOT_SIZE = 26;
 
 let hotbarSelector;
+const hotbarItemImages = [];
 let selectedHotbarSlot = 0;
 let worldObjectLayer;
 
@@ -2633,6 +2634,22 @@ function createMarketUI(scene) {
     refreshMarketOptions();
 }
 
+function addHotbarItem(scene, textureKey) {
+    const slot = hotbarItemImages.length;
+
+    if (slot >= 9) {
+        return;
+    }
+
+    hotbarItemImages.push(
+        scene.add.image(HOTBAR_X + slot * HOTBAR_SLOT_SIZE + 5, HOTBAR_Y + 5, textureKey)
+            .setOrigin(0)
+            .setDisplaySize(16, 16)
+            .setDepth(100.5)
+            .setScrollFactor(0)
+    );
+}
+
 function getMarketRowAt(x, y) {
     const localY = y - DIALOGUE_VISIBLE_Y - MARKET_LIST_Y;
     const row = Math.floor(localY / MARKET_ROW_HEIGHT);
@@ -2748,6 +2765,7 @@ function buySelectedMarketItem(scene) {
 
     playerCoins -= rod.price;
     ownedRods.add(rod.id);
+    addHotbarItem(scene, 'rod');
     marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
 
     refreshMarketOptions();
