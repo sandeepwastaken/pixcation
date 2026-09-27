@@ -781,8 +781,6 @@ function getShorelineTile(scene, tile, northTile) {
 }
 
 function gatherNearbyWoodTiles(chunkX, chunkY, woodTiles) {
-    const tiles = woodTiles.slice();
-
     for (let localY = -1; localY <= CHUNK_SIZE; localY++) {
         const edgeRow = localY === -1 || localY === CHUNK_SIZE;
 
@@ -790,20 +788,24 @@ function gatherNearbyWoodTiles(chunkX, chunkY, woodTiles) {
             const tile = getWorldTile(chunkX * CHUNK_SIZE + localX, chunkY * CHUNK_SIZE + localY);
 
             if (tile.key.startsWith('wood')) {
-                tiles.push(localX, localY, tile);
+                woodTiles.push(localX, localY, tile);
             }
         }
     }
 
-    return tiles;
+    return woodTiles;
 }
+
+let woodMaskScratch;
 
 function getChunkWoodMask(scene, tiles) {
     if (tiles.length === 0) {
         return null;
     }
 
-    const mask = new Uint8Array(WOOD_MASK_SIZE * WOOD_MASK_SIZE);
+    woodMaskScratch ||= new Uint8Array(WOOD_MASK_SIZE * WOOD_MASK_SIZE);
+    const mask = woodMaskScratch;
+    mask.fill(0);
 
     for (let index = 0; index < tiles.length; index += 3) {
         if (tiles[index] === CHUNK_SIZE || tiles[index + 1] === CHUNK_SIZE) continue;
@@ -872,7 +874,8 @@ function getDeckBounds(scene, key) {
 function getShoreDistances(scene, chunkX, chunkY) {
     const margin = SHORE_DISTANCE_MARGIN_TILES * TILE_SIZE;
     const size = CHUNK_PIXEL_SIZE + margin * 2;
-    const distances = new Uint16Array(size * size);
+    scene.shoreDistanceScratch ||= new Uint16Array(size * size);
+    const distances = scene.shoreDistanceScratch;
 
     for (let localY = -SHORE_DISTANCE_MARGIN_TILES; localY < CHUNK_SIZE + SHORE_DISTANCE_MARGIN_TILES; localY++) {
         for (let localX = -SHORE_DISTANCE_MARGIN_TILES; localX < CHUNK_SIZE + SHORE_DISTANCE_MARGIN_TILES; localX++) {
@@ -1354,7 +1357,8 @@ function buildChunkWater(scene, chunk) {
 
     const waterTexture = acquireChunkCanvas(scene);
     const context = waterTexture.getContext();
-    const image = context.createImageData(CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
+    scene.waterChunkImage ||= context.createImageData(CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
+    const image = scene.waterChunkImage;
     const data = image.data;
 
     data.set(getWaterMaskBase(scene));
