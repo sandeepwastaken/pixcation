@@ -1,4 +1,5 @@
 const APP_CACHE_BUSTER = window.APP_CACHE_BUSTER || new Date().toISOString().slice(0, 10);
+const TEST_MODE = new URLSearchParams(window.location.search).has('test');
 
 const withCacheBuster = (path) => `${path}?v=${APP_CACHE_BUSTER}`;
 
@@ -115,6 +116,7 @@ const terrainTypeCache = new Map();
 const worldTileCache = new Map();
 const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
+const bushPlacementCache = new Map();
 const discoveredChunks = new Set();
 const pendingChunks = [];
 const pendingWaterChunks = [];
@@ -257,81 +259,6 @@ const MARKET_FOOTER_Y = 126;
 const PROMPT_Y = HOTBAR_Y - 25;
 const SHIMMER_RECOLOR_FROM = [0x87, 0xbe, 0xd8];
 const SHIMMER_RECOLOR_TO = [0x78, 0xaf, 0xd3];
-
-const MARKET_RODS = [
-    { id: 'basic', label: 'Basic Rod', texture: 'rod-basic', icon: 'rod-basic-icon', price: 10, castDistance: 72, chargeTime: 1000, lineStrength: 1, catchZone: 24 },
-    { id: 'intermediate', label: 'Intermediate Rod', texture: 'rod-intermediate', icon: 'rod-intermediate-icon', price: 25, castDistance: 88, chargeTime: 850, lineStrength: 1.35, catchZone: 29 },
-    { id: 'master', label: 'Master Rod', texture: 'rod-master', icon: 'rod-master-icon', price: 50, castDistance: 104, chargeTime: 720, lineStrength: 1.75, catchZone: 34 }
-];
-const MARKET_SELL_INDEX = MARKET_RODS.length;
-const MARKET_EXIT_INDEX = MARKET_SELL_INDEX + 1;
-const MARKET_ROW_COUNT = MARKET_RODS.length + 2;
-const FISH_SPECIES = [
-    { id: 'bluegill', name: 'Bluegill', size: 'small', minWater: 1800, weight: 7, price: 7 },
-    { id: 'pumpkinseed', name: 'Pumpkinseed', size: 'small', minWater: 1800, weight: 6, price: 8 },
-    { id: 'largemouth-bass', name: 'Largemouth Bass', size: 'large', minWater: 6500, weight: 2.2, price: 28 },
-    { id: 'smallmouth-bass', name: 'Smallmouth Bass', size: 'medium', minWater: 4800, weight: 3, price: 22 },
-    { id: 'yellow-perch', name: 'Yellow Perch', size: 'medium', minWater: 3000, weight: 4.5, price: 14 },
-    { id: 'walleye', name: 'Walleye', size: 'large', minWater: 8000, weight: 1.4, price: 38 },
-    { id: 'rainbow-trout', name: 'Rainbow Trout', size: 'large', minWater: 6500, weight: 1.8, price: 32 },
-    { id: 'brown-trout', name: 'Brown Trout', size: 'large', minWater: 6500, weight: 1.6, price: 34 },
-    { id: 'brook-trout', name: 'Brook Trout', size: 'medium', minWater: 3800, weight: 2.8, price: 24 },
-    { id: 'common-carp', name: 'Common Carp', size: 'large', minWater: 5500, weight: 2.5, price: 25 },
-    { id: 'crucian-carp', name: 'Crucian Carp', size: 'medium', minWater: 3200, weight: 3.6, price: 17 },
-    { id: 'goldfish', name: 'Goldfish', size: 'small', minWater: 2500, weight: 1.1, price: 35 },
-    { id: 'channel-catfish', name: 'Channel Catfish', size: 'large', minWater: 7500, weight: 1.7, price: 36 },
-    { id: 'bullhead-catfish', name: 'Bullhead Catfish', size: 'medium', minWater: 4000, weight: 3, price: 19 },
-    { id: 'freshwater-drum', name: 'Freshwater Drum', size: 'large', minWater: 7500, weight: 1.6, price: 31 },
-    { id: 'white-crappie', name: 'White Crappie', size: 'medium', minWater: 3500, weight: 3.7, price: 16 },
-    { id: 'black-crappie', name: 'Black Crappie', size: 'medium', minWater: 3500, weight: 3.5, price: 17 },
-    { id: 'roach', name: 'Roach', size: 'small', minWater: 1800, weight: 6, price: 6 },
-    { id: 'rudd', name: 'Rudd', size: 'small', minWater: 2200, weight: 5, price: 8 },
-    { id: 'common-bream', name: 'Common Bream', size: 'medium', minWater: 4000, weight: 3.3, price: 18 },
-    { id: 'tench', name: 'Tench', size: 'medium', minWater: 4500, weight: 2.8, price: 21 },
-    { id: 'common-dace', name: 'Common Dace', size: 'small', minWater: 1800, weight: 5.5, price: 7 },
-    { id: 'common-minnow', name: 'Common Minnow', size: 'small', minWater: 1800, weight: 7.5, price: 4 },
-    { id: 'mosquitofish', name: 'Mosquitofish', size: 'small', minWater: 1800, weight: 7, price: 3 },
-    { id: 'zebra-danio', name: 'Zebra Danio', size: 'small', minWater: 2000, weight: 3, price: 12 },
-    { id: 'sturgeon', name: 'Sturgeon', size: 'giant', minWater: 12000, weight: 0.12, price: 250 }
-];
-const SAVE_KEY = 'pixcation-save-v1';
-
-const GUIDE_DIALOGUE = {
-    intro: {
-        portrait: 'guide-portrait-friendly',
-        text: "Hey! Need something?",
-        options: [
-            {label: 'Help', next: 'help'},
-            {label: 'Greet', next: 'greet'},
-            {label: 'Exit', close: true}
-        ]
-    },
-    help: {
-        portrait: 'guide-portrait-friendly',
-        text: "WASD or arrows walk, Shift runs. E talks or shops, M opens your map, I opens your fishpedia.",
-        options: [
-            {label: 'Fishing', next: 'fishing'},
-            {label: 'Back', next: 'intro'},
-            {label: 'Exit', close: true}
-        ]
-    },
-    fishing: {
-        portrait: 'guide-portrait-surprised',
-        text: "Ignore small taps. On the big splash, press Space or click. Then hold it to lift the catch bar around the fish.",
-        options: [
-            {label: 'Back', next: 'help'},
-            {label: 'Exit', close: true}
-        ]
-    },
-    greet: {
-        portrait: 'guide-portrait-laughing',
-        text: "Hello there! I'm your guide. It's nice to meet you. Enjoy your adventure!",
-        options: [
-            {label: 'Back', next: 'intro'},
-            {label: 'Exit', close: true}
-        ]
-    }
-};
 
 let guide;
 let shadowLayer;
@@ -616,52 +543,7 @@ function createShimmerSheet(scene) {
 function extractBushShadow(scene) {
     const pixels = getTerrainPixels(scene, 'bush');
     const { width, height } = pixels;
-    const colorAt = index => (pixels.data[index * 4] << 16) | (pixels.data[index * 4 + 1] << 8) | pixels.data[index * 4 + 2];
-    const seeds = new Set([0x6e8e45, 0xa0bc73]);
-    const passable = new Set([0x6e8e45, 0xa0bc73, 0x8eb067, 0xb0c579]);
-    const shadow = new Uint8Array(width * height);
-    const queue = [];
-
-    for (let index = 0; index < width * height; index++) {
-        if (pixels.data[index * 4 + 3] && seeds.has(colorAt(index))) {
-            shadow[index] = 1;
-            queue.push(index);
-        }
-    }
-
-    while (queue.length > 0) {
-        const index = queue.pop();
-        const x = index % width;
-        const y = Math.floor(index / width);
-
-        for (const [nextX, nextY] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
-            if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) continue;
-
-            const next = nextY * width + nextX;
-
-            if (!shadow[next] && pixels.data[next * 4 + 3] && passable.has(colorAt(next))) {
-                shadow[next] = 1;
-                queue.push(next);
-            }
-        }
-    }
-
-    const texture = scene.textures.createCanvas('bush-art', width, height);
-    const context = texture.getContext();
-    const image = context.createImageData(width, height);
-
-    image.data.set(pixels.data);
-
-    for (let index = 0; index < width * height; index++) {
-        if (shadow[index]) {
-            image.data[index * 4 + 3] = 0;
-        }
-    }
-
-    context.putImageData(image, 0, 0);
-    texture.refresh();
-
-    const solid = (x, y) => x >= 0 && y >= 0 && x < width && y < height && image.data[(y * width + x) * 4 + 3] > 0;
+    const solid = (x, y) => x >= 0 && y >= 0 && x < width && y < height && pixels.data[(y * width + x) * 4 + 3] > 0;
 
     bushShadowPoints.length = 0;
 
@@ -675,7 +557,7 @@ function extractBushShadow(scene) {
 }
 
 function createBushSlices(scene) {
-    const source = getTextureSource(scene, 'bush-art');
+    const source = getTextureSource(scene, 'bush');
     const { width, height} = source;
 
     for (let slice = 0; slice < TILE_SIZE; slice++) {
@@ -1101,9 +983,7 @@ function create() {
     createInventoryUI(this);
     createCatchCardUI(this);
     createInteractionPromptUI(this);
-    const testMode = new URLSearchParams(window.location.search).has('test');
-
-    if (testMode) {
+    if (TEST_MODE) {
         try {
             window.PIXCATION_TEST_RESULTS = runAutomatedTests(this);
         } catch (error) {
@@ -1127,7 +1007,7 @@ function create() {
         loop: true
     });
 
-    if (!testMode) {
+    if (!TEST_MODE) {
         this.time.addEvent({
             delay: 2000,
             callback: saveProgress,
@@ -1158,7 +1038,7 @@ function loadProgress(scene) {
 
     for (const savedId of Array.isArray(saved.rods) ? saved.rods : []) {
         const id = legacyRodIds[savedId] || savedId;
-        const rod = MARKET_RODS.find(candidate => candidate.id === id);
+        const rod = MARKET_RODS_BY_ID.get(id);
 
         if (rod && !ownedRods.has(id)) {
             ownedRods.add(id);
@@ -1177,14 +1057,14 @@ function loadProgress(scene) {
 
     for (const [savedId, count] of Array.isArray(saved.fish) ? saved.fish : []) {
         const id = currentSpeciesId(savedId);
-        if (FISH_SPECIES.some(species => species.id === id) && Number.isInteger(count) && count > 0) {
+        if (FISH_SPECIES_BY_ID.has(id) && Number.isInteger(count) && count > 0) {
             fishInventory.set(id, (fishInventory.get(id) || 0) + count);
         }
     }
 
     for (const savedId of Array.isArray(saved.catchLog) ? saved.catchLog : []) {
         const id = currentSpeciesId(savedId);
-        if (FISH_SPECIES.some(species => species.id === id)) catchLog.add(id);
+        if (FISH_SPECIES_BY_ID.has(id)) catchLog.add(id);
     }
 
     for (const tileId of Array.isArray(saved.explored) ? saved.explored : []) {
@@ -1196,7 +1076,7 @@ function loadProgress(scene) {
 }
 
 function saveProgress() {
-    if (newGameResetting || !saveDirty || new URLSearchParams(window.location.search).has('test')) return;
+    if (newGameResetting || !saveDirty || TEST_MODE) return;
 
     try {
         localStorage.setItem(SAVE_KEY, JSON.stringify({
@@ -1221,9 +1101,32 @@ function runAutomatedTests(scene) {
     const ordinarySizesValid = FISH_SPECIES
         .filter(species => species.id !== 'sturgeon')
         .every(species => species.size === 'small' || species.size === 'medium' || species.size === 'large');
-    const sturgeon = FISH_SPECIES.find(species => species.id === 'sturgeon');
+    const sturgeon = FISH_SPECIES_BY_ID.get('sturgeon');
     const speciesPassed = FISH_SPECIES.length === 26 && speciesIds.size === 26 && ordinarySizesValid && sturgeon?.size === 'giant';
     record('Fish species have fixed size classes', speciesPassed, speciesPassed ? '26 unique species; sturgeon is the giant exception' : 'Species size table is invalid');
+    const diagonalGrassPatch = getTerrainCornerPatch('grass', 'dirt', 'dirt', 'grass', 1);
+    const solidDirtPatch = getTerrainCornerPatch('grass', 'dirt', 'dirt', 'dirt', 1);
+    const terrainCornersPassed = diagonalGrassPatch === null && solidDirtPatch === 'dirtEdgeCorner';
+    record('Diagonal grass connections stay clean', terrainCornersPassed, terrainCornersPassed ? 'Dirt corners yield to connected grass' : 'Diagonal terrain rule regressed');
+    let nearbyBushes = 0;
+    let sampledBushes = 0;
+
+    for (let tileY = -96; tileY <= 96; tileY++) {
+        for (let tileX = -96; tileX <= 96; tileX++) {
+            if (!hasBushAt(tileX, tileY)) continue;
+            sampledBushes++;
+
+            for (let offsetX = 1; offsetX <= 2; offsetX++) {
+                if (hasBushAt(tileX + offsetX, tileY)) nearbyBushes++;
+            }
+
+            for (let offsetX = -2; offsetX <= 2; offsetX++) {
+                if (hasBushAt(tileX + offsetX, tileY + 1)) nearbyBushes++;
+            }
+        }
+    }
+
+    record('Bushes keep a clear tile gap', nearbyBushes === 0, `${sampledBushes} generated bushes checked`);
     const fishingTextures = ['fishing-ui', 'fishing-catch-zone', 'fishing-fish', 'fishing-progress'];
     const texturesPassed = fishingTextures.every(key => scene.textures.exists(key));
     record('Fishing minigame PNGs are loaded', texturesPassed, texturesPassed ? 'Frame, zone, fish and progress assets found' : 'A fishing UI texture is missing');
@@ -1878,6 +1781,22 @@ function getTerrainTileKey(tileX, tileY) {
     return 'grass1';
 }
 
+function getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy) {
+    if (terrain === 'dirt' && horizontal === 'grass' && vertical === 'grass') {
+        return 'corner';
+    }
+
+    if (terrain === 'grass' && horizontal === 'dirt' && vertical === 'dirt' && diagonal === 'dirt') {
+        return 'dirtEdgeCorner';
+    }
+
+    if (terrain === 'water' && horizontal !== 'water' && vertical !== 'water' && diagonal !== 'water') {
+        return dy < 0 ? 'dirtCliffCorner' : 'dirtEdgeCorner';
+    }
+
+    return null;
+}
+
 function getTerrainTile(tileX, tileY) {
     const terrain = getTerrainType(tileX, tileY);
     const north = getTerrainType(tileX, tileY - 1);
@@ -1935,39 +1854,16 @@ function getTerrainTile(tileX, tileY) {
     for (const [dx, dy] of TERRAIN_CORNER_OFFSETS) {
         const horizontal = dx < 0 ? west : east;
         const vertical = dy < 0 ? north : south;
+        const diagonal = getTerrainType(tileX + dx, tileY + dy);
+        const patchKey = getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy);
 
-        let key;
-        let size;
+        if (!patchKey) continue;
 
-        if (
-            terrain === 'dirt' &&
-            horizontal === 'grass' &&
-            vertical === 'grass'
-        ) {
-            key = 'corner';
-            size = 7;
-        } else if (
-            terrain === 'grass' &&
-            horizontal === 'dirt' &&
-            vertical === 'dirt'
-        ) {
-            key = 'dirtEdgeCorner';
-            size = 5;
-        } else if (
-            terrain === 'water' &&
-            horizontal !== 'water' &&
-            vertical !== 'water' &&
-            getTerrainType(tileX + dx, tileY + dy) !== 'water'
-        ) {
-            key = dy < 0 ? 'dirtCliffCorner' : 'dirtEdgeCorner';
-            size = 5;
-        } else {
-            continue;
-        }
+        const size = patchKey === 'corner' ? 7 : 5;
 
         tile.patches ||= [];
         tile.patches.push({
-            key,
+            key: patchKey,
             x: dx < 0 ? 0 : TILE_SIZE - size,
             y: dy < 0 ? 0 : TILE_SIZE - size,
             size,
@@ -3545,8 +3441,48 @@ function spawnShimmer(scene) {
     shimmer.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => releaseShimmer(chunk, shimmer));
 }
 
+function isBushCandidate(tileX, tileY) {
+    return getTerrainType(tileX, tileY) === 'grass' &&
+        getTerrainType(tileX + 1, tileY) === 'grass' &&
+        worldHash(tileX, tileY, 760) > 0.992;
+}
+
+function cacheBushPlacement(key, value) {
+    if (bushPlacementCache.size >= WORLD_CACHE_LIMIT) {
+        bushPlacementCache.clear();
+    }
+
+    bushPlacementCache.set(key, value);
+    return value;
+}
+
 function hasBushAt(tileX, tileY) {
-    return(getTerrainType(tileX, tileY) === 'grass' && getTerrainType(tileX + 1, tileY) === 'grass' && worldHash(tileX, tileY, 760) > 0.992);
+    const key = getTileId(tileX, tileY);
+    const cached = bushPlacementCache.get(key);
+
+    if (cached !== undefined) return cached;
+    if (!isBushCandidate(tileX, tileY)) return cacheBushPlacement(key, false);
+
+    const score = worldHash(tileX, tileY, 760);
+
+    for (let offsetY = -1; offsetY <= 1; offsetY++) {
+        for (let offsetX = -2; offsetX <= 2; offsetX++) {
+            if (offsetX === 0 && offsetY === 0) continue;
+
+            const nearbyX = tileX + offsetX;
+            const nearbyY = tileY + offsetY;
+
+            if (!isBushCandidate(nearbyX, nearbyY)) continue;
+
+            const nearbyScore = worldHash(nearbyX, nearbyY, 760);
+            const nearbyWins = nearbyScore > score || nearbyScore === score &&
+                (nearbyY < tileY || nearbyY === tileY && nearbyX < tileX);
+
+            if (nearbyWins) return cacheBushPlacement(key, false);
+        }
+    }
+
+    return cacheBushPlacement(key, true);
 }
 
 function isGuideSpawnTile(tileX, tileY) {
@@ -3966,7 +3902,7 @@ function hasRodSelected() {
 
 function getSelectedRod() {
     const name = hotbarItemNames[selectedHotbarSlot];
-    return MARKET_RODS.find(rod => rod.label === name) || MARKET_RODS[0];
+    return MARKET_RODS_BY_LABEL.get(name) || MARKET_RODS[0];
 }
 
 function getCastDirection() {
@@ -5894,7 +5830,7 @@ function getFishInventorySummary() {
     let value = 0;
 
     for (const [id, amount] of fishInventory) {
-        const species = FISH_SPECIES.find(candidate => candidate.id === id);
+        const species = FISH_SPECIES_BY_ID.get(id);
         if (!species) continue;
         count += amount;
         value += amount * species.price;
