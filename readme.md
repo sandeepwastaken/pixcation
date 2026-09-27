@@ -23,7 +23,7 @@ Then go to **http://localhost:8000/index.html**
 - **Shift** — hold to run
 - **Scroll** or **1–9** — hotbar slots (visual for now)
 - **E** — interact with whatever is closest (the guide or the shop); also closes the shop
-- **M** — world map, anywhere
+- **M** — world map, anywhere (WASD / arrows or drag to pan it)
 
 First time you meet the guide, dialogue pops up on its own. After that, walking up to the guide or the brown store shows a small hint above the hotbar (`E Talk to the Guide` / `E Market`).
 
