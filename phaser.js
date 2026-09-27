@@ -415,6 +415,10 @@ let mapContainer;
 let mapImage;
 let mapTexture;
 let mapTextLayer;
+let mapDrag = null;
+let mapDirty = false;
+const mapPan = { x: 0, y: 0 };
+const MAP_PAN_SPEED = 90;
 let mapPalette = null;
 let marketOpen = false;
 let marketContainer;
@@ -844,7 +848,15 @@ function create() {
                 selectedDialogueOption = option;
                 refreshGuideDialogueOptions();
             }
+        } else if (mapOpen && mapDrag && pointer.isDown) {
+            mapPan.x = mapDrag.panX + Math.round(mapDrag.x - pointer.x);
+            mapPan.y = mapDrag.panY + Math.round(mapDrag.y - pointer.y);
+            mapDirty = true;
         }
+    });
+
+    this.input.on('pointerup', () => {
+        mapDrag = null;
     });
 
     this.input.on('pointerdown', pointer => {
@@ -867,7 +879,11 @@ function create() {
                 selectGuideDialogueOption(this);
             }
         } else if (mapOpen) {
-            closeMap(this);
+            if (pointer.y < DIALOGUE_VISIBLE_Y + MAP_PANEL_HEIGHT) {
+                mapDrag = { x: pointer.x, y: pointer.y, panX: mapPan.x, panY: mapPan.y };
+            } else {
+                closeMap(this);
+            }
         }
     });
 
@@ -3229,17 +3245,20 @@ function createMapUI(scene) {
     });
 
     const hint = document.createElement('div');
-    const keycap = document.createElement('span');
-    keycap.textContent = 'M';
 
-    Object.assign(keycap.style, {
-        color: '#e0f2fd',
-        background: '#465989',
-        padding: '0 2px',
-        marginRight: '4px'
-    });
+    for (const [key, label] of [['WASD', 'Pan'], ['M', 'Close']]) {
+        const keycap = document.createElement('span');
+        keycap.textContent = key;
 
-    hint.append(keycap, 'Close');
+        Object.assign(keycap.style, {
+            color: '#e0f2fd',
+            background: '#465989',
+            padding: '0 2px',
+            margin: '0 4px 0 10px'
+        });
+
+        hint.append(keycap, label);
+    }
 
     Object.assign(hint.style, {
         position: 'absolute',
@@ -3323,8 +3342,8 @@ function redrawMap(scene) {
 
     const playerTileX = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE);
     const playerTileY = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
-    const originX = playerTileX - Math.floor(MAP_WIDTH / 2);
-    const originY = playerTileY - Math.floor(MAP_HEIGHT / 2);
+    const originX = playerTileX - Math.floor(MAP_WIDTH / 2) + Math.round(mapPan.x);
+    const originY = playerTileY - Math.floor(MAP_HEIGHT / 2) + Math.round(mapPan.y);
 
     const plot = (x, y, color) => {
         if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return;
@@ -3402,6 +3421,9 @@ function openMap(scene) {
     characterTextureKey = `character-${characterDirection}`;
     character.setTexture(characterTextureKey);
 
+    mapPan.x = 0;
+    mapPan.y = 0;
+    mapDrag = null;
     redrawMap(scene);
 
     mapContainer
@@ -3422,6 +3444,31 @@ function openMap(scene) {
         ease: 'Cubic.Out',
         onUpdate: snapTweenTarget
     });
+}
+
+function updateMapPan(scene, delta) {
+    const panX = (characterKeys.right.isDown || characterKeys.rightArrow.isDown ? 1 : 0) -
+        (characterKeys.left.isDown || characterKeys.leftArrow.isDown ? 1 : 0);
+    const panY = (characterKeys.down.isDown || characterKeys.downArrow.isDown ? 1 : 0) -
+        (characterKeys.up.isDown || characterKeys.upArrow.isDown ? 1 : 0);
+
+    if (panX || panY) {
+        const distance = MAP_PAN_SPEED * Math.min(delta, 50) / 1000;
+        const beforeX = Math.round(mapPan.x);
+        const beforeY = Math.round(mapPan.y);
+
+        mapPan.x += panX * distance;
+        mapPan.y += panY * distance;
+
+        if (Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY) {
+            mapDirty = true;
+        }
+    }
+
+    if (mapDirty) {
+        mapDirty = false;
+        redrawMap(scene);
+    }
 }
 
 function snapTweenTarget(tween, target) {
@@ -4514,6 +4561,10 @@ function update(time, delta) {
     const guideIsNear = isGuideNear();
     updateGuideInteraction(this, guideIsNear);
     updateInteractionPrompt(this, guideIsNear);
+
+    if (mapOpen) {
+        updateMapPan(this, delta);
+    }
 
     updateLoadedChunks(this);
     buildPendingChunk(this);
