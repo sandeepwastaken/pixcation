@@ -6,7 +6,8 @@
     <title>Pixcation</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <script>
-        window.APP_CACHE_BUSTER = Date.now();
+        const developmentAssets = new URLSearchParams(window.location.search).has('dev');
+        window.APP_CACHE_BUSTER = developmentAssets ? Date.now() : '1';
         const fontStyle = document.createElement('style');
         fontStyle.textContent = `
             @font-face {
@@ -39,8 +40,14 @@
     <div id="game-container"></div>
 
     <script>
-        const phaserScript = document.createElement('script');
-        phaserScript.src = `phaser.js?v=${window.APP_CACHE_BUSTER}`;
-        document.body.appendChild(phaserScript);
+        const gameScripts = ['water-pipeline.js', 'phaser.js'];
+        const loadGameScript = index => {
+            const script = document.createElement('script');
+            script.src = `${gameScripts[index]}?v=${window.APP_CACHE_BUSTER}`;
+            if (index + 1 < gameScripts.length) script.onload = () => loadGameScript(index + 1);
+            document.body.appendChild(script);
+        };
+
+        loadGameScript(0);
     </script>
 </body>

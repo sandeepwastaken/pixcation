@@ -1,4 +1,4 @@
-const APP_CACHE_BUSTER = Date.now();
+const APP_CACHE_BUSTER = window.APP_CACHE_BUSTER || '1';
 
 const withCacheBuster = (path) => `${path}?v=${APP_CACHE_BUSTER}`;
 
@@ -16,6 +16,8 @@ window.addEventListener('resize', () => {
         game.scale.setZoom(getPixelPerfectZoom());
     }
 });
+
+window.addEventListener('beforeunload', saveProgress);
 
 const config = {
     type: Phaser.AUTO,
@@ -45,177 +47,6 @@ const config = {
         preload: preload,
         create: create,
         update: update
-    }
-}
-
-class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
-    constructor(game) {
-        super({
-            game,
-            fragShader: `
-                #ifdef GL_FRAGMENT_PRECISION_HIGH
-                precision highp float;
-                #else
-                precision mediump float;
-                #endif
-
-                uniform sampler2D uMainSampler;
-                uniform float uTime;
-                uniform vec2 uScroll;
-                uniform float uViewHeight;
-                uniform vec4 uFish[24];
-                uniform vec4 uFishShape[24];
-                uniform float uFishCount;
-                varying vec2 outTexCoord;
-                varying vec4 outTint;
-
-                float hash(vec2 p) {
-                    p = mod(p, 289.0);
-                    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-                }
-
-                float noise(vec2 x) {
-                    vec2 i = floor(x);
-                    vec2 f = fract(x);
-                    f = f * f * (3.0 - 2.0 * f);
-                    return mix(
-                        mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-                        mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
-                        f.y
-                    );
-                }
-
-                float fbm(vec2 x) {
-                    vec2 r = mat2(0.8, -0.6, 0.6, 0.8) * x;
-                    return noise(r) * 0.65 + noise(mat2(0.8, 0.6, -0.6, 0.8) * x * 2.03 + vec2(7.3, 2.9)) * 0.35;
-                }
-
-                vec3 tone(float index) {
-                    if (index < 0.5) return vec3(0.353, 0.494, 0.714);
-                    if (index < 1.5) return vec3(0.376, 0.522, 0.741);
-                    if (index < 2.5) return vec3(0.392, 0.541, 0.765);
-                    if (index < 3.5) return vec3(0.408, 0.565, 0.792);
-                    if (index < 4.5) return vec3(0.420, 0.592, 0.800);
-                    if (index < 5.5) return vec3(0.435, 0.624, 0.812);
-                    if (index < 6.5) return vec3(0.451, 0.655, 0.820);
-                    if (index < 7.5) return vec3(0.471, 0.686, 0.827);
-                    return vec3(0.820, 0.929, 0.945);
-                }
-
-                float code(float channel) {
-                    return floor(channel * 255.0 + 0.5);
-                }
-
-                float caustic(vec2 p) {
-                    return mod(code(texture2D(uMainSampler, (mod(p, 32.0) + 0.5) / 256.0).g), 3.0) * 0.5;
-                }
-
-                void main() {
-                    vec4 mask = texture2D(uMainSampler, outTexCoord);
-
-                    if (mask.r < 0.25) {
-                        discard;
-                    }
-
-                    vec2 p = floor(vec2(gl_FragCoord.x, uViewHeight - gl_FragCoord.y)) + uScroll;
-                    float t = uTime;
-                    float checker = mod(p.x + p.y, 2.0) - 0.5;
-                    float bayerX = mod(p.x, 2.0);
-                    float bayerY = mod(p.y, 2.0);
-                    float bayer = (bayerX < 0.5 ? (bayerY < 0.5 ? 0.0 : 3.0) : (bayerY < 0.5 ? 2.0 : 1.0)) / 3.0 - 0.5;
-
-                    vec2 swell = p * 0.011 + vec2(t * 0.045, -t * 0.03);
-                    vec2 warp = vec2(noise(swell), noise(swell + vec2(31.7, 11.3))) - 0.5;
-                    float strength = 4.0 + 12.0 * noise(p * 0.007 + vec2(-t * 0.025, t * 0.02));
-                    vec2 rippleField = p * 0.06 + vec2(t * 0.4, t * 0.27);
-                    vec2 ripple = vec2(noise(rippleField), noise(rippleField + vec2(5.2, 1.3))) - 0.5;
-                    vec2 offset = warp * strength + ripple * 3.0;
-
-                    float shore = floor(code(mask.g) / 3.0);
-                    float wobble = (fbm(p * 0.045 + warp * 0.6 + vec2(t * 0.05, -t * 0.04)) - 0.5) * 4.0;
-                    float lap = sin(t * 1.3 + (p.x + p.y) * 0.045) * max(0.0, 1.0 - shore / 8.0) * 1.2;
-                    float reach = shore + wobble + bayer * 2.2 - lap;
-                    float depth = fbm(p * 0.012 + warp * 1.2 + vec2(t * 0.03, t * 0.01)) + bayer * 0.05 -
-                        max(0.0, shore - 15.0) * 0.012;
-                    float light = fbm(p * 0.021 - warp * 0.9 + vec2(-t * 0.06, t * 0.04)) + checker * 0.016;
-
-                    float index = 3.0;
-
-                    if (reach < 1.5) {
-                        index = 7.0;
-                    } else if (reach < 4.5) {
-                        index = 6.0;
-                    } else if (reach < 9.0) {
-                        index = 5.0;
-                    } else if (reach < 15.0) {
-                        index = 4.0;
-                    } else if (depth < 0.34) {
-                        index = 1.0;
-                    } else if (depth < 0.44) {
-                        index = 2.0;
-                    }
-
-                    float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
-                    float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
-                    float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08;
-
-                    if (first > 0.9 && second > 0.9 && gate > 0.75) {
-                        index = 8.0;
-                    } else if (first > 0.9 && second > 0.9 && gate > 0.6) {
-                        index = 7.0;
-                    } else if (first > 0.9 && gate > 0.56) {
-                        index = min(index + (gate > 0.63 ? 3.0 : 2.0), 7.0);
-                    } else if (first > 0.4 && gate > 0.64) {
-                        index = min(index + 1.0, 7.0);
-                    }
-
-                    float edgeCode = code(mask.b);
-
-                    float shaded = mask.r < 0.75 ? 1.0 : 0.0;
-                    float fishShaded = 0.0;
-
-                    for (int fish = 0; fish < 24; fish++) {
-                        if (float(fish) >= uFishCount) break;
-
-                        vec4 body = uFish[fish];
-                        vec4 shape = uFishShape[fish];
-                        vec2 local = p + 0.5 - body.xy;
-                        float along = dot(local, body.zw);
-                        float halfLength = shape.x * 0.5;
-                        float spine = clamp((halfLength - along) / shape.x, 0.0, 1.0);
-                        float wave = shape.w * spine * spine * sin(spine * 5.6 - shape.z);
-                        float across = dot(local, vec2(-body.w, body.z)) - wave;
-                        float head = halfLength - shape.y;
-
-                        if (
-                            length(vec2(along - head, across)) < shape.y ||
-                            along < head && along > -halfLength && abs(across) < shape.y * (along + halfLength) / (head + halfLength)
-                        ) {
-                            fishShaded = 1.0;
-                        }
-                    }
-
-                    if (fishShaded > 0.5) {
-                        index = max(index - 2.0, 0.0);
-                    } else if (shaded > 0.5) {
-                        index = max(index - 1.0, 0.0);
-                    }
-
-                    if (edgeCode > 250.0) {
-                        float frame = floor(t * 12.0);
-                        float edge = noise(vec2(p.x - frame, p.y + frame * 0.25) / 24.0 + vec2(41.0, 17.0));
-
-                        if (edge >= 0.58 || edge >= 0.39 && edge < 0.42) {
-                            index = 8.0;
-                        } else if (edge >= 0.46) {
-                            index = 7.0;
-                        }
-                    }
-
-                    gl_FragColor = vec4(tone(index), 1.0);
-                }
-            `
-        });
     }
 }
 
@@ -334,6 +165,17 @@ const FISH_SWEEP_IDLE = 0.06;
 const FISH_FLEE_SPEED = 42;
 const FISH_TURN = 2.2;
 const FISH_FLEE_TURN = 7;
+const FISH_NOTICE_MIN_DISTANCE = 7;
+const FISH_NOTICE_MAX_DISTANCE = 44;
+const FISH_NOTICE_DOT = 0.48;
+const FISH_LURE_SPEED = 10;
+const FISH_LURE_TURN = 5;
+const FISH_LURE_PULSE_TIME = 240;
+const FISH_INSPECT_MIN = 380;
+const FISH_INSPECT_RANGE = 360;
+const FISH_NIBBLE_DIP_TIME = 150;
+const FISH_BITE_MIN_WINDOW = 280;
+const FISH_BITE_MAX_WINDOW = 620;
 const FISH_IDLE_MIN = 700;
 const FISH_IDLE_RANGE = 2600;
 const FISH_SCARE_DISTANCE = 40;
@@ -384,6 +226,8 @@ const MAP_WIDTH = 296;
 const MAP_HEIGHT = 114;
 const MAP_TOP = 22;
 const MAP_HIDDEN_Y = -MAP_PANEL_HEIGHT;
+const INVENTORY_HEIGHT = 142;
+const INVENTORY_HIDDEN_Y = -INVENTORY_HEIGHT;
 
 const STORE_WIDTH_TILES = 3;
 const STORE_HEIGHT_TILES = 2;
@@ -402,7 +246,7 @@ const MARKET_DIVIDER_Y = 19;
 const MARKET_LIST_X = 12;
 const MARKET_LIST_Y = 24;
 const MARKET_LIST_WIDTH = 160;
-const MARKET_ROW_HEIGHT = 24;
+const MARKET_ROW_HEIGHT = 20;
 const MARKET_DETAIL_X = 178;
 const MARKET_DETAIL_WIDTH = 130;
 const MARKET_FOOTER_Y = 126;
@@ -415,7 +259,18 @@ const MARKET_RODS = [
     { id: 'sturdy', label: 'Sturdy Rod', price: 25, castDistance: 88, chargeTime: 850, lineStrength: 1.35, catchZone: 29 },
     { id: 'iron', label: 'Iron Rod', price: 50, castDistance: 104, chargeTime: 720, lineStrength: 1.75, catchZone: 34 }
 ];
-const MARKET_ROW_COUNT = MARKET_RODS.length + 1;
+const MARKET_SELL_INDEX = MARKET_RODS.length;
+const MARKET_EXIT_INDEX = MARKET_SELL_INDEX + 1;
+const MARKET_ROW_COUNT = MARKET_RODS.length + 2;
+const FISH_SPECIES = [
+    { id: 'minnow', name: 'Pond Minnow', minSize: 0, maxSize: 1, minWater: 1800, weight: 6, price: 4 },
+    { id: 'bluegill', name: 'Bluegill', minSize: 1, maxSize: 3, minWater: 2200, weight: 5, price: 8 },
+    { id: 'carp', name: 'Carp', minSize: 2, maxSize: 4, minWater: 4800, weight: 2.5, price: 16 },
+    { id: 'bass', name: 'Largemouth Bass', minSize: 3, maxSize: 5, minWater: 7000, weight: 1.5, price: 26 },
+    { id: 'catfish', name: 'Catfish', minSize: 4, maxSize: 5, minWater: 8500, weight: 0.9, price: 38 },
+    { id: 'koi', name: 'Koi', minSize: 1, maxSize: 4, minWater: 9000, weight: 0.45, price: 52 }
+];
+const SAVE_KEY = 'pixcation-save-v1';
 
 const GUIDE_DIALOGUE = {
     intro: {
@@ -427,7 +282,7 @@ const GUIDE_DIALOGUE = {
         ]
     },
     help: {
-        text: "WASD or arrows walk, Shift runs. E talks or shops, M opens your map. Scroll or 1-9 picks items.",
+        text: "WASD or arrows walk, Shift runs. E talks or shops, M opens your map, I opens your fishpedia.",
         options: [
             {label: 'Back', next: 'intro'},
             {label: 'Exit', close: true}
@@ -449,8 +304,11 @@ const shadowLut = new Map();
 const bushShadowPoints = [];
 const staticShadowCasters = [];
 const particlePool = [];
+const availableParticles = [];
 let fishing = null;
 let fishingLine;
+let fishingUi;
+let fishingActionHeld = false;
 const CAST_MIN_DISTANCE = 16;
 const CAST_METER_WIDTH = 14;
 let castCharge = null;
@@ -464,9 +322,18 @@ const ROPE_GRAVITY = 52;
 const ROPE_CONSTRAINT_PASSES = 5;
 const BOBBER_LAND_TIME = 180;
 const BOBBER_BOB_TIME = 450;
-const SPLASH_PARTICLES = 6;
+const SPLASH_PARTICLES = 8;
 const SPLASH_LIFETIME = 300;
 const FISHING_LINE_COLOR = 0xf6f5e5;
+const FISHING_GAME_X = 286;
+const FISHING_GAME_Y = 34;
+const FISHING_GAME_WIDTH = 22;
+const FISHING_GAME_HEIGHT = 104;
+const FISHING_GAME_PROGRESS_WIDTH = 3;
+const FISHING_GAME_PLAY_TOP = 5;
+const FISHING_GAME_PLAY_HEIGHT = 91;
+const CATCH_CARD_Y = 116;
+const CATCH_CARD_DURATION = 2400;
 const BOBBER_TOP_COLOR = 0xb46044;
 const ROD_COLOR = 0xa4694b;
 const BOBBER_BOTTOM_COLOR = 0xf6f5e5;
@@ -505,6 +372,20 @@ const MAP_PAN_SPEED = 90;
 const MAP_MAX_ZOOM = 3;
 let mapZoom = 1;
 let mapPalette = null;
+let inventoryOpen = false;
+let inventoryContainer;
+let inventoryTextLayer;
+let inventorySummaryText;
+let inventoryRowTexts = [];
+let inventoryCountTexts = [];
+let inventoryNewGameText;
+let newGameConfirmUntil = 0;
+let catchCardContainer;
+let catchCardTextLayer;
+let catchCardTitle;
+let catchCardDetail;
+let catchCardHideEvent;
+let catchCardUntil = 0;
 let marketOpen = false;
 let marketContainer;
 let marketTextLayer;
@@ -516,12 +397,17 @@ let marketHighlight;
 let marketDetailImage;
 let marketDetailName;
 let marketDetailStatus;
+let marketDetailStats;
 let marketDetailAction;
 let marketFeedback = null;
 let selectedMarketOption = 0;
 let playerCoins = 100;
 const coinDisplay = { value: playerCoins };
 const ownedRods = new Set();
+const fishInventory = new Map();
+const catchLog = new Set();
+let saveDirty = false;
+let newGameResetting = false;
 
 let interactionPromptLayer;
 let marketPrompt;
@@ -863,6 +749,9 @@ function create() {
     createCharacterShadow(this);
     fishingLine = this.add.graphics();
     worldObjectLayer.add(fishingLine);
+    fishingUi = this.add.graphics()
+        .setDepth(220)
+        .setScrollFactor(0);
 
     character = this.add.sprite(0, 0, 'character-front')
         .setOrigin(0)
@@ -948,23 +837,27 @@ function create() {
         }
 
         this.input.setDefaultCursor(
-            !marketOpen && !dialogueOpen && !mapOpen && getClickedWorldTarget(pointer) ? 'pointer' : 'default'
+            !marketOpen && !dialogueOpen && !mapOpen && !inventoryOpen && getClickedWorldTarget(pointer) ? 'pointer' : 'default'
         );
     });
 
     this.input.on('pointerup', () => {
         mapDrag = null;
+        fishingActionHeld = false;
         releaseCast(this.time.now);
     });
 
     this.input.keyboard.on('keyup', event => {
         if (event.code === 'Space') {
+            fishingActionHeld = false;
             releaseCast(this.time.now);
         }
     });
 
     this.input.on('pointerdown', pointer => {
-        if (marketOpen) {
+        if (inventoryOpen) {
+            if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(this);
+        } else if (marketOpen) {
             const row = getMarketRowAt(pointer.x, pointer.y);
 
             if (row !== -1) {
@@ -990,6 +883,7 @@ function create() {
             } else if (target === 'market') {
                 openMarket(this);
             } else {
+                fishingActionHeld = true;
                 beginCast(this.time.now);
             }
         } else {
@@ -1006,12 +900,14 @@ function create() {
 
         if (!step) return;
 
-        if (marketOpen || dialogueOpen || mapOpen) {
+        if (marketOpen || dialogueOpen || mapOpen || inventoryOpen) {
             if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
             lastMenuWheelTime = pointer.event.timeStamp;
         }
 
-        if (mapOpen) {
+        if (inventoryOpen) {
+            return;
+        } else if (mapOpen) {
             const zoom = Phaser.Math.Clamp(mapZoom - step, 1, MAP_MAX_ZOOM);
 
             if (zoom !== mapZoom) {
@@ -1044,6 +940,11 @@ function create() {
             return;
         }
 
+        if (inventoryOpen) {
+            handleInventoryKey(this, event);
+            return;
+        }
+
         if (mapOpen) {
             handleMapKey(this, event);
             return;
@@ -1054,7 +955,14 @@ function create() {
             return;
         }
 
+
+        if (event.key.toLowerCase() === 'i') {
+            openInventory(this);
+            return;
+        }
+
         if (event.code === 'Space') {
+            fishingActionHeld = true;
             beginCast(this.time.now);
             return;
         }
@@ -1097,7 +1005,16 @@ function create() {
     createGuideDialogueUI(this);
     createMapUI(this);
     createMarketUI(this);
+    createInventoryUI(this);
+    createCatchCardUI(this);
     createInteractionPromptUI(this);
+    const testMode = new URLSearchParams(window.location.search).has('test');
+
+    if (testMode) {
+        window.PIXCATION_TEST_RESULTS = runAutomatedTests(this);
+    } else {
+        loadProgress(this);
+    }
 
     for (let index = 0; index < 20; index++) {
         spawnShimmer(this);
@@ -1108,6 +1025,243 @@ function create() {
         callback: () => spawnShimmer(this),
         loop: true
     });
+
+    if (!testMode) {
+        this.time.addEvent({
+            delay: 2000,
+            callback: saveProgress,
+            loop: true
+        });
+    }
+}
+
+function loadProgress(scene) {
+    let saved;
+
+    try {
+        saved = JSON.parse(localStorage.getItem(SAVE_KEY));
+    } catch (error) {
+        return;
+    }
+
+    if (!saved || saved.version !== 1) return;
+
+    if (Number.isFinite(saved.coins) && saved.coins >= 0) {
+        playerCoins = Math.floor(saved.coins);
+        coinDisplay.value = playerCoins;
+    }
+
+    guideHasMetPlayer = saved.guideMet === true;
+
+    for (const id of Array.isArray(saved.rods) ? saved.rods : []) {
+        const rod = MARKET_RODS.find(candidate => candidate.id === id);
+
+        if (rod && !ownedRods.has(id)) {
+            ownedRods.add(id);
+            addHotbarItem(scene, 'rod', rod.label);
+        }
+    }
+
+    for (const [id, count] of Array.isArray(saved.fish) ? saved.fish : []) {
+        if (FISH_SPECIES.some(species => species.id === id) && Number.isInteger(count) && count > 0) {
+            fishInventory.set(id, count);
+        }
+    }
+
+    for (const id of Array.isArray(saved.catchLog) ? saved.catchLog : []) {
+        if (FISH_SPECIES.some(species => species.id === id)) catchLog.add(id);
+    }
+
+    for (const tileId of Array.isArray(saved.explored) ? saved.explored : []) {
+        if (Number.isSafeInteger(tileId)) discoveredChunks.add(tileId);
+    }
+
+    refreshMarketOptions();
+    mapDirty = true;
+}
+
+function saveProgress() {
+    if (newGameResetting || !saveDirty || new URLSearchParams(window.location.search).has('test')) return;
+
+    try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify({
+            version: 1,
+            coins: playerCoins,
+            rods: [...ownedRods],
+            fish: [...fishInventory],
+            catchLog: [...catchLog],
+            explored: [...discoveredChunks],
+            guideMet: guideHasMetPlayer
+        }));
+        saveDirty = false;
+    } catch (error) {
+        saveDirty = true;
+    }
+}
+
+function runAutomatedTests(scene) {
+    const results = [];
+    const record = (name, passed, detail) => results.push({ name, passed, detail });
+    const rodsImprove = MARKET_RODS.slice(1).every((rod, index) => {
+        const previous = MARKET_RODS[index];
+        return rod.castDistance > previous.castDistance &&
+            rod.chargeTime < previous.chargeTime &&
+            rod.lineStrength > previous.lineStrength &&
+            rod.catchZone > previous.catchZone;
+    });
+
+    record('Rod upgrades improve all fishing stats', rodsImprove, rodsImprove ? 'Distance, speed, strength and zone are monotonic' : 'Rod progression regressed');
+    const originalX = character.x;
+    const originalY = character.y;
+    let seed = 0x51f15e;
+    let movementPassed = true;
+
+    const random = () => {
+        seed = Math.imul(seed ^ seed >>> 15, 2246822519);
+        seed = Math.imul(seed ^ seed >>> 13, 3266489917);
+        return ((seed ^= seed >>> 16) >>> 0) / 4294967296;
+    };
+
+    for (let step = 0; step < 20000; step++) {
+        const axis = random() < 0.5;
+        const direction = random() < 0.5 ? -1 : 1;
+
+        stepCharacter(scene, axis ? direction : 0, axis ? 0 : direction, true);
+
+        if (!canCharacterOccupy(scene, character.x, character.y)) {
+            movementPassed = false;
+            break;
+        }
+    }
+
+    character.setPosition(originalX, originalY);
+    record('20,000 collision-safe movement steps', movementPassed, movementPassed ? 'No water or solid overlap' : 'Invalid player position');
+
+    let fishCount = 0;
+    let fishPassed = true;
+
+    for (const chunk of loadedWaterChunks) {
+        for (const fish of chunk.fish) {
+            fishCount++;
+            if (!canFishSwim(chunk, fish, fish.x, fish.y)) fishPassed = false;
+        }
+    }
+
+    record('Fish remain in valid water regions', fishPassed, `${fishCount} fish checked`);
+
+    let connectedBorders = 0;
+    let borderRoutingPassed = true;
+    let migrationProbe = null;
+
+    for (const chunk of loadedWaterChunks) {
+        for (const [offsetX, offsetY] of [[1, 0], [0, 1]]) {
+            const neighbor = loadedChunks.get(getChunkKey(chunk.chunkX + offsetX, chunk.chunkY + offsetY));
+            if (!neighbor || !neighbor.fishRegions) continue;
+
+            for (let offset = 0; offset < CHUNK_PIXEL_SIZE; offset++) {
+                const sourceX = chunk.chunkX * CHUNK_PIXEL_SIZE + (offsetX ? CHUNK_PIXEL_SIZE - 0.5 : offset + 0.5);
+                const sourceY = chunk.chunkY * CHUNK_PIXEL_SIZE + (offsetY ? CHUNK_PIXEL_SIZE - 0.5 : offset + 0.5);
+                const targetX = sourceX + offsetX;
+                const targetY = sourceY + offsetY;
+                const sourceRegion = getFishRegionAt(chunk, sourceX, sourceY);
+
+                if (
+                    !sourceRegion ||
+                    getFishDepth(chunk, sourceX, sourceY) < FISH_MIN_DEPTH + 1.5 ||
+                    getFishDepth(neighbor, targetX, targetY) < FISH_MIN_DEPTH + 1.5
+                ) {
+                    continue;
+                }
+
+                connectedBorders++;
+                const probe = { radius: 1.5, region: sourceRegion };
+                if (!canFishSwim(chunk, probe, targetX, targetY)) borderRoutingPassed = false;
+                if (!migrationProbe) migrationProbe = { chunk, neighbor, sourceRegion, targetX, targetY };
+            }
+        }
+    }
+
+    record(
+        'Connected water crosses chunk borders',
+        borderRoutingPassed,
+        connectedBorders ? `${connectedBorders} deep-water border points checked` : 'No deep-water border in the initial test area'
+    );
+
+    if (migrationProbe) {
+        const probeFish = {
+            x: migrationProbe.targetX,
+            y: migrationProbe.targetY,
+            region: migrationProbe.sourceRegion
+        };
+
+        migrationProbe.chunk.fish.push(probeFish);
+        const migrated = migrateFishToChunk(migrationProbe.chunk, migrationProbe.neighbor, probeFish);
+        const targetIndex = migrationProbe.neighbor.fish.indexOf(probeFish);
+        const migrationPassed = migrated && targetIndex !== -1 && migrationProbe.chunk.fish.indexOf(probeFish) === -1;
+
+        if (targetIndex !== -1) migrationProbe.neighbor.fish.splice(targetIndex, 1);
+        record('Fish ownership migrates between chunks', migrationPassed, migrationPassed ? 'Source removed and destination adopted fish' : 'Migration failed');
+    }
+
+    const rope = createFishingRope(0, 0, 0, 0, 88);
+
+    for (let frame = 0; frame < 240; frame++) {
+        const amount = frame / 239;
+        updateFishingRope(rope, 0, 0, 72 * amount, 12 - Math.sin(amount * Math.PI) * 18, 1000 / 60, frame > 180 ? 1 : 0.6);
+    }
+
+    const finite = rope.points.every(point => Number.isFinite(point.x) && Number.isFinite(point.y));
+    const first = rope.points[0];
+    const last = rope.points[rope.points.length - 1];
+    const anchored = first.x === 0 && first.y === 0 && Math.abs(last.x - 72) < 0.01 && Math.abs(last.y - 12) < 0.01;
+
+    record('Cast rope stays finite and anchored', finite && anchored, `${rope.points.length} simulated points`);
+
+    const activeParticlesBeforeSnap = particlePool.filter(image => image.active).length;
+    spawnLineSnap(scene, scene.time.now, rope);
+    const activeParticlesAfterSnap = particlePool.filter(image => image.active).length;
+    const snapPassed = activeParticlesAfterSnap > activeParticlesBeforeSnap;
+
+    record('Line failure creates visible fragments', snapPassed, `${activeParticlesAfterSnap - activeParticlesBeforeSnap} fragments spawned`);
+
+    for (const image of particlePool) {
+        if (image.active && image.particle.born === scene.time.now && image.particle.lifetime === 300) {
+            releaseParticle(image);
+        }
+    }
+
+    const particleCountBeforeReuse = particlePool.length;
+    const availableBeforeReuse = availableParticles.length;
+    spawnParticle(scene, shadowLayer, {
+        born: scene.time.now,
+        x: 0,
+        y: 0,
+        drift: 0,
+        rise: 0,
+        lifetime: 1
+    }, FISHING_LINE_COLOR);
+    const reusedParticle = particlePool.length === particleCountBeforeReuse && availableParticles.length === availableBeforeReuse - 1;
+    const reusedImage = particlePool.find(image => image.active && image.particle.lifetime === 1);
+    if (reusedImage) releaseParticle(reusedImage);
+    record('Particle pool reuses objects in constant time', reusedParticle, reusedParticle ? 'Free-list object reused' : 'Unexpected allocation');
+
+    showCatchCard(scene, scene.time.now, FISH_SPECIES[1], 2);
+    const catchCardPassed = catchCardTitle.textContent === 'You caught a Bluegill!' &&
+        catchCardDetail.textContent.includes('8c') && catchCardContainer.visible;
+
+    record('Catch card presents species and value', catchCardPassed, catchCardPassed ? 'Name, size and price rendered' : 'Catch card content missing');
+    if (catchCardHideEvent) catchCardHideEvent.remove(false);
+    scene.tweens.killTweensOf(catchCardContainer);
+    scene.tweens.killTweensOf(catchCardTextLayer);
+    catchCardContainer.setVisible(false);
+    catchCardTextLayer.setVisible(false);
+    catchCardUntil = 0;
+
+    return {
+        passed: results.every(result => result.passed),
+        generatedAt: new Date().toISOString(),
+        results
+    };
 }
 
 function getTileId(tileX, tileY) {
@@ -2644,6 +2798,8 @@ function updateLoadedChunks(scene, force = false) {
         return;
     }
 
+    const discoveredBefore = discoveredChunks.size;
+
     for (let offsetY = -CHUNK_DISCOVERY_RADIUS; offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
         for (let offsetX = -CHUNK_DISCOVERY_RADIUS; offsetX <= CHUNK_DISCOVERY_RADIUS; offsetX++) {
             discoveredChunks.add(getTileId(
@@ -2652,6 +2808,8 @@ function updateLoadedChunks(scene, force = false) {
             ));
         }
     }
+
+    if (discoveredChunks.size !== discoveredBefore) saveDirty = true;
 
     pendingChunks.length = 0;
 
@@ -2762,11 +2920,11 @@ function updateChunkWater(time) {
     const bottom = mainCamera.scrollY + mainCamera.height + FISH_VIEW_MARGIN;
     let count = 0;
 
-    for (const chunk of loadedWaterChunks) {
+    fishChunks: for (const chunk of loadedWaterChunks) {
         if (!chunk.visible) continue;
 
         for (const fish of chunk.fish) {
-            if (count >= FISH_MAX_VISIBLE) break;
+            if (count >= FISH_MAX_VISIBLE) break fishChunks;
             if (fish.x < left || fish.x > right || fish.y < top || fish.y > bottom) continue;
 
             fishUniforms[count * 4] = Math.round(fish.x);
@@ -2797,15 +2955,37 @@ function getFishDepth(chunk, x, y) {
     return chunk.shoreDistances[localY * CHUNK_PIXEL_SIZE + localX];
 }
 
-function canFishSwim(chunk, fish, x, y) {
-    if (getFishDepth(chunk, x, y) < FISH_MIN_DEPTH + fish.radius) {
-        return false;
-    }
+function getFishChunkAt(x, y) {
+    return loadedChunks.get(getChunkKey(
+        Math.floor(x / CHUNK_PIXEL_SIZE),
+        Math.floor(y / CHUNK_PIXEL_SIZE)
+    ));
+}
+
+function getFishRegionAt(chunk, x, y) {
+    if (!chunk || !chunk.fishRegions) return 0;
 
     const localX = Math.floor(x) - chunk.chunkX * CHUNK_PIXEL_SIZE;
     const localY = Math.floor(y) - chunk.chunkY * CHUNK_PIXEL_SIZE;
 
-    return chunk.fishRegions[localY * CHUNK_PIXEL_SIZE + localX] === fish.region;
+    if (localX < 0 || localY < 0 || localX >= CHUNK_PIXEL_SIZE || localY >= CHUNK_PIXEL_SIZE) return 0;
+    return chunk.fishRegions[localY * CHUNK_PIXEL_SIZE + localX];
+}
+
+function canFishSwim(chunk, fish, x, y) {
+    const left = chunk.chunkX * CHUNK_PIXEL_SIZE;
+    const top = chunk.chunkY * CHUNK_PIXEL_SIZE;
+    const targetChunk = x >= left && x < left + CHUNK_PIXEL_SIZE && y >= top && y < top + CHUNK_PIXEL_SIZE
+        ? chunk
+        : getFishChunkAt(x, y);
+
+    if (!targetChunk || !targetChunk.fishRegions || getFishDepth(targetChunk, x, y) < FISH_MIN_DEPTH + fish.radius) {
+        return false;
+    }
+
+    const targetRegion = getFishRegionAt(targetChunk, x, y);
+
+    return targetRegion > 0 && (targetChunk !== chunk || targetRegion === fish.region);
 }
 
 function labelFishRegions(chunk) {
@@ -2891,6 +3071,21 @@ function spawnChunkFish(chunk) {
     }
 }
 
+function chooseFishSpecies(size, waterArea) {
+    const candidates = FISH_SPECIES.filter(species =>
+        size >= species.minSize && size <= species.maxSize && waterArea >= species.minWater
+    );
+    const totalWeight = candidates.reduce((total, species) => total + species.weight, 0);
+    let roll = Math.random() * totalWeight;
+
+    for (const species of candidates) {
+        roll -= species.weight;
+        if (roll <= 0) return species;
+    }
+
+    return candidates[0] || FISH_SPECIES[0];
+}
+
 function spawnRegionFish(chunk, region, label, count, originX, originY) {
     for (let index = 0; index < count; index++) {
         const size = Math.floor(Math.random() * FISH_LENGTHS.length);
@@ -2911,7 +3106,9 @@ function spawnRegionFish(chunk, region, label, count, originX, originY) {
             timer: Math.random() * 2000,
             targetX: 0,
             targetY: 0,
-            region: label
+            region: label,
+            size,
+            species: chooseFishSpecies(size, region.length)
         };
 
         for (let attempt = 0; attempt < 40; attempt++) {
@@ -2957,6 +3154,8 @@ function scatterFishFromSplash(x, y) {
 
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {
+            if (fishing && fishing.targetFish === fish) continue;
+
             const awayX = fish.x - x;
             const awayY = fish.y - y;
 
@@ -2975,14 +3174,99 @@ function scatterFishFromSplash(x, y) {
     }
 }
 
+function updateLuredFish(chunk, fish, delta) {
+    if (!fishing || fishing.targetFish !== fish) {
+        fish.state = 'idle';
+        fish.thrusting = false;
+        fish.timer = FISH_IDLE_MIN;
+        return false;
+    }
+
+    const seconds = Math.min(delta, 50) / 1000;
+    const dx = fishing.bobberX - fish.x;
+    const dy = fishing.bobberY - fish.y;
+    const distance = Math.max(0.001, Math.hypot(dx, dy));
+    let targetHeading = Math.atan2(dy, dx);
+
+    fish.lureTime = (fish.lureTime || 0) + delta;
+
+    if (
+        fishing.state === 'inspecting' ||
+        fishing.state === 'nibbleWait' ||
+        fishing.state === 'nibbleDip' ||
+        fishing.state === 'bite' ||
+        fishing.state === 'hooked' ||
+        fishing.state === 'minigame'
+    ) {
+        targetHeading += Math.sin(fish.lureTime / 180) * 0.32;
+        fish.thrusting = false;
+        fish.velocity *= Math.exp(-5 * seconds);
+    } else {
+        const pulsing = Math.floor(fish.lureTime / FISH_LURE_PULSE_TIME) % 2 === 0;
+
+        fish.thrusting = pulsing;
+        fish.velocity += pulsing ? FISH_ACCELERATION * 0.55 * seconds : 0;
+        fish.velocity = Math.min(FISH_LURE_SPEED, fish.velocity);
+        fish.velocity *= Math.exp(-(pulsing ? FISH_DRAG : FISH_COAST_DRAG * 1.8) * seconds);
+    }
+
+    let turn = targetHeading - fish.heading;
+    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+    fish.heading += Phaser.Math.Clamp(turn, -FISH_LURE_TURN * seconds, FISH_LURE_TURN * seconds);
+
+    if (distance > fish.radius + 3 && fish.velocity > 0.05) {
+        const nextX = fish.x + Math.cos(fish.heading) * fish.velocity * seconds;
+        const nextY = fish.y + Math.sin(fish.heading) * fish.velocity * seconds;
+
+        if (canFishSwim(chunk, fish, nextX, nextY)) {
+            fish.x = nextX;
+            fish.y = nextY;
+        }
+    }
+
+    const beat = fish.thrusting ? FISH_BEAT_THRUST + fish.velocity * 0.12 : FISH_BEAT_IDLE;
+    const sweep = fish.thrusting ? FISH_SWEEP_THRUST : FISH_SWEEP_IDLE;
+
+    fish.phase = (fish.phase + Math.PI * 2 * beat * seconds) % (Math.PI * 2);
+    fish.amplitude += (fish.length * sweep - fish.amplitude) * Math.min(1, seconds * 6);
+    return true;
+}
+
+function migrateFishToChunk(chunk, targetChunk, fish) {
+    const index = chunk.fish.indexOf(fish);
+    const region = getFishRegionAt(targetChunk, fish.x, fish.y);
+
+    if (index === -1 || !region) return false;
+
+    chunk.fish.splice(index, 1);
+    fish.region = region;
+    targetChunk.fish.push(fish);
+
+    if (fishing && fishing.targetFish === fish) fishing.targetChunk = targetChunk;
+    return true;
+}
+
 function updateFish(delta) {
     const seconds = Math.min(delta, 50) / 1000;
     const playerX = character.x + CHARACTER_SIZE / 2;
     const playerY = character.y + CHARACTER_SIZE - 2;
     const running = characterPace > 1 && characterMoving;
+    const migrations = [];
+
+    const queueMigration = (chunk, fish) => {
+        const targetChunk = getFishChunkAt(fish.x, fish.y);
+        if (targetChunk && targetChunk !== chunk && loadedWaterChunks.has(targetChunk)) {
+            migrations.push({ chunk, targetChunk, fish });
+        }
+    };
 
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {
+            if (fish.state === 'lure' && updateLuredFish(chunk, fish, delta)) {
+                queueMigration(chunk, fish);
+                continue;
+            }
+
             const awayX = fish.x - playerX;
             const awayY = fish.y - playerY;
 
@@ -3072,7 +3356,13 @@ function updateFish(delta) {
                 fish.thrusting = false;
                 fish.timer = FISH_IDLE_MIN;
             }
+
+            queueMigration(chunk, fish);
         }
+    }
+
+    for (const migration of migrations) {
+        migrateFishToChunk(migration.chunk, migration.targetChunk, migration.fish);
     }
 }
 
@@ -3447,7 +3737,7 @@ function dropLeaves(scene, time, bush) {
 }
 
 function spawnParticle(scene, layer, particle, color) {
-    let image = particlePool.find(candidate => !candidate.active);
+    let image = availableParticles.pop();
 
     if (!image) {
         image = scene.add.image(0, 0, '__WHITE')
@@ -3477,13 +3767,28 @@ function updateParticles(time) {
         const age = time - particle.born;
 
         if (age >= particle.lifetime) {
-            image.setActive(false).setVisible(false);
+            releaseParticle(image);
             continue;
         }
 
         const step = Math.floor(age / (particle.lifetime / 3));
-        image.setPosition(particle.x + (step > 1 ? particle.drift : 0), particle.y + step * particle.rise);
+
+        if (particle.ring) {
+            const radius = 2 + step * 2;
+            image.setPosition(
+                particle.x + Math.round(particle.directionX * radius),
+                particle.y + Math.round(particle.directionY * radius * 0.5)
+            );
+        } else {
+            image.setPosition(particle.x + (step > 1 ? particle.drift : 0), particle.y + step * particle.rise);
+        }
     }
+}
+
+function releaseParticle(image) {
+    if (!image.active) return;
+    image.setActive(false).setVisible(false);
+    availableParticles.push(image);
 }
 
 function updateBushRustle(scene, time, isWalking) {
@@ -3569,7 +3874,17 @@ function getRodTip(time) {
 
         tip[0] += Math.round(directionX * reach + (directionY === 0 ? 0 : lift));
         tip[1] += Math.round(directionY * reach - (directionY === 0 ? lift : 0));
-    } else if (fishing.state === 'floating' || fishing.state === 'landing') {
+    } else if (
+        fishing.state === 'floating' ||
+        fishing.state === 'landing' ||
+        fishing.state === 'approaching' ||
+        fishing.state === 'inspecting' ||
+        fishing.state === 'nibbleWait' ||
+        fishing.state === 'nibbleDip' ||
+        fishing.state === 'bite' ||
+        fishing.state === 'hooked' ||
+        fishing.state === 'minigame'
+    ) {
         const wobble = Math.sin((time - fishing.start) / 95 + fishing.driftPhase);
 
         tip[0] += directionY === 0 ? 0 : Math.round(wobble);
@@ -3587,13 +3902,98 @@ function isWaterPixel(scene, x, y) {
     return getTerrainSurface(scene, tile).water[(y - tileY * TILE_SIZE) * TILE_SIZE + x - tileX * TILE_SIZE] === 1;
 }
 
+function findFishForBobber() {
+    let nearest = null;
+    let nearestDistance = Infinity;
+
+    for (const chunk of loadedWaterChunks) {
+        for (const fish of chunk.fish) {
+            if (fish.state === 'flee' || fish.state === 'lure') continue;
+
+            const dx = fishing.bobberX - fish.x;
+            const dy = fishing.bobberY - fish.y;
+            const distance = Math.hypot(dx, dy);
+
+            if (distance < FISH_NOTICE_MIN_DISTANCE || distance > FISH_NOTICE_MAX_DISTANCE) continue;
+
+            const facing = (Math.cos(fish.heading) * dx + Math.sin(fish.heading) * dy) / distance;
+
+            if (facing < FISH_NOTICE_DOT || !isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)) {
+                continue;
+            }
+
+            if (distance < nearestDistance) {
+                nearest = { fish, chunk };
+                nearestDistance = distance;
+            }
+        }
+    }
+
+    return nearest;
+}
+
+function releaseTargetFish(flee) {
+    if (!fishing || !fishing.targetFish) return;
+
+    const fish = fishing.targetFish;
+    const chunk = fishing.targetChunk;
+    const awayX = fish.x - fishing.bobberX;
+    const awayY = fish.y - fishing.bobberY;
+
+    fishing.targetFish = null;
+    fishing.targetChunk = null;
+
+    if (flee && chunk && chooseFishTarget(chunk, fish, awayX, awayY)) {
+        fish.state = 'flee';
+        fish.topSpeed = FISH_FLEE_SPEED;
+        fish.thrusting = true;
+        fish.burstTimer = 900;
+        return;
+    }
+
+    fish.state = 'idle';
+    fish.thrusting = false;
+    fish.velocity = 0;
+    fish.timer = FISH_IDLE_MIN + Math.random() * FISH_IDLE_RANGE;
+}
+
+function hookFish(time) {
+    if (!fishing || fishing.state !== 'bite' || time > fishing.biteDeadline) {
+        return false;
+    }
+
+    fishing.state = 'hooked';
+    fishing.start = time;
+    fishing.bobberY = fishing.toY + 2;
+    return true;
+}
+
 function beginCast(time) {
     if (fishing) {
+        if (fishing.state === 'minigame' || fishing.state === 'hooked') {
+            return;
+        }
+
+        if (hookFish(time)) {
+            return;
+        }
+
+        const scared = fishing.targetFish && (
+            fishing.state === 'approaching' ||
+            fishing.state === 'inspecting' ||
+            fishing.state === 'nibbleWait' ||
+            fishing.state === 'nibbleDip'
+        );
+
+        if (scared) {
+            releaseTargetFish(true);
+        }
+
         reelIn(time);
         return;
     }
 
-    if (!hasRodSelected() || dialogueOpen || marketOpen || mapOpen || castCharge) {
+    if (!hasRodSelected() || dialogueOpen || marketOpen || mapOpen || inventoryOpen || castCharge) {
         return;
     }
 
@@ -3611,7 +4011,7 @@ function releaseCast(time) {
     const power = getCastPower(time);
     castCharge = null;
 
-    if (!hasRodSelected() || dialogueOpen || marketOpen || mapOpen) {
+    if (!hasRodSelected() || dialogueOpen || marketOpen || mapOpen || inventoryOpen) {
         return;
     }
 
@@ -3667,6 +4067,8 @@ function reelIn(time) {
         return;
     }
 
+    releaseTargetFish(true);
+
     fishing.state = 'reeling';
     fishing.start = time;
     fishing.fromX = fishing.bobberX;
@@ -3681,12 +4083,13 @@ function splash(scene, time, x, y) {
 
         spawnParticle(scene, shadowLayer, {
             born: time,
-            x: Math.round(x + Math.cos(angle) * 2),
-            y: Math.round(y + Math.sin(angle) * 1),
-            drift: Math.sign(Math.round(Math.cos(angle) * 2)),
-            rise: -1,
+            x: Math.round(x),
+            y: Math.round(y),
+            ring: true,
+            directionX: Math.cos(angle),
+            directionY: Math.sin(angle),
             lifetime: SPLASH_LIFETIME
-        }, index % 2 ? 0xd1edf1 : 0x78afd3);
+        }, index % 2 ? 0x87bed8 : 0x78afd3);
     }
 }
 
@@ -3701,6 +4104,217 @@ function groundLandingPuff(scene, time, x, y) {
             lifetime: 220
         }, DUST_COLORS[index]);
     }
+}
+
+function nibbleRipple(scene, time, x, y) {
+    for (let index = 0; index < 4; index++) {
+        const horizontal = index < 2;
+        const side = index % 2 === 0 ? -1 : 1;
+
+        spawnParticle(scene, shadowLayer, {
+            born: time,
+            x: x + (horizontal ? side * 2 : 0),
+            y: y + (horizontal ? 0 : side),
+            drift: horizontal ? side : 0,
+            rise: 0,
+            lifetime: 180
+        }, index % 2 ? 0x78afd3 : 0x87bed8);
+    }
+}
+
+function startFishApproach(time) {
+    const match = findFishForBobber();
+
+    if (!match) {
+        fishing.state = 'floating';
+        fishing.start = time;
+        return;
+    }
+
+    fishing.state = 'approaching';
+    fishing.start = time;
+    fishing.targetFish = match.fish;
+    fishing.targetChunk = match.chunk;
+    match.fish.state = 'lure';
+    match.fish.lureTime = 0;
+    match.fish.velocity *= 0.4;
+}
+
+function startFishBite(scene, time) {
+    const fish = fishing.targetFish;
+    const difficulty = Phaser.Math.Clamp((fish.length - FISH_LENGTHS[0]) / (FISH_LENGTHS[FISH_LENGTHS.length - 1] - FISH_LENGTHS[0]), 0, 1);
+    const window = Phaser.Math.Linear(FISH_BITE_MAX_WINDOW, FISH_BITE_MIN_WINDOW, difficulty);
+
+    fishing.state = 'bite';
+    fishing.start = time;
+    fishing.biteDeadline = time + window;
+    splash(scene, time, fishing.bobberX, fishing.bobberY);
+}
+
+function startFishingMinigame(time) {
+    const fish = fishing.targetFish;
+    const size = FISH_LENGTHS.indexOf(fish.length);
+    const difficulty = size / (FISH_LENGTHS.length - 1);
+    const zoneHeight = fishing.rod.catchZone;
+
+    fishing.state = 'minigame';
+    fishing.start = time;
+    fishing.game = {
+        zoneY: FISHING_GAME_PLAY_HEIGHT - zoneHeight,
+        zoneHeight,
+        zoneVelocity: 0,
+        fishY: FISHING_GAME_PLAY_HEIGHT * 0.5,
+        fishVelocity: 0,
+        fishTargetY: FISHING_GAME_PLAY_HEIGHT * 0.5,
+        targetTimer: 0,
+        difficulty,
+        progress: 0.22
+    };
+}
+
+function finishFishingMinigame(scene, time, caught) {
+    const fish = fishing.targetFish;
+    const chunk = fishing.targetChunk;
+
+    if (!caught) {
+        spawnLineSnap(scene, time, fishing.rope);
+        releaseTargetFish(true);
+        splash(scene, time, fishing.bobberX, fishing.bobberY);
+        fishing = null;
+        return;
+    }
+
+    if (chunk) {
+        const index = chunk.fish.indexOf(fish);
+        if (index !== -1) chunk.fish.splice(index, 1);
+    }
+
+    const species = fish.species || FISH_SPECIES[0];
+    fishInventory.set(species.id, (fishInventory.get(species.id) || 0) + 1);
+    catchLog.add(species.id);
+    saveDirty = true;
+
+    fishing.targetFish = null;
+    fishing.targetChunk = null;
+    fishing.state = 'reeling';
+    fishing.start = time;
+    fishing.fromX = fishing.bobberX;
+    fishing.fromY = fishing.bobberY;
+
+    showCatchCard(scene, time, species, fish.size);
+}
+
+function spawnLineSnap(scene, time, rope) {
+    if (!rope || !rope.points.length) return;
+
+    const stride = Math.max(1, Math.floor(rope.points.length / 9));
+
+    for (let index = stride; index < rope.points.length; index += stride) {
+        const point = rope.points[index];
+
+        spawnParticle(scene, worldObjectLayer, {
+            born: time,
+            x: Math.round(point.x),
+            y: Math.round(point.y),
+            drift: index % 2 ? -1 : 1,
+            rise: 1,
+            lifetime: 300,
+            depth: Math.max(character.depth + 0.2, point.y)
+        }, FISHING_LINE_COLOR);
+    }
+}
+
+function updateFishingMinigame(scene, time, delta) {
+    const gameState = fishing.game;
+    const frameSeconds = Math.min(delta, 34) / 1000;
+    const difficulty = gameState.difficulty;
+    const zoneAcceleration = fishingActionHeld ? -185 : 150;
+
+    gameState.zoneVelocity += zoneAcceleration * frameSeconds;
+    gameState.zoneVelocity *= Math.exp(-2.4 * frameSeconds);
+    gameState.zoneVelocity = Phaser.Math.Clamp(gameState.zoneVelocity, -72, 82);
+    gameState.zoneY += gameState.zoneVelocity * frameSeconds;
+
+    if (gameState.zoneY < 0) {
+        gameState.zoneY = 0;
+        gameState.zoneVelocity = Math.max(0, gameState.zoneVelocity * -0.25);
+    } else if (gameState.zoneY + gameState.zoneHeight > FISHING_GAME_PLAY_HEIGHT) {
+        gameState.zoneY = FISHING_GAME_PLAY_HEIGHT - gameState.zoneHeight;
+        gameState.zoneVelocity = Math.min(0, gameState.zoneVelocity * -0.3);
+    }
+
+    gameState.targetTimer -= delta;
+
+    if (gameState.targetTimer <= 0) {
+        const margin = 4;
+        gameState.fishTargetY = margin + Math.random() * (FISHING_GAME_PLAY_HEIGHT - margin * 2);
+        gameState.targetTimer = Phaser.Math.Linear(780, 230, difficulty) * (0.65 + Math.random() * 0.7);
+    }
+
+    const fishAcceleration = Phaser.Math.Linear(75, 220, difficulty);
+    const fishMaxSpeed = Phaser.Math.Linear(28, 72, difficulty);
+    const fishDirection = Math.sign(gameState.fishTargetY - gameState.fishY);
+
+    gameState.fishVelocity += fishDirection * fishAcceleration * frameSeconds;
+    gameState.fishVelocity *= Math.exp(-Phaser.Math.Linear(5, 2.4, difficulty) * frameSeconds);
+    gameState.fishVelocity = Phaser.Math.Clamp(gameState.fishVelocity, -fishMaxSpeed, fishMaxSpeed);
+    gameState.fishY = Phaser.Math.Clamp(
+        gameState.fishY + gameState.fishVelocity * frameSeconds,
+        2,
+        FISHING_GAME_PLAY_HEIGHT - 2
+    );
+
+    const inside = gameState.fishY >= gameState.zoneY && gameState.fishY <= gameState.zoneY + gameState.zoneHeight;
+    const gainRate = Phaser.Math.Linear(0.28, 0.17, difficulty);
+    const drainRate = Phaser.Math.Linear(0.19, 0.35, difficulty) / fishing.rod.lineStrength;
+
+    gameState.progress = Phaser.Math.Clamp(
+        gameState.progress + (inside ? gainRate : -drainRate) * frameSeconds,
+        0,
+        1
+    );
+
+    if (gameState.progress >= 1) {
+        finishFishingMinigame(scene, time, true);
+    } else if (gameState.progress <= 0) {
+        finishFishingMinigame(scene, time, false);
+    }
+}
+
+function drawFishingMinigame() {
+    if (!fishing || fishing.state !== 'minigame') return;
+
+    const gameState = fishing.game;
+    const x = FISHING_GAME_X;
+    const y = FISHING_GAME_Y;
+    const playX = x + 5;
+    const playY = y + FISHING_GAME_PLAY_TOP;
+
+    fishingUi
+        .fillStyle(0x230a03, 1)
+        .fillRect(x, y, FISHING_GAME_WIDTH, FISHING_GAME_HEIGHT)
+        .fillStyle(0xacccf9, 1)
+        .fillRect(x + 1, y + 1, FISHING_GAME_WIDTH - 2, FISHING_GAME_HEIGHT - 2)
+        .fillStyle(0x36160d, 1)
+        .fillRect(x + 2, y + 2, FISHING_GAME_WIDTH - 4, FISHING_GAME_HEIGHT - 4)
+        .fillStyle(0x465989, 1)
+        .fillRect(playX - 1, playY - 1, 10, FISHING_GAME_PLAY_HEIGHT + 2)
+        .fillStyle(0x230a03, 1)
+        .fillRect(playX, playY, 8, FISHING_GAME_PLAY_HEIGHT)
+        .fillStyle(0x78afd3, 0.9)
+        .fillRect(playX, playY + Math.round(gameState.zoneY), 8, Math.round(gameState.zoneHeight))
+        .fillStyle(0xe0f2fd, 1)
+        .fillRect(playX + 2, playY + Math.round(gameState.fishY) - 1, 4, 2)
+        .fillRect(playX + 1, playY + Math.round(gameState.fishY), 1, 1)
+        .fillStyle(0x230a03, 1)
+        .fillRect(x + 17, playY, FISHING_GAME_PROGRESS_WIDTH, FISHING_GAME_PLAY_HEIGHT)
+        .fillStyle(0x8fbf7a, 1)
+        .fillRect(
+            x + 17,
+            playY + Math.round(FISHING_GAME_PLAY_HEIGHT * (1 - gameState.progress)),
+            FISHING_GAME_PROGRESS_WIDTH,
+            Math.round(FISHING_GAME_PLAY_HEIGHT * gameState.progress)
+        );
 }
 
 function plotFishingLine(fromX, fromY, toX, toY, sag) {
@@ -3813,8 +4427,9 @@ function drawFishingRope(rope) {
 
 function updateFishing(scene, time, delta, isWalking) {
     fishingLine.clear();
+    fishingUi.clear();
 
-    if (castCharge && (isWalking || dialogueOpen || marketOpen || mapOpen || !hasRodSelected())) {
+    if (castCharge && (isWalking || dialogueOpen || marketOpen || mapOpen || inventoryOpen || !hasRodSelected())) {
         castCharge = null;
     }
 
@@ -3822,7 +4437,7 @@ function updateFishing(scene, time, delta, isWalking) {
 
     if (!fishing) return;
 
-    if (fishing.state !== 'reeling' && (isWalking || dialogueOpen || marketOpen || mapOpen || !hasRodSelected())) {
+    if (fishing.state !== 'reeling' && (isWalking || dialogueOpen || marketOpen || mapOpen || inventoryOpen || !hasRodSelected())) {
         reelIn(time);
 
         if (!fishing) {
@@ -3871,16 +4486,101 @@ function updateFishing(scene, time, delta, isWalking) {
         if (amount >= 1) {
             fishing.state = 'floating';
             fishing.start = time;
+            startFishApproach(time);
         }
-    } else if (fishing.state === 'floating') {
+    } else if (
+        fishing.state === 'floating' ||
+        fishing.state === 'approaching' ||
+        fishing.state === 'inspecting' ||
+        fishing.state === 'nibbleWait' ||
+        fishing.state === 'nibbleDip' ||
+        fishing.state === 'bite' ||
+        fishing.state === 'hooked' ||
+        fishing.state === 'minigame'
+    ) {
+        const stateAge = time - fishing.start;
         const driftX = Math.round(Math.sin(age / 1300 + fishing.driftPhase));
         const driftY = Math.round(Math.sin(age / 1700 + fishing.driftPhase * 0.7));
         const candidateX = fishing.toX + driftX;
         const candidateY = fishing.toY + driftY;
+        const canDrift = fishing.state !== 'bite' && fishing.state !== 'hooked';
+        const baseX = canDrift && isWaterPixel(scene, candidateX, candidateY) ? candidateX : fishing.toX;
+        const baseY = canDrift && isWaterPixel(scene, candidateX, candidateY) ? candidateY : fishing.toY;
 
-        fishing.bobberX = isWaterPixel(scene, candidateX, candidateY) ? candidateX : fishing.toX;
-        fishing.bobberY = (isWaterPixel(scene, candidateX, candidateY) ? candidateY : fishing.toY) +
-            (Math.floor(age / BOBBER_BOB_TIME) % 2);
+        fishing.bobberX = baseX;
+        fishing.bobberY = baseY + (Math.floor(age / BOBBER_BOB_TIME) % 2);
+
+        if (fishing.state === 'approaching') {
+            const fish = fishing.targetFish;
+
+            if (!fish || fish.state !== 'lure') {
+                releaseTargetFish(false);
+                fishing.state = 'floating';
+                fishing.start = time;
+            } else if (Math.hypot(fish.x - fishing.bobberX, fish.y - fishing.bobberY) <= fish.radius + 4) {
+                fishing.state = 'inspecting';
+                fishing.start = time;
+                fishing.inspectDuration = FISH_INSPECT_MIN + Math.random() * FISH_INSPECT_RANGE;
+                fish.velocity = 0;
+            }
+        } else if (fishing.state === 'inspecting' && stateAge >= fishing.inspectDuration) {
+            fishing.nibblesRemaining = Math.floor(Math.random() * 5);
+            fishing.state = 'nibbleWait';
+            fishing.start = time;
+            fishing.nextNibbleAt = time + 300 + Math.random() * 420;
+        } else if (fishing.state === 'nibbleWait' && time >= fishing.nextNibbleAt) {
+            if (fishing.nibblesRemaining > 0) {
+                fishing.state = 'nibbleDip';
+                fishing.start = time;
+                fishing.nibbleRippleShown = false;
+            } else {
+                startFishBite(scene, time);
+            }
+        } else if (fishing.state === 'nibbleDip') {
+            const dipAmount = Math.sin(Math.min(1, stateAge / FISH_NIBBLE_DIP_TIME) * Math.PI);
+
+            fishing.bobberY += Math.round(dipAmount * 2);
+
+            if (!fishing.nibbleRippleShown && stateAge >= FISH_NIBBLE_DIP_TIME * 0.25) {
+                fishing.nibbleRippleShown = true;
+                nibbleRipple(scene, time, fishing.bobberX, fishing.bobberY);
+            }
+
+            if (stateAge >= FISH_NIBBLE_DIP_TIME) {
+                fishing.nibblesRemaining--;
+                fishing.state = 'nibbleWait';
+                fishing.start = time;
+                fishing.nextNibbleAt = time + 260 + Math.random() * 380;
+            }
+        } else if (fishing.state === 'bite') {
+            fishing.bobberY = fishing.toY + 3;
+
+            if (time > fishing.biteDeadline) {
+                releaseTargetFish(true);
+                fishing.state = 'floating';
+                fishing.start = time;
+            }
+        } else if (fishing.state === 'hooked') {
+            const fish = fishing.targetFish;
+
+            fishing.bobberY = fishing.toY + 2;
+
+            if (fish) {
+                fish.velocity = 0;
+                fish.thrusting = false;
+            }
+
+            if (stateAge >= 220) {
+                startFishingMinigame(time);
+            }
+        } else if (fishing.state === 'minigame') {
+            fishing.bobberY = fishing.toY + 2;
+            updateFishingMinigame(scene, time, delta);
+
+            if (!fishing) {
+                return;
+            }
+        }
     } else {
         const amount = Math.min(1, age / REEL_DURATION);
 
@@ -3917,9 +4617,12 @@ function updateFishing(scene, time, delta, isWalking) {
         fishing.bobberX,
         fishing.bobberY - 2,
         delta,
-        fishing.state === 'reeling' ? 1 : fishing.state === 'flying' ? 0.7 : 0
+        fishing.state === 'reeling' || fishing.state === 'bite' || fishing.state === 'hooked' || fishing.state === 'minigame'
+            ? 1
+            : fishing.state === 'flying' ? 0.7 : 0
     );
     drawFishingRope(fishing.rope);
+    drawFishingMinigame();
     fishingLine.fillStyle(BOBBER_TOP_COLOR, 1);
     fishingLine.fillRect(fishing.bobberX - 1, fishing.bobberY - 2, 2, 1);
     fishingLine.fillStyle(BOBBER_BOTTOM_COLOR, 1);
@@ -4284,7 +4987,7 @@ function redrawMap(scene) {
 }
 
 function openMap(scene) {
-    if (mapOpen || dialogueOpen || marketOpen || !mapContainer) {
+    if (mapOpen || dialogueOpen || marketOpen || inventoryOpen || !mapContainer) {
         return;
     }
 
@@ -4381,6 +5084,284 @@ function handleMapKey(scene, event) {
     }
 }
 
+function createInventoryUI(scene) {
+    const panel = scene.add.graphics();
+
+    panel
+        .fillStyle(0x230a03, 1)
+        .fillRect(5, 0, 310, INVENTORY_HEIGHT)
+        .fillStyle(0xacccf9, 1)
+        .fillRect(6, 1, 308, INVENTORY_HEIGHT - 2)
+        .fillStyle(0x465989, 1)
+        .fillRect(7, 2, 306, INVENTORY_HEIGHT - 4)
+        .fillStyle(0x36160d, 1)
+        .fillRect(8, 3, 304, INVENTORY_HEIGHT - 6)
+        .fillStyle(0x465989, 1)
+        .fillRect(12, 19, 296, 1)
+        .fillRect(12, 121, 296, 1);
+
+    const textLayer = document.createElement('div');
+
+    Object.assign(textLayer.style, {
+        position: 'relative',
+        width: '320px',
+        height: `${INVENTORY_HEIGHT}px`,
+        fontFamily: 'm6x11, monospace',
+        fontSize: '16px',
+        lineHeight: '11px',
+        pointerEvents: 'none',
+        color: '#c0a887',
+        whiteSpace: 'nowrap'
+    });
+
+    const createText = (x, y, width, align) => {
+        const text = document.createElement('div');
+
+        Object.assign(text.style, {
+            position: 'absolute',
+            left: `${x}px`,
+            top: `${y}px`,
+            width: width ? `${width}px` : 'auto',
+            textAlign: align || 'left'
+        });
+
+        textLayer.appendChild(text);
+        return text;
+    };
+
+    const title = createText(14, 5);
+    title.textContent = 'Fishpedia';
+    title.style.color = '#acccf9';
+    inventorySummaryText = createText(145, 5, 161, 'right');
+    inventorySummaryText.style.fontSize = '11px';
+
+    inventoryRowTexts = [];
+    inventoryCountTexts = [];
+
+    for (let index = 0; index < FISH_SPECIES.length; index++) {
+        const y = 25 + index * 15;
+        inventoryRowTexts.push(createText(16, y, 190));
+        inventoryCountTexts.push(createText(205, y, 101, 'right'));
+    }
+
+    const footer = createText(12, 126, 296, 'center');
+    footer.style.fontSize = '11px';
+    footer.style.color = '#8c7358';
+    footer.textContent = 'I / Esc  Close     N  New Game';
+    inventoryNewGameText = footer;
+
+    inventoryContainer = scene.add.container(0, INVENTORY_HIDDEN_Y, [panel])
+        .setDepth(203)
+        .setScrollFactor(0)
+        .setVisible(false);
+
+    inventoryTextLayer = scene.add.dom(0, INVENTORY_HIDDEN_Y, textLayer)
+        .setOrigin(0)
+        .setDepth(204)
+        .setScrollFactor(0)
+        .setVisible(false);
+
+    inventoryTextLayer.pointerEvents = 'none';
+    refreshInventoryUI(scene.time.now);
+}
+
+function refreshInventoryUI(time) {
+    if (!inventorySummaryText) return;
+
+    const summary = getFishInventorySummary();
+    inventorySummaryText.textContent = `${catchLog.size}/${FISH_SPECIES.length} caught · ${summary.count} fish · ${summary.value}c`;
+    inventorySummaryText.style.color = summary.count ? '#e8c170' : '#8c7358';
+
+    FISH_SPECIES.forEach((species, index) => {
+        const caught = catchLog.has(species.id);
+        const count = fishInventory.get(species.id) || 0;
+
+        inventoryRowTexts[index].textContent = caught ? species.name : '???';
+        inventoryRowTexts[index].style.color = caught ? '#e0f2fd' : '#6f5b49';
+        inventoryCountTexts[index].textContent = caught ? `x${count}   ${species.price}c` : 'Undiscovered';
+        inventoryCountTexts[index].style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
+    });
+
+    const confirming = time < newGameConfirmUntil;
+    inventoryNewGameText.textContent = confirming
+        ? 'Press N again to erase all progress'
+        : 'I / Esc  Close     N  New Game';
+    inventoryNewGameText.style.color = confirming ? '#d9745b' : '#8c7358';
+}
+
+function openInventory(scene) {
+    if (inventoryOpen || mapOpen || marketOpen || dialogueOpen || !inventoryContainer) return;
+
+    inventoryOpen = true;
+    newGameConfirmUntil = 0;
+    characterMoveRemainderX = 0;
+    characterMoveRemainderY = 0;
+    refreshInventoryUI(scene.time.now);
+
+    inventoryContainer.setVisible(true).setY(INVENTORY_HIDDEN_Y);
+    inventoryTextLayer.setVisible(true).setY(INVENTORY_HIDDEN_Y);
+    scene.tweens.killTweensOf(inventoryContainer);
+    scene.tweens.killTweensOf(inventoryTextLayer);
+    scene.tweens.add({
+        targets: [inventoryContainer, inventoryTextLayer],
+        y: DIALOGUE_VISIBLE_Y,
+        duration: 180,
+        ease: 'Cubic.Out',
+        onUpdate: snapTweenTarget
+    });
+}
+
+function closeInventory(scene) {
+    if (!inventoryOpen) return;
+
+    inventoryOpen = false;
+    newGameConfirmUntil = 0;
+    scene.tweens.killTweensOf(inventoryContainer);
+    scene.tweens.killTweensOf(inventoryTextLayer);
+    scene.tweens.add({
+        targets: [inventoryContainer, inventoryTextLayer],
+        y: INVENTORY_HIDDEN_Y,
+        duration: 140,
+        ease: 'Cubic.In',
+        onUpdate: snapTweenTarget,
+        onComplete: () => {
+            if (!inventoryOpen) {
+                inventoryContainer.setVisible(false);
+                inventoryTextLayer.setVisible(false);
+            }
+        }
+    });
+}
+
+function handleInventoryKey(scene, event) {
+    const key = event.key.toLowerCase();
+
+    if (key === 'i' || event.key === 'Escape') {
+        closeInventory(scene);
+        return;
+    }
+
+    if (key !== 'n') return;
+
+    if (scene.time.now < newGameConfirmUntil) {
+        newGameResetting = true;
+        saveDirty = false;
+        localStorage.removeItem(SAVE_KEY);
+        window.location.reload();
+        return;
+    }
+
+    newGameConfirmUntil = scene.time.now + 2500;
+    refreshInventoryUI(scene.time.now);
+}
+
+function createCatchCardUI(scene) {
+    const panel = scene.add.graphics();
+
+    panel
+        .fillStyle(0x230a03, 1)
+        .fillRect(40, 0, 240, 30)
+        .fillStyle(0xacccf9, 1)
+        .fillRect(41, 1, 238, 28)
+        .fillStyle(0x465989, 1)
+        .fillRect(42, 2, 236, 26)
+        .fillStyle(0x36160d, 1)
+        .fillRect(43, 3, 234, 24);
+
+    const textLayer = document.createElement('div');
+
+    Object.assign(textLayer.style, {
+        position: 'relative',
+        width: '320px',
+        height: '30px',
+        fontFamily: 'm6x11, monospace',
+        textAlign: 'center',
+        pointerEvents: 'none',
+        whiteSpace: 'nowrap'
+    });
+
+    catchCardTitle = document.createElement('div');
+    catchCardDetail = document.createElement('div');
+
+    Object.assign(catchCardTitle.style, {
+        position: 'absolute',
+        top: '4px',
+        left: '43px',
+        width: '234px',
+        color: '#e0f2fd',
+        fontSize: '16px',
+        lineHeight: '11px'
+    });
+
+    Object.assign(catchCardDetail.style, {
+        position: 'absolute',
+        top: '16px',
+        left: '43px',
+        width: '234px',
+        color: '#e8c170',
+        fontSize: '11px',
+        lineHeight: '9px'
+    });
+
+    textLayer.append(catchCardTitle, catchCardDetail);
+
+    catchCardContainer = scene.add.container(0, CATCH_CARD_Y + 8, [panel])
+        .setDepth(205)
+        .setScrollFactor(0)
+        .setAlpha(0)
+        .setVisible(false);
+
+    catchCardTextLayer = scene.add.dom(0, CATCH_CARD_Y + 8, textLayer)
+        .setOrigin(0)
+        .setDepth(206)
+        .setScrollFactor(0)
+        .setAlpha(0)
+        .setVisible(false);
+
+    catchCardTextLayer.pointerEvents = 'none';
+}
+
+function showCatchCard(scene, time, species, size) {
+    const sizeLabels = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Giant'];
+
+    catchCardTitle.textContent = `You caught a ${species.name}!`;
+    catchCardDetail.textContent = `${sizeLabels[size] || 'Unknown'} shadow · ${species.price}c`;
+    catchCardUntil = time + CATCH_CARD_DURATION;
+    itemLabelUntil = 0;
+
+    if (catchCardHideEvent) catchCardHideEvent.remove(false);
+    scene.tweens.killTweensOf(catchCardContainer);
+    scene.tweens.killTweensOf(catchCardTextLayer);
+
+    for (const target of [catchCardContainer, catchCardTextLayer]) {
+        target.setVisible(true).setAlpha(0).setY(CATCH_CARD_Y + 8);
+    }
+
+    scene.tweens.add({
+        targets: [catchCardContainer, catchCardTextLayer],
+        y: CATCH_CARD_Y,
+        alpha: 1,
+        duration: 180,
+        ease: 'Cubic.Out',
+        onUpdate: snapTweenTarget
+    });
+
+    catchCardHideEvent = scene.time.delayedCall(CATCH_CARD_DURATION - 180, () => {
+        scene.tweens.add({
+            targets: [catchCardContainer, catchCardTextLayer],
+            y: CATCH_CARD_Y - 4,
+            alpha: 0,
+            duration: 180,
+            ease: 'Cubic.In',
+            onUpdate: snapTweenTarget,
+            onComplete: () => {
+                catchCardContainer.setVisible(false);
+                catchCardTextLayer.setVisible(false);
+            }
+        });
+    });
+}
+
 function createInteractionPromptUI(scene) {
     const wrapper = document.createElement('div');
     const row = document.createElement('div');
@@ -4453,7 +5434,7 @@ function createInteractionPromptUI(scene) {
 function updateInteractionPrompt(scene, guideIsNear) {
     if (!interactionPromptLayer || !marketPrompt || !guidePrompt) return;
 
-    const available = !dialogueOpen && !marketOpen && !mapOpen;
+    const available = !dialogueOpen && !marketOpen && !mapOpen && !inventoryOpen && scene.time.now >= catchCardUntil;
     const target = available && (guideIsNear || isMarketNear())
         ? getInteractionTarget(guideHasMetPlayer)
         : null;
@@ -4590,11 +5571,11 @@ function createMarketUI(scene) {
 
     for (let index = 0; index < MARKET_ROW_COUNT; index++) {
         const rowY = MARKET_LIST_Y + index * MARKET_ROW_HEIGHT + 6;
-        const isExit = index === MARKET_RODS.length;
+        const isAction = index >= MARKET_RODS.length;
 
-        marketOptionTexts.push(createText(isExit ? MARKET_LIST_X + 6 : MARKET_LIST_X + 24, rowY, '#c0a887'));
+        marketOptionTexts.push(createText(isAction ? MARKET_LIST_X + 6 : MARKET_LIST_X + 24, rowY, '#c0a887'));
 
-        if (!isExit) {
+        if (!isAction) {
             marketPriceTexts.push(createText(MARKET_LIST_X, rowY, '#c0a887', MARKET_LIST_WIDTH - 5, 'right'));
         }
     }
@@ -4602,9 +5583,12 @@ function createMarketUI(scene) {
     const detailTextX = MARKET_DETAIL_X + 4;
     const detailTextWidth = MARKET_DETAIL_WIDTH - 8;
 
-    marketDetailName = createText(detailTextX, MARKET_LIST_Y + 46, '#e0f2fd', detailTextWidth, 'center');
-    marketDetailStatus = createText(detailTextX, MARKET_LIST_Y + 60, '#c0a887', detailTextWidth, 'center');
-    marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 76, '#acccf9', detailTextWidth, 'center');
+    marketDetailName = createText(detailTextX, MARKET_LIST_Y + 44, '#e0f2fd', detailTextWidth, 'center');
+    marketDetailStatus = createText(detailTextX, MARKET_LIST_Y + 57, '#c0a887', detailTextWidth, 'center');
+    marketDetailStats = createText(detailTextX, MARKET_LIST_Y + 70, '#8c7358', detailTextWidth, 'center', 11);
+    marketDetailStats.style.whiteSpace = 'pre';
+    marketDetailStats.style.lineHeight = '9px';
+    marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 88, '#acccf9', detailTextWidth, 'center');
 
     const footer = createText(12, MARKET_FOOTER_Y, '#8c7358', 296, 'center', 11);
 
@@ -4738,6 +5722,20 @@ function getMarketRodStatus(rod) {
     return { text: `${rod.price}c`, color: '#e8c170' };
 }
 
+function getFishInventorySummary() {
+    let count = 0;
+    let value = 0;
+
+    for (const [id, amount] of fishInventory) {
+        const species = FISH_SPECIES.find(candidate => candidate.id === id);
+        if (!species) continue;
+        count += amount;
+        value += amount * species.price;
+    }
+
+    return { count, value };
+}
+
 function refreshMarketOptions() {
     if (!marketMessageText) {
         return;
@@ -4759,21 +5757,39 @@ function refreshMarketOptions() {
         marketRodImages[index].setAlpha(owned ? 0.45 : 1);
     });
 
-    const exitIndex = MARKET_RODS.length;
-    const exitText = marketOptionTexts[exitIndex];
+    const sellSummary = getFishInventorySummary();
+    const sellText = marketOptionTexts[MARKET_SELL_INDEX];
+    const exitText = marketOptionTexts[MARKET_EXIT_INDEX];
 
+    sellText.textContent = 'Sell fish';
+    sellText.style.color = MARKET_SELL_INDEX === selectedMarketOption ? '#e0f2fd' : '#c0a887';
     exitText.textContent = 'Leave';
-    exitText.style.color = exitIndex === selectedMarketOption ? '#e0f2fd' : '#c0a887';
+    exitText.style.color = MARKET_EXIT_INDEX === selectedMarketOption ? '#e0f2fd' : '#c0a887';
 
     const rod = MARKET_RODS[selectedMarketOption];
 
     if (!rod) {
         marketDetailImage.setVisible(false);
-        marketDetailName.textContent = 'Leave shop';
-        marketDetailStatus.textContent = 'Come back soon!';
-        marketDetailStatus.style.color = '#c0a887';
-        marketDetailAction.textContent = 'Enter - Leave';
-        marketDetailAction.style.color = '#acccf9';
+        marketDetailStats.textContent = '';
+
+        if (selectedMarketOption === MARKET_SELL_INDEX) {
+            marketDetailName.textContent = 'Sell fish';
+            marketDetailStatus.textContent = sellSummary.count
+                ? `${sellSummary.count} fish · ${sellSummary.value}c`
+                : 'No fish to sell';
+            marketDetailStatus.style.color = sellSummary.count ? '#e8c170' : '#c0a887';
+            marketDetailAction.textContent = marketFeedback
+                ? marketFeedback.text
+                : sellSummary.count ? 'Enter - Sell all' : '';
+            marketDetailAction.style.color = marketFeedback ? marketFeedback.color : '#acccf9';
+        } else {
+            marketDetailName.textContent = 'Leave shop';
+            marketDetailStatus.textContent = 'Come back soon!';
+            marketDetailStatus.style.color = '#c0a887';
+            marketDetailAction.textContent = 'Enter - Leave';
+            marketDetailAction.style.color = '#acccf9';
+        }
+
         return;
     }
 
@@ -4783,6 +5799,7 @@ function refreshMarketOptions() {
     marketDetailName.textContent = rod.label;
     marketDetailStatus.textContent = status.text;
     marketDetailStatus.style.color = status.color;
+    marketDetailStats.textContent = `Cast ${(rod.castDistance / TILE_SIZE).toFixed(1)}t · Charge ${(rod.chargeTime / 1000).toFixed(2)}s\nLine ${rod.lineStrength.toFixed(2)}x · Zone ${rod.catchZone}`;
 
     if (marketFeedback) {
         marketDetailAction.textContent = marketFeedback.text;
@@ -4796,8 +5813,33 @@ function refreshMarketOptions() {
 }
 
 function buySelectedMarketItem(scene) {
-    if (selectedMarketOption >= MARKET_RODS.length) {
+    if (selectedMarketOption === MARKET_EXIT_INDEX) {
         closeMarket(scene);
+        return;
+    }
+
+    if (selectedMarketOption === MARKET_SELL_INDEX) {
+        const summary = getFishInventorySummary();
+
+        if (!summary.count) return;
+
+        playerCoins += summary.value;
+        fishInventory.clear();
+        saveDirty = true;
+        marketFeedback = { text: `Sold for ${summary.value}c!`, color: '#8fbf7a' };
+
+        scene.tweens.killTweensOf(coinDisplay);
+        scene.tweens.add({
+            targets: coinDisplay,
+            value: playerCoins,
+            duration: 260,
+            ease: 'Quad.Out',
+            onUpdate: () => {
+                marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`;
+            }
+        });
+
+        refreshMarketOptions();
         return;
     }
 
@@ -4809,6 +5851,7 @@ function buySelectedMarketItem(scene) {
 
     playerCoins -= rod.price;
     ownedRods.add(rod.id);
+    saveDirty = true;
 
     scene.tweens.killTweensOf(coinDisplay);
     scene.tweens.add({
@@ -4830,7 +5873,7 @@ function moveMarketSelection(amount) {
     selectedMarketOption = Phaser.Math.Wrap(
         selectedMarketOption + amount,
         0,
-        MARKET_RODS.length + 1
+        MARKET_ROW_COUNT
     );
     marketFeedback = null;
 
@@ -4842,6 +5885,7 @@ function openMarket(scene) {
         marketOpen ||
         mapOpen ||
         dialogueOpen ||
+        inventoryOpen ||
         !marketContainer ||
         !marketTextLayer ||
         !isMarketNear()
@@ -5089,6 +6133,7 @@ function openGuideDialogue(scene) {
         marketOpen ||
         mapOpen ||
         dialogueOpen ||
+        inventoryOpen ||
         !guide ||
         !dialogueContainer ||
         !dialogueTextLayer
@@ -5131,6 +6176,7 @@ function closeGuideDialogue(scene) {
 
     dialogueOpen = false;
     guideHasMetPlayer = true;
+    saveDirty = true;
 
     if (dialogueTypingEvent) {
         dialogueTypingEvent.remove(false);
@@ -5229,7 +6275,8 @@ function updateGuideInteraction(scene, guideIsNear) {
         !guideHasMetPlayer &&
         !dialogueOpen &&
         !mapOpen &&
-        !marketOpen
+        !marketOpen &&
+        !inventoryOpen
     ) {
         openGuideDialogue(scene);
     }
@@ -5376,7 +6423,7 @@ function update(time, delta) {
     let moveX = 0;
     let moveY = 0;
 
-    if (!dialogueOpen && !mapOpen && !marketOpen) {
+    if (!dialogueOpen && !mapOpen && !marketOpen && !inventoryOpen) {
         const left = characterKeys.left.isDown || characterKeys.leftArrow.isDown;
         const right = characterKeys.right.isDown || characterKeys.rightArrow.isDown;
         const up = characterKeys.up.isDown || characterKeys.upArrow.isDown;
@@ -5462,6 +6509,11 @@ function update(time, delta) {
 
     if (mapOpen) {
         updateMapPan(this, delta);
+    }
+
+    if (inventoryOpen && newGameConfirmUntil && time >= newGameConfirmUntil) {
+        newGameConfirmUntil = 0;
+        refreshInventoryUI(time);
     }
 
     updateLoadedChunks(this);
