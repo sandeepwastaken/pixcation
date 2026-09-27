@@ -340,7 +340,9 @@ const availableParticles = [];
 let fishing = null;
 let fishingLine;
 let fishingUiPanel;
-let fishingCatchZone;
+let fishingCatchZoneTop;
+let fishingCatchZoneMiddle;
+let fishingCatchZoneBottom;
 let fishingFishMarker;
 let fishingProgressFill;
 let fishingActionHeld = false;
@@ -821,10 +823,18 @@ function create() {
     worldObjectLayer.add(fishingLine);
     fishingUiPanel = this.add.image(FISHING_GAME_X, FISHING_GAME_Y, 'fishing-ui')
         .setOrigin(0).setDepth(220).setScrollFactor(0).setVisible(false);
-    fishingCatchZone = this.add.image(0, 0, 'fishing-catch-zone')
+    const catchZoneTexture = this.textures.get('fishing-catch-zone');
+    catchZoneTexture.add('top', 0, 0, 0, 8, 3);
+    catchZoneTexture.add('middle', 0, 0, 3, 8, 2);
+    catchZoneTexture.add('bottom', 0, 0, 5, 8, 3);
+    fishingCatchZoneTop = this.add.image(0, 0, 'fishing-catch-zone', 'top')
+        .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
+    fishingCatchZoneMiddle = this.add.image(0, 0, 'fishing-catch-zone', 'middle')
+        .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
+    fishingCatchZoneBottom = this.add.image(0, 0, 'fishing-catch-zone', 'bottom')
         .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
     fishingFishMarker = this.add.image(0, 0, 'fishing-fish')
-        .setOrigin(0).setDepth(222).setScrollFactor(0).setVisible(false);
+        .setOrigin(0.5).setDepth(222).setScrollFactor(0).setVisible(false);
     fishingProgressFill = this.add.image(0, 0, 'fishing-progress')
         .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
 
@@ -4378,10 +4388,11 @@ function updateFishingMinigame(scene, time, delta) {
     gameState.fishVelocity += fishDirection * fishAcceleration * frameSeconds;
     gameState.fishVelocity *= Math.exp(-Phaser.Math.Linear(5, 2.4, difficulty) * frameSeconds);
     gameState.fishVelocity = Phaser.Math.Clamp(gameState.fishVelocity, -fishMaxSpeed, fishMaxSpeed);
+    const fishHalfHeight = fishingFishMarker.height / 2;
     gameState.fishY = Phaser.Math.Clamp(
         gameState.fishY + gameState.fishVelocity * frameSeconds,
-        2,
-        FISHING_GAME_PLAY_HEIGHT - 2
+        fishHalfHeight,
+        FISHING_GAME_PLAY_HEIGHT - fishHalfHeight
     );
 
     const inside = gameState.fishY >= gameState.zoneY && gameState.fishY <= gameState.zoneY + gameState.zoneHeight;
@@ -4402,7 +4413,14 @@ function updateFishingMinigame(scene, time, delta) {
 }
 
 function drawFishingMinigame() {
-    const pieces = [fishingUiPanel, fishingCatchZone, fishingFishMarker, fishingProgressFill];
+    const pieces = [
+        fishingUiPanel,
+        fishingCatchZoneTop,
+        fishingCatchZoneMiddle,
+        fishingCatchZoneBottom,
+        fishingFishMarker,
+        fishingProgressFill
+    ];
 
     if (!fishing || fishing.state !== 'minigame') {
         pieces.forEach(piece => piece.setVisible(false));
@@ -4415,18 +4433,28 @@ function drawFishingMinigame() {
     const playX = x + 5;
     const playY = y + FISHING_GAME_PLAY_TOP;
     const progressHeight = Math.max(1, Math.round(FISHING_GAME_PLAY_HEIGHT * gameState.progress));
+    const progressTop = FISHING_GAME_PLAY_HEIGHT - progressHeight;
+    const zoneY = playY + Math.round(gameState.zoneY);
+    const zoneHeight = Math.round(gameState.zoneHeight);
+    const zoneMiddleHeight = Math.max(1, zoneHeight - 6);
 
     fishingUiPanel.setVisible(true);
-    fishingCatchZone
-        .setPosition(playX, playY + Math.round(gameState.zoneY))
-        .setDisplaySize(8, Math.round(gameState.zoneHeight))
+    fishingCatchZoneTop
+        .setPosition(playX, zoneY)
+        .setVisible(true);
+    fishingCatchZoneMiddle
+        .setPosition(playX, zoneY + 3)
+        .setDisplaySize(8, zoneMiddleHeight)
+        .setVisible(true);
+    fishingCatchZoneBottom
+        .setPosition(playX, zoneY + zoneHeight - 3)
         .setVisible(true);
     fishingFishMarker
-        .setPosition(playX + 1, playY + Math.round(gameState.fishY) - 1)
+        .setPosition(playX + 4, playY + Math.round(gameState.fishY))
         .setVisible(true);
     fishingProgressFill
-        .setPosition(x + 17, playY + FISHING_GAME_PLAY_HEIGHT - progressHeight)
-        .setDisplaySize(FISHING_GAME_PROGRESS_WIDTH, progressHeight)
+        .setCrop(0, progressTop, FISHING_GAME_PROGRESS_WIDTH, progressHeight)
+        .setPosition(x + 17, playY)
         .setVisible(true);
 }
 
