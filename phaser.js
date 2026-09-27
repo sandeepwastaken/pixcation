@@ -3142,7 +3142,7 @@ function createInteractionPromptUI(scene) {
         fontFamily: 'm6x11, monospace',
         fontSize: '11px',
         lineHeight: '11px',
-        color: '#f4f1de',
+        color: '#c0a887',
         whiteSpace: 'nowrap',
     });
 
@@ -3154,9 +3154,9 @@ function createInteractionPromptUI(scene) {
             alignItems: 'center',
             gap: '5px',
             padding: '3px 6px',
-            background: 'rgba(0, 0, 0, 0.5)',
+            background: '#36160d',
             borderRadius: '0',
-            boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.12)'
+            boxShadow: 'inset 0 0 0 1px #465989, 0 0 0 1px #230a03'
         });
 
         const keycap = document.createElement('span');
@@ -3166,8 +3166,9 @@ function createInteractionPromptUI(scene) {
             display: 'inline-block',
             textAlign: 'center',
             minWidth: '10px',
-            color: '#fff',
-            background: 'rgba(255, 255, 255, 0.14)',
+            padding: '0 1px',
+            color: '#e0f2fd',
+            background: '#465989',
             borderRadius: '0'
         });
 
