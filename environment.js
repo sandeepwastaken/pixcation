@@ -419,11 +419,15 @@ function getShadowStyle(scene, key) {
 }
 
 function shadeColor(r, g, b) {
-    return shadowLut.get((r << 16) | (g << 8) | b) || [
-        Math.round(r * 0.86),
-        Math.round(g * 0.86),
-        Math.round(b * 0.86)
-    ];
+    const key = (r << 16) | (g << 8) | b;
+    let shaded = shadowLut.get(key);
+
+    if (!shaded) {
+        shaded = [Math.round(r * 0.86), Math.round(g * 0.86), Math.round(b * 0.86)];
+        shadowLut.set(key, shaded);
+    }
+
+    return shaded;
 }
 
 function getDominantColor(scene, key) {

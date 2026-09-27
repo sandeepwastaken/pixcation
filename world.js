@@ -996,24 +996,20 @@ function isFlatShadowTile(tile) {
     return !tile.patches && (tile.key.startsWith('grass') || tile.key === 'dirt1');
 }
 
+let detailedShadowScratch;
+
 function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     let minX = CHUNK_PIXEL_SIZE;
     let minY = CHUNK_PIXEL_SIZE;
     let maxX = -1;
     let maxY = -1;
-    const detailed = [];
+    detailedShadowScratch ||= new Uint32Array(mask.length);
+    const detailed = detailedShadowScratch;
+    let detailedCount = 0;
 
     for (let localY = 0; localY < CHUNK_PIXEL_SIZE; localY++) {
         let runStart = -1;
         let runColor = null;
-
-        const flush = end => {
-            if (runStart === -1) return;
-            context.fillStyle = runColor;
-            context.fillRect(runStart, localY, end - runStart, 1);
-            runStart = -1;
-            runColor = null;
-        };
 
         for (let localX = 0; localX < CHUNK_PIXEL_SIZE; localX++) {
             const pixel = localY * CHUNK_PIXEL_SIZE + localX;
@@ -1029,7 +1025,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
                     if (isFlatShadowTile(tile)) {
                         color = getShadowStyle(scene, tile.key);
                     } else {
-                        detailed.push(pixel);
+                        detailed[detailedCount++] = pixel;
                         minX = Math.min(minX, localX);
                         minY = Math.min(minY, localY);
                         maxX = Math.max(maxX, localX);
@@ -1039,7 +1035,12 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
             }
 
             if (color !== runColor || !color) {
-                flush(localX);
+                if (runStart !== -1) {
+                    context.fillStyle = runColor;
+                    context.fillRect(runStart, localY, localX - runStart, 1);
+                    runStart = -1;
+                    runColor = null;
+                }
                 if (color) {
                     runStart = localX;
                     runColor = color;
@@ -1047,17 +1048,21 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
             }
         }
 
-        flush(CHUNK_PIXEL_SIZE);
+        if (runStart !== -1) {
+            context.fillStyle = runColor;
+            context.fillRect(runStart, localY, CHUNK_PIXEL_SIZE - runStart, 1);
+        }
     }
 
-    if (detailed.length === 0) {
+    if (detailedCount === 0) {
         return;
     }
 
     const width = maxX - minX + 1;
     const image = context.getImageData(minX, minY, width, maxY - minY + 1);
 
-    for (const pixel of detailed) {
+    for (let detail = 0; detail < detailedCount; detail++) {
+        const pixel = detailed[detail];
         const index = ((Math.floor(pixel / CHUNK_PIXEL_SIZE) - minY) * width + pixel % CHUNK_PIXEL_SIZE - minX) * 4;
         if (!image.data[index + 3]) continue;
 
