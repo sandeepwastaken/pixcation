@@ -126,16 +126,21 @@ function spawnChunkFish(chunk) {
 }
 
 function chooseFishSpecies(waterArea) {
-    const candidates = FISH_SPECIES.filter(species => waterArea >= species.minWater);
-    const totalWeight = candidates.reduce((total, species) => total + species.weight, 0);
+    let totalWeight = 0;
+
+    for (const species of FISH_SPECIES) {
+        if (waterArea >= species.minWater) totalWeight += species.weight;
+    }
+
     let roll = Math.random() * totalWeight;
 
-    for (const species of candidates) {
+    for (const species of FISH_SPECIES) {
+        if (waterArea < species.minWater) continue;
         roll -= species.weight;
         if (roll <= 0) return species;
     }
 
-    return candidates[0] || FISH_SPECIES[0];
+    return FISH_SPECIES[0];
 }
 
 function createFish(species, giantScale) {

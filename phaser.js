@@ -1,6 +1,7 @@
 const APP_CACHE_BUSTER = window.APP_CACHE_BUSTER || new Date().toISOString().slice(0, 10);
-const TEST_MODE = new URLSearchParams(window.location.search).has('test');
-const CHEATS_ENABLED = new URLSearchParams(window.location.search).get('cheats') === 'true';
+const APP_QUERY = new URLSearchParams(window.location.search);
+const TEST_MODE = APP_QUERY.has('test');
+const CHEATS_ENABLED = APP_QUERY.get('cheats') === 'true';
 
 const withCacheBuster = (path) => `${path}?v=${APP_CACHE_BUSTER}`;
 
@@ -1530,7 +1531,8 @@ function createCharacterShadow(scene) {
     const image = scene.add.image(0, 0, texture.key).setOrigin(0);
 
     shadowLayer.add(image);
-    characterShadow = { texture, image, x: null, y: null };
+    const context = texture.getContext();
+    characterShadow = { texture, image, context, pixels: context.createImageData(width, height), x: null, y: null };
 }
 
 function updateCharacterShadow(scene) {
@@ -1545,10 +1547,10 @@ function updateCharacterShadow(scene) {
     characterShadow.y = y;
     characterShadow.image.setPosition(x, y);
 
-    const context = characterShadow.texture.getContext();
     const width = ACTOR_SHADOW_SHAPE[0].length;
     const height = ACTOR_SHADOW_SHAPE.length;
-    const image = context.createImageData(width, height);
+    const image = characterShadow.pixels;
+    image.data.fill(0);
 
     for (let row = 0; row < height; row++) {
         for (let column = 0; column < width; column++) {
@@ -1565,7 +1567,7 @@ function updateCharacterShadow(scene) {
         }
     }
 
-    context.putImageData(image, 0, 0);
+    characterShadow.context.putImageData(image, 0, 0);
     characterShadow.texture.refresh();
 }
 
@@ -1578,12 +1580,7 @@ function isBlockedByProp(left, top, right, bottom) {
             const type = getPropAt(tileX, tileY);
             if (!type || !PROP_TYPES[type].solid) continue;
 
-            const sprite = getPropSprite(type, tileX, tileY);
-            const baseY = (tileY + 1) * TILE_SIZE;
-
-            if (left < sprite.hitRight && right > sprite.hitLeft && top < baseY && bottom > baseY - sprite.hitHeight) {
-                return true;
-            }
+            if (propBlocksRect(type, tileX, tileY, left, top, right, bottom)) return true;
         }
     }
 

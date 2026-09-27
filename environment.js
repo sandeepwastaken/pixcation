@@ -93,12 +93,7 @@ function propsConflict(typeA, ax, ay, typeB, bx, by) {
 }
 
 function cachePropPlacement(key, value) {
-    if (propPlacementCache.size >= WORLD_CACHE_LIMIT) {
-        propPlacementCache.clear();
-    }
-
-    propPlacementCache.set(key, value);
-    return value;
+    return cacheWorldValue(propPlacementCache, key, value);
 }
 
 function getPropAt(tileX, tileY) {
@@ -189,6 +184,30 @@ function getPropSprite(type, tileX, tileY) {
         hitRight: hitbox ? x + art.width - hitbox[0] : x,
         hitHeight: hitbox ? hitbox[1] : 0
     };
+}
+
+function propBlocksRect(type, tileX, tileY, left, top, right, bottom) {
+    const baseY = (tileY + 1) * TILE_SIZE;
+    let hitLeft;
+    let hitRight;
+    let hitHeight;
+
+    if (type === 'tree') {
+        const variant = getTreeVariant(tileX, tileY);
+        const x = tileX * TILE_SIZE + TILE_SIZE - variant.width / 2;
+        hitLeft = x + variant.hitLeft;
+        hitRight = x + variant.hitRight;
+        hitHeight = TREE_HITBOX_HEIGHT;
+    } else {
+        const art = propArt.get(type);
+        const hitbox = PROP_TYPES[type].hitbox;
+        const x = tileX * TILE_SIZE + Math.floor((PROP_TYPES[type].width * TILE_SIZE - art.width) / 2);
+        hitLeft = x + hitbox[0];
+        hitRight = x + art.width - hitbox[0];
+        hitHeight = hitbox[1];
+    }
+
+    return left < hitRight && right > hitLeft && top < baseY && bottom > baseY - hitHeight;
 }
 
 function isGuideSpawnTile(tileX, tileY) {
@@ -486,11 +505,12 @@ function getGroundShadowColor(scene, worldX, worldY) {
         return null;
     }
 
-    const base = tile.key.startsWith('grass') || tile.key === 'dirt1'
-        ? getDominantColor(scene, tile.key)
-        : pixels.ground.subarray(index, index + 3);
+    if (tile.key.startsWith('grass') || tile.key === 'dirt1') {
+        const base = getDominantColor(scene, tile.key);
+        return shadeColor(base[0], base[1], base[2]);
+    }
 
-    return shadeColor(base[0], base[1], base[2]);
+    return shadeColor(pixels.ground[index], pixels.ground[index + 1], pixels.ground[index + 2]);
 }
 
 function kickUpDust(scene, time, moveX, moveY) {

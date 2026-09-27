@@ -2,6 +2,16 @@ function getTileId(tileX, tileY) {
     return tileX * 67108864 + tileY;
 }
 
+function cacheWorldValue(cache, key, value) {
+    if (cache.size >= WORLD_CACHE_LIMIT) {
+        const keys = cache.keys();
+        for (let index = 0; index < 512; index++) cache.delete(keys.next().value);
+    }
+
+    cache.set(key, value);
+    return value;
+}
+
 function coordinateHash(x, y, seedHash) {
     let number = Math.imul(x, 374761393) + Math.imul(y, 668265263) + seedHash;
     
@@ -85,13 +95,7 @@ function getTerrainType(tileX, tileY) {
         }
     }
 
-    if (terrainTypeCache.size >= WORLD_CACHE_LIMIT) {
-        terrainTypeCache.clear();
-    }
-
-    terrainTypeCache.set(key, terrain);
-
-    return terrain;
+    return cacheWorldValue(terrainTypeCache, key, terrain);
 }
 
 function isLandTile(tileX, tileY) {
@@ -190,12 +194,7 @@ function findWaterRun(tileX, tileY, stepX, stepY) {
 }
 
 function cacheBridgeCandidate(key, bridge) {
-    if (bridgeCandidateCache.size >= WORLD_CACHE_LIMIT) {
-        bridgeCandidateCache.clear();
-    }
-
-    bridgeCandidateCache.set(key, bridge);
-    return bridge;
+    return cacheWorldValue(bridgeCandidateCache, key, bridge);
 }
 
 function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
@@ -391,13 +390,7 @@ function getPierCandidate(anchorX, anchorY) {
         }
     }
 
-    if (pierCandidateCache.size >= WORLD_CACHE_LIMIT) {
-        pierCandidateCache.clear();
-    }
-
-    pierCandidateCache.set(key, pier);
-
-    return pier;
+    return cacheWorldValue(pierCandidateCache, key, pier);
 }
 
 function getPierTile(tileX, tileY) {
@@ -591,13 +584,7 @@ function getWorldTile(tileX, tileY) {
         : name.includes('edge') || name.includes('left') || name.includes('right') ? 'lower'
         : null;
 
-    if (worldTileCache.size >= WORLD_CACHE_LIMIT) {
-        worldTileCache.clear();
-    }
-
-    worldTileCache.set(key, tile);
-
-    return tile;
+    return cacheWorldValue(worldTileCache, key, tile);
 }
 
 function getWorldTileKey(tileX, tileY) {
