@@ -168,7 +168,31 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
 
                     float edgeCode = code(mask.b);
 
-                    if (mask.r < 0.75) {
+                    float shaded = mask.r < 0.75 ? 1.0 : 0.0;
+
+                    if (shore > 4.0) {
+                        vec2 cell = floor(p / 56.0);
+                        float presence = hash(cell + vec2(71.0, 13.0));
+
+                        if (presence < 0.3) {
+                            float speed = 0.18 + hash(cell + vec2(3.0, 91.0)) * 0.14;
+                            float phase = presence * 40.0;
+                            float angle = t * speed + phase;
+                            vec2 center = cell * 56.0 + 28.0 + vec2(cos(angle) * 17.0, sin(angle * 1.3) * 11.0);
+                            vec2 heading = normalize(vec2(-sin(angle) * 17.0, cos(angle * 1.3) * 14.3));
+                            vec2 local = p - floor(center);
+                            float along = dot(local, heading);
+                            float across = dot(local, vec2(-heading.y, heading.x));
+                            float body = (along * along) / 16.0 + (across * across) / 2.6;
+                            float tail = along < -3.5 && along > -6.5 && abs(across) < (-along - 3.0) * 0.9 ? 1.0 : 0.0;
+
+                            if (body < 1.0 || tail > 0.5) {
+                                shaded = 1.0;
+                            }
+                        }
+                    }
+
+                    if (shaded > 0.5) {
                         index = max(index - 1.0, 0.0);
                     }
 
