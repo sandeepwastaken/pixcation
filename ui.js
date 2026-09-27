@@ -331,6 +331,7 @@ function openMap(scene) {
     mapPan.x = 0;
     mapPan.y = 0;
     mapDrag = null;
+    mapDirty = false;
     redrawMap(scene);
 
     showSlidingPanel(scene, MAP_HIDDEN_Y, mapContainer, mapTextLayer);

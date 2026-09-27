@@ -14,10 +14,14 @@ function getPixelPerfectZoom() {
     return Math.max(1, scale) / ratio;
 }
 
+let resizeFrame = 0;
+
 window.addEventListener('resize', () => {
-    if (game) {
-        game.scale.setZoom(getPixelPerfectZoom());
-    }
+    if (resizeFrame) return;
+    resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        if (game) game.scale.setZoom(getPixelPerfectZoom());
+    });
 });
 
 window.addEventListener('beforeunload', saveProgress);
