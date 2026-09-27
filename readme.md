@@ -43,7 +43,7 @@ First time you meet the guide, dialogue pops up on its own. After that, walking 
 - Guide NPC with dialogue box (pixel font `m6x11`)
 - Placeholder **store** (3×2 tiles) spawned behind the guide on valid terrain
 - **Minimap** — explored tiles only, gray checkerboard for fog, guide marked in blue
-- **Rod shop** — spend coins on placeholder rod icons (swap art in `media/rod.png` later)
+- **Rod shop** — spend coins on rods; bought rods show up in the hotbar (placeholder art in `media/rod.png`)
 
 ## Assets
 
