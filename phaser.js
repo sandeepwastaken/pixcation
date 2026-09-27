@@ -3611,13 +3611,29 @@ function addHotbarItem(scene, textureKey, name) {
 
     hotbarItemNames[slot] = name;
 
-    hotbarItemImages.push(
-        scene.add.image(HOTBAR_X + slot * HOTBAR_SLOT_SIZE + 5, HOTBAR_Y + 5, textureKey)
-            .setOrigin(0)
-            .setDisplaySize(16, 16)
-            .setDepth(100.5)
-            .setScrollFactor(0)
-    );
+    const centerX = HOTBAR_X + slot * HOTBAR_SLOT_SIZE + 13;
+    const centerY = HOTBAR_Y + 13;
+    const image = scene.add.image(centerX, centerY, textureKey)
+        .setDepth(100.5)
+        .setScrollFactor(0);
+    const grow = { size: 10 };
+
+    const applySize = () => {
+        const size = Math.round(grow.size / 2) * 2;
+        image.setDisplaySize(size, size).setPosition(centerX, centerY);
+    };
+
+    applySize();
+    hotbarItemImages.push(image);
+
+    scene.tweens.add({
+        targets: grow,
+        size: 16,
+        duration: 200,
+        ease: 'Back.Out',
+        onUpdate: applySize,
+        onComplete: applySize
+    });
 }
 
 function getMarketRowAt(x, y) {
