@@ -41,7 +41,7 @@
     <script>
         const gameScripts = ['game-data.js'];
         if (new URLSearchParams(window.location.search).has('test')) gameScripts.push('automated-tests.js');
-        gameScripts.push('water-pipeline.js', 'world.js', 'fish.js', 'fishing.js', 'ui.js', 'phaser.js');
+        gameScripts.push('water-pipeline.js', 'world.js', 'environment.js', 'fish.js', 'fishing.js', 'ui.js', 'phaser.js');
         const loadGameScript = index => {
             const script = document.createElement('script');
             script.src = `${gameScripts[index]}?v=${window.APP_CACHE_BUSTER}`;
