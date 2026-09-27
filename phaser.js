@@ -1,4 +1,4 @@
-const APP_CACHE_BUSTER = window.APP_CACHE_BUSTER || '1';
+const APP_CACHE_BUSTER = window.APP_CACHE_BUSTER || new Date().toISOString().slice(0, 10);
 
 const withCacheBuster = (path) => `${path}?v=${APP_CACHE_BUSTER}`;
 
