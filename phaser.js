@@ -236,6 +236,7 @@ const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
 const discoveredChunks = new Set();
 const pendingChunks = [];
+const pendingWaterChunks = [];
 const shimmerPool = [];
 const chunkCanvasPool = [];
 let chunkCanvasCount = 0;
@@ -2046,7 +2047,7 @@ function createChunkLayer(scene, texture, x, y, depth) {
         .setDepth(depth);
 }
 
-function createWorldChunk(scene, chunkX, chunkY) {
+function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
     const key = getChunkKey(chunkX, chunkY);
 
     if (loadedChunks.has(key)) {
@@ -2196,103 +2197,6 @@ function createWorldChunk(scene, chunkX, chunkY) {
         ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5)
         : null;
 
-    let overlay = null;
-    let waterTexture = null;
-
-    if (waterMaskCells.length > 0) {
-        waterTexture = acquireChunkCanvas(scene);
-        const context = waterTexture.getContext();
-        const image = context.createImageData(CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
-        const data = image.data;
-
-        data.set(getWaterMaskBase(scene));
-
-        for (const cell of waterMaskCells) {
-            const localX = cell.x - pixelX;
-            const localY = cell.y - pixelY;
-
-            for (let y = localY; y < localY + cell.height; y++) {
-                let index = (y * CHUNK_PIXEL_SIZE + localX) * 4;
-
-                for (let x = 0; x < cell.width; x++, index += 4) {
-                    data[index] = 255;
-                }
-            }
-        }
-
-        const shoreDistances = getShoreDistances(scene, chunkX, chunkY);
-
-        for (let pixel = 0, index = 0; pixel < shoreDistances.length; pixel++, index += 4) {
-            if (data[index]) {
-                data[index + 1] += shoreDistances[pixel] * 3;
-            }
-        }
-
-        for (let tile = 0; tile < shorelineTiles.length; tile += 3) {
-            const art = getTerrainPixels(scene, shorelineTiles[tile + 2]).data;
-            const originX = shorelineTiles[tile] * TILE_SIZE;
-            const originY = shorelineTiles[tile + 1] * TILE_SIZE;
-
-            for (let y = 0; y < TILE_SIZE; y++) {
-                for (let x = 0; x < TILE_SIZE; x++) {
-                    const source = (y * TILE_SIZE + x) * 4;
-                    const target = ((originY + y) * CHUNK_PIXEL_SIZE + originX + x) * 4;
-
-                    if (
-                        data[target] &&
-                        art[source + 3] &&
-                        (art[source] !== WATER_BASE_COLOR[0] ||
-                            art[source + 1] !== WATER_BASE_COLOR[1] ||
-                            art[source + 2] !== WATER_BASE_COLOR[2])
-                    ) {
-                        data[target] = 128;
-                    }
-                }
-            }
-        }
-
-        if (shadowMask) {
-            for (let pixel = 0, index = 0; pixel < shadowMask.length; pixel++, index += 4) {
-                if (shadowMask[pixel] && data[index]) {
-                    data[index] = 128;
-                }
-            }
-        }
-
-        const nearbyWood = gatherNearbyWoodTiles(chunkX, chunkY, woodTiles);
-        const woodMask = getChunkWoodMask(scene, nearbyWood);
-
-        if (woodMask) {
-            for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
-                const maskRow = (y + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET) * WOOD_MASK_SIZE +
-                    WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
-                let index = y * CHUNK_PIXEL_SIZE * 4;
-
-                for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
-                    if (data[index] && woodMask[maskRow + x]) {
-                        data[index] = 128;
-                    }
-                }
-            }
-        }
-
-        for (let cell = 0; cell < edgeCells.length; cell += 3) {
-            let index = ((edgeCells[cell + 1] - pixelY) * CHUNK_PIXEL_SIZE + edgeCells[cell] - pixelX) * 4 + 2;
-
-            for (let x = 0; x < edgeCells[cell + 2]; x++, index += 4) {
-                data[index] = 255;
-            }
-        }
-
-        context.putImageData(image, 0, 0);
-        waterTexture.refresh();
-
-        overlay = scene.add.image(pixelX, pixelY, waterTexture.key)
-            .setOrigin(0)
-            .setDepth(1)
-            .setPipeline('WaterWarp');
-    }
-
     const chunk = {
         key,
         chunkX,
@@ -2305,16 +2209,131 @@ function createWorldChunk(scene, chunkX, chunkY) {
         waterCells,
         visible: true,
         shimmers: [],
-        overlay,
-        waterTexture,
+        overlay: null,
+        waterTexture: null,
         shadowMask,
-        pixels: null
+        pixels: null,
+        waterBuild: waterMaskCells.length > 0
+            ? { waterMaskCells, edgeCells, woodTiles, shorelineTiles }
+            : null
     };
 
     loadedChunks.set(key, chunk);
-    if (overlay) loadedWaterChunks.add(chunk);
     if (waterCells.length > 0) loadedShimmerChunks.add(chunk);
+
+    if (chunk.waterBuild) {
+        if (deferWater) {
+            pendingWaterChunks.push(chunk);
+        } else {
+            buildChunkWater(scene, chunk);
+        }
+    }
 }
+
+function buildChunkWater(scene, chunk) {
+    const { chunkX, chunkY, shadowMask } = chunk;
+    const { waterMaskCells, edgeCells, woodTiles, shorelineTiles } = chunk.waterBuild;
+    const pixelX = chunkX * CHUNK_PIXEL_SIZE;
+    const pixelY = chunkY * CHUNK_PIXEL_SIZE;
+
+    chunk.waterBuild = null;
+
+    const waterTexture = acquireChunkCanvas(scene);
+    const context = waterTexture.getContext();
+    const image = context.createImageData(CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
+    const data = image.data;
+
+    data.set(getWaterMaskBase(scene));
+
+    for (const cell of waterMaskCells) {
+        const localX = cell.x - pixelX;
+        const localY = cell.y - pixelY;
+
+        for (let y = localY; y < localY + cell.height; y++) {
+            let index = (y * CHUNK_PIXEL_SIZE + localX) * 4;
+
+            for (let x = 0; x < cell.width; x++, index += 4) {
+                data[index] = 255;
+            }
+        }
+    }
+
+    const shoreDistances = getShoreDistances(scene, chunkX, chunkY);
+
+    for (let pixel = 0, index = 0; pixel < shoreDistances.length; pixel++, index += 4) {
+        if (data[index]) {
+            data[index + 1] += shoreDistances[pixel] * 3;
+        }
+    }
+
+    for (let tile = 0; tile < shorelineTiles.length; tile += 3) {
+        const art = getTerrainPixels(scene, shorelineTiles[tile + 2]).data;
+        const originX = shorelineTiles[tile] * TILE_SIZE;
+        const originY = shorelineTiles[tile + 1] * TILE_SIZE;
+
+        for (let y = 0; y < TILE_SIZE; y++) {
+            for (let x = 0; x < TILE_SIZE; x++) {
+                const source = (y * TILE_SIZE + x) * 4;
+                const target = ((originY + y) * CHUNK_PIXEL_SIZE + originX + x) * 4;
+
+                if (
+                    data[target] &&
+                    art[source + 3] &&
+                    (art[source] !== WATER_BASE_COLOR[0] ||
+                        art[source + 1] !== WATER_BASE_COLOR[1] ||
+                        art[source + 2] !== WATER_BASE_COLOR[2])
+                ) {
+                    data[target] = 128;
+                }
+            }
+        }
+    }
+
+    if (shadowMask) {
+        for (let pixel = 0, index = 0; pixel < shadowMask.length; pixel++, index += 4) {
+            if (shadowMask[pixel] && data[index]) {
+                data[index] = 128;
+            }
+        }
+    }
+
+    const nearbyWood = gatherNearbyWoodTiles(chunkX, chunkY, woodTiles);
+    const woodMask = getChunkWoodMask(scene, nearbyWood);
+
+    if (woodMask) {
+        for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
+            const maskRow = (y + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET) * WOOD_MASK_SIZE +
+                WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
+            let index = y * CHUNK_PIXEL_SIZE * 4;
+
+            for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
+                if (data[index] && woodMask[maskRow + x]) {
+                    data[index] = 128;
+                }
+            }
+        }
+    }
+
+    for (let cell = 0; cell < edgeCells.length; cell += 3) {
+        let index = ((edgeCells[cell + 1] - pixelY) * CHUNK_PIXEL_SIZE + edgeCells[cell] - pixelX) * 4 + 2;
+
+        for (let x = 0; x < edgeCells[cell + 2]; x++, index += 4) {
+            data[index] = 255;
+        }
+    }
+
+    context.putImageData(image, 0, 0);
+    waterTexture.refresh();
+
+    chunk.waterTexture = waterTexture;
+    chunk.overlay = scene.add.image(pixelX, pixelY, waterTexture.key)
+        .setOrigin(0)
+        .setDepth(1)
+        .setVisible(chunk.visible)
+        .setPipeline('WaterWarp');
+    loadedWaterChunks.add(chunk);
+}
+
 
 function destroyWorldChunk(key) {
     const chunk = loadedChunks.get(key);
@@ -2420,9 +2439,18 @@ function buildPendingChunk(scene) {
             continue;
         }
 
-        createWorldChunk(scene, chunkX, chunkY);
+        createWorldChunk(scene, chunkX, chunkY, true);
         visibleChunkLeft = null;
         return;
+    }
+
+    while (pendingWaterChunks.length > 0) {
+        const chunk = pendingWaterChunks.shift();
+
+        if (loadedChunks.get(chunk.key) === chunk && chunk.waterBuild) {
+            buildChunkWater(scene, chunk);
+            return;
+        }
     }
 }
 
