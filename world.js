@@ -1316,6 +1316,8 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
         key,
         chunkX,
         chunkY,
+        pixelX,
+        pixelY,
         tileSprites,
         groundLayer,
         groundTexture,

@@ -3,8 +3,8 @@ let fishRegionStack;
 let fishRegionPixels;
 
 function queueFishMigration(chunk, fish) {
-    const left = chunk.chunkX * CHUNK_PIXEL_SIZE;
-    const top = chunk.chunkY * CHUNK_PIXEL_SIZE;
+    const left = chunk.pixelX;
+    const top = chunk.pixelY;
 
     if (
         fish.x >= left && fish.x < left + CHUNK_PIXEL_SIZE &&
@@ -20,8 +20,8 @@ function queueFishMigration(chunk, fish) {
 }
 
 function getFishDepth(chunk, x, y) {
-    const localX = Math.floor(x) - chunk.chunkX * CHUNK_PIXEL_SIZE;
-    const localY = Math.floor(y) - chunk.chunkY * CHUNK_PIXEL_SIZE;
+    const localX = Math.floor(x) - chunk.pixelX;
+    const localY = Math.floor(y) - chunk.pixelY;
 
     if (localX < 0 || localY < 0 || localX >= CHUNK_PIXEL_SIZE || localY >= CHUNK_PIXEL_SIZE) {
         return 0;
@@ -40,16 +40,16 @@ function getFishChunkAt(x, y) {
 function getFishRegionAt(chunk, x, y) {
     if (!chunk || !chunk.fishRegions) return 0;
 
-    const localX = Math.floor(x) - chunk.chunkX * CHUNK_PIXEL_SIZE;
-    const localY = Math.floor(y) - chunk.chunkY * CHUNK_PIXEL_SIZE;
+    const localX = Math.floor(x) - chunk.pixelX;
+    const localY = Math.floor(y) - chunk.pixelY;
 
     if (localX < 0 || localY < 0 || localX >= CHUNK_PIXEL_SIZE || localY >= CHUNK_PIXEL_SIZE) return 0;
     return chunk.fishRegions[localY * CHUNK_PIXEL_SIZE + localX];
 }
 
 function canFishSwim(chunk, fish, x, y) {
-    const left = chunk.chunkX * CHUNK_PIXEL_SIZE;
-    const top = chunk.chunkY * CHUNK_PIXEL_SIZE;
+    const left = chunk.pixelX;
+    const top = chunk.pixelY;
     const targetChunk = x >= left && x < left + CHUNK_PIXEL_SIZE && y >= top && y < top + CHUNK_PIXEL_SIZE
         ? chunk
         : getFishChunkAt(x, y);
@@ -58,8 +58,8 @@ function canFishSwim(chunk, fish, x, y) {
         return false;
     }
 
-    const localX = Math.floor(x) - targetChunk.chunkX * CHUNK_PIXEL_SIZE;
-    const localY = Math.floor(y) - targetChunk.chunkY * CHUNK_PIXEL_SIZE;
+    const localX = Math.floor(x) - targetChunk.pixelX;
+    const localY = Math.floor(y) - targetChunk.pixelY;
 
     if (localX < 0 || localY < 0 || localX >= CHUNK_PIXEL_SIZE || localY >= CHUNK_PIXEL_SIZE) {
         return false;
@@ -146,8 +146,6 @@ function isFishPathClear(chunk, fish, targetX, targetY) {
 }
 
 function spawnChunkFish(chunk) {
-    const originX = chunk.chunkX * CHUNK_PIXEL_SIZE;
-    const originY = chunk.chunkY * CHUNK_PIXEL_SIZE;
     const regions = labelFishRegions(chunk);
 
     for (let regionIndex = 0; regionIndex < regions.length; regionIndex++) {
@@ -160,7 +158,7 @@ function spawnChunkFish(chunk) {
             Math.max(1, Math.floor(region.length / FISH_WATER_PER_FISH))
         );
 
-        spawnRegionFish(chunk, region, regionIndex + 1, count, originX, originY);
+        spawnRegionFish(chunk, region, regionIndex + 1, count, chunk.pixelX, chunk.pixelY);
     }
 }
 
