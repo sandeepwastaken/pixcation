@@ -274,6 +274,7 @@ let character;
 let characterKeys;
 let characterDirection = 'front';
 let characterWalkPhase = 0;
+let characterPace = 1;
 let horizontalPriority = 0;
 let lastMenuWheelTime = -Infinity;
 let verticalPriority = 0;
@@ -4336,7 +4337,7 @@ function updateCamera(delta) {
     const baseScrollY = character.y + CHARACTER_SIZE / 2 - mainCamera.height / 2;
     const targetX = baseScrollX + characterMoveRemainderX;
     const targetY = baseScrollY + characterMoveRemainderY;
-    const followAmount = 1 - Math.exp(-CAMERA_EASE * delta / 1000);
+    const followAmount = 1 - Math.exp(-CAMERA_EASE * characterPace * delta / 1000);
 
     cameraScrollX += (targetX - cameraScrollX) * followAmount;
     cameraScrollY += (targetY - cameraScrollY) * followAmount;
@@ -4388,6 +4389,7 @@ function update(time, delta) {
 
     if (isWalking) {
         const pace = characterKeys.sprint.isDown ? CHARACTER_SPRINT_MULTIPLIER : 1;
+        characterPace = pace;
         const frameDelta = Math.min(delta, 50);
         const distance = CHARACTER_SPEED * pace * frameDelta / 1000 *
             (moveX !== 0 && moveY !== 0 ? Math.SQRT1_2 : 1);
