@@ -550,32 +550,26 @@ function kickUpDust(scene, time, moveX, moveY) {
             ? 1 + spread
             : moveX !== 0 ? -spread : -1 - spread;
 
-        spawnParticle(scene, shadowLayer, {
-            born: time,
-            x: Math.round(footX + offsetX),
-            y: footY + offsetY,
-            drift: moveX !== 0 ? -moveX : side,
-            rise: -1,
-            lifetime: DUST_LIFETIME
-        }, colors[index % colors.length]);
+        spawnParticle(
+            scene, shadowLayer, time, Math.round(footX + offsetX), footY + offsetY,
+            moveX !== 0 ? -moveX : side, -1, DUST_LIFETIME, colors[index % colors.length]
+        );
     }
 }
 
 function dropLeaves(scene, time, bush) {
     for (let index = 0; index < LEAVES_PER_RUSTLE; index++) {
-        spawnParticle(scene, worldObjectLayer, {
-            born: time,
-            x: bush.x + BUSH_FOOTPRINT_LEFT + Math.floor(Math.random() * (BUSH_FOOTPRINT_RIGHT - BUSH_FOOTPRINT_LEFT)),
-            y: bush.y - BUSH_FOOTPRINT_HEIGHT + Math.floor(Math.random() * 4),
-            drift: Math.random() < 0.5 ? -1 : 1,
-            rise: 1,
-            lifetime: LEAF_LIFETIME,
-            depth: bush.y + 1
-        }, LEAF_COLORS[index % LEAF_COLORS.length]);
+        spawnParticle(
+            scene, worldObjectLayer, time,
+            bush.x + BUSH_FOOTPRINT_LEFT + Math.floor(Math.random() * (BUSH_FOOTPRINT_RIGHT - BUSH_FOOTPRINT_LEFT)),
+            bush.y - BUSH_FOOTPRINT_HEIGHT + Math.floor(Math.random() * 4),
+            Math.random() < 0.5 ? -1 : 1, 1, LEAF_LIFETIME,
+            LEAF_COLORS[index % LEAF_COLORS.length], bush.y + 1
+        );
     }
 }
 
-function spawnParticle(scene, layer, particle, color) {
+function spawnParticle(scene, layer, born, x, y, drift, rise, lifetime, color, depth = 0, directionX = 0, directionY = 0, ring = false) {
     let image = availableParticles.pop();
 
     if (!image) {
@@ -589,13 +583,21 @@ function spawnParticle(scene, layer, particle, color) {
         layer.add(image);
     }
 
-    image.particle = particle;
+    image.particleBorn = born;
+    image.particleX = x;
+    image.particleY = y;
+    image.particleDrift = drift;
+    image.particleRise = rise;
+    image.particleLifetime = lifetime;
+    image.particleDirectionX = directionX;
+    image.particleDirectionY = directionY;
+    image.particleRing = ring;
     image.activeParticleIndex = activeParticles.length;
     activeParticles.push(image);
     image
         .setTint(color)
-        .setDepth(particle.depth || 0)
-        .setPosition(particle.x, particle.y)
+        .setDepth(depth)
+        .setPosition(x, y)
         .setActive(true)
         .setVisible(true);
 }
@@ -603,24 +605,26 @@ function spawnParticle(scene, layer, particle, color) {
 function updateParticles(time) {
     for (let index = activeParticles.length - 1; index >= 0; index--) {
         const image = activeParticles[index];
-        const particle = image.particle;
-        const age = time - particle.born;
+        const age = time - image.particleBorn;
 
-        if (age >= particle.lifetime) {
+        if (age >= image.particleLifetime) {
             releaseParticle(image);
             continue;
         }
 
-        const step = Math.floor(age / (particle.lifetime / 3));
+        const step = Math.floor(age / (image.particleLifetime / 3));
 
-        if (particle.ring) {
+        if (image.particleRing) {
             const radius = 2 + step * 2;
             image.setPosition(
-                particle.x + Math.round(particle.directionX * radius),
-                particle.y + Math.round(particle.directionY * radius * 0.5)
+                image.particleX + Math.round(image.particleDirectionX * radius),
+                image.particleY + Math.round(image.particleDirectionY * radius * 0.5)
             );
         } else {
-            image.setPosition(particle.x + (step > 1 ? particle.drift : 0), particle.y + step * particle.rise);
+            image.setPosition(
+                image.particleX + (step > 1 ? image.particleDrift : 0),
+                image.particleY + step * image.particleRise
+            );
         }
     }
 }

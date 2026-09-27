@@ -261,28 +261,16 @@ function splash(scene, time, x, y) {
     for (let index = 0; index < SPLASH_PARTICLES; index++) {
         const angle = index / SPLASH_PARTICLES * Math.PI * 2;
 
-        spawnParticle(scene, shadowLayer, {
-            born: time,
-            x: Math.round(x),
-            y: Math.round(y),
-            ring: true,
-            directionX: Math.cos(angle),
-            directionY: Math.sin(angle),
-            lifetime: SPLASH_LIFETIME
-        }, index % 2 ? 0x87bed8 : 0x78afd3);
+        spawnParticle(
+            scene, shadowLayer, time, Math.round(x), Math.round(y), 0, 0, SPLASH_LIFETIME,
+            index % 2 ? 0x87bed8 : 0x78afd3, 0, Math.cos(angle), Math.sin(angle), true
+        );
     }
 }
 
 function groundLandingPuff(scene, time, x, y) {
     for (let index = 0; index < 3; index++) {
-        spawnParticle(scene, shadowLayer, {
-            born: time,
-            x: x - 1 + index,
-            y,
-            drift: index - 1,
-            rise: -1,
-            lifetime: 220
-        }, DUST_COLORS[index]);
+        spawnParticle(scene, shadowLayer, time, x - 1 + index, y, index - 1, -1, 220, DUST_COLORS[index]);
     }
 }
 
@@ -291,14 +279,11 @@ function nibbleRipple(scene, time, x, y) {
         const horizontal = index < 2;
         const side = index % 2 === 0 ? -1 : 1;
 
-        spawnParticle(scene, shadowLayer, {
-            born: time,
-            x: x + (horizontal ? side * 2 : 0),
-            y: y + (horizontal ? 0 : side),
-            drift: horizontal ? side : 0,
-            rise: 0,
-            lifetime: 180
-        }, index % 2 ? 0x78afd3 : 0x87bed8);
+        spawnParticle(
+            scene, shadowLayer, time,
+            x + (horizontal ? side * 2 : 0), y + (horizontal ? 0 : side),
+            horizontal ? side : 0, 0, 180, index % 2 ? 0x78afd3 : 0x87bed8
+        );
     }
 }
 
@@ -397,15 +382,10 @@ function spawnLineSnap(scene, time, rope) {
         const amount = index / Math.max(1, rope.points.length - 1);
         const color = samplePalette(fishing?.rod?.linePalette, 1 - Math.abs(amount * 2 - 1));
 
-        spawnParticle(scene, worldObjectLayer, {
-            born: time,
-            x: Math.round(point.x),
-            y: Math.round(point.y),
-            drift: index % 2 ? -1 : 1,
-            rise: 1,
-            lifetime: 300,
-            depth: Math.max(character.depth + 0.2, point.y)
-        }, color);
+        spawnParticle(
+            scene, worldObjectLayer, time, Math.round(point.x), Math.round(point.y),
+            index % 2 ? -1 : 1, 1, 300, color, Math.max(character.depth + 0.2, point.y)
+        );
     }
 }
 

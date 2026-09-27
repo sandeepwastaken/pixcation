@@ -175,23 +175,16 @@ function runAutomatedTests(scene) {
     record('Line failure creates visible fragments', snapPassed, `${activeParticlesAfterSnap - activeParticlesBeforeSnap} fragments spawned`);
 
     for (const image of particlePool) {
-        if (image.active && image.particle.born === scene.time.now && image.particle.lifetime === 300) {
+        if (image.active && image.particleBorn === scene.time.now && image.particleLifetime === 300) {
             releaseParticle(image);
         }
     }
 
     const particleCountBeforeReuse = particlePool.length;
     const availableBeforeReuse = availableParticles.length;
-    spawnParticle(scene, shadowLayer, {
-        born: scene.time.now,
-        x: 0,
-        y: 0,
-        drift: 0,
-        rise: 0,
-        lifetime: 1
-    }, FISHING_LINE_COLOR);
+    spawnParticle(scene, shadowLayer, scene.time.now, 0, 0, 0, 0, 1, FISHING_LINE_COLOR);
     const reusedParticle = particlePool.length === particleCountBeforeReuse && availableParticles.length === availableBeforeReuse - 1;
-    const reusedImage = particlePool.find(image => image.active && image.particle.lifetime === 1);
+    const reusedImage = particlePool.find(image => image.active && image.particleLifetime === 1);
     if (reusedImage) releaseParticle(reusedImage);
     record('Particle pool reuses objects in constant time', reusedParticle, reusedParticle ? 'Free-list object reused' : 'Unexpected allocation');
 
