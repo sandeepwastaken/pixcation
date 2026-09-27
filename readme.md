@@ -39,11 +39,14 @@ First time you meet the guide, dialogue pops up on its own. After that, walking 
 ## Features (current)
 
 - Infinite-ish procedural terrain (grass, dirt, water, bridges, piers, bushes)
-- Chunk streaming around the player, water shader, shore shimmer
-- Guide NPC with dialogue box (pixel font `m6x11`)
+- Chunk streaming around the player, spread across frames so walking never hitches
+- **Water** — pixel-perfect shader with warped caustics, depth by distance to shore (teal-leaning shallows), coastline shimmer, and sparkle sprites
+- **Shadows** — one-step palette shifts (never dark overlays) for bridges, piers, bushes, the store, the guide, and the player; overlapping shadows merge instead of stacking
+- Footstep dust on dirt, bushes that rustle and drop leaves when you walk through them
+- Guide NPC with dialogue box (pixel font `m6x11`); keyboard, scroll wheel, or mouse to pick options
 - Placeholder **store** (3×2 tiles) spawned behind the guide on valid terrain
-- **Minimap** — explored tiles only, gray checkerboard for fog, guide marked in blue
-- **Rod shop** — spend coins on rods; bought rods show up in the hotbar (placeholder art in `media/rod.png`)
+- **Map** — explored tiles only in the game's own palette, fog checkerboard, markers for you, the guide, and the store
+- **Rod shop** — list + detail pane, spend coins on rods; bought rods show up in the hotbar (placeholder art in `media/rod.png`)
 
 ## Assets
 
