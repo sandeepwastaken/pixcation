@@ -5884,6 +5884,31 @@ function getFishInventorySummary() {
     return { count, value };
 }
 
+function setMarketRodStats(rod) {
+    const square = () => {
+        const separator = document.createElement('span');
+        Object.assign(separator.style, {
+            display: 'inline-block',
+            width: '3px',
+            height: '3px',
+            margin: '0 5px 1px',
+            backgroundColor: '#8c7358'
+        });
+        return separator;
+    };
+    const lineBreak = document.createElement('br');
+
+    marketDetailStats.replaceChildren(
+        document.createTextNode(`Cast ${(rod.castDistance / TILE_SIZE).toFixed(1)}t`),
+        square(),
+        document.createTextNode(`Charge ${(rod.chargeTime / 1000).toFixed(2)}s`),
+        lineBreak,
+        document.createTextNode(`Line ${rod.lineStrength.toFixed(2)}x`),
+        square(),
+        document.createTextNode(`Zone ${rod.catchZone}`)
+    );
+}
+
 function refreshMarketOptions() {
     if (!marketMessageText) {
         return;
@@ -5950,7 +5975,7 @@ function refreshMarketOptions() {
     marketDetailName.textContent = rod.label;
     marketDetailStatus.textContent = status.text;
     marketDetailStatus.style.color = status.color;
-    marketDetailStats.textContent = `Cast ${(rod.castDistance / TILE_SIZE).toFixed(1)}t · Charge ${(rod.chargeTime / 1000).toFixed(2)}s\nLine ${rod.lineStrength.toFixed(2)}x · Zone ${rod.catchZone}`;
+    setMarketRodStats(rod);
 
     if (marketFeedback) {
         marketDetailAction.textContent = marketFeedback.text;
