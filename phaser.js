@@ -274,6 +274,7 @@ const pixelPathX = new Int32Array(1024);
 const pixelPathY = new Int32Array(1024);
 const pixelPathColor = new Int32Array(1024);
 let pixelPathLength = 0;
+const OWNED_ROD_TINT = 0x8a7c6e;
 let fishingUiPanel;
 let fishingCatchZoneTop;
 let fishingCatchZoneMiddle;
@@ -5466,14 +5467,12 @@ function createCatchCardUI(scene) {
     catchCardContainer = scene.add.container(0, CATCH_CARD_Y + 8, [panel])
         .setDepth(205)
         .setScrollFactor(0)
-        .setAlpha(0)
         .setVisible(false);
 
     catchCardTextLayer = scene.add.dom(0, CATCH_CARD_Y + 8, textLayer)
         .setOrigin(0)
         .setDepth(206)
         .setScrollFactor(0)
-        .setAlpha(0)
         .setVisible(false);
 
     catchCardTextLayer.pointerEvents = 'none';
@@ -5490,13 +5489,12 @@ function showCatchCard(scene, time, species) {
     scene.tweens.killTweensOf(catchCardTextLayer);
 
     for (const target of [catchCardContainer, catchCardTextLayer]) {
-        target.setVisible(true).setAlpha(0).setY(CATCH_CARD_Y + 8);
+        target.setVisible(true).setY(CATCH_CARD_Y + 8);
     }
 
     scene.tweens.add({
         targets: [catchCardContainer, catchCardTextLayer],
         y: CATCH_CARD_Y,
-        alpha: 1,
         duration: 180,
         ease: 'Cubic.Out',
         onUpdate: snapTweenTarget
@@ -5505,8 +5503,7 @@ function showCatchCard(scene, time, species) {
     catchCardHideEvent = scene.time.delayedCall(CATCH_CARD_DURATION - 180, () => {
         scene.tweens.add({
             targets: [catchCardContainer, catchCardTextLayer],
-            y: CATCH_CARD_Y - 4,
-            alpha: 0,
+            y: CATCH_CARD_Y + 8,
             duration: 180,
             ease: 'Cubic.In',
             onUpdate: snapTweenTarget,
@@ -5644,7 +5641,7 @@ function updateInteractionPrompt(scene, guideIsNear) {
 function applyPromptMotion() {
     interactionPromptLayer
         .setY(PROMPT_Y + Math.round((1 - promptMotion.value) * PROMPT_SLIDE))
-        .setAlpha(promptMotion.value);
+        .setVisible(promptMotion.value > 0.05);
 }
 
 function createMarketUI(scene) {
@@ -5745,7 +5742,7 @@ function createMarketUI(scene) {
 
         Object.assign(keycap.style, {
             color: '#e0f2fd',
-            background: 'rgba(255, 255, 255, 0.14)',
+            background: '#465989',
             padding: '0 2px',
             marginRight: '4px'
         });
@@ -5798,14 +5795,12 @@ function addHotbarItem(scene, textureKey, name) {
         .setDepth(100.5)
         .setScrollFactor(0)
         .setDisplaySize(16, 16)
-        .setPosition(centerX, centerY + 2)
-        .setAlpha(0);
+        .setPosition(centerX, centerY + 2);
     hotbarItemImages.push(image);
 
     scene.tweens.add({
         targets: image,
         y: centerY,
-        alpha: 1,
         duration: 140,
         ease: 'Quad.Out',
         onUpdate: snapTweenTarget
@@ -5913,7 +5908,7 @@ function refreshMarketOptions() {
         marketOptionTexts[index].style.color = selected ? '#e0f2fd' : owned ? '#7a6450' : '#c0a887';
         priceText.textContent = owned ? 'Owned' : `${rod.price}c`;
         priceText.style.color = owned ? '#8fbf7a' : affordable ? '#e8c170' : '#9a5a47';
-        marketRodImages[index].setAlpha(owned ? 0.45 : 1);
+        if (owned) marketRodImages[index].setTint(OWNED_ROD_TINT); else marketRodImages[index].clearTint();
     });
 
     const sellSummary = getFishInventorySummary();
@@ -5957,7 +5952,7 @@ function refreshMarketOptions() {
     marketDetailImage
         .setTexture(rod.texture)
         .setVisible(true)
-        .setAlpha(ownedRods.has(rod.id) ? 0.45 : 1);
+        .setTint(ownedRods.has(rod.id) ? OWNED_ROD_TINT : 0xffffff);
     marketDetailName.textContent = rod.label;
     marketDetailStatus.textContent = status.text;
     marketDetailStatus.style.color = status.color;
