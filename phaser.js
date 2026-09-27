@@ -1246,9 +1246,10 @@ function update(time, delta) {
     updateFishing(this, time, delta, isWalking);
     updateBushRustle(this, time, isWalking);
 
-    const guideIsNear = isGuideNear();
-    updateGuideInteraction(this, guideIsNear);
-    updateInteractionPrompt(this, guideIsNear);
+    const guideReach = getGuideReach();
+    const marketReach = getMarketReach();
+    updateGuideInteraction(this, guideReach < 1);
+    updateInteractionPrompt(this, guideReach, marketReach);
 
     if (mapOpen) {
         updateMapPan(this, delta);

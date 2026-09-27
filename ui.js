@@ -758,12 +758,12 @@ function createInteractionPromptUI(scene) {
     interactionPromptLayer.pointerEvents = 'none';
 }
 
-function updateInteractionPrompt(scene, guideIsNear) {
+function updateInteractionPrompt(scene, guideReach, marketReach) {
     if (!interactionPromptLayer || !marketPrompt || !guidePrompt) return;
 
     const available = !dialogueOpen && !marketOpen && !mapOpen && !inventoryOpen && scene.time.now >= catchCardUntil;
-    const target = available && (guideIsNear || isMarketNear())
-        ? getInteractionTarget(guideHasMetPlayer)
+    const target = available && (guideReach < 1 || marketReach < 1)
+        ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
         : null;
     const showMarket = target === 'market';
     const showGuide = target === 'guide';
@@ -1293,9 +1293,9 @@ function getFacingPenalty(targetX, targetY) {
     return along > 0 && along * along * 2 >= x * x + y * y ? 0 : 1;
 }
 
-function getInteractionTarget(guideAvailable) {
-    const guideReach = guideAvailable ? getGuideReach() : Infinity;
-    const marketReach = getMarketReach();
+function getInteractionTarget(guideAvailable, guideReach, marketReach) {
+    guideReach = guideAvailable ? guideReach ?? getGuideReach() : Infinity;
+    marketReach ??= getMarketReach();
 
     if (guideReach >= 1 && marketReach >= 1) {
         return null;
