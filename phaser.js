@@ -270,6 +270,10 @@ const particlePool = [];
 const availableParticles = [];
 let fishing = null;
 let fishingLine;
+const pixelPathX = new Int32Array(1024);
+const pixelPathY = new Int32Array(1024);
+const pixelPathColor = new Int32Array(1024);
+let pixelPathLength = 0;
 let fishingUiPanel;
 let fishingCatchZoneTop;
 let fishingCatchZoneMiddle;
@@ -4405,25 +4409,58 @@ function drawFishingMinigame() {
 
 function samplePalette(palette, amount) {
     if (!palette || palette.length === 0) return FISHING_LINE_COLOR;
-    if (palette.length === 1) return palette[0];
 
-    const position = Phaser.Math.Clamp(amount, 0, 1) * (palette.length - 1);
-    const index = Math.min(palette.length - 2, Math.floor(position));
-    const blend = position - index;
-    const first = palette[index];
-    const second = palette[index + 1];
-    const red = Math.round(((first >> 16) & 255) + (((second >> 16) & 255) - ((first >> 16) & 255)) * blend);
-    const green = Math.round(((first >> 8) & 255) + (((second >> 8) & 255) - ((first >> 8) & 255)) * blend);
-    const blue = Math.round((first & 255) + ((second & 255) - (first & 255)) * blend);
-    return Phaser.Display.Color.GetColor(red, green, blue);
+    return palette[Math.round(Phaser.Math.Clamp(amount, 0, 1) * (palette.length - 1))];
+}
+
+function beginPixelPath() {
+    pixelPathLength = 0;
+}
+
+function addPixelPathPoint(x, y, color) {
+    if (pixelPathLength > 0 && pixelPathX[pixelPathLength - 1] === x && pixelPathY[pixelPathLength - 1] === y) {
+        return;
+    }
+
+    if (pixelPathLength >= 2) {
+        const previousX = pixelPathX[pixelPathLength - 2];
+        const previousY = pixelPathY[pixelPathLength - 2];
+
+        if (Math.abs(x - previousX) === 1 && Math.abs(y - previousY) === 1) {
+            pixelPathLength--;
+        }
+    }
+
+    if (pixelPathLength >= pixelPathX.length) {
+        return;
+    }
+
+    pixelPathX[pixelPathLength] = x;
+    pixelPathY[pixelPathLength] = y;
+    pixelPathColor[pixelPathLength] = color;
+    pixelPathLength++;
+}
+
+function drawPixelPath() {
+    let activeColor = -1;
+
+    for (let index = 0; index < pixelPathLength; index++) {
+        if (pixelPathColor[index] !== activeColor) {
+            activeColor = pixelPathColor[index];
+            fishingLine.fillStyle(activeColor, 1);
+        }
+
+        fishingLine.fillRect(pixelPathX[index], pixelPathY[index], 1, 1);
+    }
 }
 
 function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
     const controlX = (fromX + toX) / 2;
     const controlY = (fromY + toY) / 2 + sag;
     const steps = Math.max(2, Math.ceil(Math.hypot(toX - fromX, toY - fromY) * 1.5));
-    let lastX = null;
-    let lastY = null;
+    const color = palette ? 0 : fishingLine.defaultFillColor;
+
+    beginPixelPath();
 
     for (let step = 0; step <= steps; step++) {
         const amount = step / steps;
@@ -4431,13 +4468,10 @@ function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
         const x = Math.round(inverse * inverse * fromX + 2 * inverse * amount * controlX + amount * amount * toX);
         const y = Math.round(inverse * inverse * fromY + 2 * inverse * amount * controlY + amount * amount * toY);
 
-        if (x === lastX && y === lastY) continue;
-
-        if (palette) fishingLine.fillStyle(samplePalette(palette, amount), 1);
-        fishingLine.fillRect(x, y, 1, 1);
-        lastX = x;
-        lastY = y;
+        addPixelPathPoint(x, y, palette ? samplePalette(palette, amount) : color);
     }
+
+    drawPixelPath();
 }
 
 function createFishingRope(fromX, fromY, toX, toY, lineLength) {
@@ -4505,30 +4539,26 @@ function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
 }
 
 function drawFishingRope(rope, palette) {
-    let lastX = null;
-    let lastY = null;
+    beginPixelPath();
 
     for (let index = 0; index < rope.points.length - 1; index++) {
         const first = rope.points[index];
         const second = rope.points[index + 1];
         const distance = Math.max(1, Math.ceil(Math.hypot(second.x - first.x, second.y - first.y)));
         const amount = index / Math.max(1, rope.points.length - 2);
-        const brightness = 1 - Math.abs(amount * 2 - 1);
-
-        fishingLine.fillStyle(samplePalette(palette, brightness), 1);
+        const color = samplePalette(palette, 1 - Math.abs(amount * 2 - 1));
 
         for (let step = 0; step <= distance; step++) {
-            const amount = step / distance;
-            const x = Math.round(first.x + (second.x - first.x) * amount);
-            const y = Math.round(first.y + (second.y - first.y) * amount);
-
-            if (x === lastX && y === lastY) continue;
-
-            fishingLine.fillRect(x, y, 1, 1);
-            lastX = x;
-            lastY = y;
+            const blend = step / distance;
+            addPixelPathPoint(
+                Math.round(first.x + (second.x - first.x) * blend),
+                Math.round(first.y + (second.y - first.y) * blend),
+                color
+            );
         }
     }
+
+    drawPixelPath();
 }
 
 function updateFishing(scene, time, delta, isWalking) {
