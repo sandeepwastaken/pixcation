@@ -63,8 +63,8 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                 uniform float uTime;
                 uniform vec2 uScroll;
                 uniform float uViewHeight;
-                uniform vec4 uFish[16];
-                uniform vec4 uFishShape[16];
+                uniform vec4 uFish[24];
+                uniform vec4 uFishShape[24];
                 uniform float uFishCount;
                 varying vec2 outTexCoord;
                 varying vec4 outTint;
@@ -172,8 +172,9 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                     float edgeCode = code(mask.b);
 
                     float shaded = mask.r < 0.75 ? 1.0 : 0.0;
+                    float fishShaded = 0.0;
 
-                    for (int fish = 0; fish < 16; fish++) {
+                    for (int fish = 0; fish < 24; fish++) {
                         if (float(fish) >= uFishCount) break;
 
                         vec4 body = uFish[fish];
@@ -190,11 +191,13 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                             length(vec2(along - head, across)) < shape.y ||
                             along < head && along > -halfLength && abs(across) < shape.y * (along + halfLength) / (head + halfLength)
                         ) {
-                            shaded = 1.0;
+                            fishShaded = 1.0;
                         }
                     }
 
-                    if (shaded > 0.5) {
+                    if (fishShaded > 0.5) {
+                        index = max(index - 2.0, 0.0);
+                    } else if (shaded > 0.5) {
                         index = max(index - 1.0, 0.0);
                     }
 
@@ -302,9 +305,9 @@ let characterDirection = 'front';
 let characterWalkPhase = 0;
 let characterPace = 1;
 let characterMoving = false;
-const fishUniforms = new Float32Array(64);
-const fishShapeUniforms = new Float32Array(64);
-const FISH_MAX_VISIBLE = 16;
+const fishUniforms = new Float32Array(96);
+const fishShapeUniforms = new Float32Array(96);
+const FISH_MAX_VISIBLE = 24;
 const FISH_VIEW_MARGIN = 12;
 const FISH_LENGTHS = [5, 6, 8, 10, 12, 14];
 const FISH_MIN_DEPTH = 3;
@@ -408,9 +411,9 @@ const SHIMMER_RECOLOR_FROM = [0x87, 0xbe, 0xd8];
 const SHIMMER_RECOLOR_TO = [0x78, 0xaf, 0xd3];
 
 const MARKET_RODS = [
-    { id: 'basic', label: 'Basic Rod', price: 10 },
-    { id: 'sturdy', label: 'Sturdy Rod', price: 25 },
-    { id: 'iron', label: 'Iron Rod', price: 50 }
+    { id: 'basic', label: 'Basic Rod', price: 10, castDistance: 72, chargeTime: 1000, lineStrength: 1, catchZone: 24 },
+    { id: 'sturdy', label: 'Sturdy Rod', price: 25, castDistance: 88, chargeTime: 850, lineStrength: 1.35, catchZone: 29 },
+    { id: 'iron', label: 'Iron Rod', price: 50, castDistance: 104, chargeTime: 720, lineStrength: 1.75, catchZone: 34 }
 ];
 const MARKET_ROW_COUNT = MARKET_RODS.length + 1;
 
@@ -449,14 +452,17 @@ const particlePool = [];
 let fishing = null;
 let fishingLine;
 const CAST_MIN_DISTANCE = 16;
-const CAST_MAX_DISTANCE = 80;
-const CAST_CHARGE_TIME = 900;
 const CAST_METER_WIDTH = 14;
 let castCharge = null;
 const CAST_DURATION = 420;
 const CAST_ARC = 18;
+const CAST_SWING_DURATION = 170;
+const CAST_HANG_TIME = 55;
 const REEL_DURATION = 220;
-const LINE_SAG = 5;
+const ROPE_SEGMENT_LENGTH = 4;
+const ROPE_GRAVITY = 52;
+const ROPE_CONSTRAINT_PASSES = 5;
+const BOBBER_LAND_TIME = 180;
 const BOBBER_BOB_TIME = 450;
 const SPLASH_PARTICLES = 6;
 const SPLASH_LIFETIME = 300;
@@ -889,19 +895,25 @@ function create() {
         .setDepth(101)
         .setScrollFactor(0);
 
-    const selectHotBarSlot = slot => {
+    const selectHotBarSlot = (slot, immediate = false) => {
         selectedHotbarSlot = Phaser.Math.Wrap(slot, 0, 9);
 
         this.tweens.killTweensOf(hotbarSelector);
-        this.tweens.add({
-            targets: hotbarSelector,
-            x: HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE,
-            duration: 70,
-            ease: 'Quad.Out',
-            onUpdate: (tween, target) => {
-                target.x = Math.round(target.x);
-            }
-        });
+        const selectorX = HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE;
+
+        if (immediate) {
+            hotbarSelector.x = selectorX;
+        } else {
+            this.tweens.add({
+                targets: hotbarSelector,
+                x: selectorX,
+                duration: 70,
+                ease: 'Quad.Out',
+                onUpdate: (tween, target) => {
+                    target.x = Math.round(target.x);
+                }
+            });
+        }
 
         const name = hotbarItemNames[selectedHotbarSlot];
 
@@ -1011,7 +1023,7 @@ function create() {
         } else if (dialogueOpen) {
             moveGuideDialogueSelection(step);
         } else if (!mapOpen) {
-            selectHotBarSlot(selectedHotbarSlot + step);
+            selectHotBarSlot(selectedHotbarSlot + step, true);
         }
     });
 
@@ -2940,6 +2952,29 @@ function chooseFishTarget(chunk, fish, awayX, awayY) {
     return false;
 }
 
+function scatterFishFromSplash(x, y) {
+    const radius = 12;
+
+    for (const chunk of loadedWaterChunks) {
+        for (const fish of chunk.fish) {
+            const awayX = fish.x - x;
+            const awayY = fish.y - y;
+
+            if (
+                awayX * awayX + awayY * awayY > radius * radius ||
+                !chooseFishTarget(chunk, fish, awayX, awayY)
+            ) {
+                continue;
+            }
+
+            fish.state = 'flee';
+            fish.topSpeed = FISH_FLEE_SPEED;
+            fish.thrusting = true;
+            fish.burstTimer = 700;
+        }
+    }
+}
+
 function updateFish(delta) {
     const seconds = Math.min(delta, 50) / 1000;
     const playerX = character.x + CHARACTER_SIZE / 2;
@@ -3492,6 +3527,11 @@ function hasRodSelected() {
     return (hotbarItemNames[selectedHotbarSlot] || '').endsWith('Rod');
 }
 
+function getSelectedRod() {
+    const name = hotbarItemNames[selectedHotbarSlot];
+    return MARKET_RODS.find(rod => rod.label === name) || MARKET_RODS[0];
+}
+
 function getCastDirection() {
     return characterDirection === 'left' ? [-1, 0]
         : characterDirection === 'right' ? [1, 0]
@@ -3508,13 +3548,35 @@ function getRodHand() {
         : [centerX + 3, Math.round(character.y) + 11];
 }
 
-function getRodTip() {
+function getRodTip(time) {
     const [directionX, directionY] = getCastDirection();
     const [handX, handY] = getRodHand();
 
-    return directionY === 0
+    const tip = directionY === 0
         ? [handX + directionX * 6, handY - 6]
         : [handX + 1, handY + directionY * 7];
+
+    if (!fishing || time === undefined) {
+        return tip;
+    }
+
+    if (fishing.state === 'casting') {
+        const phase = Phaser.Math.Clamp((time - fishing.start) / CAST_SWING_DURATION, 0, 1);
+        const reach = phase < 0.35
+            ? -3 * phase / 0.35
+            : -3 + 6 * (phase - 0.35) / 0.65;
+        const lift = Math.round(Math.sin(phase * Math.PI) * 3);
+
+        tip[0] += Math.round(directionX * reach + (directionY === 0 ? 0 : lift));
+        tip[1] += Math.round(directionY * reach - (directionY === 0 ? lift : 0));
+    } else if (fishing.state === 'floating' || fishing.state === 'landing') {
+        const wobble = Math.sin((time - fishing.start) / 95 + fishing.driftPhase);
+
+        tip[0] += directionY === 0 ? 0 : Math.round(wobble);
+        tip[1] += directionY === 0 ? Math.round(wobble) : 0;
+    }
+
+    return tip;
 }
 
 function isWaterPixel(scene, x, y) {
@@ -3535,11 +3597,11 @@ function beginCast(time) {
         return;
     }
 
-    castCharge = { start: time };
+    castCharge = { start: time, rod: getSelectedRod() };
 }
 
 function getCastPower(time) {
-    const cycle = ((time - castCharge.start) / CAST_CHARGE_TIME) % 2;
+    const cycle = ((time - castCharge.start) / castCharge.rod.chargeTime) % 2;
     return cycle <= 1 ? cycle : 2 - cycle;
 }
 
@@ -3553,13 +3615,17 @@ function releaseCast(time) {
         return;
     }
 
+    const rod = getSelectedRod();
     const [directionX, directionY] = getCastDirection();
     const [tipX, tipY] = getRodTip();
-    const distance = CAST_MIN_DISTANCE + (CAST_MAX_DISTANCE - CAST_MIN_DISTANCE) * power;
+    const distance = CAST_MIN_DISTANCE + (rod.castDistance - CAST_MIN_DISTANCE) * power;
 
     fishing = {
-        state: 'flying',
+        state: 'casting',
         start: time,
+        releaseAt: time + CAST_SWING_DURATION + CAST_HANG_TIME,
+        power,
+        rod,
         duration: CAST_DURATION * (0.6 + power * 0.6),
         arc: CAST_ARC * (0.5 + power * 0.7),
         fromX: tipX,
@@ -3567,7 +3633,9 @@ function releaseCast(time) {
         toX: Math.round(character.x + CHARACTER_SIZE / 2 + directionX * distance),
         toY: Math.round(character.y + CHARACTER_SIZE - 2 + directionY * distance),
         bobberX: tipX,
-        bobberY: tipY
+        bobberY: tipY,
+        driftPhase: Math.random() * Math.PI * 2,
+        rope: null
     };
 
     characterTextureKey = `character-${characterDirection}`;
@@ -3594,6 +3662,11 @@ function drawCastCharge(time) {
 function reelIn(time) {
     if (!fishing || fishing.state === 'reeling') return;
 
+    if (fishing.state === 'casting') {
+        fishing = null;
+        return;
+    }
+
     fishing.state = 'reeling';
     fishing.start = time;
     fishing.fromX = fishing.bobberX;
@@ -3601,6 +3674,8 @@ function reelIn(time) {
 }
 
 function splash(scene, time, x, y) {
+    scatterFishFromSplash(x, y);
+
     for (let index = 0; index < SPLASH_PARTICLES; index++) {
         const angle = index / SPLASH_PARTICLES * Math.PI * 2;
 
@@ -3612,6 +3687,19 @@ function splash(scene, time, x, y) {
             rise: -1,
             lifetime: SPLASH_LIFETIME
         }, index % 2 ? 0xd1edf1 : 0x78afd3);
+    }
+}
+
+function groundLandingPuff(scene, time, x, y) {
+    for (let index = 0; index < 3; index++) {
+        spawnParticle(scene, shadowLayer, {
+            born: time,
+            x: x - 1 + index,
+            y,
+            drift: index - 1,
+            rise: -1,
+            lifetime: 220
+        }, DUST_COLORS[index]);
     }
 }
 
@@ -3636,7 +3724,94 @@ function plotFishingLine(fromX, fromY, toX, toY, sag) {
     }
 }
 
-function updateFishing(scene, time, isWalking) {
+function createFishingRope(fromX, fromY, toX, toY, lineLength) {
+    const segmentCount = Math.max(2, Math.ceil(lineLength / ROPE_SEGMENT_LENGTH));
+    const points = [];
+
+    for (let index = 0; index <= segmentCount; index++) {
+        const amount = index / segmentCount;
+        const x = fromX + (toX - fromX) * amount;
+        const y = fromY + (toY - fromY) * amount;
+
+        points.push({ x, y, oldX: x, oldY: y });
+    }
+
+    return { points, length: lineLength, segmentLength: lineLength / segmentCount };
+}
+
+function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
+    const seconds = Math.min(delta, 34) / 1000;
+    const targetLength = Math.max(Math.hypot(toX - fromX, toY - fromY) + (1 - tautness) * 7, ROPE_SEGMENT_LENGTH);
+
+    rope.length += (targetLength - rope.length) * Math.min(1, seconds * (tautness ? 14 : 5));
+    rope.segmentLength = rope.length / (rope.points.length - 1);
+
+    for (let index = 1; index < rope.points.length - 1; index++) {
+        const point = rope.points[index];
+        const velocityX = (point.x - point.oldX) * 0.985;
+        const velocityY = (point.y - point.oldY) * 0.985;
+
+        point.oldX = point.x;
+        point.oldY = point.y;
+        point.x += velocityX;
+        point.y += velocityY + ROPE_GRAVITY * seconds * seconds;
+    }
+
+    for (let pass = 0; pass < ROPE_CONSTRAINT_PASSES; pass++) {
+        rope.points[0].x = fromX;
+        rope.points[0].y = fromY;
+        rope.points[rope.points.length - 1].x = toX;
+        rope.points[rope.points.length - 1].y = toY;
+
+        for (let index = 0; index < rope.points.length - 1; index++) {
+            const first = rope.points[index];
+            const second = rope.points[index + 1];
+            const dx = second.x - first.x;
+            const dy = second.y - first.y;
+            const distance = Math.max(0.001, Math.hypot(dx, dy));
+            const correction = (distance - rope.segmentLength) / distance;
+            const firstFixed = index === 0;
+            const secondFixed = index + 1 === rope.points.length - 1;
+
+            if (!firstFixed) {
+                const share = secondFixed ? 1 : 0.5;
+                first.x += dx * correction * share;
+                first.y += dy * correction * share;
+            }
+
+            if (!secondFixed) {
+                const share = firstFixed ? 1 : 0.5;
+                second.x -= dx * correction * share;
+                second.y -= dy * correction * share;
+            }
+        }
+    }
+}
+
+function drawFishingRope(rope) {
+    let lastX = null;
+    let lastY = null;
+
+    for (let index = 0; index < rope.points.length - 1; index++) {
+        const first = rope.points[index];
+        const second = rope.points[index + 1];
+        const distance = Math.max(1, Math.ceil(Math.hypot(second.x - first.x, second.y - first.y)));
+
+        for (let step = 0; step <= distance; step++) {
+            const amount = step / distance;
+            const x = Math.round(first.x + (second.x - first.x) * amount);
+            const y = Math.round(first.y + (second.y - first.y) * amount);
+
+            if (x === lastX && y === lastY) continue;
+
+            fishingLine.fillRect(x, y, 1, 1);
+            lastX = x;
+            lastY = y;
+        }
+    }
+}
+
+function updateFishing(scene, time, delta, isWalking) {
     fishingLine.clear();
 
     if (castCharge && (isWalking || dialogueOpen || marketOpen || mapOpen || !hasRodSelected())) {
@@ -3649,12 +3824,28 @@ function updateFishing(scene, time, isWalking) {
 
     if (fishing.state !== 'reeling' && (isWalking || dialogueOpen || marketOpen || mapOpen || !hasRodSelected())) {
         reelIn(time);
+
+        if (!fishing) {
+            return;
+        }
     }
 
-    const [tipX, tipY] = getRodTip();
+    let [tipX, tipY] = getRodTip(time);
     const age = time - fishing.start;
 
-    if (fishing.state === 'flying') {
+    if (fishing.state === 'casting') {
+        fishing.bobberX = tipX;
+        fishing.bobberY = tipY;
+
+        if (time >= fishing.releaseAt) {
+            fishing.state = 'flying';
+            fishing.start = time;
+            fishing.fromX = tipX;
+            fishing.fromY = tipY;
+            const lineLength = Math.hypot(fishing.toX - tipX, fishing.toY - tipY) + fishing.arc * 0.8 + 5;
+            fishing.rope = createFishingRope(tipX, tipY, tipX, tipY - 2, lineLength);
+        }
+    } else if (fishing.state === 'flying') {
         const amount = Math.min(1, age / fishing.duration);
 
         fishing.bobberX = Math.round(fishing.fromX + (fishing.toX - fishing.fromX) * amount);
@@ -3662,16 +3853,34 @@ function updateFishing(scene, time, isWalking) {
 
         if (amount >= 1) {
             if (isWaterPixel(scene, fishing.toX, fishing.toY)) {
-                fishing.state = 'floating';
+                fishing.state = 'landing';
                 fishing.start = time;
                 splash(scene, time, fishing.toX, fishing.toY);
             } else {
-                reelIn(time);
+                groundLandingPuff(scene, time, fishing.toX, fishing.toY);
+                fishing = null;
+                return;
             }
         }
-    } else if (fishing.state === 'floating') {
+    } else if (fishing.state === 'landing') {
+        const amount = Math.min(1, age / BOBBER_LAND_TIME);
+
         fishing.bobberX = fishing.toX;
-        fishing.bobberY = fishing.toY + (Math.floor(age / BOBBER_BOB_TIME) % 2);
+        fishing.bobberY = fishing.toY - Math.round(Math.sin(amount * Math.PI) * 2 * (1 - amount));
+
+        if (amount >= 1) {
+            fishing.state = 'floating';
+            fishing.start = time;
+        }
+    } else if (fishing.state === 'floating') {
+        const driftX = Math.round(Math.sin(age / 1300 + fishing.driftPhase));
+        const driftY = Math.round(Math.sin(age / 1700 + fishing.driftPhase * 0.7));
+        const candidateX = fishing.toX + driftX;
+        const candidateY = fishing.toY + driftY;
+
+        fishing.bobberX = isWaterPixel(scene, candidateX, candidateY) ? candidateX : fishing.toX;
+        fishing.bobberY = (isWaterPixel(scene, candidateX, candidateY) ? candidateY : fishing.toY) +
+            (Math.floor(age / BOBBER_BOB_TIME) % 2);
     } else {
         const amount = Math.min(1, age / REEL_DURATION);
 
@@ -3684,14 +3893,33 @@ function updateFishing(scene, time, isWalking) {
         }
     }
 
-    fishingLine.setDepth(fishing.state === 'flying' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY));
+    [tipX, tipY] = getRodTip(time);
+    fishingLine.setDepth(fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY));
     const [handX, handY] = getRodHand();
 
     fishingLine.fillStyle(ROD_COLOR, 1);
     plotFishingLine(handX, handY, tipX, tipY, 0);
+
+    if (fishing.state === 'casting') {
+        return;
+    }
+
+    if (!fishing.rope) {
+        const distance = Math.hypot(fishing.bobberX - tipX, fishing.bobberY - 2 - tipY);
+        fishing.rope = createFishingRope(tipX, tipY, fishing.bobberX, fishing.bobberY - 2, distance + 5);
+    }
+
     fishingLine.fillStyle(FISHING_LINE_COLOR, 1);
-    const sag = fishing.state === 'floating' ? LINE_SAG : fishing.state === 'flying' ? 1 : LINE_SAG / 2;
-    plotFishingLine(tipX, tipY, fishing.bobberX, fishing.bobberY - 2, sag);
+    updateFishingRope(
+        fishing.rope,
+        tipX,
+        tipY,
+        fishing.bobberX,
+        fishing.bobberY - 2,
+        delta,
+        fishing.state === 'reeling' ? 1 : fishing.state === 'flying' ? 0.7 : 0
+    );
+    drawFishingRope(fishing.rope);
     fishingLine.fillStyle(BOBBER_TOP_COLOR, 1);
     fishingLine.fillRect(fishing.bobberX - 1, fishing.bobberY - 2, 2, 1);
     fishingLine.fillStyle(BOBBER_BOTTOM_COLOR, 1);
@@ -5225,7 +5453,7 @@ function update(time, delta) {
     character.setDepth(character.y + CHARACTER_SIZE);
     updateCharacterShadow(this);
     updateParticles(time);
-    updateFishing(this, time, isWalking);
+    updateFishing(this, time, delta, isWalking);
     updateBushRustle(this, time, isWalking);
 
     const guideIsNear = isGuideNear();

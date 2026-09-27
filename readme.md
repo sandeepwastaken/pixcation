@@ -21,8 +21,8 @@ Then go to **http://localhost:8000/index.html**
 
 - **WASD** or arrow keys — move
 - **Shift** — hold to run
-- **Space** or **click** — with a rod selected, hold to charge and release to cast; press again to reel in (demo, no sprites yet)
-- **Scroll** or **1–9** — hotbar slots (visual for now)
+- **Space** or **click** — with a rod selected, hold to charge and release to cast; press again to reel in
+- **Scroll** or **1–9** — select a hotbar slot
 - **E** — interact with whatever is closest (the guide or the shop); also closes the shop
 - **M** — world map, anywhere (WASD / arrows or drag to pan, scroll to zoom)
 
@@ -49,6 +49,8 @@ First time you meet the guide, dialogue pops up on its own. After that, walking 
 - Placeholder **store** (3×2 tiles) spawned behind the guide on valid terrain
 - **Map** — explored tiles only in the game's own palette, fog checkerboard, markers for you, the guide, and the store
 - **Rod shop** — list + detail pane, spend coins on rods; bought rods show up in the hotbar (placeholder art in `media/rod.png`)
+- **Casting** — overhead rod swing, point-chain rope physics, a bouncing and drifting bobber, water-tone splashes, and instant ground misses
+- **Rod upgrades** — Basic, Sturdy and Iron rods differ in cast distance and charge speed, with line-strength and catch-zone stats ready for the catch mechanic
 
 ## Assets
 
@@ -60,4 +62,3 @@ Keep paths in sync with `preload()` in `phaser.js`. Character walk frames live u
 - Original art / starter — project author
 
 No license file yet — add one if you ship this anywhere public.
-
