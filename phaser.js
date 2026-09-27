@@ -3270,8 +3270,13 @@ function openMap(scene) {
         targets: mapContainer,
         y: DIALOGUE_VISIBLE_Y,
         duration: 180,
-        ease: 'Cubic.Out'
+        ease: 'Cubic.Out',
+        onUpdate: snapTweenTarget
     });
+}
+
+function snapTweenTarget(tween, target) {
+    target.y = Math.round(target.y);
 }
 
 function closeMap(scene) {
@@ -3288,6 +3293,7 @@ function closeMap(scene) {
         y: MAP_HIDDEN_Y,
         duration: 140,
         ease: 'Cubic.In',
+        onUpdate: snapTweenTarget,
         onComplete: () => {
             if (!mapOpen) {
                 mapContainer.setVisible(false);
@@ -3764,7 +3770,8 @@ function openMarket(scene) {
         targets: [marketContainer, marketTextLayer],
         y: DIALOGUE_VISIBLE_Y,
         duration: 180,
-        ease: 'Cubic.Out'
+        ease: 'Cubic.Out',
+        onUpdate: snapTweenTarget
     });
 }
 
@@ -3783,6 +3790,7 @@ function closeMarket(scene) {
         y: MARKET_HIDDEN_Y,
         duration: 140,
         ease: 'Cubic.In',
+        onUpdate: snapTweenTarget,
         onComplete: () => {
             if (!marketOpen) {
                 marketContainer.setVisible(false);
@@ -3981,7 +3989,8 @@ function openGuideDialogue(scene) {
         targets: [dialogueContainer, dialogueTextLayer],
         y: DIALOGUE_VISIBLE_Y,
         duration: 180,
-        ease: 'Cubic.Out'
+        ease: 'Cubic.Out',
+        onUpdate: snapTweenTarget
     });
 
     showGuideDialogueNode(scene, 'intro');
@@ -4008,6 +4017,7 @@ function closeGuideDialogue(scene) {
         y: DIALOGUE_HIDDEN_Y,
         duration: 140,
         ease: 'Cubic.In',
+        onUpdate: snapTweenTarget,
         onComplete: () => {
             if (!dialogueOpen) {
                 dialogueContainer.setVisible(false);
