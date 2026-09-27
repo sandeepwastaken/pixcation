@@ -359,6 +359,12 @@ const shadowLut = new Map();
 const bushShadowPoints = [];
 const staticShadowCasters = [];
 const dustPool = [];
+const BUSH_FOOTPRINT_LEFT = 3;
+const BUSH_FOOTPRINT_RIGHT = 29;
+const BUSH_FOOTPRINT_HEIGHT = 12;
+const BUSH_RUSTLE_PATTERN = [1, 0, -1, 0, 1, 0];
+const BUSH_RUSTLE_STEP = 55;
+const BUSH_RUSTLE_REPEAT = 420;
 const DUST_PER_STEP = 3;
 const DUST_LIFETIME = 330;
 const DUST_COLORS = [0xa7825a, 0xb69a6c, 0x9f7751];
@@ -2066,6 +2072,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
     const waterMaskCells = [];
     const edgeCells = [];
     const woodTiles = [];
+    const bushes = [];
     const shorelineTiles = [];
     const groundTexture = acquireChunkCanvas(scene);
     const groundContext = groundTexture.getContext();
@@ -2156,17 +2163,21 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
             if (hasBushAt(tileX, tileY)) {
                 const baseY = (tileY + 1) * TILE_SIZE;
+                const bush = { x: tileX * TILE_SIZE, y: baseY, slices: [], rustleStart: -Infinity, touching: false, offset: 0 };
 
                 for (let slice = 0; slice < TILE_SIZE; slice++) {
-                    const bush = scene.add.image(
-                        tileX * TILE_SIZE, baseY, `bush-slice-${slice}`
+                    const image = scene.add.image(
+                        bush.x, baseY, `bush-slice-${slice}`
                     )
                         .setOrigin(0, 1)
                         .setDepth(baseY - TILE_SIZE + slice + 0.5);
 
-                    worldObjectLayer.add(bush);
-                    tileSprites.push(bush);
+                    worldObjectLayer.add(image);
+                    tileSprites.push(image);
+                    bush.slices.push(image);
                 }
+
+                bushes.push(bush);
             }
 
             if (shoreline) {
@@ -2216,6 +2227,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
         overlay: null,
         waterTexture: null,
         shadowMask,
+        bushes,
         pixels: null,
         waterBuild: waterMaskCells.length > 0
             ? { waterMaskCells, edgeCells, woodTiles, shorelineTiles }
@@ -2879,6 +2891,42 @@ function updateDust(time) {
 
         const step = Math.floor(age / (DUST_LIFETIME / 3));
         image.setPosition(image.dust.x + (step > 1 ? image.dust.drift : 0), image.dust.y - step);
+    }
+}
+
+function updateBushRustle(time, isWalking) {
+    const left = character.x + CHARACTER_HITBOX_X;
+    const top = character.y + CHARACTER_HITBOX_Y;
+    const right = left + CHARACTER_HITBOX_WIDTH;
+    const bottom = top + CHARACTER_HITBOX_HEIGHT;
+
+    for (const chunk of loadedChunks.values()) {
+        for (const bush of chunk.bushes) {
+            const touching =
+                left < bush.x + BUSH_FOOTPRINT_RIGHT &&
+                right > bush.x + BUSH_FOOTPRINT_LEFT &&
+                top < bush.y &&
+                bottom > bush.y - BUSH_FOOTPRINT_HEIGHT;
+
+            if (touching && isWalking && (!bush.touching || time - bush.rustleStart > BUSH_RUSTLE_REPEAT)) {
+                bush.rustleStart = time;
+            }
+
+            bush.touching = touching;
+
+            const age = time - bush.rustleStart;
+            const offset = age < BUSH_RUSTLE_PATTERN.length * BUSH_RUSTLE_STEP
+                ? BUSH_RUSTLE_PATTERN[Math.floor(age / BUSH_RUSTLE_STEP)]
+                : 0;
+
+            if (offset === bush.offset) continue;
+
+            bush.offset = offset;
+
+            for (const slice of bush.slices) {
+                slice.x = bush.x + offset;
+            }
+        }
     }
 }
 
@@ -4189,6 +4237,7 @@ function update(time, delta) {
     character.setDepth(character.y + CHARACTER_SIZE);
     updateCharacterShadow(this);
     updateDust(time);
+    updateBushRustle(time, isWalking);
 
     const guideIsNear = isGuideNear();
     updateGuideInteraction(this, guideIsNear);
