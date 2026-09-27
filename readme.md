@@ -21,6 +21,7 @@ Then go to **http://localhost:8000/index.html**
 
 - **WASD** or arrow keys — move
 - **Shift** — hold to run
+- **Space** or **click** — with a rod selected, hold to charge and release to cast; press again to reel in (demo, no sprites yet)
 - **Scroll** or **1–9** — hotbar slots (visual for now)
 - **E** — interact with whatever is closest (the guide or the shop); also closes the shop
 - **M** — world map, anywhere (WASD / arrows or drag to pan, scroll to zoom)
