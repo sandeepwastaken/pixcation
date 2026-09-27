@@ -364,6 +364,7 @@ let mapOpen = false;
 let mapContainer;
 let mapImage;
 let mapTexture;
+let mapPalette = null;
 let marketOpen = false;
 let marketContainer;
 let marketTextLayer;
@@ -2935,7 +2936,50 @@ function createMapUI(scene) {
     .setVisible(false);
 }
 
-function redrawMap() {
+function getMapPalette(scene) {
+    if (mapPalette) return mapPalette;
+
+    const pack = ([r, g, b]) => (r << 16) | (g << 8) | b;
+    const grass = getDominantColor(scene, 'grass1');
+    const dirt = getDominantColor(scene, 'dirt1');
+
+    mapPalette = {
+        grass: pack(grass),
+        grassEdge: pack(shadeColor(...grass)),
+        dirt: pack(dirt),
+        dirtEdge: pack(shadeColor(...dirt)),
+        bush: 0x4a7a52,
+        wood: pack(getDominantColor(scene, 'wood')),
+        store: pack(getDominantColor(scene, 'store')),
+        water: [0x87bed8, 0x72a8cf, 0x6890ca],
+        fog: [0x1a1a1a, 0x2a2a2a],
+        guide: 0xacccf9,
+        player: 0xf6f5e5,
+        outline: 0x230a03
+    };
+
+    return mapPalette;
+}
+
+function getMapWaterDepth(tileX, tileY) {
+    for (let radius = 1; radius <= 2; radius++) {
+        for (let offsetY = -radius; offsetY <= radius; offsetY++) {
+            for (let offsetX = -radius; offsetX <= radius; offsetX++) {
+                if (
+                    Math.max(Math.abs(offsetX), Math.abs(offsetY)) === radius &&
+                    getTerrainType(tileX + offsetX, tileY + offsetY) !== 'water'
+                ) {
+                    return radius - 1;
+                }
+            }
+        }
+    }
+
+    return 2;
+}
+
+function redrawMap(scene) {
+    const palette = getMapPalette(scene);
     const context = mapTexture.getContext();
     const image = context.createImageData(MAP_WIDTH, MAP_HEIGHT);
     const pixels = image.data;
@@ -2945,59 +2989,66 @@ function redrawMap() {
     const originX = playerTileX - Math.floor(MAP_WIDTH / 2);
     const originY = playerTileY - Math.floor(MAP_HEIGHT / 2);
 
+    const plot = (x, y, color) => {
+        if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return;
+
+        const index = (y * MAP_WIDTH + x) * 4;
+        pixels[index] = (color >> 16) & 255;
+        pixels[index + 1] = (color >> 8) & 255;
+        pixels[index + 2] = color & 255;
+        pixels[index + 3] = 255;
+    };
+
+    const marker = (tileX, tileY, width, height, color) => {
+        const x = tileX - originX;
+        const y = tileY - originY;
+
+        for (let offsetY = -1; offsetY <= height; offsetY++) {
+            for (let offsetX = -1; offsetX <= width; offsetX++) {
+                const inside = offsetX >= 0 && offsetY >= 0 && offsetX < width && offsetY < height;
+                plot(x + offsetX, y + offsetY, inside ? color : palette.outline);
+            }
+        }
+    };
+
     for (let y = 0; y < MAP_HEIGHT; y++) {
         for (let x = 0; x < MAP_WIDTH; x++) {
             const tileX = originX + x;
             const tileY = originY + y;
-            const index = (y * MAP_WIDTH + x) * 4;
-
             let color;
 
             if (!isTileDiscovered(tileX, tileY)) {
-                color = (x + y) & 1 ? 0x1a1a1a : 0x2a2a2a;
+                color = palette.fog[(x + y) & 1];
             } else if (hasBushAt(tileX, tileY) || hasBushAt(tileX - 1, tileY)) {
-                color = 0x2f5c2a;
+                color = palette.bush;
             } else {
-                const tileKey = getWorldTileKey(tileX, tileY).toLowerCase();
+                const tile = getWorldTile(tileX, tileY);
+                const terrain = getTerrainType(tileX, tileY);
 
-                if (tileKey.includes('wood')) {
-                    color = 0xc0a887;
-                } else if (tileKey.includes('water')) {
-                    color = 0x87bed8;
-                } else if (tileKey.includes('grass')) {
-                    color = 0x4f8f45;
+                if (tile.key.startsWith('wood')) {
+                    color = palette.wood;
+                } else if (terrain === 'water') {
+                    color = palette.water[getMapWaterDepth(tileX, tileY)];
+                } else if (tile.blocking === 'lower') {
+                    color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;
                 } else {
-                    color = 0x8a5a32;
+                    color = terrain === 'grass' ? palette.grass : palette.dirt;
                 }
             }
 
-            pixels[index] = (color >> 16) & 255;
-            pixels[index + 1] = (color >> 8) & 255;
-            pixels[index + 2] = color & 255;
-            pixels[index + 3] = 255;
+            plot(x, y, color);
         }
     }
 
-    if (guide) {
-        const guideTileX = Math.floor(guide.x / TILE_SIZE);
-        const guideTileY = Math.floor(guide.y / TILE_SIZE);
-
-        if (isTileDiscovered(guideTileX, guideTileY)) {
-            const x = guideTileX - originX;
-            const y = guideTileY - originY;
-
-            if (x >= 0 && y >= 0 && x < MAP_WIDTH - 1 && y < MAP_HEIGHT - 1) {
-                for (const [offsetX, offsetY] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
-                    const index = ((y + offsetY) * MAP_WIDTH + (x + offsetX)) * 4;
-
-                    pixels[index] = 0xac;
-                    pixels[index + 1] = 0xcc;
-                    pixels[index + 2] = 0xf9;
-                    pixels[index + 3] = 255;
-                }
-            }
-        }
+    if (store && isTileDiscovered(Math.floor(store.x / TILE_SIZE), Math.floor(store.y / TILE_SIZE))) {
+        marker(Math.floor(store.x / TILE_SIZE), Math.floor(store.y / TILE_SIZE), STORE_WIDTH_TILES, STORE_HEIGHT_TILES, palette.store);
     }
+
+    if (guide && isTileDiscovered(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE))) {
+        marker(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE), 1, 1, palette.guide);
+    }
+
+    marker(playerTileX, playerTileY, 1, 1, palette.player);
 
     context.putImageData(image, 0, 0);
     mapTexture.refresh();
@@ -3014,7 +3065,7 @@ function openMap(scene) {
     characterTextureKey = `character-${characterDirection}`;
     character.setTexture(characterTextureKey);
 
-    redrawMap();
+    redrawMap(scene);
 
     mapContainer
         .setVisible(true)
