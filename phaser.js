@@ -266,6 +266,19 @@ const CHARACTER_HITBOX_HEIGHT = 4;
 const CHARACTER_CORNER_NUDGE = 4;
 
 const GUIDE_SIZE = 16;
+const BUSH_HEIGHT = 22;
+const ACTOR_SHADOW_X = 3;
+const ACTOR_SHADOW_Y = 14;
+const ACTOR_SHADOW_SHAPE = [
+    '.########.',
+    '##########',
+    '..######..'
+];
+const SHADOW_PALETTE_TEXTURES = [
+    'grass1', 'grass2', 'grass3', 'grass4', 'grassEdge', 'dirt1', 'dirtEdge',
+    'corner', 'dirtEdgeCorner', 'dirtCliffCorner', 'cornerDirt1', 'cornerDirt2', 'cornerDirt3',
+    'transition1', 'transition2', 'transition3', 'transition4', 'wood', 'woodLeft', 'woodRight', 'bush'
+];
 const GUIDE_INTERACTION_DISTANCE = 26;
 const GUIDE_INTERACTION_DISTANCE_SQUARED = GUIDE_INTERACTION_DISTANCE ** 2;
 const GUIDE_HITBOX_X = 4;
@@ -334,6 +347,11 @@ const GUIDE_DIALOGUE = {
 };
 
 let guide;
+let shadowLayer;
+let characterShadow;
+const shadowLut = new Map();
+const bushShadowPoints = [];
+const staticShadowCasters = [];
 let store;
 let guideWasNear = false;
 let guideHasMetPlayer = false;
@@ -464,8 +482,69 @@ function preload() {
     });
 }
 
+function extractBushShadow(scene) {
+    const pixels = getTerrainPixels(scene, 'bush');
+    const { width, height } = pixels;
+    const colorAt = index => (pixels.data[index * 4] << 16) | (pixels.data[index * 4 + 1] << 8) | pixels.data[index * 4 + 2];
+    const seeds = new Set([0x6e8e45, 0xa0bc73]);
+    const passable = new Set([0x6e8e45, 0xa0bc73, 0x8eb067, 0xb0c579]);
+    const shadow = new Uint8Array(width * height);
+    const queue = [];
+
+    for (let index = 0; index < width * height; index++) {
+        if (pixels.data[index * 4 + 3] && seeds.has(colorAt(index))) {
+            shadow[index] = 1;
+            queue.push(index);
+        }
+    }
+
+    while (queue.length > 0) {
+        const index = queue.pop();
+        const x = index % width;
+        const y = Math.floor(index / width);
+
+        for (const [nextX, nextY] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+            if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) continue;
+
+            const next = nextY * width + nextX;
+
+            if (!shadow[next] && pixels.data[next * 4 + 3] && passable.has(colorAt(next))) {
+                shadow[next] = 1;
+                queue.push(next);
+            }
+        }
+    }
+
+    const texture = scene.textures.createCanvas('bush-art', width, height);
+    const context = texture.getContext();
+    const image = context.createImageData(width, height);
+
+    image.data.set(pixels.data);
+
+    for (let index = 0; index < width * height; index++) {
+        if (shadow[index]) {
+            image.data[index * 4 + 3] = 0;
+        }
+    }
+
+    context.putImageData(image, 0, 0);
+    texture.refresh();
+
+    const solid = (x, y) => x >= 0 && y >= 0 && x < width && y < height && image.data[(y * width + x) * 4 + 3] > 0;
+
+    bushShadowPoints.length = 0;
+
+    for (let y = 0; y < height + WOOD_SHADOW_OFFSET; y++) {
+        for (let x = 0; x < width + WOOD_SHADOW_OFFSET; x++) {
+            if (solid(x - WOOD_SHADOW_OFFSET, y - WOOD_SHADOW_OFFSET) && !solid(x, y)) {
+                bushShadowPoints.push(x, y);
+            }
+        }
+    }
+}
+
 function createBushSlices(scene) {
-    const source = getTextureSource(scene, 'bush');
+    const source = getTextureSource(scene, 'bush-art');
     const { width, height} = source;
 
     for (let slice = 0; slice < TILE_SIZE; slice++) {
@@ -599,8 +678,11 @@ function create() {
     this.terrainPixelCache = new Map();
     this.terrainSurfaceCache = new Map();
     this.shorelineTileCache = new Map();
+    shadowLayer = this.add.layer().setDepth(2.5);
     worldObjectLayer = this.add.layer().setDepth(3);
     waterPipeline = this.game.renderer.pipelines.add('WaterWarp', new WaterWarpPipeline(this.game));
+    buildShadowLut(this);
+    extractBushShadow(this);
     createBushSlices(this);
     createRoundedCliffTextures(this);
 
@@ -610,6 +692,8 @@ function create() {
         frameRate: 12,
         repeat: 0
     });
+
+    createCharacterShadow(this);
 
     character = this.add.sprite(0, 0, 'character-front')
         .setOrigin(0)
@@ -771,6 +855,12 @@ function create() {
     updateLoadedChunks(this, true);
 
     spawnGuideAndStore(this);
+
+    for (const key of [...loadedChunks.keys()]) {
+        destroyWorldChunk(key);
+    }
+
+    updateLoadedChunks(this, true);
     createGuideDialogueUI(this);
     createMapUI(this);
     createMarketUI(this);
@@ -1742,6 +1832,146 @@ function getShoreDistances(scene, chunkX, chunkY) {
     return result;
 }
 
+function forEachStaticShadowPoint(chunkX, chunkY, callback) {
+    const minTileX = chunkX * CHUNK_SIZE - 2;
+    const minTileY = chunkY * CHUNK_SIZE - 1;
+    const maxTileX = (chunkX + 1) * CHUNK_SIZE;
+    const maxTileY = (chunkY + 1) * CHUNK_SIZE + 1;
+
+    for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
+        for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
+            if (!hasBushAt(tileX, tileY)) continue;
+
+            const originX = tileX * TILE_SIZE;
+            const originY = (tileY + 1) * TILE_SIZE - BUSH_HEIGHT;
+
+            for (let point = 0; point < bushShadowPoints.length; point += 2) {
+                callback(originX + bushShadowPoints[point], originY + bushShadowPoints[point + 1]);
+            }
+        }
+    }
+
+    for (const caster of staticShadowCasters) {
+        for (let row = 0; row < caster.shape.length; row++) {
+            for (let column = 0; column < caster.shape[row].length; column++) {
+                if (caster.shape[row][column] === '#') {
+                    callback(caster.x + column, caster.y + row);
+                }
+            }
+        }
+    }
+}
+
+function getStaticShadowMask(chunkX, chunkY) {
+    const originX = chunkX * CHUNK_PIXEL_SIZE;
+    const originY = chunkY * CHUNK_PIXEL_SIZE;
+    let mask = null;
+
+    forEachStaticShadowPoint(chunkX, chunkY, (x, y) => {
+        const localX = x - originX;
+        const localY = y - originY;
+
+        if (localX < 0 || localY < 0 || localX >= CHUNK_PIXEL_SIZE || localY >= CHUNK_PIXEL_SIZE) return;
+
+        mask ||= new Uint8Array(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE);
+        mask[localY * CHUNK_PIXEL_SIZE + localX] = 1;
+    });
+
+    return mask;
+}
+
+function isFlatShadowTile(tile) {
+    return !tile.patches && (tile.key.startsWith('grass') || tile.key === 'dirt1');
+}
+
+function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
+    let minX = CHUNK_PIXEL_SIZE;
+    let minY = CHUNK_PIXEL_SIZE;
+    let maxX = -1;
+    let maxY = -1;
+    const detailed = [];
+
+    for (let localY = 0; localY < CHUNK_PIXEL_SIZE; localY++) {
+        let runStart = -1;
+        let runColor = null;
+
+        const flush = end => {
+            if (runStart === -1) return;
+            context.fillStyle = runColor;
+            context.fillRect(runStart, localY, end - runStart, 1);
+            runStart = -1;
+        };
+
+        for (let localX = 0; localX < CHUNK_PIXEL_SIZE; localX++) {
+            const pixel = localY * CHUNK_PIXEL_SIZE + localX;
+            let color = null;
+
+            if (mask[pixel]) {
+                const tile = getWorldTile(
+                    chunkX * CHUNK_SIZE + Math.floor(localX / TILE_SIZE),
+                    chunkY * CHUNK_SIZE + Math.floor(localY / TILE_SIZE)
+                );
+
+                if (!getTerrainSurface(scene, tile).water[(localY % TILE_SIZE) * TILE_SIZE + localX % TILE_SIZE]) {
+                    if (isFlatShadowTile(tile)) {
+                        color = getShadowStyle(scene, tile.key);
+                    } else {
+                        detailed.push(pixel);
+                        minX = Math.min(minX, localX);
+                        minY = Math.min(minY, localY);
+                        maxX = Math.max(maxX, localX);
+                        maxY = Math.max(maxY, localY);
+                    }
+                }
+            }
+
+            if (color !== runColor || !color) {
+                flush(localX);
+                if (color) {
+                    runStart = localX;
+                    runColor = color;
+                }
+            }
+        }
+
+        flush(CHUNK_PIXEL_SIZE);
+    }
+
+    if (detailed.length === 0) {
+        return;
+    }
+
+    const width = maxX - minX + 1;
+    const image = context.getImageData(minX, minY, width, maxY - minY + 1);
+
+    for (const pixel of detailed) {
+        const index = ((Math.floor(pixel / CHUNK_PIXEL_SIZE) - minY) * width + pixel % CHUNK_PIXEL_SIZE - minX) * 4;
+        if (!image.data[index + 3]) continue;
+
+        const shaded = shadeColor(image.data[index], image.data[index + 1], image.data[index + 2]);
+        image.data[index] = shaded[0];
+        image.data[index + 1] = shaded[1];
+        image.data[index + 2] = shaded[2];
+    }
+
+    context.putImageData(image, minX, minY);
+}
+
+function getShadowStyle(scene, key) {
+    scene.shadowStyleCache ||= new Map();
+
+    let style = scene.shadowStyleCache.get(key);
+
+    if (!style) {
+        const base = getDominantColor(scene, key);
+        const shaded = shadeColor(base[0], base[1], base[2]);
+        style = `rgb(${shaded[0]}, ${shaded[1]}, ${shaded[2]})`;
+        scene.shadowStyleCache.set(key, style);
+    }
+
+    return style;
+}
+
 function getWaterMaskBase(scene) {
     if (scene.waterMaskBase) return scene.waterMaskBase;
 
@@ -1950,6 +2180,10 @@ function createWorldChunk(scene, chunkX, chunkY) {
         }
     }
 
+    const shadowMask = getStaticShadowMask(chunkX, chunkY);
+    if (shadowMask) {
+        bakeGroundShadows(scene, groundContext, chunkX, chunkY, shadowMask);
+    }
     const groundLayer = createChunkLayer(scene, groundTexture, pixelX, pixelY, 0);
     const upperLayer = upperTexture
         ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5)
@@ -2010,6 +2244,14 @@ function createWorldChunk(scene, chunkX, chunkY) {
             }
         }
 
+        if (shadowMask) {
+            for (let pixel = 0, index = 0; pixel < shadowMask.length; pixel++, index += 4) {
+                if (shadowMask[pixel] && data[index]) {
+                    data[index] = 128;
+                }
+            }
+        }
+
         const nearbyWood = gatherNearbyWoodTiles(chunkX, chunkY, woodTiles);
         const woodMask = getChunkWoodMask(scene, nearbyWood);
 
@@ -2057,7 +2299,9 @@ function createWorldChunk(scene, chunkX, chunkY) {
         visible: true,
         shimmers: [],
         overlay,
-        waterTexture
+        waterTexture,
+        shadowMask,
+        pixels: null
     };
 
     loadedChunks.set(key, chunk);
@@ -2353,6 +2597,231 @@ function spawnGuideAndStore(scene) {
         .setDepth(spawn.guideTileY * TILE_SIZE + GUIDE_SIZE);
 
     worldObjectLayer.add(guide);
+
+    staticShadowCasters.push(
+        { x: guide.x + ACTOR_SHADOW_X, y: guide.y + ACTOR_SHADOW_Y, shape: ACTOR_SHADOW_SHAPE },
+        { x: store.x + WOOD_SHADOW_OFFSET, y: store.y + WOOD_SHADOW_OFFSET, shape: getStoreShadowShape() }
+    );
+}
+
+function getStoreShadowShape() {
+    const rows = [];
+
+    for (let y = 0; y < STORE_HEIGHT; y++) {
+        let row = '';
+
+        for (let x = 0; x < STORE_WIDTH; x++) {
+            row += x < STORE_WIDTH - WOOD_SHADOW_OFFSET && y < STORE_HEIGHT - WOOD_SHADOW_OFFSET ? '.' : '#';
+        }
+
+        rows.push(row);
+    }
+
+    return rows;
+}
+
+function buildShadowLut(scene) {
+    const colors = new Map();
+
+    for (const key of SHADOW_PALETTE_TEXTURES) {
+        const pixels = getTerrainPixels(scene, key).data;
+
+        for (let index = 0; index < pixels.length; index += 4) {
+            if (pixels[index + 3] < 255) continue;
+            colors.set((pixels[index] << 16) | (pixels[index + 1] << 8) | pixels[index + 2], [
+                pixels[index],
+                pixels[index + 1],
+                pixels[index + 2]
+            ]);
+        }
+    }
+
+    const describe = ([r, g, b]) => {
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const delta = max - min;
+        let hue = 0;
+
+        if (delta) {
+            hue = max === r ? ((g - b) / delta) % 6 : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4;
+            hue = (hue * 60 + 360) % 360;
+        }
+
+        return { hue, saturation: max ? delta / max : 0, luma: r * 0.299 + g * 0.587 + b * 0.114 };
+    };
+
+    const entries = [...colors].map(([key, rgb]) => ({ key, rgb, ...describe(rgb) }));
+
+    for (const color of entries) {
+        let best = null;
+
+        for (const other of entries) {
+            const hueGap = Math.min(Math.abs(color.hue - other.hue), 360 - Math.abs(color.hue - other.hue));
+            const distance = Math.hypot(
+                color.rgb[0] - other.rgb[0],
+                color.rgb[1] - other.rgb[1],
+                color.rgb[2] - other.rgb[2]
+            );
+
+            if (
+                other.luma < color.luma &&
+                hueGap < 24 &&
+                Math.abs(color.saturation - other.saturation) < 0.14 &&
+                distance < 48 &&
+                (!best || other.luma > best.luma)
+            ) {
+                best = other;
+            }
+        }
+
+        shadowLut.set(color.key, best ? best.rgb : color.rgb.map(value => Math.round(value * 0.86)));
+    }
+}
+
+function shadeColor(r, g, b) {
+    return shadowLut.get((r << 16) | (g << 8) | b) || [
+        Math.round(r * 0.86),
+        Math.round(g * 0.86),
+        Math.round(b * 0.86)
+    ];
+}
+
+function getDominantColor(scene, key) {
+    scene.dominantColorCache ||= new Map();
+
+    const cached = scene.dominantColorCache.get(key);
+    if (cached) return cached;
+
+    const pixels = getTerrainPixels(scene, key).data;
+    const counts = new Map();
+    let best = 0;
+    let bestCount = 0;
+
+    for (let index = 0; index < pixels.length; index += 4) {
+        const color = (pixels[index] << 16) | (pixels[index + 1] << 8) | pixels[index + 2];
+        const count = (counts.get(color) || 0) + 1;
+
+        counts.set(color, count);
+
+        if (count > bestCount) {
+            best = color;
+            bestCount = count;
+        }
+    }
+
+    const dominant = [best >> 16, (best >> 8) & 255, best & 255];
+    scene.dominantColorCache.set(key, dominant);
+    return dominant;
+}
+
+function getChunkPixels(chunk) {
+    chunk.pixels ||= { ground: null, upper: null, upperRead: false };
+
+    if (!chunk.pixels.ground) {
+        chunk.pixels.ground = chunk.groundTexture.getContext()
+            .getImageData(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE).data;
+    }
+
+    if (!chunk.pixels.upperRead) {
+        chunk.pixels.upperRead = true;
+        chunk.pixels.upper = chunk.upperTexture
+            ? chunk.upperTexture.getContext().getImageData(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE).data
+            : null;
+    }
+
+    return chunk.pixels;
+}
+
+function getGroundShadowColor(scene, worldX, worldY) {
+    const tileX = Math.floor(worldX / TILE_SIZE);
+    const tileY = Math.floor(worldY / TILE_SIZE);
+    const tile = getWorldTile(tileX, tileY);
+
+    if (getTerrainSurface(scene, tile).water[(worldY - tileY * TILE_SIZE) * TILE_SIZE + worldX - tileX * TILE_SIZE]) {
+        return null;
+    }
+
+    const chunkX = Math.floor(tileX / CHUNK_SIZE);
+    const chunkY = Math.floor(tileY / CHUNK_SIZE);
+    const chunk = loadedChunks.get(getChunkKey(chunkX, chunkY));
+
+    if (!chunk) {
+        return null;
+    }
+
+    const pixel = (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE;
+
+    if (chunk.shadowMask && chunk.shadowMask[pixel]) {
+        return null;
+    }
+
+    if (isFlatShadowTile(tile)) {
+        const base = getDominantColor(scene, tile.key);
+        return shadeColor(base[0], base[1], base[2]);
+    }
+
+    const pixels = getChunkPixels(chunk);
+    const index = pixel * 4;
+
+    if (pixels.upper && pixels.upper[index + 3]) {
+        return shadeColor(pixels.upper[index], pixels.upper[index + 1], pixels.upper[index + 2]);
+    }
+
+    if (!pixels.ground[index + 3]) {
+        return null;
+    }
+
+    const base = tile.key.startsWith('grass') || tile.key === 'dirt1'
+        ? getDominantColor(scene, tile.key)
+        : pixels.ground.subarray(index, index + 3);
+
+    return shadeColor(base[0], base[1], base[2]);
+}
+
+function createCharacterShadow(scene) {
+    const width = ACTOR_SHADOW_SHAPE[0].length;
+    const height = ACTOR_SHADOW_SHAPE.length;
+    const texture = scene.textures.createCanvas('character-shadow', width, height);
+    const image = scene.add.image(0, 0, texture.key).setOrigin(0);
+
+    shadowLayer.add(image);
+    characterShadow = { texture, image, x: null, y: null };
+}
+
+function updateCharacterShadow(scene) {
+    const x = character.x + ACTOR_SHADOW_X;
+    const y = character.y + ACTOR_SHADOW_Y;
+
+    if (characterShadow.x === x && characterShadow.y === y) {
+        return;
+    }
+
+    characterShadow.x = x;
+    characterShadow.y = y;
+    characterShadow.image.setPosition(x, y);
+
+    const context = characterShadow.texture.getContext();
+    const width = ACTOR_SHADOW_SHAPE[0].length;
+    const height = ACTOR_SHADOW_SHAPE.length;
+    const image = context.createImageData(width, height);
+
+    for (let row = 0; row < height; row++) {
+        for (let column = 0; column < width; column++) {
+            if (ACTOR_SHADOW_SHAPE[row][column] !== '#') continue;
+
+            const shaded = getGroundShadowColor(scene, x + column, y + row);
+            if (!shaded) continue;
+
+            const index = (row * width + column) * 4;
+            image.data[index] = shaded[0];
+            image.data[index + 1] = shaded[1];
+            image.data[index + 2] = shaded[2];
+            image.data[index + 3] = 255;
+        }
+    }
+
+    context.putImageData(image, 0, 0);
+    characterShadow.texture.refresh();
 }
 
 function createGuideDialogueUI(scene) {
@@ -3548,6 +4017,7 @@ function update(time, delta) {
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
     character.setDepth(character.y + CHARACTER_SIZE);
+    updateCharacterShadow(this);
 
     const guideIsNear = isGuideNear();
     updateGuideInteraction(this, guideIsNear);
