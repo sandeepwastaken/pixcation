@@ -1,3 +1,12 @@
+const fishMigrations = [];
+
+function queueFishMigration(chunk, fish) {
+    const targetChunk = getFishChunkAt(fish.x, fish.y);
+    if (targetChunk && targetChunk !== chunk && loadedWaterChunks.has(targetChunk)) {
+        fishMigrations.push(chunk, targetChunk, fish);
+    }
+}
+
 function getFishDepth(chunk, x, y) {
     const localX = Math.floor(x) - chunk.chunkX * CHUNK_PIXEL_SIZE;
     const localY = Math.floor(y) - chunk.chunkY * CHUNK_PIXEL_SIZE;
@@ -435,19 +444,12 @@ function updateFish(delta) {
     const playerX = character.x + CHARACTER_SIZE / 2;
     const playerY = character.y + CHARACTER_SIZE - 2;
     const running = characterPace > 1 && characterMoving;
-    const migrations = [];
-
-    const queueMigration = (chunk, fish) => {
-        const targetChunk = getFishChunkAt(fish.x, fish.y);
-        if (targetChunk && targetChunk !== chunk && loadedWaterChunks.has(targetChunk)) {
-            migrations.push({ chunk, targetChunk, fish });
-        }
-    };
+    fishMigrations.length = 0;
 
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {
             if (fish.state === 'lure' && updateLuredFish(chunk, fish, delta)) {
-                queueMigration(chunk, fish);
+                queueFishMigration(chunk, fish);
                 continue;
             }
 
@@ -457,7 +459,7 @@ function updateFish(delta) {
             if (
                 running &&
                 fish.state !== 'flee' &&
-                awayX * awayX + awayY * awayY < FISH_SCARE_DISTANCE * FISH_SCARE_DISTANCE &&
+                awayX * awayX + awayY * awayY < FISH_SCARE_DISTANCE_SQUARED &&
                 chooseFishTarget(chunk, fish, awayX, awayY)
             ) {
                 fish.state = 'flee';
@@ -541,11 +543,11 @@ function updateFish(delta) {
                 fish.timer = FISH_IDLE_MIN;
             }
 
-            queueMigration(chunk, fish);
+            queueFishMigration(chunk, fish);
         }
     }
 
-    for (const migration of migrations) {
-        migrateFishToChunk(migration.chunk, migration.targetChunk, migration.fish);
+    for (let index = 0; index < fishMigrations.length; index += 3) {
+        migrateFishToChunk(fishMigrations[index], fishMigrations[index + 1], fishMigrations[index + 2]);
     }
 }

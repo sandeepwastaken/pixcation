@@ -187,6 +187,7 @@ const FISH_NIBBLE_DIP_TIME = 150;
 const FISH_IDLE_MIN = 700;
 const FISH_IDLE_RANGE = 2600;
 const FISH_SCARE_DISTANCE = 40;
+const FISH_SCARE_DISTANCE_SQUARED = FISH_SCARE_DISTANCE * FISH_SCARE_DISTANCE;
 let horizontalPriority = 0;
 let lastMenuWheelTime = -Infinity;
 let verticalPriority = 0;

@@ -1459,9 +1459,10 @@ function destroyWorldChunk(key) {
         return;
     }
 
-    for (const shimmer of chunk.shimmers.slice()) {
+    while (chunk.shimmers.length) {
+        const shimmer = chunk.shimmers.pop();
         shimmer.off(Phaser.Animations.Events.ANIMATION_COMPLETE);
-        releaseShimmer(chunk, shimmer);
+        poolShimmer(shimmer);
     }
 
     for (const tileSprite of chunk.tileSprites) {
@@ -1566,7 +1567,7 @@ function buildPendingChunk(scene) {
     }
 
     while (pendingWaterChunks.length > 0) {
-        const chunk = pendingWaterChunks.shift();
+        const chunk = pendingWaterChunks.pop();
 
         if (loadedChunks.get(chunk.key) === chunk && chunk.waterBuild) {
             buildChunkWater(scene, chunk);

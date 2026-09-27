@@ -1,3 +1,10 @@
+const activeParticles = [];
+
+function poolShimmer(shimmer) {
+    shimmer.stop().setVisible(false).setActive(false);
+    shimmerPool.push(shimmer);
+}
+
 function releaseShimmer(chunk, shimmer) {
     const index = chunk.shimmers.indexOf(shimmer);
 
@@ -5,8 +12,7 @@ function releaseShimmer(chunk, shimmer) {
         chunk.shimmers.splice(index, 1);
     }
 
-    shimmer.stop().setVisible(false).setActive(false);
-    shimmerPool.push(shimmer);
+    poolShimmer(shimmer);
 }
 
 function spawnShimmer(scene) {
@@ -580,6 +586,8 @@ function spawnParticle(scene, layer, particle, color) {
     }
 
     image.particle = particle;
+    image.activeParticleIndex = activeParticles.length;
+    activeParticles.push(image);
     image
         .setTint(color)
         .setDepth(particle.depth || 0)
@@ -589,9 +597,8 @@ function spawnParticle(scene, layer, particle, color) {
 }
 
 function updateParticles(time) {
-    for (const image of particlePool) {
-        if (!image.active) continue;
-
+    for (let index = activeParticles.length - 1; index >= 0; index--) {
+        const image = activeParticles[index];
         const particle = image.particle;
         const age = time - particle.born;
 
@@ -616,6 +623,13 @@ function updateParticles(time) {
 
 function releaseParticle(image) {
     if (!image.active) return;
+    const index = image.activeParticleIndex;
+    const last = activeParticles.pop();
+    if (last !== image) {
+        activeParticles[index] = last;
+        last.activeParticleIndex = index;
+    }
+    image.activeParticleIndex = -1;
     image.setActive(false).setVisible(false);
     availableParticles.push(image);
 }
@@ -627,6 +641,7 @@ function updateBushRustle(scene, time, isWalking) {
     const bottom = top + CHARACTER_HITBOX_HEIGHT;
 
     for (const chunk of loadedChunks.values()) {
+        if (!chunk.visible) continue;
         for (const bush of chunk.bushes) {
             const touching =
                 left < bush.x + BUSH_FOOTPRINT_RIGHT &&

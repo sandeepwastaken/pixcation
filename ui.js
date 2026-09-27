@@ -1,3 +1,6 @@
+let mapPixels;
+const mapWaterDepthCache = new Map();
+
 function createGuideDialogueUI(scene) {
     const panel = scene.add.graphics();
 
@@ -105,6 +108,7 @@ function createMapUI(scene) {
         .fillRect(11, MAP_TOP - 1, MAP_WIDTH + 2, MAP_HEIGHT + 2);
 
     mapTexture = scene.textures.createCanvas('map', MAP_WIDTH, MAP_HEIGHT);
+    mapPixels = mapTexture.getContext().createImageData(MAP_WIDTH, MAP_HEIGHT);
 
     mapImage = scene.add.image(12, MAP_TOP, 'map')
         .setOrigin(0);
@@ -208,6 +212,10 @@ function getMapPalette(scene) {
 }
 
 function getMapWaterDepth(tileX, tileY) {
+    const key = getTileId(tileX, tileY);
+    const cached = mapWaterDepthCache.get(key);
+    if (cached !== undefined) return cached;
+
     for (let radius = 1; radius <= 2; radius++) {
         for (let offsetY = -radius; offsetY <= radius; offsetY++) {
             for (let offsetX = -radius; offsetX <= radius; offsetX++) {
@@ -215,20 +223,19 @@ function getMapWaterDepth(tileX, tileY) {
                     Math.max(Math.abs(offsetX), Math.abs(offsetY)) === radius &&
                     getTerrainType(tileX + offsetX, tileY + offsetY) !== 'water'
                 ) {
-                    return radius - 1;
+                    return cacheWorldValue(mapWaterDepthCache, key, radius - 1);
                 }
             }
         }
     }
 
-    return 2;
+    return cacheWorldValue(mapWaterDepthCache, key, 2);
 }
 
 function redrawMap(scene) {
     const palette = getMapPalette(scene);
     const context = mapTexture.getContext();
-    const image = context.createImageData(MAP_WIDTH, MAP_HEIGHT);
-    const pixels = image.data;
+    const pixels = mapPixels.data;
 
     const playerTileX = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE);
     const playerTileY = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
@@ -266,10 +273,11 @@ function redrawMap(scene) {
         for (let viewX = 0; viewX < viewWidth; viewX++) {
             const tileX = originX + viewX;
             const tileY = originY + viewY;
-            const covering = isTileDiscovered(tileX, tileY) ? getPropCovering(tileX, tileY) : null;
+            const discovered = isTileDiscovered(tileX, tileY);
+            const covering = discovered ? getPropCovering(tileX, tileY) : null;
             let color;
 
-            if (!isTileDiscovered(tileX, tileY)) {
+            if (!discovered) {
                 color = -1;
             } else if (covering) {
                 color = covering.type === 'tree' ? getTreeVariant(covering.tileX, tileY).color : palette[covering.type];
@@ -308,7 +316,7 @@ function redrawMap(scene) {
 
     marker(playerTileX, playerTileY, 1, 1, palette.player);
 
-    context.putImageData(image, 0, 0);
+    context.putImageData(mapPixels, 0, 0);
     mapTexture.refresh();
 }
 
