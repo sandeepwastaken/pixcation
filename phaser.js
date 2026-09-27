@@ -45,6 +45,10 @@ const config = {
     dom: {
         createContainer: true
     },
+
+    loader: {
+        maxParallelDownloads: 6
+    },
     
     scene: {
         preload: preload,

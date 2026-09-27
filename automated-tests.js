@@ -1,6 +1,8 @@
 function runAutomatedTests(scene) {
     const results = [];
     const record = (name, passed, detail) => results.push({ name, passed, detail });
+    const loaderPassed = scene.load.maxParallelDownloads === 6;
+    record('Asset requests use a bounded queue', loaderPassed, loaderPassed ? 'At most 6 assets download together' : `Loader concurrency is ${scene.load.maxParallelDownloads}`);
     const speciesIds = new Set(FISH_SPECIES.map(species => species.id));
     const ordinarySizesValid = FISH_SPECIES
         .filter(species => species.id !== 'sturgeon')
