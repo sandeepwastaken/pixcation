@@ -760,6 +760,7 @@ function create() {
         }
 
         const code = event.code;
+        const key = event.key.toLowerCase();
 
         if (code === 'KeyA' || code === 'ArrowLeft') horizontalPriority = -1;
         if (code === 'KeyD' || code === 'ArrowRight') horizontalPriority = 1;
@@ -787,7 +788,7 @@ function create() {
         }
 
 
-        if (event.key.toLowerCase() === 'i') {
+        if (key === 'i') {
             openInventory(this);
             return;
         }
@@ -798,16 +799,16 @@ function create() {
             return;
         }
 
-        if (event.key.toLowerCase() === 'm') {
+        if (key === 'm') {
             openMap(this);
             return;
         }
 
-        if (CHEATS_ENABLED && event.key.toLowerCase() === 's') {
+        if (CHEATS_ENABLED && key === 's') {
             spawnSturgeonAtCursor(this);
         }
 
-        if (event.key.toLowerCase() === 'e') {
+        if (key === 'e') {
             const target = getInteractionTarget(true);
 
             if (target === 'guide') {

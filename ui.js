@@ -326,10 +326,7 @@ function openMap(scene) {
     }
 
     mapOpen = true;
-    characterMoveRemainderX = 0;
-    characterMoveRemainderY = 0;
-    characterTextureKey = `character-${characterDirection}`;
-    character.setTexture(characterTextureKey);
+    stopCharacterForMenu();
 
     mapPan.x = 0;
     mapPan.y = 0;
@@ -366,6 +363,20 @@ function updateMapPan(scene, delta) {
 
 function snapTweenTarget(tween, target) {
     target.y = Math.round(target.y);
+}
+
+function stopCharacterForMenu() {
+    characterMoveRemainderX = 0;
+    characterMoveRemainderY = 0;
+    characterTextureKey = `character-${characterDirection}`;
+    character.setTexture(characterTextureKey);
+}
+
+function getVerticalMenuStep(event) {
+    const key = event.key.toLowerCase();
+    return key === 'w' || event.key === 'ArrowUp' ? -1
+        : key === 's' || event.key === 'ArrowDown' ? 1
+        : 0;
 }
 
 function slidePanel(scene, y, duration, ease, targets, onComplete) {
@@ -540,8 +551,7 @@ function openInventory(scene) {
 
     inventoryOpen = true;
     newGameConfirmUntil = 0;
-    characterMoveRemainderX = 0;
-    characterMoveRemainderY = 0;
+    stopCharacterForMenu();
     refreshInventoryUI(scene.time.now);
 
     showSlidingPanel(scene, INVENTORY_HIDDEN_Y, inventoryContainer, inventoryTextLayer);
@@ -1179,10 +1189,7 @@ function openMarket(scene) {
     selectedMarketOption = 0;
     marketFeedback = null;
     coinDisplay.value = playerCoins;
-    characterMoveRemainderX = 0;
-    characterMoveRemainderY = 0;
-    characterTextureKey = `character-${characterDirection}`;
-    character.setTexture(characterTextureKey);
+    stopCharacterForMenu();
 
     refreshMarketOptions();
 
@@ -1201,20 +1208,10 @@ function closeMarket(scene) {
 
 function handleMarketKey(scene, event) {
     const key = event.key.toLowerCase();
+    const step = getVerticalMenuStep(event);
 
-    if (
-        key === 'w' ||
-        event.key === 'ArrowUp'
-    ) {
-        moveMarketSelection(-1);
-        return;
-    }
-
-    if (
-        key === 's' ||
-        event.key === 'ArrowDown'
-    ) {
-        moveMarketSelection(1);
+    if (step) {
+        moveMarketSelection(step);
         return;
     }
 
@@ -1394,10 +1391,7 @@ function openGuideDialogue(scene) {
     }
 
     dialogueOpen = true;
-    characterMoveRemainderX = 0;
-    characterMoveRemainderY = 0;
-    characterTextureKey = `character-${characterDirection}`;
-    character.setTexture(characterTextureKey);
+    stopCharacterForMenu();
 
     showSlidingPanel(scene, DIALOGUE_HIDDEN_Y, dialogueContainer, dialogueTextLayer);
 
@@ -1457,20 +1451,10 @@ function moveGuideDialogueSelection(amount) {
 
 function handleGuideDialogueKey(scene, event) {
     const key = event.key.toLowerCase();
+    const step = getVerticalMenuStep(event);
 
-    if (
-        key === 'w' ||
-        event.key === 'ArrowUp'
-    ) {
-        moveGuideDialogueSelection(-1);
-        return;
-    }
-
-    if (
-        key === 's' ||
-        event.key === 'ArrowDown'
-    ) {
-        moveGuideDialogueSelection(1);
+    if (step) {
+        moveGuideDialogueSelection(step);
         return;
     }
 
