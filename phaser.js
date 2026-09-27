@@ -2050,6 +2050,7 @@ function getShorelineTile(scene, tile, northTile) {
 
     context.putImageData(image, 0, 0);
     texture.refresh();
+    scene.terrainPixelCache.set(textureKey, image);
 
     const runs = (mask, mergeRows = false) => {
         const cells = [];
