@@ -5634,7 +5634,7 @@ function createMarketUI(scene) {
 
     marketDetailImage = scene.add.image(
         MARKET_DETAIL_X + 50,
-        MARKET_LIST_Y + 8,
+        MARKET_LIST_Y + 4,
         MARKET_RODS[0].texture
     )
         .setOrigin(0)
@@ -5692,12 +5692,12 @@ function createMarketUI(scene) {
     const detailTextX = MARKET_DETAIL_X + 4;
     const detailTextWidth = MARKET_DETAIL_WIDTH - 8;
 
-    marketDetailName = createText(detailTextX, MARKET_LIST_Y + 44, '#e0f2fd', detailTextWidth, 'center');
-    marketDetailStatus = createText(detailTextX, MARKET_LIST_Y + 57, '#c0a887', detailTextWidth, 'center');
-    marketDetailStats = createText(detailTextX, MARKET_LIST_Y + 70, '#8c7358', detailTextWidth, 'center', 11);
+    marketDetailName = createText(detailTextX, MARKET_LIST_Y + 39, '#e0f2fd', detailTextWidth, 'center');
+    marketDetailStatus = createText(detailTextX, MARKET_LIST_Y + 51, '#c0a887', detailTextWidth, 'center');
+    marketDetailStats = createText(detailTextX, MARKET_LIST_Y + 64, '#8c7358', detailTextWidth, 'center', 11);
     marketDetailStats.style.whiteSpace = 'pre';
     marketDetailStats.style.lineHeight = '9px';
-    marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 88, '#acccf9', detailTextWidth, 'center');
+    marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 82, '#acccf9', detailTextWidth, 'center');
 
     const footer = createText(12, MARKET_FOOTER_Y, '#8c7358', 296, 'center', 11);
 
