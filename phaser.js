@@ -139,7 +139,7 @@ class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
                     float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
                     float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08;
 
-                    if (first > 0.9 && second > 0.9 && gate > 0.68) {
+                    if (first > 0.9 && second > 0.9 && gate > 0.75) {
                         index = 8.0;
                     } else if (first > 0.9 && second > 0.9 && gate > 0.6) {
                         index = 7.0;
@@ -323,6 +323,8 @@ const MARKET_DETAIL_X = 178;
 const MARKET_DETAIL_WIDTH = 130;
 const MARKET_FOOTER_Y = 126;
 const PROMPT_Y = HOTBAR_Y - 25;
+const SHIMMER_RECOLOR_FROM = [0x87, 0xbe, 0xd8];
+const SHIMMER_RECOLOR_TO = [0x78, 0xaf, 0xd3];
 
 const MARKET_RODS = [
     { id: 'basic', label: 'Basic Rod', price: 10 },
@@ -503,10 +505,32 @@ function preload() {
     this.load.image('rod', withCacheBuster('media/rod.png'));
 
     this.load.image('waterOverlay', withCacheBuster('media/waterOverlay.png'));
-    this.load.spritesheet('shimmer', withCacheBuster('media/shimmer.png'), {
-        frameWidth: 12,
-        frameHeight: 1
-    });
+    this.load.image('shimmer-art', withCacheBuster('media/shimmer.png'));
+}
+
+function createShimmerSheet(scene) {
+    const source = getTextureSource(scene, 'shimmer-art');
+    const canvas = document.createElement('canvas');
+    canvas.width = source.width;
+    canvas.height = source.height;
+
+    const context = canvas.getContext('2d');
+    context.drawImage(source, 0, 0);
+
+    const image = context.getImageData(0, 0, canvas.width, canvas.height);
+    const [fromR, fromG, fromB] = SHIMMER_RECOLOR_FROM;
+    const [toR, toG, toB] = SHIMMER_RECOLOR_TO;
+
+    for (let index = 0; index < image.data.length; index += 4) {
+        if (image.data[index] === fromR && image.data[index + 1] === fromG && image.data[index + 2] === fromB) {
+            image.data[index] = toR;
+            image.data[index + 1] = toG;
+            image.data[index + 2] = toB;
+        }
+    }
+
+    context.putImageData(image, 0, 0);
+    scene.textures.addSpriteSheet('shimmer', canvas, { frameWidth: 12, frameHeight: 1 });
 }
 
 function extractBushShadow(scene) {
@@ -712,6 +736,7 @@ function create() {
     extractBushShadow(this);
     createBushSlices(this);
     createRoundedCliffTextures(this);
+    createShimmerSheet(this);
 
     this.anims.create({
         key: 'shimmer',
