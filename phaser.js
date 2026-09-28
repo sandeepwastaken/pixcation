@@ -1,4 +1,4 @@
-const APP_CACHE_BUSTER = window.APP_CACHE_BUSTER || new Date().toISOString().slice(0, 10);
+const APP_CACHE_BUSTER = window.APP_CACHE_BUSTER;
 const APP_QUERY = new URLSearchParams(window.location.search);
 const TEST_MODE = APP_QUERY.has('test');
 const CHEATS_ENABLED = APP_QUERY.get('cheats') === 'true';

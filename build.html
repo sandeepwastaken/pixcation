@@ -103,7 +103,7 @@
     </div>
 
     <script>
-        const APP_CACHE_BUSTER = new Date().toISOString().slice(0, 10);
+        const APP_CACHE_BUSTER = '1';
         const withCacheBuster = (path) => `${path}?v=${APP_CACHE_BUSTER}`;
 
         const TILE_SIZE = 16;
