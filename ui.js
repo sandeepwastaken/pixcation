@@ -17,6 +17,58 @@ function drawPanelFrame(panel, x, width, height) {
         .fillRect(x + 3, 3, width - 6, height - 6);
 }
 
+const CRISP_TEXT_STYLE = { textRendering: 'geometricPrecision', WebkitFontSmoothing: 'antialiased' };
+
+function createTextLayer(height, style) {
+    const layer = document.createElement('div');
+
+    Object.assign(layer.style, {
+        position: 'relative',
+        width: '320px',
+        height: `${height}px`,
+        fontFamily: 'm6x11, monospace',
+        fontSize: '16px',
+        lineHeight: '11px',
+        pointerEvents: 'none'
+    }, style);
+
+    return layer;
+}
+
+function createUIText(layer, x, y, color, width, align, style) {
+    const text = document.createElement('div');
+
+    Object.assign(text.style, {
+        position: 'absolute',
+        left: `${x}px`,
+        top: `${y}px`,
+        width: width ? `${width}px` : 'auto',
+        textAlign: align || 'left',
+        whiteSpace: 'nowrap'
+    }, color && { color }, style);
+
+    layer.appendChild(text);
+    return text;
+}
+
+function addHudLayer(scene, element, y, depth) {
+    const layer = scene.add.dom(0, y, element)
+        .setOrigin(0)
+        .setDepth(depth)
+        .setScrollFactor(0)
+        .setVisible(false);
+
+    layer.pointerEvents = 'none';
+    return layer;
+}
+
+function addPanelContainer(scene, y, depth, children) {
+    return scene.add.container(0, y, children)
+        .setDepth(depth)
+        .setScrollFactor(0)
+        .setVisible(false);
+}
+
 function appendKeyHints(element, hints) {
     for (const [key, label] of hints) {
         const keycap = document.createElement('span');
@@ -51,69 +103,16 @@ function createGuideDialogueUI(scene) {
     dialoguePortrait = scene.add.image(12, 13, 'guide-portrait-friendly')
         .setOrigin(0);
 
-    const textLayer = document.createElement('div');
+    const textLayer = createTextLayer(78, CRISP_TEXT_STYLE);
 
-    Object.assign(textLayer.style, {
-        position: 'relative',
-        width: '320px',
-        height: '78px',
-        fontFamily: 'm6x11',
-        fontSize: '16px',
-        lineHeight: '11px',
-        textRendering: 'geometricPrecision',
-        WebkitFontSmoothing: 'antialiased',
-        pointerEvents: 'none'
-    });
-
-    const createText = (x, y, color, width) => {
-        const text = document.createElement('div');
-
-        Object.assign(text.style, {
-            position: 'absolute',
-            left: `${x}px`,
-            top: `${y}px`,
-            width: width ? `${width}px` : 'auto',
-            color,
-            whiteSpace: width ? 'normal' : 'nowrap'
-        });
-
-        textLayer.appendChild(text);
-        return text;
-    };
-
-    const nameText = createText(64, 5, '#acccf9');
-    nameText.textContent = 'Guide';
-
-    dialogueText = createText(64, 21, '#e0f2fd', 146);
-
+    createUIText(textLayer, 64, 5, '#acccf9').textContent = 'Guide';
+    dialogueText = createUIText(textLayer, 64, 21, '#e0f2fd', 146, null, { whiteSpace: 'normal' });
     dialogueOptionTexts = [0, 1, 2].map(index => {
-        return createText(DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 4 + index * DIALOGUE_OPTION_STEP, '#c0a887');
+        return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 4 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });
 
-    dialogueContainer = scene.add.container(
-        0,
-        DIALOGUE_HIDDEN_Y,
-        [
-            panel,
-            dialogueHighlight,
-            dialoguePortrait
-        ]
-    )
-    .setDepth(200)
-    .setScrollFactor(0)
-    .setVisible(false);
-
-    dialogueTextLayer = scene.add.dom(
-        0,
-        DIALOGUE_HIDDEN_Y,
-        textLayer
-    )
-    .setOrigin(0)
-    .setDepth(201)
-    .setScrollFactor(0)
-    .setVisible(false);
-
-    dialogueTextLayer.pointerEvents = 'none';
+    dialogueContainer = addPanelContainer(scene, DIALOGUE_HIDDEN_Y, 200, [panel, dialogueHighlight, dialoguePortrait]);
+    dialogueTextLayer = addHudLayer(scene, textLayer, DIALOGUE_HIDDEN_Y, 201);
 }
 
 function createMapUI(scene) {
@@ -131,61 +130,16 @@ function createMapUI(scene) {
     mapImage = scene.add.image(12, MAP_TOP, 'map')
         .setOrigin(0);
 
-    const textLayer = document.createElement('div');
+    const textLayer = createTextLayer(MAP_PANEL_HEIGHT);
 
-    Object.assign(textLayer.style, {
-        position: 'relative',
-        width: '320px',
-        height: `${MAP_PANEL_HEIGHT}px`,
-        fontFamily: 'm6x11',
-        fontSize: '16px',
-        lineHeight: '11px',
-        pointerEvents: 'none'
-    });
+    createUIText(textLayer, 14, 5, '#acccf9').textContent = 'World Map';
+    appendKeyHints(
+        createUIText(textLayer, 0, 6, '#8c7358', null, null, { left: 'auto', right: '14px', fontSize: '11px' }),
+        [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['M', 'Close']]
+    );
 
-    const title = document.createElement('div');
-    title.textContent = 'World Map';
-
-    Object.assign(title.style, {
-        position: 'absolute',
-        left: '14px',
-        top: '5px',
-        color: '#acccf9',
-        whiteSpace: 'nowrap'
-    });
-
-    const hint = appendKeyHints(document.createElement('div'), [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['M', 'Close']]);
-
-    Object.assign(hint.style, {
-        position: 'absolute',
-        right: '14px',
-        top: '6px',
-        fontSize: '11px',
-        color: '#8c7358',
-        whiteSpace: 'nowrap'
-    });
-
-    textLayer.append(title, hint);
-
-    mapTextLayer = scene.add.dom(0, MAP_HIDDEN_Y, textLayer)
-        .setOrigin(0)
-        .setDepth(203)
-        .setScrollFactor(0)
-        .setVisible(false);
-
-    mapTextLayer.pointerEvents = 'none';
-
-    mapContainer = scene.add.container(
-        0,
-        MAP_HIDDEN_Y,
-        [
-            panel,
-            mapImage
-        ]
-    )
-    .setDepth(202)
-    .setScrollFactor(0)
-    .setVisible(false);
+    mapTextLayer = addHudLayer(scene, textLayer, MAP_HIDDEN_Y, 203);
+    mapContainer = addPanelContainer(scene, MAP_HIDDEN_Y, 202, [panel, mapImage]);
 }
 
 function getMapPalette(scene) {
@@ -427,40 +381,12 @@ function createInventoryUI(scene) {
         .fillRect(12, 127, 296, 1)
         .fillRect(159, 23, 1, 101);
 
-    const textLayer = document.createElement('div');
+    const textLayer = createTextLayer(INVENTORY_HEIGHT, { color: '#c0a887' });
+    const rowStyle = { fontSize: '9px', lineHeight: '8px' };
+    const detailStyle = { fontSize: '8px', lineHeight: '8px' };
 
-    Object.assign(textLayer.style, {
-        position: 'relative',
-        width: '320px',
-        height: `${INVENTORY_HEIGHT}px`,
-        fontFamily: 'm6x11, monospace',
-        fontSize: '16px',
-        lineHeight: '11px',
-        pointerEvents: 'none',
-        color: '#c0a887',
-        whiteSpace: 'nowrap'
-    });
-
-    const createText = (x, y, width, align) => {
-        const text = document.createElement('div');
-
-        Object.assign(text.style, {
-            position: 'absolute',
-            left: `${x}px`,
-            top: `${y}px`,
-            width: width ? `${width}px` : 'auto',
-            textAlign: align || 'left'
-        });
-
-        textLayer.appendChild(text);
-        return text;
-    };
-
-    const title = createText(14, 5);
-    title.textContent = 'Fishpedia';
-    title.style.color = '#acccf9';
-    inventorySummaryText = createText(145, 5, 161, 'right');
-    inventorySummaryText.style.fontSize = '11px';
+    createUIText(textLayer, 14, 5, '#acccf9').textContent = 'Fishpedia';
+    inventorySummaryText = createUIText(textLayer, 145, 5, null, 161, 'right', { fontSize: '11px' });
 
     inventoryRowTexts = [];
     inventoryCountTexts = [];
@@ -470,34 +396,15 @@ function createInventoryUI(scene) {
         const row = index % 13;
         const x = 14 + column * 152;
         const y = 22 + row * 8;
-        const name = createText(x, y, 84);
-        const detail = createText(x + 84, y, 55, 'right');
-        name.style.fontSize = '9px';
-        name.style.lineHeight = '8px';
-        detail.style.fontSize = '8px';
-        detail.style.lineHeight = '8px';
-        inventoryRowTexts.push(name);
-        inventoryCountTexts.push(detail);
+        inventoryRowTexts.push(createUIText(textLayer, x, y, null, 84, null, rowStyle));
+        inventoryCountTexts.push(createUIText(textLayer, x + 84, y, null, 55, 'right', detailStyle));
     }
 
-    const footer = createText(12, 128, 296, 'center');
-    footer.style.fontSize = '11px';
-    footer.style.color = '#8c7358';
-    inventoryNewGameText = footer;
+    inventoryNewGameText = createUIText(textLayer, 12, 128, '#8c7358', 296, 'center', { fontSize: '11px' });
     inventoryFooterHints = appendKeyHints(document.createElement('span'), [['I/Esc', 'Close'], ['N', 'New Game']]);
 
-    inventoryContainer = scene.add.container(0, INVENTORY_HIDDEN_Y, [panel])
-        .setDepth(203)
-        .setScrollFactor(0)
-        .setVisible(false);
-
-    inventoryTextLayer = scene.add.dom(0, INVENTORY_HIDDEN_Y, textLayer)
-        .setOrigin(0)
-        .setDepth(204)
-        .setScrollFactor(0)
-        .setVisible(false);
-
-    inventoryTextLayer.pointerEvents = 'none';
+    inventoryContainer = addPanelContainer(scene, INVENTORY_HIDDEN_Y, 203, [panel]);
+    inventoryTextLayer = addHudLayer(scene, textLayer, INVENTORY_HIDDEN_Y, 204);
     refreshInventoryUI(scene.time.now);
 }
 
@@ -575,55 +482,13 @@ function createCatchCardUI(scene) {
 
     drawPanelFrame(panel, 40, 240, 30);
 
-    const textLayer = document.createElement('div');
+    const textLayer = createTextLayer(30);
 
-    Object.assign(textLayer.style, {
-        position: 'relative',
-        width: '320px',
-        height: '30px',
-        fontFamily: 'm6x11, monospace',
-        textAlign: 'center',
-        pointerEvents: 'none',
-        whiteSpace: 'nowrap'
-    });
+    catchCardTitle = createUIText(textLayer, 43, 4, '#e0f2fd', 234, 'center');
+    catchCardDetail = createUIText(textLayer, 43, 16, '#e8c170', 234, 'center', { fontSize: '11px', lineHeight: '9px' });
 
-    catchCardTitle = document.createElement('div');
-    catchCardDetail = document.createElement('div');
-
-    Object.assign(catchCardTitle.style, {
-        position: 'absolute',
-        top: '4px',
-        left: '43px',
-        width: '234px',
-        color: '#e0f2fd',
-        fontSize: '16px',
-        lineHeight: '11px'
-    });
-
-    Object.assign(catchCardDetail.style, {
-        position: 'absolute',
-        top: '16px',
-        left: '43px',
-        width: '234px',
-        color: '#e8c170',
-        fontSize: '11px',
-        lineHeight: '9px'
-    });
-
-    textLayer.append(catchCardTitle, catchCardDetail);
-
-    catchCardContainer = scene.add.container(0, CATCH_CARD_Y + 8, [panel])
-        .setDepth(205)
-        .setScrollFactor(0)
-        .setVisible(false);
-
-    catchCardTextLayer = scene.add.dom(0, CATCH_CARD_Y + 8, textLayer)
-        .setOrigin(0)
-        .setDepth(206)
-        .setScrollFactor(0)
-        .setVisible(false);
-
-    catchCardTextLayer.pointerEvents = 'none';
+    catchCardContainer = addPanelContainer(scene, CATCH_CARD_Y + 8, 205, [panel]);
+    catchCardTextLayer = addHudLayer(scene, textLayer, CATCH_CARD_Y + 8, 206);
 }
 
 function showCatchCard(scene, time, species) {
@@ -727,13 +592,7 @@ function createInteractionPromptUI(scene) {
     guidePrompt = makePrompt('E', 'Talk to the Guide');
     itemPrompt = makePrompt(null, '');
 
-    interactionPromptLayer = scene.add.dom(0, PROMPT_Y, wrapper)
-        .setOrigin(0)
-        .setDepth(103)
-        .setScrollFactor(0)
-        .setVisible(false);
-
-    interactionPromptLayer.pointerEvents = 'none';
+    interactionPromptLayer = addHudLayer(scene, wrapper, PROMPT_Y, 103);
 }
 
 function updateInteractionPrompt(scene, guideReach, marketReach) {
@@ -817,37 +676,8 @@ function createMarketUI(scene) {
     )
         .setOrigin(0);
 
-    const textLayer = document.createElement('div');
-
-    Object.assign(textLayer.style, {
-        position: 'relative',
-        width: '320px',
-        height: `${MARKET_HEIGHT}px`,
-        fontFamily: 'm6x11',
-        fontSize: '16px',
-        lineHeight: '11px',
-        textRendering: 'geometricPrecision',
-        WebkitFontSmoothing: 'antialiased',
-        pointerEvents: 'none'
-    });
-
-    const createText = (x, y, color, width, align, size) => {
-        const text = document.createElement('div');
-
-        Object.assign(text.style, {
-            position: 'absolute',
-            left: `${x}px`,
-            top: `${y}px`,
-            width: width ? `${width}px` : 'auto',
-            textAlign: align || 'left',
-            fontSize: size ? `${size}px` : '',
-            color,
-            whiteSpace: 'nowrap'
-        });
-
-        textLayer.appendChild(text);
-        return text;
-    };
+    const textLayer = createTextLayer(MARKET_HEIGHT, CRISP_TEXT_STYLE);
+    const createText = (x, y, color, width, align, style) => createUIText(textLayer, x, y, color, width, align, style);
 
     marketTabTexts = MARKET_PAGES.map((page, index) => {
         const tab = createText(MARKET_TAB_X + index * MARKET_TAB_WIDTH, MARKET_TAB_Y, '#6f5b49');
@@ -877,9 +707,8 @@ function createMarketUI(scene) {
     marketDetailStatus = createText(detailTextX, MARKET_LIST_Y + 51, '#c0a887', detailTextWidth, 'center');
     marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 66, '#acccf9', detailTextWidth, 'center');
 
-    const footer = createText(12, MARKET_FOOTER_Y, '#8c7358', 296, 'center', 11);
-
-    Object.assign(footer.style, {
+    const footer = createText(12, MARKET_FOOTER_Y, '#8c7358', 296, 'center', {
+        fontSize: '11px',
         display: 'flex',
         justifyContent: 'center',
         gap: '12px'
@@ -902,31 +731,8 @@ function createMarketUI(scene) {
         footer.appendChild(hint);
     }
 
-    marketContainer = scene.add.container(
-        0,
-        MARKET_HIDDEN_Y,
-        [
-            panel,
-            marketHighlight,
-            ...marketItemImages,
-            marketDetailImage
-        ]
-    )
-    .setDepth(203)
-    .setScrollFactor(0)
-    .setVisible(false);
-
-    marketTextLayer = scene.add.dom(
-        0,
-        MARKET_HIDDEN_Y,
-        textLayer
-    )
-    .setOrigin(0)
-    .setDepth(204)
-    .setScrollFactor(0)
-    .setVisible(false);
-
-    marketTextLayer.pointerEvents = 'none';
+    marketContainer = addPanelContainer(scene, MARKET_HIDDEN_Y, 203, [panel, marketHighlight, ...marketItemImages, marketDetailImage]);
+    marketTextLayer = addHudLayer(scene, textLayer, MARKET_HIDDEN_Y, 204);
 
     refreshMarketOptions();
 }
