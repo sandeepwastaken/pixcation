@@ -1,18 +1,44 @@
 let mapPixels;
 const mapWaterDepthCache = new Map();
 
+function isMenuOpen() {
+    return dialogueOpen || marketOpen || mapOpen || inventoryOpen;
+}
+
+function drawPanelFrame(panel, x, width, height) {
+    return panel
+        .fillStyle(0x230a03, 1)
+        .fillRect(x, 0, width, height)
+        .fillStyle(0xacccf9, 1)
+        .fillRect(x + 1, 1, width - 2, height - 2)
+        .fillStyle(0x465989, 1)
+        .fillRect(x + 2, 2, width - 4, height - 4)
+        .fillStyle(0x36160d, 1)
+        .fillRect(x + 3, 3, width - 6, height - 6);
+}
+
+function appendKeyHints(element, hints) {
+    for (const [key, label] of hints) {
+        const keycap = document.createElement('span');
+        keycap.textContent = key;
+
+        Object.assign(keycap.style, {
+            color: '#e0f2fd',
+            background: '#465989',
+            padding: '0 2px',
+            margin: '0 4px 0 10px'
+        });
+
+        element.append(keycap, label);
+    }
+
+    return element;
+}
+
 function createGuideDialogueUI(scene) {
     const panel = scene.add.graphics();
 
-    panel
-        .fillStyle(0x230a03, 1)
-        .fillRect(5, 0, 310, 78)
-        .fillStyle(0xacccf9, 1)
-        .fillRect(6, 1, 308, 76)
-        .fillStyle(0x465989, 1)
-        .fillRect(7, 2, 306, 74)
-        .fillStyle(0x36160d, 1)
-        .fillRect(8, 3, 304, 72)
+    drawPanelFrame(panel, 5, 310, 78)
         .fillStyle(0x465989, 1)
         .fillRect(DIALOGUE_OPTION_X - 7, 8, 1, 62);
 
@@ -93,15 +119,7 @@ function createGuideDialogueUI(scene) {
 function createMapUI(scene) {
     const panel = scene.add.graphics();
 
-    panel
-        .fillStyle(0x230a03, 1)
-        .fillRect(5, 0, 310, MAP_PANEL_HEIGHT)
-        .fillStyle(0xacccf9, 1)
-        .fillRect(6, 1, 308, MAP_PANEL_HEIGHT - 2)
-        .fillStyle(0x465989, 1)
-        .fillRect(7, 2, 306, MAP_PANEL_HEIGHT - 4)
-        .fillStyle(0x36160d, 1)
-        .fillRect(8, 3, 304, MAP_PANEL_HEIGHT - 6)
+    drawPanelFrame(panel, 5, 310, MAP_PANEL_HEIGHT)
         .fillStyle(0x465989, 1)
         .fillRect(12, MARKET_DIVIDER_Y, 296, 1)
         .fillStyle(0x230a03, 1)
@@ -136,21 +154,7 @@ function createMapUI(scene) {
         whiteSpace: 'nowrap'
     });
 
-    const hint = document.createElement('div');
-
-    for (const [key, label] of [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['M', 'Close']]) {
-        const keycap = document.createElement('span');
-        keycap.textContent = key;
-
-        Object.assign(keycap.style, {
-            color: '#e0f2fd',
-            background: '#465989',
-            padding: '0 2px',
-            margin: '0 4px 0 10px'
-        });
-
-        hint.append(keycap, label);
-    }
+    const hint = appendKeyHints(document.createElement('div'), [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['M', 'Close']]);
 
     Object.assign(hint.style, {
         position: 'absolute',
@@ -321,7 +325,7 @@ function redrawMap(scene) {
 }
 
 function openMap(scene) {
-    if (mapOpen || dialogueOpen || marketOpen || inventoryOpen || !mapContainer) {
+    if (isMenuOpen() || !mapContainer) {
         return;
     }
 
@@ -417,15 +421,7 @@ function handleMapKey(scene, event) {
 function createInventoryUI(scene) {
     const panel = scene.add.graphics();
 
-    panel
-        .fillStyle(0x230a03, 1)
-        .fillRect(5, 0, 310, INVENTORY_HEIGHT)
-        .fillStyle(0xacccf9, 1)
-        .fillRect(6, 1, 308, INVENTORY_HEIGHT - 2)
-        .fillStyle(0x465989, 1)
-        .fillRect(7, 2, 306, INVENTORY_HEIGHT - 4)
-        .fillStyle(0x36160d, 1)
-        .fillRect(8, 3, 304, INVENTORY_HEIGHT - 6)
+    drawPanelFrame(panel, 5, 310, INVENTORY_HEIGHT)
         .fillStyle(0x465989, 1)
         .fillRect(12, 19, 296, 1)
         .fillRect(12, 127, 296, 1)
@@ -488,21 +484,7 @@ function createInventoryUI(scene) {
     footer.style.fontSize = '11px';
     footer.style.color = '#8c7358';
     inventoryNewGameText = footer;
-    inventoryFooterHints = document.createElement('span');
-
-    for (const [key, label] of [['I/Esc', 'Close'], ['N', 'New Game']]) {
-        const keycap = document.createElement('span');
-        keycap.textContent = key;
-
-        Object.assign(keycap.style, {
-            color: '#e0f2fd',
-            background: '#465989',
-            padding: '0 2px',
-            margin: '0 4px 0 10px'
-        });
-
-        inventoryFooterHints.append(keycap, label);
-    }
+    inventoryFooterHints = appendKeyHints(document.createElement('span'), [['I/Esc', 'Close'], ['N', 'New Game']]);
 
     inventoryContainer = scene.add.container(0, INVENTORY_HIDDEN_Y, [panel])
         .setDepth(203)
@@ -548,7 +530,7 @@ function refreshInventoryUI(time) {
 }
 
 function openInventory(scene) {
-    if (inventoryOpen || mapOpen || marketOpen || dialogueOpen || !inventoryContainer) return;
+    if (isMenuOpen() || !inventoryContainer) return;
 
     inventoryOpen = true;
     newGameConfirmUntil = 0;
@@ -591,15 +573,7 @@ function handleInventoryKey(scene, event) {
 function createCatchCardUI(scene) {
     const panel = scene.add.graphics();
 
-    panel
-        .fillStyle(0x230a03, 1)
-        .fillRect(40, 0, 240, 30)
-        .fillStyle(0xacccf9, 1)
-        .fillRect(41, 1, 238, 28)
-        .fillStyle(0x465989, 1)
-        .fillRect(42, 2, 236, 26)
-        .fillStyle(0x36160d, 1)
-        .fillRect(43, 3, 234, 24);
+    drawPanelFrame(panel, 40, 240, 30);
 
     const textLayer = document.createElement('div');
 
@@ -765,7 +739,7 @@ function createInteractionPromptUI(scene) {
 function updateInteractionPrompt(scene, guideReach, marketReach) {
     if (!interactionPromptLayer || !marketPrompt || !guidePrompt) return;
 
-    const available = !dialogueOpen && !marketOpen && !mapOpen && !inventoryOpen && scene.time.now >= catchCardUntil;
+    const available = !isMenuOpen() && scene.time.now >= catchCardUntil;
     const target = available && (guideReach < 1 || marketReach < 1)
         ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
         : null;
@@ -1327,10 +1301,7 @@ function moveMarketSelection(amount) {
 
 function openMarket(scene) {
     if (
-        marketOpen ||
-        mapOpen ||
-        dialogueOpen ||
-        inventoryOpen ||
+        isMenuOpen() ||
         !marketContainer ||
         !marketTextLayer ||
         !isMarketNear()
@@ -1538,10 +1509,7 @@ function showGuideDialogueNode(scene, nodeKey) {
 
 function openGuideDialogue(scene) {
     if (
-        marketOpen ||
-        mapOpen ||
-        dialogueOpen ||
-        inventoryOpen ||
+        isMenuOpen() ||
         !guide ||
         !dialogueContainer ||
         !dialogueTextLayer
@@ -1636,10 +1604,7 @@ function updateGuideInteraction(scene, guideIsNear) {
         guideIsNear &&
         !guideWasNear &&
         !guideHasMetPlayer &&
-        !dialogueOpen &&
-        !mapOpen &&
-        !marketOpen &&
-        !inventoryOpen
+        !isMenuOpen()
     ) {
         openGuideDialogue(scene);
     }

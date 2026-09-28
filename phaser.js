@@ -707,7 +707,7 @@ function create() {
         }
 
         this.input.setDefaultCursor(
-            !marketOpen && !dialogueOpen && !mapOpen && !inventoryOpen && getClickedWorldTarget(pointer) ? 'pointer' : 'default'
+            !isMenuOpen() && getClickedWorldTarget(pointer) ? 'pointer' : 'default'
         );
     });
 
@@ -775,7 +775,7 @@ function create() {
 
         if (!step) return;
 
-        if (marketOpen || dialogueOpen || mapOpen || inventoryOpen) {
+        if (isMenuOpen()) {
             if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
             lastMenuWheelTime = pointer.event.timeStamp;
         }
@@ -1230,7 +1230,7 @@ function update(time, delta) {
     let moveX = 0;
     let moveY = 0;
 
-    if (!dialogueOpen && !mapOpen && !marketOpen && !inventoryOpen) {
+    if (!isMenuOpen()) {
         const left = characterKeys.left.isDown || characterKeys.leftArrow.isDown;
         const right = characterKeys.right.isDown || characterKeys.rightArrow.isDown;
         const up = characterKeys.up.isDown || characterKeys.upArrow.isDown;

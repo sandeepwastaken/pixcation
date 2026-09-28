@@ -178,7 +178,7 @@ function beginCast(time) {
         return;
     }
 
-    if (!hasRodSelected() || dialogueOpen || marketOpen || mapOpen || inventoryOpen || castCharge) {
+    if (!hasRodSelected() || isMenuOpen() || castCharge) {
         return;
     }
 
@@ -196,7 +196,7 @@ function releaseCast(time) {
     const power = getCastPower(time);
     castCharge = null;
 
-    if (!hasRodSelected() || dialogueOpen || marketOpen || mapOpen || inventoryOpen) {
+    if (!hasRodSelected() || isMenuOpen()) {
         return;
     }
 
@@ -657,7 +657,7 @@ function drawFishingRope(rope, palette) {
 function updateFishing(scene, time, delta, isWalking) {
     fishingLine.clear();
 
-    if (castCharge && (isWalking || dialogueOpen || marketOpen || mapOpen || inventoryOpen || !hasRodSelected())) {
+    if (castCharge && (isWalking || isMenuOpen() || !hasRodSelected())) {
         castCharge = null;
     }
 
@@ -668,7 +668,7 @@ function updateFishing(scene, time, delta, isWalking) {
         return;
     }
 
-    if (fishing.state !== 'reeling' && (isWalking || dialogueOpen || marketOpen || mapOpen || inventoryOpen || !hasRodSelected())) {
+    if (fishing.state !== 'reeling' && (isWalking || isMenuOpen() || !hasRodSelected())) {
         reelIn(time);
 
         if (!fishing) {
