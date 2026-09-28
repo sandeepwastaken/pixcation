@@ -480,97 +480,54 @@ const promptMotion = { value: 0 };
 const PROMPT_SLIDE = 4;
 
 function preload() {
+    const load = (key, path) => this.load.image(key, withCacheBuster(`media/${path}.png`));
     const tileKeys = [
-        'dirt1',
-        'dirtEdge',
-        'cornerDirt1',
-        'cornerDirt2',
-        'cornerDirt3',
-        'dirtEdgeCorner',
-        'dirtEdgeOuterLeft',
-        'dirtEdgeOuterRight',
-        'dirtEdgeOuterBoth',
-        'dirtEdgeInnerLeft',
-        'dirtEdgeInnerRight',
-        'dirtCliffCorner',
-        'waterDirtInnerLeft',
-        'waterDirtInnerRight',
-        'corner',
-        'grass1',
-        'grass2',
-        'grass3',
-        'grass4',
-        'grassEdge',
-        'water',
-        'waterDirt',
-        'waterGrass',
-        'wood',
-        'woodLeft',
-        'woodRight',
-        'transition1',
-        'transition2',
-        'transition3',
-        'transition4'
+        'dirt1', 'dirtEdge', 'cornerDirt1', 'cornerDirt2', 'cornerDirt3', 'dirtEdgeCorner',
+        'dirtEdgeOuterLeft', 'dirtEdgeOuterRight', 'dirtEdgeOuterBoth', 'dirtEdgeInnerLeft', 'dirtEdgeInnerRight',
+        'dirtCliffCorner', 'waterDirtInnerLeft', 'waterDirtInnerRight', 'corner',
+        'grass1', 'grass2', 'grass3', 'grass4', 'grassEdge', 'water', 'waterDirt', 'waterGrass',
+        'wood', 'woodLeft', 'woodRight', 'transition1', 'transition2', 'transition3', 'transition4'
     ];
 
-    const characterFrames = [
-        'front',
-        'frontwalk1',
-        'frontwalk2',
-        'back',
-        'backwalk1',
-        'backwalk2',
-        'left',
-        'leftwalk1',
-        'leftwalk2',
-        'right',
-        'rightwalk1',
-        'rightwalk2'
-    ];
+    for (const direction of ['front', 'back', 'left', 'right']) {
+        for (const step of ['', 'walk1', 'walk2']) {
+            load(`character-${direction}${step}`, `characters/player/${direction}${step}`);
+        }
+    }
 
-    characterFrames.forEach(frame => {
-        this.load.image(
-            `character-${frame}`,
-            withCacheBuster(`media/characters/player/${frame}.png`)
-        )
-    });
+    for (const tileKey of tileKeys) {
+        load(tileKey, `environment/terrain/${tileKey}`);
+    }
 
-    tileKeys.forEach(tileKey => {
-        this.load.image(tileKey, withCacheBuster(`media/environment/terrain/${tileKey}.png`));
-    });
+    for (const key of ['bush', 'boulder', 'rock', 'tree-bare', 'store']) {
+        load(key, `environment/objects/${key}`);
+    }
 
-    this.load.image('hotbar', withCacheBuster('media/ui/hud/hotbar.png'));
-    this.load.image('selected', withCacheBuster('media/ui/hud/selected.png'));
-    this.load.image('shop-ui', withCacheBuster('media/ui/shop/panel.png'));
-    this.load.image('bush', withCacheBuster('media/environment/objects/bush.png'));
-    this.load.image('boulder', withCacheBuster('media/environment/objects/boulder.png'));
-    this.load.image('rock', withCacheBuster('media/environment/objects/rock.png'));
-    this.load.image('tree-bare', withCacheBuster('media/environment/objects/tree-bare.png'));
+    for (const mood of ['friendly', 'laughing', 'surprised']) {
+        load(`guide-portrait-${mood}`, `characters/guide/${mood}`);
+    }
 
-    this.load.image('guide', withCacheBuster('media/characters/guide/sprite.png'));
-    this.load.image('guide-portrait-friendly', withCacheBuster('media/characters/guide/friendly.png'));
-    this.load.image('guide-portrait-laughing', withCacheBuster('media/characters/guide/laughing.png'));
-    this.load.image('guide-portrait-surprised', withCacheBuster('media/characters/guide/surprised.png'));
-    this.load.image('store', withCacheBuster('media/environment/objects/store.png'));
-    this.load.image('rod-basic', withCacheBuster('media/items/rods/basic.png'));
-    this.load.image('rod-intermediate', withCacheBuster('media/items/rods/intermediate.png'));
-    this.load.image('rod-master', withCacheBuster('media/items/rods/master.png'));
-    this.load.image('rod-basic-icon', withCacheBuster('media/items/rods/basic-icon.png'));
-    this.load.image('rod-intermediate-icon', withCacheBuster('media/items/rods/intermediate-icon.png'));
-    this.load.image('rod-master-icon', withCacheBuster('media/items/rods/master-icon.png'));
-    this.load.image('chest', withCacheBuster('media/items/chest.png'));
+    for (const rod of MARKET_RODS) {
+        load(rod.texture, `items/rods/${rod.id}`);
+        load(rod.icon, `items/rods/${rod.id}-icon`);
+    }
 
     for (const bait of MARKET_BAITS) {
-        this.load.image(bait.texture, withCacheBuster(`media/items/baits/${bait.id}Bait.png`));
-        this.load.image(bait.icon, withCacheBuster(`media/items/baits/${bait.id}-icon.png`));
+        load(bait.texture, `items/baits/${bait.id}Bait`);
+        load(bait.icon, `items/baits/${bait.id}-icon`);
     }
-    this.load.image('fishing-ui', withCacheBuster('media/ui/fishing/panel.png'));
-    this.load.image('fishing-catch-zone', withCacheBuster('media/ui/fishing/catch-zone.png'));
-    this.load.image('fishing-fish', withCacheBuster('media/ui/fishing/fish.png'));
-    this.load.image('fishing-progress', withCacheBuster('media/ui/fishing/progress.png'));
 
-    this.load.image('waterOverlay', withCacheBuster('media/environment/effects/water-overlay.png'));
-    this.load.image('shimmer-art', withCacheBuster('media/environment/effects/shimmer.png'));
+    load('hotbar', 'ui/hud/hotbar');
+    load('selected', 'ui/hud/selected');
+    load('shop-ui', 'ui/shop/panel');
+    load('guide', 'characters/guide/sprite');
+    load('chest', 'items/chest');
+    load('fishing-ui', 'ui/fishing/panel');
+    load('fishing-catch-zone', 'ui/fishing/catch-zone');
+    load('fishing-fish', 'ui/fishing/fish');
+    load('fishing-progress', 'ui/fishing/progress');
+    load('waterOverlay', 'environment/effects/water-overlay');
+    load('shimmer-art', 'environment/effects/shimmer');
 }
 
 function create() {
