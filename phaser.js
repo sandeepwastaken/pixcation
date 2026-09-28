@@ -127,6 +127,7 @@ const worldTileCache = new Map();
 const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
 const propPlacementCache = new Map();
+const propSpriteCache = new Map();
 const discoveredChunks = new Set();
 const pendingChunks = [];
 const pendingWaterChunks = [];

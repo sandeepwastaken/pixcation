@@ -108,10 +108,6 @@ function propsConflict(typeA, ax, ay, typeB, bx, by) {
         typeB === 'tree' && isUnderCanopy(bx, by, ax, ay, widthA);
 }
 
-function cachePropPlacement(key, value) {
-    return cacheWorldValue(propPlacementCache, key, value);
-}
-
 function getPropAt(tileX, tileY) {
     const key = getTileId(tileX, tileY);
     const cached = propPlacementCache.get(key);
@@ -119,7 +115,7 @@ function getPropAt(tileX, tileY) {
     if (cached !== undefined) return cached;
 
     const type = getPropCandidate(tileX, tileY);
-    if (!type) return cachePropPlacement(key, null);
+    if (!type) return cacheWorldValue(propPlacementCache, key, null);
 
     const priority = worldHash(tileX, tileY, 765);
 
@@ -137,11 +133,11 @@ function getPropAt(tileX, tileY) {
             const nearbyWins = nearbyPriority > priority || nearbyPriority === priority &&
                 (nearbyY < tileY || nearbyY === tileY && nearbyX < tileX);
 
-            if (nearbyWins) return cachePropPlacement(key, null);
+            if (nearbyWins) return cacheWorldValue(propPlacementCache, key, null);
         }
     }
 
-    return cachePropPlacement(key, type);
+    return cacheWorldValue(propPlacementCache, key, type);
 }
 
 function getPropCovering(tileX, tileY) {
@@ -170,6 +166,13 @@ function getTreeVariant(tileX, tileY) {
 }
 
 function getPropSprite(type, tileX, tileY) {
+    const key = getTileId(tileX, tileY);
+    const cached = propSpriteCache.get(key);
+
+    return cached || cacheWorldValue(propSpriteCache, key, createPropSprite(type, tileX, tileY));
+}
+
+function createPropSprite(type, tileX, tileY) {
     const baseY = (tileY + 1) * TILE_SIZE;
 
     if (type === 'tree') {
@@ -203,27 +206,10 @@ function getPropSprite(type, tileX, tileY) {
 }
 
 function propBlocksRect(type, tileX, tileY, left, top, right, bottom) {
+    const sprite = getPropSprite(type, tileX, tileY);
     const baseY = (tileY + 1) * TILE_SIZE;
-    let hitLeft;
-    let hitRight;
-    let hitHeight;
 
-    if (type === 'tree') {
-        const variant = getTreeVariant(tileX, tileY);
-        const x = tileX * TILE_SIZE + TILE_SIZE - variant.width / 2;
-        hitLeft = x + variant.hitLeft;
-        hitRight = x + variant.hitRight;
-        hitHeight = TREE_HITBOX_HEIGHT;
-    } else {
-        const art = propArt.get(type);
-        const hitbox = PROP_TYPES[type].hitbox;
-        const x = tileX * TILE_SIZE + Math.floor((PROP_TYPES[type].width * TILE_SIZE - art.width) / 2);
-        hitLeft = x + hitbox[0];
-        hitRight = x + art.width - hitbox[0];
-        hitHeight = hitbox[1];
-    }
-
-    return left < hitRight && right > hitLeft && top < baseY && bottom > baseY - hitHeight;
+    return left < sprite.hitRight && right > sprite.hitLeft && top < baseY && bottom > baseY - sprite.hitHeight;
 }
 
 function isGuideSpawnTile(tileX, tileY) {
@@ -264,11 +250,7 @@ function findGuideAndStoreSpawn() {
                 const storeTileX = guideTileX - 1;
                 const storeTileY = guideTileY - STORE_HEIGHT_TILES;
 
-                if (!isGuideSpawnTile(guideTileX, guideTileY)) {
-                    continue;
-                }
-
-                if (!canPlaceStoreAt(storeTileX, storeTileY)) {
+                if (!isGuideSpawnTile(guideTileX, guideTileY) || !canPlaceStoreAt(storeTileX, storeTileY)) {
                     continue;
                 }
 
