@@ -837,7 +837,13 @@ function getDeckBounds(scene, key) {
 function getShoreDistances(scene, chunkX, chunkY) {
     const margin = SHORE_DISTANCE_MARGIN_TILES * TILE_SIZE;
     const size = CHUNK_PIXEL_SIZE + margin * 2;
-    scene.shoreDistanceScratch ||= new Uint16Array(size * size);
+    const stride = size + 2;
+
+    if (!scene.shoreDistanceScratch) {
+        scene.shoreDistanceScratch = new Uint16Array(stride * stride);
+        scene.shoreDistanceScratch.fill(65535);
+    }
+
     const distances = scene.shoreDistanceScratch;
 
     for (let localY = -SHORE_DISTANCE_MARGIN_TILES; localY < CHUNK_SIZE + SHORE_DISTANCE_MARGIN_TILES; localY++) {
@@ -851,11 +857,11 @@ function getShoreDistances(scene, chunkX, chunkY) {
             }
 
             const water = getTerrainSurface(scene, tile).water;
-            const originX = localX * TILE_SIZE + margin;
-            const originY = localY * TILE_SIZE + margin;
+            const originX = localX * TILE_SIZE + margin + 1;
+            const originY = localY * TILE_SIZE + margin + 1;
 
             for (let y = 0; y < TILE_SIZE; y++) {
-                const row = (originY + y) * size + originX;
+                const row = (originY + y) * stride + originX;
 
                 for (let x = 0; x < TILE_SIZE; x++) {
                     distances[row + x] = water[y * TILE_SIZE + x] ? 65535 : 0;
@@ -864,44 +870,32 @@ function getShoreDistances(scene, chunkX, chunkY) {
         }
     }
 
-    for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-            const index = y * size + x;
-            let value = distances[index];
-            if (value === 0) continue;
+    for (const direction of [1, -1]) {
+        const back = direction * stride;
 
-            if (x > 0) value = Math.min(value, distances[index - 1] + 3);
-            if (y > 0) {
-                value = Math.min(value, distances[index - size] + 3);
-                if (x > 0) value = Math.min(value, distances[index - size - 1] + 4);
-                if (x < size - 1) value = Math.min(value, distances[index - size + 1] + 4);
+        for (let step = 0; step < size; step++) {
+            const y = direction > 0 ? step : size - 1 - step;
+
+            for (let column = 0; column < size; column++) {
+                const index = (y + 1) * stride + (direction > 0 ? column : size - 1 - column) + 1;
+                const value = distances[index];
+                if (value === 0) continue;
+
+                distances[index] = Math.min(
+                    value,
+                    distances[index - direction] + 3,
+                    distances[index - back] + 3,
+                    distances[index - back - 1] + 4,
+                    distances[index - back + 1] + 4
+                );
             }
-
-            distances[index] = value;
-        }
-    }
-
-    for (let y = size - 1; y >= 0; y--) {
-        for (let x = size - 1; x >= 0; x--) {
-            const index = y * size + x;
-            let value = distances[index];
-            if (value === 0) continue;
-
-            if (x < size - 1) value = Math.min(value, distances[index + 1] + 3);
-            if (y < size - 1) {
-                value = Math.min(value, distances[index + size] + 3);
-                if (x < size - 1) value = Math.min(value, distances[index + size + 1] + 4);
-                if (x > 0) value = Math.min(value, distances[index + size - 1] + 4);
-            }
-
-            distances[index] = value;
         }
     }
 
     const result = new Uint8Array(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE);
 
     for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
-        const row = (y + margin) * size + margin;
+        const row = (y + margin + 1) * stride + margin + 1;
 
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
             result[y * CHUNK_PIXEL_SIZE + x] = Math.min(SHORE_DISTANCE_MAX, Math.round(distances[row + x] / 3));
