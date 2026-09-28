@@ -653,7 +653,7 @@ function getTerrainSurface(scene, tile) {
         }
     }
 
-    const surface = { signature, land, water };
+    const surface = { id: scene.terrainSurfaceCache.size, land, water };
     scene.terrainSurfaceCache.set(signature, surface);
     tile.surface = surface;
     return surface;
@@ -662,7 +662,7 @@ function getTerrainSurface(scene, tile) {
 function getShorelineTile(scene, tile, northTile) {
     const surface = getTerrainSurface(scene, tile);
     const north = getTerrainSurface(scene, northTile);
-    const signature = `${surface.signature}|${north.signature}`;
+    const signature = surface.id * 65536 + north.id;
     const cached = scene.shorelineTileCache.get(signature);
     if (cached) return cached;
 
