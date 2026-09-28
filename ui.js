@@ -1,5 +1,7 @@
 let mapPixels;
+let mapPixelWords;
 const mapWaterDepthCache = new Map();
+const mapColorCache = new Map();
 
 function isMenuOpen() {
     return dialogueOpen || marketOpen || mapOpen || inventoryOpen;
@@ -126,6 +128,7 @@ function createMapUI(scene) {
 
     mapTexture = scene.textures.createCanvas('map', MAP_WIDTH, MAP_HEIGHT);
     mapPixels = mapTexture.getContext().createImageData(MAP_WIDTH, MAP_HEIGHT);
+    mapPixelWords = new Uint32Array(mapPixels.data.buffer);
 
     mapImage = scene.add.image(12, MAP_TOP, 'map')
         .setOrigin(0);
@@ -190,10 +193,44 @@ function getMapWaterDepth(tileX, tileY) {
     return cacheWorldValue(mapWaterDepthCache, key, 2);
 }
 
+function toMapPixel(color) {
+    return (0xff000000 | (color & 255) << 16 | color & 0xff00 | color >> 16 & 255) >>> 0;
+}
+
+function getMapTileColor(palette, tileX, tileY) {
+    const key = getTileId(tileX, tileY);
+    const cached = mapColorCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const covering = getPropCovering(tileX, tileY);
+    let color;
+
+    if (covering) {
+        color = covering.type === 'tree' ? getTreeVariant(covering.tileX, tileY).color : palette[covering.type];
+    } else {
+        const tile = getWorldTile(tileX, tileY);
+        const terrain = getTerrainType(tileX, tileY);
+
+        if (tile.key.startsWith('wood')) {
+            color = palette.wood;
+        } else if (terrain === 'water') {
+            color = palette.water[getMapWaterDepth(tileX, tileY)];
+        } else if (tile.blocking === 'lower') {
+            color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;
+        } else {
+            color = terrain === 'grass' ? palette.grass : palette.dirt;
+        }
+    }
+
+    return cacheWorldValue(mapColorCache, key, toMapPixel(color));
+}
+
 function redrawMap(scene) {
     const palette = getMapPalette(scene);
     const context = mapTexture.getContext();
-    const pixels = mapPixels.data;
+    const pixels = mapPixelWords;
+    const fog = palette.fog.map(toMapPixel);
+    const outline = toMapPixel(palette.outline);
 
     const playerTileX = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE);
     const playerTileY = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
@@ -203,62 +240,39 @@ function redrawMap(scene) {
     const originX = playerTileX - Math.floor(MAP_WIDTH / zoom / 2) + Math.round(mapPan.x);
     const originY = playerTileY - Math.floor(MAP_HEIGHT / zoom / 2) + Math.round(mapPan.y);
 
-    const plot = (x, y, color) => {
-        if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return;
-
-        const index = (y * MAP_WIDTH + x) * 4;
-        pixels[index] = (color >> 16) & 255;
-        pixels[index + 1] = (color >> 8) & 255;
-        pixels[index + 2] = color & 255;
-        pixels[index + 3] = 255;
-    };
-
     const marker = (tileX, tileY, width, height, color) => {
         const x = (tileX - originX) * zoom;
         const y = (tileY - originY) * zoom;
         const pixelWidth = width * zoom;
         const pixelHeight = height * zoom;
+        const fill = toMapPixel(color);
 
         for (let offsetY = -1; offsetY <= pixelHeight; offsetY++) {
             for (let offsetX = -1; offsetX <= pixelWidth; offsetX++) {
+                const plotX = x + offsetX;
+                const plotY = y + offsetY;
+                if (plotX < 0 || plotY < 0 || plotX >= MAP_WIDTH || plotY >= MAP_HEIGHT) continue;
+
                 const inside = offsetX >= 0 && offsetY >= 0 && offsetX < pixelWidth && offsetY < pixelHeight;
-                plot(x + offsetX, y + offsetY, inside ? color : palette.outline);
+                pixels[plotY * MAP_WIDTH + plotX] = inside ? fill : outline;
             }
         }
     };
 
     for (let viewY = 0; viewY < viewHeight; viewY++) {
+        const tileY = originY + viewY;
+        const top = viewY * zoom;
+        const bottom = Math.min(top + zoom, MAP_HEIGHT);
+
         for (let viewX = 0; viewX < viewWidth; viewX++) {
             const tileX = originX + viewX;
-            const tileY = originY + viewY;
-            const discovered = isTileDiscovered(tileX, tileY);
-            const covering = discovered ? getPropCovering(tileX, tileY) : null;
-            let color;
+            const color = isTileDiscovered(tileX, tileY) ? getMapTileColor(palette, tileX, tileY) : -1;
+            const left = viewX * zoom;
+            const right = Math.min(left + zoom, MAP_WIDTH);
 
-            if (!discovered) {
-                color = -1;
-            } else if (covering) {
-                color = covering.type === 'tree' ? getTreeVariant(covering.tileX, tileY).color : palette[covering.type];
-            } else {
-                const tile = getWorldTile(tileX, tileY);
-                const terrain = getTerrainType(tileX, tileY);
-
-                if (tile.key.startsWith('wood')) {
-                    color = palette.wood;
-                } else if (terrain === 'water') {
-                    color = palette.water[getMapWaterDepth(tileX, tileY)];
-                } else if (tile.blocking === 'lower') {
-                    color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;
-                } else {
-                    color = terrain === 'grass' ? palette.grass : palette.dirt;
-                }
-            }
-
-            for (let offsetY = 0; offsetY < zoom; offsetY++) {
-                for (let offsetX = 0; offsetX < zoom; offsetX++) {
-                    const x = viewX * zoom + offsetX;
-                    const y = viewY * zoom + offsetY;
-                    plot(x, y, color === -1 ? palette.fog[(x + y) & 1] : color);
+            for (let y = top; y < bottom; y++) {
+                for (let x = left; x < right; x++) {
+                    pixels[y * MAP_WIDTH + x] = color === -1 ? fog[(x + y) & 1] : color;
                 }
             }
         }
