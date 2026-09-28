@@ -128,91 +128,34 @@ function isLandTile(tileX, tileY) {
 
 function isLocalHashPeak(tileX, tileY, stepX, stepY, radius, salt) {
     const score = worldHash(tileX, tileY, salt);
-
-    if (score < 0.82) {
-        return false;
-    }
+    if (score < 0.82) return false;
 
     for (let offset = -radius; offset <= radius; offset++) {
-        if (offset === 0) {
-            continue;
-        }
-
-        const nearbyScore = worldHash(
-            tileX + stepX * offset,
-            tileY + stepY * offset,
-            salt
-        );
-
-        if (nearbyScore >= score) {
-            return false;
-        }
+        if (offset !== 0 && worldHash(tileX + stepX * offset, tileY + stepY * offset, salt) >= score) return false;
     }
 
     return true;
 }
 
 function findWaterRun(tileX, tileY, stepX, stepY) {
-    let waterX = tileX;
-    let waterY = tileY;
+    const isWater = offset => getTerrainType(tileX + stepX * offset, tileY + stepY * offset) === 'water';
+    const origin = isWater(0) ? 0 : isWater(1) ? 1 : isWater(-1) ? -1 : null;
 
-    if (getTerrainType(waterX, waterY) !== 'water') {
-        if (getTerrainType(tileX + stepX, tileY + stepY) === 'water') {
-            waterX += stepX;
-            waterY += stepY;
-        } else if (getTerrainType(tileX - stepX, tileY - stepY) === 'water') {
-            waterX -= stepX;
-            waterY -= stepY;
-        } else {
-            return null;
-        }
-    }
+    if (origin === null) return null;
 
-    let startX = waterX;
-    let startY = waterY;
-    let endX = waterX;
-    let endY = waterY;
-    let waterLength = 1;
+    let start = origin;
+    let end = origin;
 
-    while (getTerrainType(startX - stepX, startY - stepY) === 'water') {
-        startX -= stepX;
-        startY -= stepY;
-        waterLength += 1;
+    while (end - start < MAX_BRIDGE_WATER_LENGTH && isWater(start - 1)) start--;
+    while (end - start < MAX_BRIDGE_WATER_LENGTH && isWater(end + 1)) end++;
 
-        if (waterLength > MAX_BRIDGE_WATER_LENGTH) {
-            return null;
-        }
-    }
+    const waterLength = end - start + 1;
 
-    while (getTerrainType(endX + stepX, endY + stepY) === 'water') {
-        endX += stepX;
-        endY += stepY;
-        waterLength += 1;
-
-        if (waterLength > MAX_BRIDGE_WATER_LENGTH) {
-            return null;
-        }
-    }
-
-    if (waterLength < MIN_BRIDGE_WATER_LENGTH) {
-        return null;
-    }
-
-    const startLandX = startX - stepX;
-    const startLandY = startY - stepY;
-    const endLandX = endX + stepX;
-    const endLandY = endY + stepY;
-
-    if (
-        !isLandTile(startLandX, startLandY) ||
-        !isLandTile(endLandX, endLandY)
-    ) {
-        return null;
-    }
+    if (waterLength < MIN_BRIDGE_WATER_LENGTH || waterLength > MAX_BRIDGE_WATER_LENGTH) return null;
 
     return {
-        startLandX,
-        startLandY,
+        startLandX: tileX + stepX * (start - 1),
+        startLandY: tileY + stepY * (start - 1),
         waterLength
     };
 }
@@ -228,63 +171,25 @@ function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
 
 function findBridge(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
     const run = findWaterRun(tileX, tileY, stepX, stepY);
-
-    if (!run) {
-        return null;
-    }
+    if (!run) return null;
 
     const spanLength = run.waterLength + 2;
-
-    for (let distance = 0; distance < spanLength; distance++) {
-        const firstX = run.startLandX + stepX * distance;
-        const firstY = run.startLandY + stepY * distance;
-        const secondX = firstX + widthX;
-        const secondY = firstY + widthY;
-        const shouldBeLand = distance === 0 || distance === spanLength - 1;
-
-        if (shouldBeLand) {
-            if (!isLandTile(firstX, firstY) || !isLandTile(secondX, secondY)) {
-                return null;
-            }
-        } else if (
-            getTerrainType(firstX, firstY) !== 'water' ||
-            getTerrainType(secondX, secondY) !== 'water'
-        ) {
-            return null;
-        }
-    }
-
+    const isWater = (distance, width) => getTerrainType(
+        run.startLandX + stepX * distance + widthX * width,
+        run.startLandY + stepY * distance + widthY * width
+    ) === 'water';
     let crossesChannel = false;
 
-    for (let distance = 1; distance < spanLength - 1 && !crossesChannel; distance++) {
-        const firstX = run.startLandX + stepX * distance;
-        const firstY = run.startLandY + stepY * distance;
+    for (let distance = 0; distance < spanLength; distance++) {
+        const middle = distance > 0 && distance < spanLength - 1;
 
-        crossesChannel =
-            getTerrainType(firstX - widthX, firstY - widthY) === 'water' &&
-            getTerrainType(firstX + widthX * 2, firstY + widthY * 2) === 'water';
+        if (isWater(distance, 0) !== middle || isWater(distance, 1) !== middle) return null;
+        crossesChannel ||= middle && isWater(distance, -1) && isWater(distance, 2);
     }
 
-    if (!crossesChannel || !isLocalHashPeak(
-        run.startLandX,
-        run.startLandY,
-        widthX,
-        widthY,
-        4,
-        salt
-    )) {
-        return null;
-    }
+    if (!crossesChannel || !isLocalHashPeak(run.startLandX, run.startLandY, widthX, widthY, 4, salt)) return null;
 
-    return {
-        startX: run.startLandX,
-        startY: run.startLandY,
-        stepX,
-        stepY,
-        widthX,
-        widthY,
-        spanLength
-    };
+    return { startX: run.startLandX, startY: run.startLandY, stepX, stepY, widthX, widthY, spanLength };
 }
 
 function isTileInBridge(tileX, tileY, bridge) {
@@ -330,90 +235,42 @@ function getPierCandidate(anchorX, anchorY) {
     const key = getTileId(anchorX, anchorY);
     const cached = pierCandidateCache.get(key);
 
-    if (cached !== undefined) {
-        return cached;
+    return cached !== undefined ? cached : cacheWorldValue(pierCandidateCache, key, findPier(anchorX, anchorY));
+}
+
+function findPier(anchorX, anchorY) {
+    const isWater = (x, y) => getTerrainType(anchorX + x, anchorY + y) === 'water';
+
+    if (isWater(0, 0) || isWater(1, 0) || !isLocalHashPeak(anchorX, anchorY, 1, 0, 5, 920)) return null;
+
+    const lengthRange = MAX_PIER_WATER_LENGTH - MIN_PIER_WATER_LENGTH + 1;
+    const waterLength = MIN_PIER_WATER_LENGTH + Math.floor(worldHash(anchorX, anchorY, 921) * lengthRange);
+    let openWaterTiles = 0;
+
+    for (let distance = 1; distance <= waterLength + 2; distance++) {
+        if (!isWater(0, distance) || !isWater(1, distance)) return null;
     }
 
-    let pier = null;
-
-    if (
-        isLandTile(anchorX, anchorY) &&
-        isLandTile(anchorX + 1, anchorY) &&
-        isLocalHashPeak(anchorX, anchorY, 1, 0, 5, 920)
-    ) {
-        const lengthRange = MAX_PIER_WATER_LENGTH - MIN_PIER_WATER_LENGTH + 1;
-        const waterLength = MIN_PIER_WATER_LENGTH + Math.floor(
-            worldHash(anchorX, anchorY, 921) * lengthRange
-        );
-        let hasWaterPath = true;
-
-        for (let distance = 1; distance <= waterLength + 2; distance++) {
-            if (
-                getTerrainType(anchorX, anchorY + distance) !== 'water' ||
-                getTerrainType(anchorX + 1, anchorY + distance) !== 'water'
-            ) {
-                hasWaterPath = false;
-                break;
-            }
-        }
-
-        if (hasWaterPath) {
-            let openWaterTiles = 0;
-            let checkedTiles = 0;
-
-            for (let y = waterLength; y <= waterLength + 2; y++) {
-                for (let x = -2; x <= 3; x++) {
-                    checkedTiles += 1;
-
-                    if (getTerrainType(anchorX + x, anchorY + y) === 'water') {
-                        openWaterTiles += 1;
-                    }
-                }
-            }
-
-            if (openWaterTiles / checkedTiles >= 0.8) {
-                pier = {
-                    anchorX,
-                    anchorY,
-                    waterLength
-                };
-            }
+    for (let y = waterLength; y <= waterLength + 2; y++) {
+        for (let x = -2; x <= 3; x++) {
+            if (isWater(x, y)) openWaterTiles++;
         }
     }
 
-    return cacheWorldValue(pierCandidateCache, key, pier);
+    return openWaterTiles / 18 >= 0.8 ? { anchorX, anchorY, waterLength } : null;
 }
 
 function getPierTile(tileX, tileY) {
-    if (
-        getTerrainType(tileX, tileY) !== 'water' &&
-        getTerrainType(tileX, tileY + 1) !== 'water'
-    ) {
-        return null;
-    }
+    if (getTerrainType(tileX, tileY) !== 'water' && getTerrainType(tileX, tileY + 1) !== 'water') return null;
 
     for (let distance = 0; distance <= MAX_PIER_WATER_LENGTH; distance++) {
         for (let side = 0; side <= 1; side++) {
-            const anchorX = tileX - side;
-            const anchorY = tileY - distance;
-            const pier = getPierCandidate(anchorX, anchorY);
+            const pier = getPierCandidate(tileX - side, tileY - distance);
+            if (!pier || distance > pier.waterLength) continue;
 
-            if (!pier || distance > pier.waterLength) {
-                continue;
-            }
-
-            if (distance === pier.waterLength) {
-                return {
-                    key: side === 0 ? 'woodLeft' : 'woodRight',
-                    rotation: 0,
-                    baseKey: 'water'
-                };
-            }
-
-            return {
-                key: 'wood',
-                rotation: 0
-            };
+            return distance === pier.waterLength
+                ? { key: side === 0 ? 'woodLeft' : 'woodRight', rotation: 0, baseKey: 'water' }
+                : { key: 'wood', rotation: 0 };
         }
     }
 
@@ -424,46 +281,16 @@ function getTerrainTileKey(tileX, tileY) {
     const terrain = getTerrainType(tileX, tileY);
 
     if (terrain === 'water') {
-        const northernTerrain = getTerrainType(tileX, tileY - 1);
-        
-        if (northernTerrain === 'dirt') {
-            return 'waterDirt';
-        }
-
-        if (northernTerrain === 'grass') {
-            return 'waterGrass';
-        }
-
-        return 'water';
+        const north = getTerrainType(tileX, tileY - 1);
+        return north === 'dirt' ? 'waterDirt' : north === 'grass' ? 'waterGrass' : 'water';
     }
 
-    const southernTerrain = getTerrainType(tileX, tileY + 1);
+    if (getTerrainType(tileX, tileY + 1) === 'water') return terrain === 'dirt' ? 'dirtEdge' : 'grassEdge';
+    if (terrain === 'dirt') return 'dirt1';
+    if (worldHash(tileX, tileY, 670) <= 0.80) return 'grass1';
+    if (valueNoise(tileX, tileY, 8, 671) <= 0.62) return 'grass2';
 
-    if (southernTerrain === 'water') {
-        if (terrain === 'dirt') {
-            return 'dirtEdge';
-        }
-
-        return 'grassEdge';
-    }
-
-    if (terrain === 'dirt') {
-        return 'dirt1';
-    }
-
-    const decoration = worldHash(tileX, tileY, 670);
-
-    if (decoration > 0.80) {
-        if (valueNoise(tileX, tileY, 8, 671) > 0.62) {
-            return valueNoise(tileX + 149, tileY - 83, 24, 672) > 0.5
-                ? 'grass4'
-                : 'grass3';
-        }
-
-        return 'grass2';
-    }
-
-    return 'grass1';
+    return valueNoise(tileX + 149, tileY - 83, 24, 672) > 0.5 ? 'grass4' : 'grass3';
 }
 
 function getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy) {
@@ -770,10 +597,7 @@ function gatherNearbyWoodTiles(chunkX, chunkY, woodTiles) {
 
         for (let localX = -1; localX <= CHUNK_SIZE; localX += edgeRow ? 1 : CHUNK_SIZE + 1) {
             const tile = getWorldTile(chunkX * CHUNK_SIZE + localX, chunkY * CHUNK_SIZE + localY);
-
-            if (tile.key.startsWith('wood')) {
-                woodTiles.push(localX, localY, tile);
-            }
+            if (tile.key.startsWith('wood')) woodTiles.push(localX, localY, tile);
         }
     }
 
@@ -783,9 +607,7 @@ function gatherNearbyWoodTiles(chunkX, chunkY, woodTiles) {
 let woodMaskScratch;
 
 function getChunkWoodMask(scene, tiles) {
-    if (tiles.length === 0) {
-        return null;
-    }
+    if (tiles.length === 0) return null;
 
     woodMaskScratch ||= new Uint8Array(WOOD_MASK_SIZE * WOOD_MASK_SIZE);
     const mask = woodMaskScratch;
@@ -806,14 +628,8 @@ function getChunkWoodMask(scene, tiles) {
 
         for (let y = top - 1; y <= bottom; y++) {
             for (let x = left - 1; x <= right; x++) {
-                const maskIndex = (originY + y) * WOOD_MASK_SIZE + originX + x;
                 const core = x >= left && x < right && y >= top && y < bottom;
-
-                if (core) {
-                    mask[maskIndex] = 2;
-                } else if (mask[maskIndex] === 0 && ((x + y) & 1) === 0) {
-                    mask[maskIndex] = 1;
-                }
+                if (core || ((x + y) & 1) === 0) mask[(originY + y) * WOOD_MASK_SIZE + originX + x] = 1;
             }
         }
     }
@@ -836,11 +652,11 @@ function getDeckBounds(scene, key) {
         let rowRight = 0;
 
         for (let x = 0; x < TILE_SIZE; x++) {
-            if (pixels[(y * TILE_SIZE + x) * 4 + 3]) {
-                opaque++;
-                rowLeft = Math.min(rowLeft, x);
-                rowRight = x + 1;
-            }
+            if (!pixels[(y * TILE_SIZE + x) * 4 + 3]) continue;
+
+            opaque++;
+            rowLeft = Math.min(rowLeft, x);
+            rowRight = x + 1;
         }
 
         if (opaque * 2 < TILE_SIZE) continue;
@@ -1087,22 +903,17 @@ function getWaterMaskBase(scene) {
     return base;
 }
 
-function createReadableCanvasTexture(scene, key, width, height) {
+function createChunkCanvas(scene) {
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = CHUNK_PIXEL_SIZE;
+    canvas.height = CHUNK_PIXEL_SIZE;
     canvas.getContext('2d', { willReadFrequently: true });
 
-    return scene.textures.addCanvas(key, canvas);
+    return scene.textures.addCanvas(`chunk-canvas-${chunkCanvasCount++}`, canvas);
 }
 
 function acquireChunkCanvas(scene) {
-    const texture = chunkCanvasPool.pop() || createReadableCanvasTexture(
-        scene,
-        `chunk-canvas-${chunkCanvasCount++}`,
-        CHUNK_PIXEL_SIZE,
-        CHUNK_PIXEL_SIZE
-    );
+    const texture = chunkCanvasPool.pop() || createChunkCanvas(scene);
     const context = texture.getContext();
 
     context.setTransform(1, 0, 0, 1, 0, 0);
@@ -1123,11 +934,7 @@ function drawChunkTexture(context, scene, key, x, y, rotation = 0, flipX = false
         context.setTransform(cos, sin, -sin, cos, x + width / 2, y + height / 2);
         context.drawImage(source, -width / 2, -height / 2);
     } else if (flipX || flipY) {
-        context.setTransform(
-            flipX ? -1 : 1, 0, 0, flipY ? -1 : 1,
-            flipX ? x + width : x,
-            flipY ? y + height : y
-        );
+        context.setTransform(flipX ? -1 : 1, 0, 0, flipY ? -1 : 1, flipX ? x + width : x, flipY ? y + height : y);
         context.drawImage(source, 0, 0);
     } else {
         context.drawImage(source, x, y);
@@ -1139,10 +946,7 @@ function drawChunkTexture(context, scene, key, x, y, rotation = 0, flipX = false
 
 function createChunkLayer(scene, texture, x, y, depth) {
     texture.refresh();
-
-    return scene.add.image(x, y, texture.key)
-        .setOrigin(0)
-        .setDepth(depth);
+    return scene.add.image(x, y, texture.key).setOrigin(0).setDepth(depth);
 }
 
 function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
@@ -1182,33 +986,22 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             const tileY = chunkY * CHUNK_SIZE + localY;
 
             const worldTile = getWorldTile(tileX, tileY);
-            const terrainTile = worldTile.bridge
-                ? getTerrainTile(tileX, tileY)
-                : worldTile;
+            const terrainTile = worldTile.bridge ? getTerrainTile(tileX, tileY) : worldTile;
             const tileKey = terrainTile.key;
             const isWater = tileKey.startsWith('water');
+            const drawX = localX * TILE_SIZE;
+            const drawY = localY * TILE_SIZE;
             let shoreline = null;
 
             if (isWater || terrainTile.baseKey === 'water') {
                 const northWorldTile = getWorldTile(tileX, tileY - 1);
-                const northTile = northWorldTile.bridge
-                    ? getTerrainTile(tileX, tileY - 1)
-                    : northWorldTile;
+                const northTile = northWorldTile.bridge ? getTerrainTile(tileX, tileY - 1) : northWorldTile;
                 shoreline = getShorelineTile(scene, terrainTile, northTile);
                 shorelineTiles.push(localX, localY, shoreline.textureKey);
             }
 
-            const drawX = localX * TILE_SIZE;
-            const drawY = localY * TILE_SIZE;
-
             if (terrainTile.baseKey) {
-                drawChunkTexture(
-                    groundContext,
-                    scene,
-                    shoreline ? shoreline.textureKey : terrainTile.baseKey,
-                    drawX,
-                    drawY
-                );
+                drawChunkTexture(groundContext, scene, shoreline ? shoreline.textureKey : terrainTile.baseKey, drawX, drawY);
             }
 
             drawChunkTexture(
@@ -1221,28 +1014,11 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             );
 
             for (const patch of terrainTile.patches || []) {
-                drawChunkTexture(
-                    getUpperContext(),
-                    scene,
-                    patch.key,
-                    drawX + patch.x,
-                    drawY + patch.y,
-                    0,
-                    patch.flipX,
-                    patch.flipY
-                );
+                drawChunkTexture(getUpperContext(), scene, patch.key, drawX + patch.x, drawY + patch.y, 0, patch.flipX, patch.flipY);
             }
 
             if (worldTile.bridge) {
-                drawChunkTexture(
-                    getUpperContext(),
-                    scene,
-                    worldTile.key,
-                    drawX,
-                    drawY,
-                    worldTile.rotation
-                );
-
+                drawChunkTexture(getUpperContext(), scene, worldTile.key, drawX, drawY, worldTile.rotation);
             }
 
             if (worldTile.key.startsWith('wood')) {
@@ -1256,9 +1032,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 const bush = { x: tileX * TILE_SIZE, y: baseY, slices: [], rustleStart: -Infinity, touching: false, offset: 0 };
 
                 for (let slice = 0; slice < TILE_SIZE; slice++) {
-                    const image = scene.add.image(
-                        bush.x, baseY, `bush-slice-${slice}`
-                    )
+                    const image = scene.add.image(bush.x, baseY, `bush-slice-${slice}`)
                         .setOrigin(0, 1)
                         .setDepth(baseY - TILE_SIZE + slice + 0.5);
 
@@ -1297,13 +1071,10 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
     }
 
     const shadowMask = getStaticShadowMask(chunkX, chunkY);
-    if (shadowMask) {
-        bakeGroundShadows(scene, groundContext, chunkX, chunkY, shadowMask);
-    }
+    if (shadowMask) bakeGroundShadows(scene, groundContext, chunkX, chunkY, shadowMask);
+
     const groundLayer = createChunkLayer(scene, groundTexture, pixelX, pixelY, 0);
-    const upperLayer = upperTexture
-        ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5)
-        : null;
+    const upperLayer = upperTexture ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5) : null;
 
     const chunk = {
         key,
@@ -1325,20 +1096,16 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
         bushes,
         fish: [],
         pixels: null,
-        waterBuild: waterMaskCells.length > 0
-            ? { waterMaskCells, edgeCells, woodTiles, shorelineTiles }
-            : null
+        waterBuild: waterMaskCells.length > 0 ? { waterMaskCells, edgeCells, woodTiles, shorelineTiles } : null
     };
 
     loadedChunks.set(key, chunk);
     if (waterCells.length > 0) loadedShimmerChunks.add(chunk);
 
-    if (chunk.waterBuild) {
-        if (deferWater) {
-            pendingWaterChunks.push(chunk);
-        } else {
-            buildChunkWater(scene, chunk);
-        }
+    if (chunk.waterBuild && deferWater) {
+        pendingWaterChunks.push(chunk);
+    } else if (chunk.waterBuild) {
+        buildChunkWater(scene, chunk);
     }
 }
 
@@ -1366,10 +1133,7 @@ function buildChunkWater(scene, chunk) {
 
         for (let y = localY; y < localY + height; y++) {
             let index = (y * CHUNK_PIXEL_SIZE + localX) * 4;
-
-            for (let x = 0; x < width; x++, index += 4) {
-                data[index] = 255;
-            }
+            for (let x = 0; x < width; x++, index += 4) data[index] = 255;
         }
     }
 
@@ -1379,9 +1143,10 @@ function buildChunkWater(scene, chunk) {
     spawnChunkFish(chunk);
 
     for (let pixel = 0, index = 0; pixel < shoreDistances.length; pixel++, index += 4) {
-        if (data[index]) {
-            data[index + 1] += shoreDistances[pixel] * 3;
-        }
+        if (!data[index]) continue;
+
+        data[index + 1] += shoreDistances[pixel] * 3;
+        if (shadowMask?.[pixel]) data[index] = 128;
     }
 
     for (let tile = 0; tile < shorelineTiles.length; tile += 3) {
@@ -1393,42 +1158,22 @@ function buildChunkWater(scene, chunk) {
             for (let x = 0; x < TILE_SIZE; x++) {
                 const source = (y * TILE_SIZE + x) * 4;
                 const target = ((originY + y) * CHUNK_PIXEL_SIZE + originX + x) * 4;
+                const baseWater = art[source] === WATER_BASE_COLOR[0] && art[source + 1] === WATER_BASE_COLOR[1] &&
+                    art[source + 2] === WATER_BASE_COLOR[2];
 
-                if (
-                    data[target] &&
-                    art[source + 3] &&
-                    (art[source] !== WATER_BASE_COLOR[0] ||
-                        art[source + 1] !== WATER_BASE_COLOR[1] ||
-                        art[source + 2] !== WATER_BASE_COLOR[2])
-                ) {
-                    data[target] = 128;
-                }
+                if (data[target] && art[source + 3] && !baseWater) data[target] = 128;
             }
         }
     }
 
-    if (shadowMask) {
-        for (let pixel = 0, index = 0; pixel < shadowMask.length; pixel++, index += 4) {
-            if (shadowMask[pixel] && data[index]) {
-                data[index] = 128;
-            }
-        }
-    }
+    const woodMask = getChunkWoodMask(scene, gatherNearbyWoodTiles(chunkX, chunkY, woodTiles));
 
-    const nearbyWood = gatherNearbyWoodTiles(chunkX, chunkY, woodTiles);
-    const woodMask = getChunkWoodMask(scene, nearbyWood);
+    for (let y = 0; woodMask && y < CHUNK_PIXEL_SIZE; y++) {
+        const maskRow = (y + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET) * WOOD_MASK_SIZE + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
+        let index = y * CHUNK_PIXEL_SIZE * 4;
 
-    if (woodMask) {
-        for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
-            const maskRow = (y + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET) * WOOD_MASK_SIZE +
-                WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
-            let index = y * CHUNK_PIXEL_SIZE * 4;
-
-            for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
-                if (data[index] && woodMask[maskRow + x]) {
-                    data[index] = 128;
-                }
-            }
+        for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
+            if (data[index] && woodMask[maskRow + x]) data[index] = 128;
         }
     }
 
@@ -1436,10 +1181,7 @@ function buildChunkWater(scene, chunk) {
 
     for (let cell = 0; cell < edgeCells.length; cell += 3) {
         let index = ((edgeCells[cell + 1] - pixelY) * CHUNK_PIXEL_SIZE + edgeCells[cell] - pixelX) * 4 + 2;
-
-        for (let x = 0; x < edgeCells[cell + 2]; x++, index += 4) {
-            data[index] = 255;
-        }
+        for (let x = 0; x < edgeCells[cell + 2]; x++, index += 4) data[index] = 255;
     }
 
     context.putImageData(image, 0, 0);
@@ -1454,39 +1196,16 @@ function buildChunkWater(scene, chunk) {
     loadedWaterChunks.add(chunk);
 }
 
-
 function destroyWorldChunk(key) {
     const chunk = loadedChunks.get(key);
+    if (!chunk) return;
 
-    if (!chunk) {
-        return;
-    }
+    while (chunk.shimmers.length) poolShimmer(chunk.shimmers.pop());
+    for (const sprite of chunk.tileSprites) sprite.destroy();
 
-    while (chunk.shimmers.length) {
-        const shimmer = chunk.shimmers.pop();
-        poolShimmer(shimmer);
-    }
-
-    for (const tileSprite of chunk.tileSprites) {
-        tileSprite.destroy();
-    }
-
-    chunk.groundLayer.destroy();
-    chunkCanvasPool.push(chunk.groundTexture);
-
-    if (chunk.upperLayer) {
-        chunk.upperLayer.destroy();
-        chunkCanvasPool.push(chunk.upperTexture);
-    }
-
-    if (chunk.overlay) {
-        chunk.overlay.destroy();
-    }
-
-
-
-    if (chunk.waterTexture) {
-        chunkCanvasPool.push(chunk.waterTexture);
+    for (const [layer, texture] of [[chunk.groundLayer, chunk.groundTexture], [chunk.upperLayer, chunk.upperTexture], [chunk.overlay, chunk.waterTexture]]) {
+        if (layer) layer.destroy();
+        if (texture) chunkCanvasPool.push(texture);
     }
 
     loadedWaterChunks.delete(chunk);
@@ -1494,34 +1213,30 @@ function destroyWorldChunk(key) {
     loadedChunks.delete(key);
 }
 
+function isChunkNear(chunkX, chunkY, radius) {
+    return Math.abs(chunkX - activeChunkX) <= radius && Math.abs(chunkY - activeChunkY) <= radius;
+}
+
 function updateLoadedChunks(scene, force = false) {
-    const characterCenterX = character.x + CHARACTER_SIZE / 2;
-    const characterCenterY = character.y + CHARACTER_SIZE / 2;
+    const centerChunkX = Math.floor(Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE) / CHUNK_SIZE);
+    const centerChunkY = Math.floor(Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE) / CHUNK_SIZE);
 
-    const characterTileX = Math.floor(characterCenterX / TILE_SIZE);
-    const characterTileY = Math.floor(characterCenterY / TILE_SIZE);
-
-    const centerChunkX = Math.floor(characterTileX / CHUNK_SIZE);
-    const centerChunkY = Math.floor(characterTileY / CHUNK_SIZE);
-
-    if (!force && centerChunkX === activeChunkX && centerChunkY === activeChunkY) {
-        return;
-    }
+    if (!force && centerChunkX === activeChunkX && centerChunkY === activeChunkY) return;
 
     const discoveredBefore = discoveredChunks.size;
 
+    activeChunkX = centerChunkX;
+    activeChunkY = centerChunkY;
+    visibleChunkLeft = null;
+    pendingChunks.length = 0;
+
     for (let offsetY = -CHUNK_DISCOVERY_RADIUS; offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
         for (let offsetX = -CHUNK_DISCOVERY_RADIUS; offsetX <= CHUNK_DISCOVERY_RADIUS; offsetX++) {
-            discoveredChunks.add(getTileId(
-                centerChunkX + offsetX,
-                centerChunkY + offsetY
-            ));
+            discoveredChunks.add(getTileId(centerChunkX + offsetX, centerChunkY + offsetY));
         }
     }
 
     if (discoveredChunks.size !== discoveredBefore) saveDirty = true;
-
-    pendingChunks.length = 0;
 
     for (let offsetY = -CHUNK_LOAD_RADIUS; offsetY <= CHUNK_LOAD_RADIUS; offsetY++) {
         for (let offsetX = -CHUNK_LOAD_RADIUS; offsetX <= CHUNK_LOAD_RADIUS; offsetX++) {
@@ -1537,17 +1252,8 @@ function updateLoadedChunks(scene, force = false) {
     }
 
     for (const [key, chunk] of loadedChunks) {
-        if (
-            Math.abs(chunk.chunkX - centerChunkX) > CHUNK_LOAD_RADIUS ||
-            Math.abs(chunk.chunkY - centerChunkY) > CHUNK_LOAD_RADIUS
-        ) {
-            destroyWorldChunk(key);
-        }
+        if (!isChunkNear(chunk.chunkX, chunk.chunkY, CHUNK_LOAD_RADIUS)) destroyWorldChunk(key);
     }
-
-    activeChunkX = centerChunkX;
-    activeChunkY = centerChunkY;
-    visibleChunkLeft = null;
 }
 
 function buildPendingChunk(scene) {
@@ -1555,17 +1261,11 @@ function buildPendingChunk(scene) {
         const chunkY = pendingChunks.pop();
         const chunkX = pendingChunks.pop();
 
-        if (
-            Math.abs(chunkX - activeChunkX) > CHUNK_LOAD_RADIUS ||
-            Math.abs(chunkY - activeChunkY) > CHUNK_LOAD_RADIUS ||
-            loadedChunks.has(getChunkKey(chunkX, chunkY))
-        ) {
-            continue;
+        if (isChunkNear(chunkX, chunkY, CHUNK_LOAD_RADIUS) && !loadedChunks.has(getChunkKey(chunkX, chunkY))) {
+            createWorldChunk(scene, chunkX, chunkY, true);
+            visibleChunkLeft = null;
+            return;
         }
-
-        createWorldChunk(scene, chunkX, chunkY, true);
-        visibleChunkLeft = null;
-        return;
     }
 
     while (pendingWaterChunks.length > 0) {
@@ -1579,20 +1279,14 @@ function buildPendingChunk(scene) {
 }
 
 function updateChunkVisibility() {
-    const left = mainCamera.scrollX;
-    const top = mainCamera.scrollY;
-    const right = left + mainCamera.width;
-    const bottom = top + mainCamera.height;
-    const chunkLeft = Math.floor(left / CHUNK_PIXEL_SIZE);
-    const chunkRight = Math.ceil(right / CHUNK_PIXEL_SIZE) - 1;
-    const chunkTop = Math.floor(top / CHUNK_PIXEL_SIZE);
-    const chunkBottom = Math.ceil(bottom / CHUNK_PIXEL_SIZE) - 1;
+    const chunkLeft = Math.floor(mainCamera.scrollX / CHUNK_PIXEL_SIZE);
+    const chunkRight = Math.ceil((mainCamera.scrollX + mainCamera.width) / CHUNK_PIXEL_SIZE) - 1;
+    const chunkTop = Math.floor(mainCamera.scrollY / CHUNK_PIXEL_SIZE);
+    const chunkBottom = Math.ceil((mainCamera.scrollY + mainCamera.height) / CHUNK_PIXEL_SIZE) - 1;
 
     if (
-        chunkLeft === visibleChunkLeft &&
-        chunkRight === visibleChunkRight &&
-        chunkTop === visibleChunkTop &&
-        chunkBottom === visibleChunkBottom
+        chunkLeft === visibleChunkLeft && chunkRight === visibleChunkRight &&
+        chunkTop === visibleChunkTop && chunkBottom === visibleChunkBottom
     ) {
         return;
     }
@@ -1603,11 +1297,7 @@ function updateChunkVisibility() {
     visibleChunkBottom = chunkBottom;
 
     for (const chunk of loadedChunks.values()) {
-        const visible = chunk.chunkX >= visibleChunkLeft &&
-            chunk.chunkX <= visibleChunkRight &&
-            chunk.chunkY >= visibleChunkTop &&
-            chunk.chunkY <= visibleChunkBottom;
-
+        const visible = chunk.chunkX >= chunkLeft && chunk.chunkX <= chunkRight && chunk.chunkY >= chunkTop && chunk.chunkY <= chunkBottom;
         if (visible === chunk.visible) continue;
 
         chunk.visible = visible;
