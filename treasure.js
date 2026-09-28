@@ -5,9 +5,7 @@ function createChestSilhouette(scene) {
     const source = getTerrainPixels(scene, 'chest');
     const width = source.width / 2;
     const height = source.height / 2;
-    const texture = scene.textures.createCanvas('chest-small', width, height);
-    const context = texture.getContext();
-    const image = context.createImageData(width, height);
+    const image = new ImageData(width, height);
     const points = [];
     let top = height;
     let bottom = 0;
@@ -48,8 +46,7 @@ function createChestSilhouette(scene) {
         }
     }
 
-    context.putImageData(image, 0, 0);
-    texture.refresh();
+    createCanvasTexture(scene, 'chest-small', width, height, context => context.putImageData(image, 0, 0));
 
     chestSilhouette = { width, top, bottom, points };
     chestSprite = scene.add.image(0, 0, 'chest-small')

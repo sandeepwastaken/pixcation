@@ -49,6 +49,14 @@ function createShimmerSheet(scene) {
     scene.textures.addSpriteSheet('shimmer', canvas, { frameWidth: 12, frameHeight: 1 });
 }
 
+function createCanvasTexture(scene, key, width, height, draw) {
+    if (scene.textures.exists(key)) return;
+
+    const texture = scene.textures.createCanvas(key, width, height);
+    draw(texture.getContext());
+    texture.refresh();
+}
+
 function extractSilhouetteShadow(scene, key) {
     const pixels = getTerrainPixels(scene, key);
     const { width, height } = pixels;
@@ -78,46 +86,36 @@ function createPropArt(scene) {
     for (let index = 0; index < TREE_VARIANT_COUNT; index++) {
         const variant = generateTreeVariant(trunk, Math.floor(worldHash(index, 0, 766) * 4294967295));
         variant.key = `tree-${index}`;
-
-        if (!scene.textures.exists(variant.key)) {
-            const texture = scene.textures.createCanvas(variant.key, variant.width, variant.height);
-            texture.getContext().putImageData(new ImageData(variant.data, variant.width, variant.height), 0, 0);
-            texture.refresh();
-        }
-
+        createCanvasTexture(scene, variant.key, variant.width, variant.height, context => {
+            context.putImageData(new ImageData(variant.data, variant.width, variant.height), 0, 0);
+        });
         treeVariants.push(variant);
     }
 }
 
 function createBushSlices(scene) {
-    const source = getTextureSource(scene, 'bush');
-    const { width, height} = source;
+    const source = getTerrainPixels(scene, 'bush');
+    const { width, height } = source;
+    const depths = new Uint8Array(width * height);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            depths[y * width + x] = Math.min(TILE_SIZE - 1, Math.floor(
+                (worldHash(x, y, 761) * 0.7 + (y / (height - 1)) * 0.3) * TILE_SIZE
+            ));
+        }
+    }
 
     for (let slice = 0; slice < TILE_SIZE; slice++) {
-        const key = `bush-slice-${slice}`;
-        if (scene.textures.exists(key)) continue;
+        createCanvasTexture(scene, `bush-slice-${slice}`, width, height, context => {
+            const image = new ImageData(new Uint8ClampedArray(source.data), width, height);
 
-        const texture = scene.textures.createCanvas(key, width, height);
-        const context = texture.getContext();
-
-        context.drawImage(source, 0, 0);
-        const image = context.getImageData(0, 0, width, height);
-
-        for (let y= 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const depth = Math.min(TILE_SIZE - 1, Math.floor(
-                    (worldHash(x, y, 761) * 0.7 +
-                        (y / (height - 1)) * 0.3) * TILE_SIZE
-                ));
-
-                if (depth !== slice) {
-                    image.data[(y * width + x) * 4 + 3] = 0;
-                }
+            for (let pixel = 0; pixel < depths.length; pixel++) {
+                if (depths[pixel] !== slice) image.data[pixel * 4 + 3] = 0;
             }
-        }
 
-        context.putImageData(image, 0, 0);
-        texture.refresh();
+            context.putImageData(image, 0, 0);
+        });
     }
 }
 
@@ -488,30 +486,16 @@ function createRoundedCliffTextures(scene) {
     for (let left = 0; left < DIRT_CLIFF_TILES.length; left++) {
         for (let right = 0; right < DIRT_CLIFF_TILES[left].length; right++) {
             const key = DIRT_CLIFF_TILES[left][right];
+            const half = TILE_SIZE / 2;
 
-            if (!scene.textures.exists(key)) {
-                const texture = scene.textures.createCanvas(key, TILE_SIZE, TILE_SIZE);
-                const context = texture.getContext();
-                const half = TILE_SIZE / 2;
-
-                context.drawImage(
-                    source(DIRT_CLIFF_TILES[left][0]),
-                    0, 0, half, TILE_SIZE,
-                    0, 0, half, TILE_SIZE
-                );
-                context.drawImage(
-                    source(DIRT_CLIFF_TILES[0][right]),
-                    half, 0, half, TILE_SIZE,
-                    half, 0, half, TILE_SIZE
-                );
-                texture.refresh();
-            }
+            createCanvasTexture(scene, key, TILE_SIZE, TILE_SIZE, context => {
+                context.drawImage(source(DIRT_CLIFF_TILES[left][0]), 0, 0, half, TILE_SIZE, 0, 0, half, TILE_SIZE);
+                context.drawImage(source(DIRT_CLIFF_TILES[0][right]), half, 0, half, TILE_SIZE, half, 0, half, TILE_SIZE);
+            });
 
             const cliffKey = left === 1 || right === 1 ? `${key}-trimmed` : key;
 
-            if (!scene.textures.exists(cliffKey)) {
-                const texture = scene.textures.createCanvas(cliffKey, TILE_SIZE, TILE_SIZE);
-                const context = texture.getContext();
+            createCanvasTexture(scene, cliffKey, TILE_SIZE, TILE_SIZE, context => {
                 context.drawImage(source(key), 0, 0);
 
                 if (left === 1) {
@@ -523,25 +507,14 @@ function createRoundedCliffTextures(scene) {
                     context.clearRect(TILE_SIZE - 2, TILE_SIZE - 1, 2, 1);
                     context.clearRect(TILE_SIZE - 1, TILE_SIZE - 2, 1, 1);
                 }
-
-                texture.refresh();
-            }
+            });
 
             for (const corner of ['cornerDirt1', 'cornerDirt2', 'cornerDirt3']) {
-                const roundedKey = `${cliffKey}-${corner}`;
-                if (scene.textures.exists(roundedKey)) continue;
-
-                const texture = scene.textures.createCanvas(roundedKey, TILE_SIZE, TILE_SIZE);
-                const context = texture.getContext();
-
-                context.drawImage(source(cliffKey), 0, 0);
-                context.clearRect(0, 0, TILE_SIZE, 5);
-                context.drawImage(
-                    source(corner),
-                    0, 0, TILE_SIZE, 5,
-                    0, 0, TILE_SIZE, 5
-                );
-                texture.refresh();
+                createCanvasTexture(scene, `${cliffKey}-${corner}`, TILE_SIZE, TILE_SIZE, context => {
+                    context.drawImage(source(cliffKey), 0, 0);
+                    context.clearRect(0, 0, TILE_SIZE, 5);
+                    context.drawImage(source(corner), 0, 0, TILE_SIZE, 5, 0, 0, TILE_SIZE, 5);
+                });
             }
         }
     }
@@ -552,30 +525,11 @@ function createRoundedCliffTextures(scene) {
             ['InnerRight', false, true],
             ['InnerBoth', true, true]
         ]) {
-            const key = `${base}${suffix}`;
-            if (scene.textures.exists(key)) continue;
-
-            const texture = scene.textures.createCanvas(key, TILE_SIZE, TILE_SIZE);
-            const context = texture.getContext();
-            context.drawImage(source(base), 0, 0);
-
-            if (left) {
-                context.drawImage(
-                    source('waterDirtInnerLeft'),
-                    0, 0, 5, TILE_SIZE,
-                    0, 0, 5, TILE_SIZE
-                );
-            }
-
-            if (right) {
-                context.drawImage(
-                    source('waterDirtInnerRight'),
-                    TILE_SIZE - 5, 0, 5, TILE_SIZE,
-                    TILE_SIZE - 5, 0, 5, TILE_SIZE
-                );
-            }
-
-            texture.refresh();
+            createCanvasTexture(scene, `${base}${suffix}`, TILE_SIZE, TILE_SIZE, context => {
+                context.drawImage(source(base), 0, 0);
+                if (left) context.drawImage(source('waterDirtInnerLeft'), 0, 0, 5, TILE_SIZE, 0, 0, 5, TILE_SIZE);
+                if (right) context.drawImage(source('waterDirtInnerRight'), TILE_SIZE - 5, 0, 5, TILE_SIZE, TILE_SIZE - 5, 0, 5, TILE_SIZE);
+            });
         }
     }
 }
