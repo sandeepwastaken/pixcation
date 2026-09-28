@@ -227,7 +227,7 @@ function propBlocksRect(type, tileX, tileY, left, top, right, bottom) {
 }
 
 function isGuideSpawnTile(tileX, tileY) {
-    const tileKey = getWorldTileKey(tileX, tileY).toLowerCase();
+    const tileKey = getWorldTile(tileX, tileY).key.toLowerCase();
 
     return getTerrainType(tileX, tileY) !== 'water' &&
         !tileKey.includes('edge') &&

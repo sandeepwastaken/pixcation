@@ -193,22 +193,20 @@ function findWaterRun(tileX, tileY, stepX, stepY) {
     };
 }
 
-function cacheBridgeCandidate(key, bridge) {
-    return cacheWorldValue(bridgeCandidateCache, key, bridge);
-}
-
 function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
     const key = getTileId(tileX, tileY) * 2 + (salt === 811 ? 1 : 0);
     const cached = bridgeCandidateCache.get(key);
 
-    if (cached !== undefined) {
-        return cached;
-    }
+    return cached !== undefined
+        ? cached
+        : cacheWorldValue(bridgeCandidateCache, key, findBridge(tileX, tileY, stepX, stepY, widthX, widthY, salt));
+}
 
+function findBridge(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
     const run = findWaterRun(tileX, tileY, stepX, stepY);
 
     if (!run) {
-        return cacheBridgeCandidate(key, null);
+        return null;
     }
 
     const spanLength = run.waterLength + 2;
@@ -222,13 +220,13 @@ function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
 
         if (shouldBeLand) {
             if (!isLandTile(firstX, firstY) || !isLandTile(secondX, secondY)) {
-                return cacheBridgeCandidate(key, null);
+                return null;
             }
         } else if (
             getTerrainType(firstX, firstY) !== 'water' ||
             getTerrainType(secondX, secondY) !== 'water'
         ) {
-            return cacheBridgeCandidate(key, null);
+            return null;
         }
     }
 
@@ -251,10 +249,10 @@ function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
         4,
         salt
     )) {
-        return cacheBridgeCandidate(key, null);
+        return null;
     }
 
-    const bridge = {
+    return {
         startX: run.startLandX,
         startY: run.startLandY,
         stepX,
@@ -263,8 +261,6 @@ function getBridgeCandidate(tileX, tileY, stepX, stepY, widthX, widthY, salt) {
         widthY,
         spanLength
     };
-
-    return cacheBridgeCandidate(key, bridge);
 }
 
 function isTileInBridge(tileX, tileY, bridge) {
@@ -277,57 +273,28 @@ function isTileInBridge(tileX, tileY, bridge) {
         (width === 0 || width === 1);
 }
 
+const BRIDGE_ORIENTATIONS = [
+    { stepX: 0, stepY: 1, widthX: 1, widthY: 0, salt: 810, rotation: 0 },
+    { stepX: 1, stepY: 0, widthX: 0, widthY: 1, salt: 811, rotation: Math.PI / 2 }
+];
+
 function getBridgeTile(tileX, tileY) {
-    const terrain = getTerrainType(tileX, tileY);
+    const onWater = getTerrainType(tileX, tileY) === 'water';
 
-    if (
-        terrain === 'water' ||
-        getTerrainType(tileX, tileY - 1) === 'water' ||
-        getTerrainType(tileX, tileY + 1) === 'water'
-    ) {
-        for (let firstColumn = tileX - 1; firstColumn <= tileX; firstColumn++) {
-            const bridge = getBridgeCandidate(
-                firstColumn,
-                tileY,
-                0,
-                1,
-                1,
-                0,
-                810
-            );
-
-            if (bridge && isTileInBridge(tileX, tileY, bridge)) {
-                return {
-                    key: 'wood',
-                    rotation: 0,
-                    bridge: true
-                };
-            }
+    for (const { stepX, stepY, widthX, widthY, salt, rotation } of BRIDGE_ORIENTATIONS) {
+        if (
+            !onWater &&
+            getTerrainType(tileX - stepX, tileY - stepY) !== 'water' &&
+            getTerrainType(tileX + stepX, tileY + stepY) !== 'water'
+        ) {
+            continue;
         }
-    }
 
-    if (
-        terrain === 'water' ||
-        getTerrainType(tileX - 1, tileY) === 'water' ||
-        getTerrainType(tileX + 1, tileY) === 'water'
-    ) {
-        for (let firstRow = tileY - 1; firstRow <= tileY; firstRow++) {
-            const bridge = getBridgeCandidate(
-                tileX,
-                firstRow,
-                1,
-                0,
-                0,
-                1,
-                811
-            );
+        for (let offset = -1; offset <= 0; offset++) {
+            const bridge = getBridgeCandidate(tileX + widthX * offset, tileY + widthY * offset, stepX, stepY, widthX, widthY, salt);
 
             if (bridge && isTileInBridge(tileX, tileY, bridge)) {
-                return {
-                    key: 'wood',
-                    rotation: Math.PI / 2,
-                    bridge: true
-                };
+                return { key: 'wood', rotation, bridge: true };
             }
         }
     }
@@ -585,10 +552,6 @@ function getWorldTile(tileX, tileY) {
         : null;
 
     return cacheWorldValue(worldTileCache, key, tile);
-}
-
-function getWorldTileKey(tileX, tileY) {
-    return getWorldTile(tileX, tileY).key;
 }
 
 function getChunkKey(chunkX, chunkY) {
