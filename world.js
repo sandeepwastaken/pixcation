@@ -963,24 +963,41 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     detailedShadowScratch ||= new Uint32Array(mask.length);
     const detailed = detailedShadowScratch;
     let detailedCount = 0;
+    let activeStyle = null;
+
+    const fillRun = (style, x, y, width) => {
+        if (style !== activeStyle) {
+            context.fillStyle = style;
+            activeStyle = style;
+        }
+
+        context.fillRect(x, y, width, 1);
+    };
 
     for (let localY = 0; localY < CHUNK_PIXEL_SIZE; localY++) {
+        const tileY = chunkY * CHUNK_SIZE + Math.floor(localY / TILE_SIZE);
+        const surfaceRow = (localY % TILE_SIZE) * TILE_SIZE;
         let runStart = -1;
         let runColor = null;
+        let column = -1;
+        let water = null;
+        let flatStyle = null;
 
         for (let localX = 0; localX < CHUNK_PIXEL_SIZE; localX++) {
             const pixel = localY * CHUNK_PIXEL_SIZE + localX;
             let color = null;
 
             if (mask[pixel]) {
-                const tile = getWorldTile(
-                    chunkX * CHUNK_SIZE + Math.floor(localX / TILE_SIZE),
-                    chunkY * CHUNK_SIZE + Math.floor(localY / TILE_SIZE)
-                );
+                if (column !== Math.floor(localX / TILE_SIZE)) {
+                    column = Math.floor(localX / TILE_SIZE);
+                    const tile = getWorldTile(chunkX * CHUNK_SIZE + column, tileY);
+                    water = getTerrainSurface(scene, tile).water;
+                    flatStyle = isFlatShadowTile(tile) ? getShadowStyle(scene, tile.key) : null;
+                }
 
-                if (!getTerrainSurface(scene, tile).water[(localY % TILE_SIZE) * TILE_SIZE + localX % TILE_SIZE]) {
-                    if (isFlatShadowTile(tile)) {
-                        color = getShadowStyle(scene, tile.key);
+                if (!water[surfaceRow + localX % TILE_SIZE]) {
+                    if (flatStyle) {
+                        color = flatStyle;
                     } else {
                         detailed[detailedCount++] = pixel;
                         minX = Math.min(minX, localX);
@@ -993,8 +1010,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
 
             if (color !== runColor || !color) {
                 if (runStart !== -1) {
-                    context.fillStyle = runColor;
-                    context.fillRect(runStart, localY, localX - runStart, 1);
+                    fillRun(runColor, runStart, localY, localX - runStart);
                     runStart = -1;
                     runColor = null;
                 }
@@ -1006,8 +1022,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
         }
 
         if (runStart !== -1) {
-            context.fillStyle = runColor;
-            context.fillRect(runStart, localY, CHUNK_PIXEL_SIZE - runStart, 1);
+            fillRun(runColor, runStart, localY, CHUNK_PIXEL_SIZE - runStart);
         }
     }
 
