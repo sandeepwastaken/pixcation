@@ -41,20 +41,11 @@
     <script>
         const supportScripts = ['game-data.js', 'water-pipeline.js', 'art.js', 'world.js', 'environment.js', 'fish.js', 'fishing.js', 'treasure.js', 'ui.js'];
         if (new URLSearchParams(window.location.search).has('test')) supportScripts.push('automated-tests.js');
-        const loadGameScript = source => new Promise((resolve, reject) => {
+        for (const source of [...supportScripts, 'phaser.js']) {
             const script = document.createElement('script');
             script.src = `${source}?v=${window.APP_CACHE_BUSTER}`;
-            script.onload = resolve;
-            script.onerror = reject;
+            script.async = false;
             document.body.appendChild(script);
-        });
-        const loadGame = async () => {
-            for (let index = 0; index < supportScripts.length; index += 3) {
-                await Promise.all(supportScripts.slice(index, index + 3).map(loadGameScript));
-            }
-            await loadGameScript('phaser.js');
-        };
-
-        loadGame();
+        }
     </script>
 </body>
