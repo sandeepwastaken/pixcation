@@ -655,23 +655,25 @@ function create() {
             mapDirty = true;
         }
 
-        this.input.setDefaultCursor(
-            !isMenuOpen() && getClickedWorldTarget(pointer) ? 'pointer' : 'default'
-        );
+        this.input.setDefaultCursor(!isMenuOpen() && getClickedWorldTarget(pointer) ? 'pointer' : 'default');
     });
+
+    const releaseAction = () => {
+        fishingActionHeld = false;
+        releaseCast(this.time.now);
+    };
+
+    const pressAction = () => {
+        fishingActionHeld = true;
+        beginCast(this.time.now);
+    };
 
     this.input.on('pointerup', () => {
         mapDrag = null;
-        fishingActionHeld = false;
-        releaseCast(this.time.now);
+        releaseAction();
     });
 
-    this.input.keyboard.on('keyup', event => {
-        if (event.code === 'Space') {
-            fishingActionHeld = false;
-            releaseCast(this.time.now);
-        }
-    });
+    this.input.keyboard.on('keyup', event => event.code === 'Space' && releaseAction());
 
     this.input.on('pointerdown', pointer => {
         if (inventoryOpen) {
@@ -705,115 +707,61 @@ function create() {
             } else if (isBaitSlotAt(pointer.x, pointer.y)) {
                 cycleBait(this);
             } else {
-                fishingActionHeld = true;
-                beginCast(this.time.now);
+                pressAction();
             }
+        } else if (pointer.y < DIALOGUE_VISIBLE_Y + MAP_PANEL_HEIGHT) {
+            mapDrag = { x: pointer.x, y: pointer.y, panX: mapPan.x, panY: mapPan.y };
         } else {
-            if (pointer.y < DIALOGUE_VISIBLE_Y + MAP_PANEL_HEIGHT) {
-                mapDrag = { x: pointer.x, y: pointer.y, panX: mapPan.x, panY: mapPan.y };
-            } else {
-                closeMap(this);
-            }
+            closeMap(this);
         }
     });
 
     this.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
         const step = Math.sign(deltaY);
 
-        if (!step) return;
+        if (!step || inventoryOpen) return;
 
         if (isMenuOpen()) {
             if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
             lastMenuWheelTime = pointer.event.timeStamp;
         }
 
-        if (inventoryOpen) {
-            return;
-        } else if (mapOpen) {
+        if (mapOpen) {
             const zoom = Phaser.Math.Clamp(mapZoom - step, 1, MAP_MAX_ZOOM);
-
-            if (zoom !== mapZoom) {
-                mapZoom = zoom;
-                mapDirty = true;
-            }
+            mapDirty ||= zoom !== mapZoom;
+            mapZoom = zoom;
         } else if (marketOpen) {
             moveMarketSelection(step);
         } else if (dialogueOpen) {
             moveGuideDialogueSelection(step);
-        } else if (!mapOpen) {
+        } else {
             selectHotBarSlot(selectedHotbarSlot + step, true);
         }
     });
 
     this.input.keyboard.on('keydown', event => {
-        if (event.repeat) {
-            return;
-        }
+        if (event.repeat) return;
 
         const code = event.code;
         const key = event.key.toLowerCase();
+        const slot = Number(event.key) - 1;
 
         if (code === 'KeyA' || code === 'ArrowLeft') horizontalPriority = -1;
         if (code === 'KeyD' || code === 'ArrowRight') horizontalPriority = 1;
         if (code === 'KeyW' || code === 'ArrowUp') verticalPriority = -1;
         if (code === 'KeyS' || code === 'ArrowDown') verticalPriority = 1;
 
-        if (dialogueOpen) {
-            handleGuideDialogueKey(this,event);
-            return;
-        }
-
-        if (inventoryOpen) {
-            handleInventoryKey(this, event);
-            return;
-        }
-
-        if (mapOpen) {
-            handleMapKey(this, event);
-            return;
-        }
-
-        if (marketOpen) {
-            handleMarketKey(this, event);
-            return;
-        }
-
-
-        if (key === 'i') {
-            openInventory(this);
-            return;
-        }
-
-        if (event.code === 'Space') {
-            fishingActionHeld = true;
-            beginCast(this.time.now);
-            return;
-        }
-
-        if (key === 'm') {
-            openMap(this);
-            return;
-        }
-
-        if (key === 'b') {
-            cycleBait(this);
-            return;
-        }
-
-        if (CHEATS_ENABLED && key === 's') {
-            spawnSturgeonAtCursor(this);
-        }
-
-        if (key === 'e') {
-            openInteraction(this, getInteractionTarget(true));
-            return;
-        }
-
-        const slot = Number(event.key) - 1;
-
-        if (slot >= 0 && slot < 9) {
-            selectHotBarSlot(slot);
-        }
+        if (dialogueOpen) handleGuideDialogueKey(this, event);
+        else if (inventoryOpen) handleInventoryKey(this, event);
+        else if (mapOpen) handleMapKey(this, event);
+        else if (marketOpen) handleMarketKey(this, event);
+        else if (key === 'i') openInventory(this);
+        else if (code === 'Space') pressAction();
+        else if (key === 'm') openMap(this);
+        else if (key === 'b') cycleBait(this);
+        else if (key === 'e') openInteraction(this, getInteractionTarget(true));
+        else if (CHEATS_ENABLED && key === 's') spawnSturgeonAtCursor(this);
+        else if (slot >= 0 && slot < 9) selectHotBarSlot(slot);
     });
 
     mainCamera = this.cameras.main;
@@ -980,9 +928,7 @@ function updateCharacterShadow(scene) {
     const x = character.x + ACTOR_SHADOW_X;
     const y = character.y + ACTOR_SHADOW_Y;
 
-    if (characterShadow.x === x && characterShadow.y === y) {
-        return;
-    }
+    if (characterShadow.x === x && characterShadow.y === y) return;
 
     characterShadow.x = x;
     characterShadow.y = y;
@@ -1033,28 +979,14 @@ function canCharacterOccupy(scene, x, y) {
     const top = y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH;
     const bottom = top + CHARACTER_HITBOX_HEIGHT;
+    const overlaps = (object, hitX, hitY, width, height) => object &&
+        left < object.x + hitX + width && right > object.x + hitX && top < object.y + hitY + height && bottom > object.y + hitY;
 
     if (
-        guide &&
-        left < guide.x + GUIDE_HITBOX_X + GUIDE_HITBOX_WIDTH &&
-        right > guide.x + GUIDE_HITBOX_X &&
-        top < guide.y + GUIDE_HITBOX_Y + GUIDE_HITBOX_HEIGHT &&
-        bottom > guide.y + GUIDE_HITBOX_Y
+        overlaps(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT) ||
+        overlaps(store, STORE_HITBOX_X, STORE_HITBOX_Y, STORE_HITBOX_WIDTH, STORE_HITBOX_HEIGHT) ||
+        isBlockedByProp(left, top, right, bottom)
     ) {
-        return false;
-    }
-
-    if (
-        store &&
-        left < store.x + STORE_HITBOX_X + STORE_HITBOX_WIDTH &&
-        right > store.x + STORE_HITBOX_X &&
-        top < store.y + STORE_HITBOX_Y + STORE_HITBOX_HEIGHT &&
-        bottom > store.y + STORE_HITBOX_Y
-    ) {
-        return false;
-    }
-
-    if (isBlockedByProp(left, top, right, bottom)) {
         return false;
     }
 
@@ -1063,24 +995,13 @@ function canCharacterOccupy(scene, x, y) {
     const topTile = Math.floor(top / TILE_SIZE);
     const bottomTile = Math.floor((bottom - 1) / TILE_SIZE);
 
-    for (let tileY = topTile; tileY <= bottomTile; tileY += 1) {
-        for (let tileX = leftTile; tileX <= rightTile; tileX += 1) {
+    for (let tileY = topTile; tileY <= bottomTile; tileY++) {
+        for (let tileX = leftTile; tileX <= rightTile; tileX++) {
             const tile = getWorldTile(tileX, tileY);
 
-            if (tile.blocking === 'full' && !tile.patches?.length) {
-                return false;
-            }
-
-            if (tile.blocking === 'lower' && bottom > tileY * TILE_SIZE + TILE_SIZE / 2) {
-                return false;
-            }
-
-            if (
-                tile.blocking !== 'full' && tile.baseKey !== 'water' ||
-                tile.blocking === 'lower'
-            ) {
-                continue;
-            }
+            if (tile.blocking === 'full' && !tile.patches?.length) return false;
+            if (tile.blocking === 'lower' && bottom > tileY * TILE_SIZE + TILE_SIZE / 2) return false;
+            if (tile.blocking === 'lower' || tile.blocking !== 'full' && tile.baseKey !== 'water') continue;
 
             const water = getTerrainSurface(scene, tile).water;
             const startX = Math.max(left, tileX * TILE_SIZE) - tileX * TILE_SIZE;
@@ -1088,8 +1009,8 @@ function canCharacterOccupy(scene, x, y) {
             const startY = Math.max(top, tileY * TILE_SIZE) - tileY * TILE_SIZE;
             const endY = Math.min(bottom, (tileY + 1) * TILE_SIZE) - tileY * TILE_SIZE;
 
-            for (let pixelY = startY; pixelY < endY; pixelY += 1) {
-                for (let pixelX = startX; pixelX < endX; pixelX += 1) {
+            for (let pixelY = startY; pixelY < endY; pixelY++) {
+                for (let pixelX = startX; pixelX < endX; pixelX++) {
                     if (water[pixelY * TILE_SIZE + pixelX]) return false;
                 }
             }
@@ -1106,9 +1027,7 @@ function stepCharacter(scene, stepX, stepY, allowNudge) {
         return true;
     }
 
-    if (!allowNudge) {
-        return false;
-    }
+    if (!allowNudge) return false;
 
     for (let offset = 1; offset <= CHARACTER_CORNER_NUDGE; offset++) {
         for (let side = -1; side <= 1; side += 2) {
@@ -1135,9 +1054,7 @@ function moveCharacterAxis(scene, amountX, amountY, allowNudge) {
     const stepY = Math.sign(amountY);
 
     for (let step = 0; step < steps; step++) {
-        if (!stepCharacter(scene, stepX, stepY, allowNudge)) {
-            return false;
-        }
+        if (!stepCharacter(scene, stepX, stepY, allowNudge)) return false;
     }
 
     return true;
@@ -1163,10 +1080,16 @@ function updateCamera(delta) {
     mainCamera.setScroll(baseScrollX + cameraOffsetX, baseScrollY + cameraOffsetY);
 }
 
+function setCharacterTexture(key) {
+    if (key === characterTextureKey) return false;
+
+    characterTextureKey = key;
+    character.setTexture(key);
+    return true;
+}
+
 function update(time, delta) {
-    if (!character) {
-        return;
-    }
+    if (!character) return;
 
     let moveX = 0;
     let moveY = 0;
@@ -1179,14 +1102,8 @@ function update(time, delta) {
 
         moveX = left && right ? horizontalPriority : left ? -1 : right ? 1 : 0;
         moveY = up && down ? verticalPriority : up ? -1 : down ? 1 : 0;
-
-        if (moveX !== 0) {
-            characterDirection = moveX < 0 ? 'left' : 'right';
-        }
-
-        if (moveY !== 0) {
-            characterDirection = moveY < 0 ? 'back' : 'front';
-        }
+        if (moveX !== 0) characterDirection = moveX < 0 ? 'left' : 'right';
+        if (moveY !== 0) characterDirection = moveY < 0 ? 'back' : 'front';
     }
 
     const isWalking = moveX !== 0 || moveY !== 0;
@@ -1194,55 +1111,32 @@ function update(time, delta) {
 
     if (!isWalking) {
         characterWalkPhase = 1;
-
-        const idleTextureKey = `character-${characterDirection}`;
-
-        if (idleTextureKey !== characterTextureKey) {
-            characterTextureKey = idleTextureKey;
-            character.setTexture(characterTextureKey);
-        }
-    }
-
-    if (isWalking) {
+        setCharacterTexture(`character-${characterDirection}`);
+    } else {
         const pace = characterKeys.sprint.isDown ? CHARACTER_SPRINT_MULTIPLIER : 1;
-        characterPace = pace;
         const frameDelta = Math.min(delta, 50);
-        const distance = CHARACTER_SPEED * pace * frameDelta / 1000 *
-            (moveX !== 0 && moveY !== 0 ? Math.SQRT1_2 : 1);
+        const distance = CHARACTER_SPEED * pace * frameDelta / 1000 * (moveX !== 0 && moveY !== 0 ? Math.SQRT1_2 : 1);
 
+        characterPace = pace;
         characterWalkPhase += frameDelta * CHARACTER_ANIMATION_SPEED * pace / 1000;
-
         characterMoveRemainderX += moveX * distance;
         characterMoveRemainderY += moveY * distance;
+
         const wholeMoveX = Math.trunc(characterMoveRemainderX);
         const wholeMoveY = Math.trunc(characterMoveRemainderY);
 
         characterMoveRemainderX -= wholeMoveX;
         characterMoveRemainderY -= wholeMoveY;
-
-        if (!moveCharacterAxis(this, wholeMoveX, 0, moveY === 0)) {
-            characterMoveRemainderX = 0;
-        }
-
-        if (!moveCharacterAxis(this, 0, wholeMoveY, moveX === 0)) {
-            characterMoveRemainderY = 0;
-        }
+        if (!moveCharacterAxis(this, wholeMoveX, 0, moveY === 0)) characterMoveRemainderX = 0;
+        if (!moveCharacterAxis(this, 0, wholeMoveY, moveX === 0)) characterMoveRemainderY = 0;
 
         const walkFrame = CHARACTER_WALK_FRAMES[Math.floor(characterWalkPhase) % 4];
 
-        const frameSuffix = walkFrame === 0 ? '' : `walk${walkFrame}`;
-        const nextTextureKey = `character-${characterDirection}${frameSuffix}`;
-
-        if (nextTextureKey !== characterTextureKey) {
-            if (walkFrame !== 0) {
-                kickUpDust(this, time, moveX, moveY);
-            }
-
-            characterTextureKey = nextTextureKey;
-            character.setTexture(characterTextureKey);
+        if (setCharacterTexture(`character-${characterDirection}${walkFrame ? `walk${walkFrame}` : ''}`) && walkFrame) {
+            kickUpDust(this, time, moveX, moveY);
         }
-    }    
-    
+    }
+
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
     character.setDepth(character.y + CHARACTER_SIZE);
@@ -1257,9 +1151,7 @@ function update(time, delta) {
     updateGuideInteraction(this, guideReach < 1);
     updateInteractionPrompt(this, guideReach, marketReach);
 
-    if (mapOpen) {
-        updateMapPan(this, delta);
-    }
+    if (mapOpen) updateMapPan(this, delta);
 
     if (inventoryOpen && newGameConfirmUntil && time >= newGameConfirmUntil) {
         newGameConfirmUntil = 0;

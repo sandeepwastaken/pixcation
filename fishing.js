@@ -180,8 +180,7 @@ function releaseCast(time) {
         rope: null
     };
 
-    characterTextureKey = `character-${characterDirection}`;
-    character.setTexture(characterTextureKey);
+    setCharacterTexture(`character-${characterDirection}`);
 }
 
 function drawCastCharge(time) {

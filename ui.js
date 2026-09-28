@@ -323,8 +323,7 @@ function snapTweenTarget(tween, target) {
 function stopCharacterForMenu() {
     characterMoveRemainderX = 0;
     characterMoveRemainderY = 0;
-    characterTextureKey = `character-${characterDirection}`;
-    character.setTexture(characterTextureKey);
+    setCharacterTexture(`character-${characterDirection}`);
 }
 
 function getVerticalMenuStep(event) {

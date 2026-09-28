@@ -21,30 +21,15 @@ function finishShimmer(animation, frame, shimmer) {
 }
 
 function spawnShimmer(scene) {
-    let visibleCount = 0;
+    const visible = [...loadedShimmerChunks].filter(chunk => chunk.visible);
+    if (visible.length === 0) return;
 
-    for (const candidate of loadedShimmerChunks) {
-        if (candidate.visible) visibleCount++;
-    }
-
-    if (visibleCount === 0) {
-        return;
-    }
-
-    let pick = Math.floor(Math.random() * visibleCount);
-    let chunk;
-
-    for (chunk of loadedShimmerChunks) {
-        if (chunk.visible && pick-- === 0) break;
-    }
-
+    const chunk = visible[Math.floor(Math.random() * visible.length)];
     const cell = Math.floor(Math.random() * (chunk.waterCells.length / 4)) * 4;
     let shimmer = shimmerPool.pop();
 
     if (!shimmer) {
-        shimmer = scene.add.sprite(0, 0, 'shimmer')
-            .setOrigin(0)
-            .setDepth(2);
+        shimmer = scene.add.sprite(0, 0, 'shimmer').setOrigin(0).setDepth(2);
         shimmer.on(Phaser.Animations.Events.ANIMATION_COMPLETE, finishShimmer);
     }
 
@@ -274,30 +259,15 @@ function findGuideAndStoreSpawn() {
 
 function spawnGuideAndStore(scene) {
     const spawn = findGuideAndStoreSpawn();
+    if (!spawn) return;
 
-    if (!spawn) {
-        return;
-    }
-
-    store = scene.add.image(
-        spawn.storeTileX * TILE_SIZE,
-        spawn.storeTileY * TILE_SIZE,
-        'store'
-    )
+    store = scene.add.image(spawn.storeTileX * TILE_SIZE, spawn.storeTileY * TILE_SIZE, 'store')
         .setOrigin(0)
         .setDepth(spawn.storeTileY * TILE_SIZE + STORE_HEIGHT);
-
-    worldObjectLayer.add(store);
-
-    guide = scene.add.image(
-        spawn.guideTileX * TILE_SIZE,
-        spawn.guideTileY * TILE_SIZE,
-        'guide'
-    )
+    guide = scene.add.image(spawn.guideTileX * TILE_SIZE, spawn.guideTileY * TILE_SIZE, 'guide')
         .setOrigin(0)
         .setDepth(spawn.guideTileY * TILE_SIZE + GUIDE_SIZE);
-
-    worldObjectLayer.add(guide);
+    worldObjectLayer.add([store, guide]);
 
     staticShadowCasters.push(
         { x: guide.x + ACTOR_SHADOW_X, y: guide.y + ACTOR_SHADOW_Y, points: getShapePoints(ACTOR_SHADOW_SHAPE) },
@@ -309,19 +279,9 @@ function spawnGuideAndStore(scene) {
 function rebakeLoadedShadows(scene) {
     for (const chunk of loadedChunks.values()) {
         const mask = getStaticShadowMask(chunk.chunkX, chunk.chunkY);
-        if (!mask) continue;
+        const added = mask && mask.map((value, pixel) => value && !chunk.shadowMask?.[pixel] ? 1 : 0);
 
-        const added = new Uint8Array(mask.length);
-        let changed = false;
-
-        for (let pixel = 0; pixel < mask.length; pixel++) {
-            if (mask[pixel] && !chunk.shadowMask?.[pixel]) {
-                added[pixel] = 1;
-                changed = true;
-            }
-        }
-
-        if (!changed) continue;
+        if (!added || !added.includes(1)) continue;
 
         bakeGroundShadows(scene, chunk.groundTexture.getContext(), chunk.chunkX, chunk.chunkY, added);
         chunk.groundTexture.refresh();
@@ -474,50 +434,28 @@ function getChunkPixels(chunk) {
 }
 
 function getGroundShadowColor(scene, worldX, worldY) {
+    if (isWaterPixel(scene, worldX, worldY)) return null;
+
     const tileX = Math.floor(worldX / TILE_SIZE);
     const tileY = Math.floor(worldY / TILE_SIZE);
     const tile = getWorldTile(tileX, tileY);
-
-    if (getTerrainSurface(scene, tile).water[(worldY - tileY * TILE_SIZE) * TILE_SIZE + worldX - tileX * TILE_SIZE]) {
-        return null;
-    }
-
     const chunkX = Math.floor(tileX / CHUNK_SIZE);
     const chunkY = Math.floor(tileY / CHUNK_SIZE);
     const chunk = loadedChunks.get(getChunkKey(chunkX, chunkY));
-
-    if (!chunk) {
-        return null;
-    }
-
     const pixel = (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE;
+    const flatShade = () => shadeColor(...getDominantColor(scene, tile.key));
 
-    if (chunk.shadowMask && chunk.shadowMask[pixel]) {
-        return null;
-    }
+    if (!chunk || chunk.shadowMask?.[pixel]) return null;
+    if (isFlatShadowTile(tile)) return flatShade();
 
-    if (isFlatShadowTile(tile)) {
-        const base = getDominantColor(scene, tile.key);
-        return shadeColor(base[0], base[1], base[2]);
-    }
-
-    const pixels = getChunkPixels(chunk);
+    const { upper, ground } = getChunkPixels(chunk);
     const index = pixel * 4;
 
-    if (pixels.upper && pixels.upper[index + 3]) {
-        return shadeColor(pixels.upper[index], pixels.upper[index + 1], pixels.upper[index + 2]);
-    }
+    if (upper && upper[index + 3]) return shadeColor(upper[index], upper[index + 1], upper[index + 2]);
+    if (!ground[index + 3]) return null;
+    if (tile.key.startsWith('grass') || tile.key === 'dirt1') return flatShade();
 
-    if (!pixels.ground[index + 3]) {
-        return null;
-    }
-
-    if (tile.key.startsWith('grass') || tile.key === 'dirt1') {
-        const base = getDominantColor(scene, tile.key);
-        return shadeColor(base[0], base[1], base[2]);
-    }
-
-    return shadeColor(pixels.ground[index], pixels.ground[index + 1], pixels.ground[index + 2]);
+    return shadeColor(ground[index], ground[index + 1], ground[index + 2]);
 }
 
 function kickUpDust(scene, time, moveX, moveY) {
@@ -525,27 +463,19 @@ function kickUpDust(scene, time, moveX, moveY) {
     const footY = character.y + CHARACTER_SIZE - 1;
     const tileX = Math.floor(footX / TILE_SIZE);
     const tileY = Math.floor(footY / TILE_SIZE);
-    const tile = getWorldTile(tileX, tileY);
-
     const terrain = getTerrainType(tileX, tileY);
-    const colors = tile.key.startsWith('wood') ? null
+    const colors = getWorldTile(tileX, tileY).key.startsWith('wood') ? null
         : terrain === 'dirt' ? DUST_COLORS
         : terrain === 'grass' && characterPace > 1 ? GRASS_FLECK_COLORS
         : null;
 
-    if (!colors) {
-        return;
-    }
+    if (!colors) return;
 
     for (let index = 0; index < (colors === DUST_COLORS ? DUST_PER_STEP : GRASS_FLECKS_PER_STEP); index++) {
         const side = index % 2 === 0 ? -1 : 1;
         const spread = Math.floor(Math.random() * 2);
-        const offsetX = moveX !== 0
-            ? -moveX * (5 + spread + index)
-            : side * (5 + spread);
-        const offsetY = moveY < 0
-            ? 1 + spread
-            : moveX !== 0 ? -spread : -1 - spread;
+        const offsetX = moveX !== 0 ? -moveX * (5 + spread + index) : side * (5 + spread);
+        const offsetY = moveY < 0 ? 1 + spread : moveX !== 0 ? -spread : -1 - spread;
 
         spawnParticle(
             scene, shadowLayer, time, Math.round(footX + offsetX), footY + offsetY,
