@@ -73,7 +73,14 @@ function createTileCache(createChunk) {
         const key = getTileId(chunkX, chunkY);
 
         if (key !== lastKey) {
-            lastChunk = chunks.get(key) || cacheWorldValue(chunks, key, createChunk());
+            lastChunk = chunks.get(key);
+
+            if (!lastChunk) {
+                if (chunks.size >= TILE_CACHE_CHUNK_LIMIT) chunks.delete(chunks.keys().next().value);
+                lastChunk = createChunk();
+                chunks.set(key, lastChunk);
+            }
+
             lastKey = key;
         }
 

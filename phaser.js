@@ -118,6 +118,7 @@ const MIN_PIER_WATER_LENGTH = 4;
 const MAX_PIER_WATER_LENGTH = 7;
 
 const WORLD_CACHE_LIMIT = 50000;
+const TILE_CACHE_CHUNK_LIMIT = 256;
 
 const loadedChunks = new Map();
 const loadedWaterChunks = new Set();
