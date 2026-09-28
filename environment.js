@@ -108,14 +108,21 @@ function propsConflict(typeA, ax, ay, typeB, bx, by) {
         typeB === 'tree' && isUnderCanopy(bx, by, ax, ay, widthA);
 }
 
+const PROP_CODES = [undefined, null, 'bush', 'rock', 'boulder', 'tree'];
+const propTiles = createTileCache(() => new Uint8Array(CHUNK_SIZE * CHUNK_SIZE));
+const propSprites = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
+
 function getPropAt(tileX, tileY) {
-    const key = getTileId(tileX, tileY);
-    const cached = propPlacementCache.get(key);
+    return PROP_CODES[propTiles(tileX, tileY, generatePropCode)];
+}
 
-    if (cached !== undefined) return cached;
+function generatePropCode(tileX, tileY) {
+    return PROP_CODES.indexOf(placeProp(tileX, tileY));
+}
 
+function placeProp(tileX, tileY) {
     const type = getPropCandidate(tileX, tileY);
-    if (!type) return cacheWorldValue(propPlacementCache, key, null);
+    if (!type) return null;
 
     const priority = worldHash(tileX, tileY, 765);
 
@@ -133,11 +140,11 @@ function getPropAt(tileX, tileY) {
             const nearbyWins = nearbyPriority > priority || nearbyPriority === priority &&
                 (nearbyY < tileY || nearbyY === tileY && nearbyX < tileX);
 
-            if (nearbyWins) return cacheWorldValue(propPlacementCache, key, null);
+            if (nearbyWins) return null;
         }
     }
 
-    return cacheWorldValue(propPlacementCache, key, type);
+    return type;
 }
 
 function getPropCovering(tileX, tileY) {
@@ -165,14 +172,12 @@ function getTreeVariant(tileX, tileY) {
     return treeVariants[Math.min(index, treeVariants.length - 1)];
 }
 
-function getPropSprite(type, tileX, tileY) {
-    const key = getTileId(tileX, tileY);
-    const cached = propSpriteCache.get(key);
-
-    return cached || cacheWorldValue(propSpriteCache, key, createPropSprite(type, tileX, tileY));
+function getPropSprite(tileX, tileY) {
+    return propSprites(tileX, tileY, createPropSprite);
 }
 
-function createPropSprite(type, tileX, tileY) {
+function createPropSprite(tileX, tileY) {
+    const type = getPropAt(tileX, tileY);
     const baseY = (tileY + 1) * TILE_SIZE;
 
     if (type === 'tree') {
@@ -206,7 +211,7 @@ function createPropSprite(type, tileX, tileY) {
 }
 
 function propBlocksRect(type, tileX, tileY, left, top, right, bottom) {
-    const sprite = getPropSprite(type, tileX, tileY);
+    const sprite = getPropSprite(tileX, tileY);
     const baseY = (tileY + 1) * TILE_SIZE;
 
     return left < sprite.hitRight && right > sprite.hitLeft && top < baseY && bottom > baseY - sprite.hitHeight;

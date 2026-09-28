@@ -930,7 +930,7 @@ function forEachStaticShadowPoint(chunkX, chunkY, callback) {
             const type = getPropAt(tileX, tileY);
             if (!type) continue;
 
-            const sprite = getPropSprite(type, tileX, tileY);
+            const sprite = getPropSprite(tileX, tileY);
 
             for (let point = 0; point < sprite.shadow.length; point += 2) {
                 callback(sprite.x + sprite.shadow[point], sprite.y + sprite.shadow[point + 1]);
@@ -1262,7 +1262,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
                 bushes.push(bush);
             } else if (prop) {
-                const sprite = getPropSprite(prop, tileX, tileY);
+                const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
                     .setOrigin(0)
                     .setDepth((tileY + 1) * TILE_SIZE);

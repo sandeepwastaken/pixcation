@@ -1,7 +1,7 @@
 let mapPixels;
 let mapPixelWords;
 const mapWaterDepthCache = new Map();
-const mapColorCache = new Map();
+const mapColors = createTileCache(() => new Uint32Array(CHUNK_SIZE * CHUNK_SIZE));
 
 function isMenuOpen() {
     return dialogueOpen || marketOpen || mapOpen || inventoryOpen;
@@ -197,11 +197,8 @@ function toMapPixel(color) {
     return (0xff000000 | (color & 255) << 16 | color & 0xff00 | color >> 16 & 255) >>> 0;
 }
 
-function getMapTileColor(palette, tileX, tileY) {
-    const key = getTileId(tileX, tileY);
-    const cached = mapColorCache.get(key);
-    if (cached !== undefined) return cached;
-
+function generateMapTileColor(tileX, tileY) {
+    const palette = mapPalette;
     const covering = getPropCovering(tileX, tileY);
     let color;
 
@@ -222,7 +219,7 @@ function getMapTileColor(palette, tileX, tileY) {
         }
     }
 
-    return cacheWorldValue(mapColorCache, key, toMapPixel(color));
+    return toMapPixel(color);
 }
 
 function redrawMap(scene) {
@@ -266,7 +263,7 @@ function redrawMap(scene) {
 
         for (let viewX = 0; viewX < viewWidth; viewX++) {
             const tileX = originX + viewX;
-            const color = isTileDiscovered(tileX, tileY) ? getMapTileColor(palette, tileX, tileY) : -1;
+            const color = isTileDiscovered(tileX, tileY) ? mapColors(tileX, tileY, generateMapTileColor) : -1;
             const left = viewX * zoom;
             const right = Math.min(left + zoom, MAP_WIDTH);
 
