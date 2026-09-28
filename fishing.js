@@ -123,10 +123,7 @@ function releaseTargetFish(flee) {
     fishing.targetChunk = null;
 
     if (flee && chunk && chooseFishTarget(chunk, fish, awayX, awayY)) {
-        fish.state = 'flee';
-        fish.topSpeed = FISH_FLEE_SPEED;
-        fish.thrusting = true;
-        fish.burstTimer = 900;
+        startFishFlee(fish, 900);
         return;
     }
 

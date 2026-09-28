@@ -290,6 +290,18 @@ function chooseFishTarget(chunk, fish, awayX, awayY) {
     return false;
 }
 
+function startFishFlee(fish, burst) {
+    fish.state = 'flee';
+    fish.topSpeed = FISH_FLEE_SPEED;
+    fish.thrusting = true;
+    fish.burstTimer = burst;
+}
+
+function animateFishTail(fish, seconds, beat, sweep, response) {
+    fish.phase = (fish.phase + Math.PI * 2 * beat * seconds) % (Math.PI * 2);
+    fish.amplitude += (fish.length * sweep - fish.amplitude) * Math.min(1, seconds * response);
+}
+
 function scatterFishFromSplash(x, y) {
     const radius = 12;
 
@@ -307,10 +319,7 @@ function scatterFishFromSplash(x, y) {
                 continue;
             }
 
-            fish.state = 'flee';
-            fish.topSpeed = FISH_FLEE_SPEED;
-            fish.thrusting = true;
-            fish.burstTimer = 700;
+            startFishFlee(fish, 700);
         }
     }
 }
@@ -360,8 +369,7 @@ function updateHookedFish(fish, seconds, delta) {
     );
     fish.thrusting = true;
     fish.velocity = speed * radius;
-    fish.phase = (fish.phase + Math.PI * 2 * HOOKED_BEAT * seconds) % (Math.PI * 2);
-    fish.amplitude += (fish.length * HOOKED_SWEEP - fish.amplitude) * Math.min(1, seconds * 8);
+    animateFishTail(fish, seconds, HOOKED_BEAT, HOOKED_SWEEP, 8);
 
     spin.splashTimer -= delta;
 
@@ -447,8 +455,7 @@ function updateLuredFish(chunk, fish, delta) {
     const beat = fish.thrusting ? FISH_BEAT_THRUST + fish.velocity * 0.12 : FISH_BEAT_IDLE;
     const sweep = fish.thrusting ? FISH_SWEEP_THRUST : FISH_SWEEP_IDLE;
 
-    fish.phase = (fish.phase + Math.PI * 2 * beat * seconds) % (Math.PI * 2);
-    fish.amplitude += (fish.length * sweep - fish.amplitude) * Math.min(1, seconds * 6);
+    animateFishTail(fish, seconds, beat, sweep, 6);
     return true;
 }
 
@@ -489,10 +496,7 @@ function updateFish(delta) {
                 awayX * awayX + awayY * awayY < FISH_SCARE_DISTANCE_SQUARED &&
                 chooseFishTarget(chunk, fish, awayX, awayY)
             ) {
-                fish.state = 'flee';
-                fish.topSpeed = FISH_FLEE_SPEED;
-                fish.thrusting = true;
-                fish.burstTimer = 900;
+                startFishFlee(fish, 900);
             }
 
             if (fish.state === 'idle') {
@@ -552,8 +556,7 @@ function updateFish(delta) {
                 ? (fish.state === 'flee' ? FISH_SWEEP_FLEE : FISH_SWEEP_THRUST)
                 : fish.state === 'idle' ? FISH_SWEEP_IDLE : FISH_SWEEP_COAST;
 
-            fish.phase = (fish.phase + Math.PI * 2 * beat * seconds) % (Math.PI * 2);
-            fish.amplitude += (fish.length * sweep - fish.amplitude) * Math.min(1, seconds * 6);
+            animateFishTail(fish, seconds, beat, sweep, 6);
 
             const nextX = fish.x + Math.cos(fish.heading) * fish.velocity * seconds;
             const nextY = fish.y + Math.sin(fish.heading) * fish.velocity * seconds;
