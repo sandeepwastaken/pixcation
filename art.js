@@ -1,51 +1,32 @@
 function extractRodArtStyles(scene) {
-    const colorAt = (texture, x, y, fallback) => {
+    const colorAt = (texture, [x, y, fallback]) => {
         const color = scene.textures.getPixel(x, y, texture);
         return color ? Phaser.Display.Color.GetColor(color.red, color.green, color.blue) : fallback;
     };
+    const sample = (rod, points) => points.map(point => colorAt(rod.texture, point));
 
     for (const rod of MARKET_RODS) {
-        rod.polePalette = [
-            colorAt(rod.texture, 19, 4, 0x4c3e32),
-            colorAt(rod.texture, 19, 6, 0x6b533b),
-            colorAt(rod.texture, 19, 5, 0x806953)
-        ];
-        rod.linePalette = [
-            colorAt(rod.texture, 28, 2, 0xa78178),
-            colorAt(rod.texture, 29, 3, 0xb99f92),
-            colorAt(rod.texture, 29, 5, 0xc8b8a8),
-            colorAt(rod.texture, 30, 9, FISHING_LINE_COLOR)
-        ];
-        rod.bobberPalette = [
-            colorAt(rod.texture, 27, 26, BOBBER_TOP_COLOR),
-            colorAt(rod.texture, 25, 26, BOBBER_TOP_COLOR),
-            colorAt(rod.texture, 23, 25, BOBBER_BOTTOM_COLOR)
-        ];
+        rod.polePalette = sample(rod, [[19, 4, 0x4c3e32], [19, 6, 0x6b533b], [19, 5, 0x806953]]);
+        rod.linePalette = sample(rod, [[28, 2, 0xa78178], [29, 3, 0xb99f92], [29, 5, 0xc8b8a8], [30, 9, FISHING_LINE_COLOR]]);
+        rod.bobberPalette = sample(rod, [[27, 26, BOBBER_TOP_COLOR], [25, 26, BOBBER_TOP_COLOR], [23, 25, BOBBER_BOTTOM_COLOR]]);
     }
 }
 
 function createShimmerSheet(scene) {
-    const source = getTextureSource(scene, 'shimmer-art');
+    const source = getTerrainPixels(scene, 'shimmer-art');
+    const image = new ImageData(new Uint8ClampedArray(source.data), source.width, source.height);
     const canvas = document.createElement('canvas');
-    canvas.width = source.width;
-    canvas.height = source.height;
-
-    const context = canvas.getContext('2d');
-    context.drawImage(source, 0, 0);
-
-    const image = context.getImageData(0, 0, canvas.width, canvas.height);
     const [fromR, fromG, fromB] = SHIMMER_RECOLOR_FROM;
-    const [toR, toG, toB] = SHIMMER_RECOLOR_TO;
 
     for (let index = 0; index < image.data.length; index += 4) {
         if (image.data[index] === fromR && image.data[index + 1] === fromG && image.data[index + 2] === fromB) {
-            image.data[index] = toR;
-            image.data[index + 1] = toG;
-            image.data[index + 2] = toB;
+            image.data.set(SHIMMER_RECOLOR_TO, index);
         }
     }
 
-    context.putImageData(image, 0, 0);
+    canvas.width = source.width;
+    canvas.height = source.height;
+    canvas.getContext('2d').putImageData(image, 0, 0);
     scene.textures.addSpriteSheet('shimmer', canvas, { frameWidth: 12, frameHeight: 1 });
 }
 
@@ -65,9 +46,7 @@ function extractSilhouetteShadow(scene, key) {
 
     for (let y = 0; y < height + WOOD_SHADOW_OFFSET; y++) {
         for (let x = 0; x < width + WOOD_SHADOW_OFFSET; x++) {
-            if (solid(x - WOOD_SHADOW_OFFSET, y - WOOD_SHADOW_OFFSET) && !solid(x, y)) {
-                points.push(x, y);
-            }
+            if (solid(x - WOOD_SHADOW_OFFSET, y - WOOD_SHADOW_OFFSET) && !solid(x, y)) points.push(x, y);
         }
     }
 
@@ -188,12 +167,7 @@ function generateTreeVariant(trunk, seed) {
         const angle = ringPhase + index / ringCount * Math.PI * 2 + (random() - 0.5) * 0.5;
         const radius = 6.5 + random() * 3;
 
-        puffs.push({
-            x: centerX + Math.cos(angle) * (radiusX - radius),
-            y: centerY + Math.sin(angle) * (radiusY - radius),
-            radius,
-            core: false
-        });
+        puffs.push({ x: centerX + Math.cos(angle) * (radiusX - radius), y: centerY + Math.sin(angle) * (radiusY - radius), radius, core: false });
     }
 
     const innerCount = 3 + Math.floor(random() * 3);
@@ -202,12 +176,7 @@ function generateTreeVariant(trunk, seed) {
         const angle = random() * Math.PI * 2;
         const distance = Math.sqrt(random()) * 0.5;
 
-        puffs.push({
-            x: centerX + Math.cos(angle) * distance * radiusX,
-            y: centerY + Math.sin(angle) * distance * radiusY + 2,
-            radius: 7 + random() * 3,
-            core: false
-        });
+        puffs.push({ x: centerX + Math.cos(angle) * distance * radiusX, y: centerY + Math.sin(angle) * distance * radiusY + 2, radius: 7 + random() * 3, core: false });
     }
 
     puffs.sort((a, b) => (a.core ? -1 : b.core ? 1 : a.y - b.y));
@@ -460,14 +429,10 @@ function createRoundedCliffTextures(scene) {
             createCanvasTexture(scene, cliffKey, TILE_SIZE, TILE_SIZE, context => {
                 context.drawImage(source(key), 0, 0);
 
-                if (left === 1) {
-                    context.clearRect(0, TILE_SIZE - 1, 2, 1);
-                    context.clearRect(0, TILE_SIZE - 2, 1, 1);
-                }
-
-                if (right === 1) {
-                    context.clearRect(TILE_SIZE - 2, TILE_SIZE - 1, 2, 1);
-                    context.clearRect(TILE_SIZE - 1, TILE_SIZE - 2, 1, 1);
+                for (const [trim, x] of [[left, 0], [right, TILE_SIZE - 2]]) {
+                    if (trim !== 1) continue;
+                    context.clearRect(x, TILE_SIZE - 1, 2, 1);
+                    context.clearRect(x ? x + 1 : 0, TILE_SIZE - 2, 1, 1);
                 }
             });
 
@@ -482,11 +447,7 @@ function createRoundedCliffTextures(scene) {
     }
 
     for (const base of ['waterDirt', 'waterGrass']) {
-        for (const [suffix, left, right] of [
-            ['InnerLeft', true, false],
-            ['InnerRight', false, true],
-            ['InnerBoth', true, true]
-        ]) {
+        for (const [suffix, left, right] of [['InnerLeft', true, false], ['InnerRight', false, true], ['InnerBoth', true, true]]) {
             createCanvasTexture(scene, `${base}${suffix}`, TILE_SIZE, TILE_SIZE, context => {
                 context.drawImage(source(base), 0, 0);
                 if (left) context.drawImage(source('waterDirtInnerLeft'), 0, 0, 5, TILE_SIZE, 0, 0, 5, TILE_SIZE);

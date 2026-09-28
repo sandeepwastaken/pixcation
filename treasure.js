@@ -35,11 +35,7 @@ function createChestSilhouette(scene) {
 
             if (cover < 3) continue;
 
-            const target = (y * width + x) * 4;
-            image.data[target] = best >> 16 & 255;
-            image.data[target + 1] = best >> 8 & 255;
-            image.data[target + 2] = best & 255;
-            image.data[target + 3] = 255;
+            image.data.set([best >> 16 & 255, best >> 8 & 255, best & 255, 255], (y * width + x) * 4);
             points.push(x, y);
             top = Math.min(top, y);
             bottom = Math.max(bottom, y);
@@ -49,9 +45,7 @@ function createChestSilhouette(scene) {
     createCanvasTexture(scene, 'chest-small', width, height, context => context.putImageData(image, 0, 0));
 
     chestSilhouette = { width, top, bottom, points };
-    chestSprite = scene.add.image(0, 0, 'chest-small')
-        .setOrigin(0.5, 1)
-        .setVisible(false);
+    chestSprite = scene.add.image(0, 0, 'chest-small').setOrigin(0.5, 1).setVisible(false);
     worldObjectLayer.add(chestSprite);
 }
 
@@ -73,15 +67,7 @@ function findChunkChest(chunk) {
         }
 
         if (deep) {
-            return {
-                id,
-                localX,
-                localY,
-                x: chunk.pixelX + localX,
-                y: chunk.pixelY + localY,
-                original: new Uint8Array(points.length / 2),
-                nextBubbleAt: 0
-            };
+            return { id, localX, localY, x: chunk.pixelX + localX, y: chunk.pixelY + localY, original: new Uint8Array(points.length / 2), nextBubbleAt: 0 };
         }
     }
 
@@ -89,9 +75,7 @@ function findChunkChest(chunk) {
 }
 
 function bakeChestSilhouette(chunk, data) {
-    const chest = findChunkChest(chunk);
-    chunk.chest = chest;
-
+    const chest = chunk.chest = findChunkChest(chunk);
     if (!chest) return;
 
     const points = chestSilhouette.points;
@@ -126,8 +110,7 @@ function findChestAt(x, y) {
         const chest = chunk.chest;
 
         if (
-            chest &&
-            x >= chest.x - CHEST_SNAG_MARGIN && x < chest.x + width + CHEST_SNAG_MARGIN &&
+            chest && x >= chest.x - CHEST_SNAG_MARGIN && x < chest.x + width + CHEST_SNAG_MARGIN &&
             y >= chest.y + top - CHEST_SNAG_MARGIN && y <= chest.y + bottom + CHEST_SNAG_MARGIN
         ) {
             return chunk;
@@ -146,18 +129,13 @@ function snagChest(scene, time, chunk) {
 
 function haulChest(time) {
     const chunk = fishing.chestChunk;
-
     fishing.chestChunk = null;
 
-    if (!chunk || !chunk.chest || !loadedWaterChunks.has(chunk)) {
-        reelIn(time);
-        return;
-    }
+    if (!chunk?.chest || !loadedWaterChunks.has(chunk)) return reelIn(time);
 
     openedChests.add(chunk.chest.id);
     eraseChestSilhouette(chunk);
     saveDirty = true;
-
     startReeling(time);
     fishing.hauling = true;
     splash(mainCamera.scene, time, fishing.bobberX, fishing.bobberY);
@@ -216,10 +194,6 @@ function updateChestBubbles(scene, time) {
         if (!chest || !chunk.visible || time < chest.nextBubbleAt) continue;
 
         chest.nextBubbleAt = time + CHEST_BUBBLE_MIN + Math.random() * CHEST_BUBBLE_RANGE;
-        spawnParticle(
-            scene, shadowLayer, time,
-            chest.x + 2 + Math.floor(Math.random() * (width - 4)), chest.y + top,
-            0, -1, CHEST_BUBBLE_LIFETIME, CHEST_BUBBLE_COLOR
-        );
+        spawnParticle(scene, shadowLayer, time, chest.x + 2 + Math.floor(Math.random() * (width - 4)), chest.y + top, 0, -1, CHEST_BUBBLE_LIFETIME, CHEST_BUBBLE_COLOR);
     }
 }
