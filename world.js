@@ -62,40 +62,53 @@ function fractalNoise(worldX, worldY, salt) {
         valueNoise(worldX - 29, worldY + 101, 12 * WORLD_FEATURE_SCALE, salt + 2) * 0.15);
 }
 
+const TERRAIN_TYPES = [null, 'grass', 'dirt', 'water'];
+let lastTerrainChunkKey = null;
+let lastTerrainChunk = null;
+
 function getTerrainType(tileX, tileY) {
-    const key = getTileId(tileX, tileY);
-    const cached = terrainTypeCache.get(key);
+    const chunkX = Math.floor(tileX / CHUNK_SIZE);
+    const chunkY = Math.floor(tileY / CHUNK_SIZE);
+    const key = getTileId(chunkX, chunkY);
 
-    if (cached !== undefined) {
-        return cached;
+    if (key !== lastTerrainChunkKey) {
+        lastTerrainChunk = terrainTypeCache.get(key) ||
+            cacheWorldValue(terrainTypeCache, key, new Uint8Array(CHUNK_SIZE * CHUNK_SIZE));
+        lastTerrainChunkKey = key;
     }
 
-    let terrain;
+    const index = (tileY - chunkY * CHUNK_SIZE) * CHUNK_SIZE + tileX - chunkX * CHUNK_SIZE;
+    const cached = lastTerrainChunk[index];
 
+    if (cached) {
+        return TERRAIN_TYPES[cached];
+    }
+
+    const terrain = generateTerrainType(tileX, tileY);
+    lastTerrainChunk[index] = TERRAIN_TYPES.indexOf(terrain);
+    return terrain;
+}
+
+function generateTerrainType(tileX, tileY) {
     if (Math.abs(tileX) <= 6 && Math.abs(tileY) <= 6) {
-        terrain = 'grass';
-    } else {
-        const warpScale = 64 * WORLD_FEATURE_SCALE;
-        const warpStrength = 24 * WORLD_FEATURE_SCALE;
-        const warpX = (valueNoise(tileX, tileY, warpScale, 10) - 0.5) * warpStrength;
-        const warpY = (valueNoise(tileX + 200, tileY - 100, warpScale, 11) - 0.5) * warpStrength;
-
-        const elevation = fractalNoise(tileX + warpX, tileY + warpY, 20);
-
-        if (elevation < 0.3) {
-            terrain = 'water';
-        } else {
-            const dirtAmount = fractalNoise(tileX - 317, tileY + 191, 40);
-            const localDirt = valueNoise(tileX, tileY, 4, 44);
-            const dirtScore = dirtAmount + (localDirt - 0.5) * 0.14;
-
-            terrain = elevation < 0.38 || dirtScore > 0.63
-                ? 'dirt'
-                : 'grass';
-        }
+        return 'grass';
     }
 
-    return cacheWorldValue(terrainTypeCache, key, terrain);
+    const warpScale = 64 * WORLD_FEATURE_SCALE;
+    const warpStrength = 24 * WORLD_FEATURE_SCALE;
+    const warpX = (valueNoise(tileX, tileY, warpScale, 10) - 0.5) * warpStrength;
+    const warpY = (valueNoise(tileX + 200, tileY - 100, warpScale, 11) - 0.5) * warpStrength;
+    const elevation = fractalNoise(tileX + warpX, tileY + warpY, 20);
+
+    if (elevation < 0.3) {
+        return 'water';
+    }
+
+    const dirtAmount = fractalNoise(tileX - 317, tileY + 191, 40);
+    const localDirt = valueNoise(tileX, tileY, 4, 44);
+    const dirtScore = dirtAmount + (localDirt - 0.5) * 0.14;
+
+    return elevation < 0.38 || dirtScore > 0.63 ? 'dirt' : 'grass';
 }
 
 function isLandTile(tileX, tileY) {
