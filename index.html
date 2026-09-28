@@ -39,13 +39,8 @@
     <div id="game-container"></div>
 
     <script>
-        const supportScripts = ['game-data.js', 'water-pipeline.js', 'art.js', 'world.js', 'environment.js', 'fish.js', 'fishing.js', 'treasure.js', 'ui.js'];
-        if (new URLSearchParams(window.location.search).has('test')) supportScripts.push('automated-tests.js');
-        for (const source of [...supportScripts, 'phaser.js']) {
-            const script = document.createElement('script');
-            script.src = `${source}?v=${window.APP_CACHE_BUSTER}`;
-            script.async = false;
-            document.body.appendChild(script);
-        }
+        const script = document.createElement('script');
+        script.src = `game.js?v=${window.APP_CACHE_BUSTER}`;
+        document.body.appendChild(script);
     </script>
 </body>
