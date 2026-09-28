@@ -130,6 +130,10 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         vec4 body = uFish[fish];
                         vec4 shape = uFishShape[fish];
                         vec2 local = p + 0.5 - body.xy;
+                        float bound = shape.x * 0.5 + shape.y + abs(shape.w);
+
+                        if (dot(local, local) > bound * bound) continue;
+
                         float along = dot(local, body.zw);
                         float halfLength = shape.x * 0.5;
                         float spine = clamp((halfLength - along) / shape.x, 0.0, 1.0);
@@ -142,6 +146,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                             along < head && along > -halfLength && abs(across) < shape.y * (along + halfLength) / (head + halfLength)
                         ) {
                             fishShaded = 1.0;
+                            break;
                         }
                     }
 
