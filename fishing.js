@@ -159,22 +159,10 @@ function beginCast(time) {
             return;
         }
 
-        if (hookFish(time)) {
-            return;
+        if (!hookFish(time)) {
+            reelIn(time);
         }
 
-        const scared = fishing.targetFish && (
-            fishing.state === 'approaching' ||
-            fishing.state === 'inspecting' ||
-            fishing.state === 'nibbleWait' ||
-            fishing.state === 'nibbleDip'
-        );
-
-        if (scared) {
-            releaseTargetFish(true);
-        }
-
-        reelIn(time);
         return;
     }
 
@@ -793,7 +781,7 @@ function updateFishing(scene, time, delta, isWalking) {
                 fishing.start = time;
                 fishing.nextFishScanAt = time + FISH_NOTICE_SCAN_TIME;
             }
-        } else if (fishing.state === 'hooked') {
+        } else if (fishing.state === 'hooked' || fishing.state === 'minigame') {
             const hooked = getHookedBobber();
 
             if (hooked) {
@@ -802,23 +790,15 @@ function updateFishing(scene, time, delta, isWalking) {
                 fishing.bobberY = fishing.toY + 2;
             }
 
-            if (stateAge >= 220) {
-                startFishingMinigame(time);
-            }
-        } else if (fishing.state === 'minigame') {
-            const hooked = getHookedBobber();
-
-            if (hooked) {
-                [fishing.bobberX, fishing.bobberY] = hooked;
+            if (fishing.state === 'hooked') {
+                if (stateAge >= 220) startFishingMinigame(time);
             } else {
-                fishing.bobberY = fishing.toY + 2;
-            }
+                updateFishingMinigame(scene, time, delta);
 
-            updateFishingMinigame(scene, time, delta);
-
-            if (!fishing) {
-                drawFishingMinigame();
-                return;
+                if (!fishing) {
+                    drawFishingMinigame();
+                    return;
+                }
             }
         }
     } else {
