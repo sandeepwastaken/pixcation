@@ -62,31 +62,35 @@ function fractalNoise(worldX, worldY, salt) {
         valueNoise(worldX - 29, worldY + 101, 12 * WORLD_FEATURE_SCALE, salt + 2) * 0.15);
 }
 
+function createTileCache(createChunk) {
+    const chunks = new Map();
+    let lastKey = null;
+    let lastChunk = null;
+
+    return (tileX, tileY, generate) => {
+        const chunkX = Math.floor(tileX / CHUNK_SIZE);
+        const chunkY = Math.floor(tileY / CHUNK_SIZE);
+        const key = getTileId(chunkX, chunkY);
+
+        if (key !== lastKey) {
+            lastChunk = chunks.get(key) || cacheWorldValue(chunks, key, createChunk());
+            lastKey = key;
+        }
+
+        return lastChunk[(tileY - chunkY * CHUNK_SIZE) * CHUNK_SIZE + tileX - chunkX * CHUNK_SIZE] ||= generate(tileX, tileY);
+    };
+}
+
 const TERRAIN_TYPES = [null, 'grass', 'dirt', 'water'];
-let lastTerrainChunkKey = null;
-let lastTerrainChunk = null;
+const terrainTiles = createTileCache(() => new Uint8Array(CHUNK_SIZE * CHUNK_SIZE));
+const worldTiles = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
 
 function getTerrainType(tileX, tileY) {
-    const chunkX = Math.floor(tileX / CHUNK_SIZE);
-    const chunkY = Math.floor(tileY / CHUNK_SIZE);
-    const key = getTileId(chunkX, chunkY);
+    return TERRAIN_TYPES[terrainTiles(tileX, tileY, generateTerrainCode)];
+}
 
-    if (key !== lastTerrainChunkKey) {
-        lastTerrainChunk = terrainTypeCache.get(key) ||
-            cacheWorldValue(terrainTypeCache, key, new Uint8Array(CHUNK_SIZE * CHUNK_SIZE));
-        lastTerrainChunkKey = key;
-    }
-
-    const index = (tileY - chunkY * CHUNK_SIZE) * CHUNK_SIZE + tileX - chunkX * CHUNK_SIZE;
-    const cached = lastTerrainChunk[index];
-
-    if (cached) {
-        return TERRAIN_TYPES[cached];
-    }
-
-    const terrain = generateTerrainType(tileX, tileY);
-    lastTerrainChunk[index] = TERRAIN_TYPES.indexOf(terrain);
-    return terrain;
+function generateTerrainCode(tileX, tileY) {
+    return TERRAIN_TYPES.indexOf(generateTerrainType(tileX, tileY));
 }
 
 function generateTerrainType(tileX, tileY) {
@@ -550,13 +554,10 @@ function getTerrainTile(tileX, tileY) {
 }
 
 function getWorldTile(tileX, tileY) {
-    const key = getTileId(tileX, tileY);
-    const cached = worldTileCache.get(key);
+    return worldTiles(tileX, tileY, generateWorldTile);
+}
 
-    if (cached !== undefined) {
-        return cached;
-    }
-
+function generateWorldTile(tileX, tileY) {
     const tile = getBridgeTile(tileX, tileY) || getPierTile(tileX, tileY) || getTerrainTile(tileX, tileY);
     const name = tile.key.toLowerCase();
 
@@ -564,7 +565,7 @@ function getWorldTile(tileX, tileY) {
         : name.includes('edge') || name.includes('left') || name.includes('right') ? 'lower'
         : null;
 
-    return cacheWorldValue(worldTileCache, key, tile);
+    return tile;
 }
 
 function getChunkKey(chunkX, chunkY) {
