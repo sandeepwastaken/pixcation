@@ -663,21 +663,10 @@ function createMarketUI(scene) {
         gap: '12px'
     });
 
-    for (const [key, label] of [['A/D', 'Tab'], ['W/S', 'Select'], ['Enter', 'Buy'], ['E', 'Close']]) {
-        const hint = document.createElement('span');
-        const keycap = document.createElement('span');
-
-        keycap.textContent = key;
-
-        Object.assign(keycap.style, {
-            color: '#e0f2fd',
-            background: '#465989',
-            padding: '0 2px',
-            marginRight: '4px'
-        });
-
-        hint.append(keycap, label);
-        footer.appendChild(hint);
+    for (const hint of [['A/D', 'Tab'], ['W/S', 'Select'], ['Enter', 'Buy'], ['E', 'Close']]) {
+        const span = appendKeyHints(document.createElement('span'), [hint]);
+        span.firstChild.style.marginLeft = '0';
+        footer.appendChild(span);
     }
 
     marketContainer = addPanelContainer(scene, MARKET_HIDDEN_Y, 203, [panel, marketHighlight, ...marketItemImages, marketDetailImage]);

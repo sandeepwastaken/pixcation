@@ -442,9 +442,8 @@ function getTerrainPixels(scene, key) {
 function getTerrainSurface(scene, tile) {
     if (tile.surface) return tile.surface;
 
-    const signature = JSON.stringify([
-        tile.key, tile.textureKey, tile.baseKey, tile.rotation, tile.patches
-    ]);
+    const signature = `${tile.key}|${tile.textureKey}|${tile.baseKey}|${tile.rotation}|` +
+        (tile.patches || []).map(patch => `${patch.key},${patch.x},${patch.y},${patch.flipX},${patch.flipY}`).join(';');
     const cached = scene.terrainSurfaceCache.get(signature);
 
     if (cached) {

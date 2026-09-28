@@ -183,9 +183,14 @@ function generateTreeVariant(trunk, seed) {
 
     const owner = new Int16Array(width * height).fill(-1);
     const edgeSalt = Math.floor(random() * 100000);
+    const extent = (axis, sign) => Math.floor(Math.max(...puffs.map(puff => sign * puff[axis] + puff.radius + 1)) * sign);
+    const minY = Math.max(0, extent('y', -1) - 1);
+    const maxY = Math.min(height - 1, extent('y', 1));
+    const minX = Math.max(0, extent('x', -1) - 1);
+    const maxX = Math.min(width - 1, extent('x', 1));
 
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
+    for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
             const edge = (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
             const pixel = y * width + x;
 
