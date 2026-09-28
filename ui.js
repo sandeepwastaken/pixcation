@@ -866,6 +866,13 @@ function cycleBait(scene) {
     showItemLabel(scene, next ? `${next.label} x${baitInventory.get(next.id)}` : 'No bait');
 }
 
+function showItemLabel(scene, text) {
+    if (!itemPrompt) return;
+
+    itemPrompt.label.textContent = text;
+    itemLabelUntil = scene.time.now + ITEM_LABEL_DURATION;
+}
+
 function isBaitSlotAt(x, y) {
     return x >= BAIT_SLOT_X && x < BAIT_SLOT_X + HOTBAR_SLOT_SIZE && y >= HOTBAR_Y && y < HOTBAR_Y + HOTBAR_SLOT_SIZE;
 }

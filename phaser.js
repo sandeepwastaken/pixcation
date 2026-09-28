@@ -627,9 +627,8 @@ function create() {
 
         const name = hotbarItemNames[selectedHotbarSlot];
 
-        if (name && itemPrompt) {
-            itemPrompt.label.textContent = name;
-            itemLabelUntil = this.time.now + ITEM_LABEL_DURATION;
+        if (name) {
+            showItemLabel(this, name);
         } else {
             itemLabelUntil = 0;
         }
@@ -889,6 +888,8 @@ function loadProgress(scene) {
 
     if (!saved || saved.version !== 1) return;
 
+    const list = value => Array.isArray(value) ? value : [];
+
     if (Number.isFinite(saved.coins) && saved.coins >= 0) {
         playerCoins = Math.floor(saved.coins);
         coinDisplay.value = playerCoins;
@@ -898,7 +899,7 @@ function loadProgress(scene) {
 
     const legacyRodIds = { sturdy: 'intermediate', iron: 'master' };
 
-    for (const savedId of Array.isArray(saved.rods) ? saved.rods : []) {
+    for (const savedId of list(saved.rods)) {
         const id = legacyRodIds[savedId] || savedId;
         const rod = MARKET_RODS_BY_ID.get(id);
 
@@ -917,29 +918,29 @@ function loadProgress(scene) {
     };
     const currentSpeciesId = id => legacySpecies[id] || id;
 
-    for (const [savedId, count] of Array.isArray(saved.fish) ? saved.fish : []) {
+    for (const [savedId, count] of list(saved.fish)) {
         const id = currentSpeciesId(savedId);
         if (FISH_SPECIES_BY_ID.has(id) && Number.isInteger(count) && count > 0) {
             fishInventory.set(id, (fishInventory.get(id) || 0) + count);
         }
     }
 
-    for (const savedId of Array.isArray(saved.catchLog) ? saved.catchLog : []) {
+    for (const savedId of list(saved.catchLog)) {
         const id = currentSpeciesId(savedId);
         if (FISH_SPECIES_BY_ID.has(id)) catchLog.add(id);
     }
 
-    for (const tileId of Array.isArray(saved.explored) ? saved.explored : []) {
+    for (const tileId of list(saved.explored)) {
         if (Number.isSafeInteger(tileId)) discoveredChunks.add(tileId);
     }
 
-    for (const [id, count] of Array.isArray(saved.bait) ? saved.bait : []) {
+    for (const [id, count] of list(saved.bait)) {
         if (MARKET_BAITS_BY_ID.has(id) && Number.isInteger(count) && count > 0) baitInventory.set(id, count);
     }
 
     activeBaitId = baitInventory.has(saved.activeBait) ? saved.activeBait : null;
 
-    for (const chestId of Array.isArray(saved.chests) ? saved.chests : []) {
+    for (const chestId of list(saved.chests)) {
         if (Number.isSafeInteger(chestId)) openedChests.add(chestId);
     }
 
@@ -948,7 +949,6 @@ function loadProgress(scene) {
     }
 
     refreshBaitSlot();
-
     refreshMarketOptions();
     mapDirty = true;
 }

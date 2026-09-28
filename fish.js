@@ -228,13 +228,6 @@ function spawnRegionFish(chunk, region, label, count, originX, originY) {
     }
 }
 
-function showItemLabel(scene, text) {
-    if (!itemPrompt) return;
-
-    itemPrompt.label.textContent = text;
-    itemLabelUntil = scene.time.now + ITEM_LABEL_DURATION;
-}
-
 function spawnSturgeonAtCursor(scene) {
     const pointer = scene.input.activePointer;
     pointer.updateWorldPoint(mainCamera);
