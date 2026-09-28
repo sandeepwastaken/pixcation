@@ -1,6 +1,5 @@
 let mapPixels;
 let mapPixelWords;
-const mapWaterDepthCache = new Map();
 const mapColors = createTileCache(() => new Uint32Array(CHUNK_SIZE * CHUNK_SIZE));
 
 function isMenuOpen() {
@@ -173,10 +172,6 @@ function getMapPalette(scene) {
 }
 
 function getMapWaterDepth(tileX, tileY) {
-    const key = getTileId(tileX, tileY);
-    const cached = mapWaterDepthCache.get(key);
-    if (cached !== undefined) return cached;
-
     for (let radius = 1; radius <= 2; radius++) {
         for (let offsetY = -radius; offsetY <= radius; offsetY++) {
             for (let offsetX = -radius; offsetX <= radius; offsetX++) {
@@ -184,13 +179,13 @@ function getMapWaterDepth(tileX, tileY) {
                     Math.max(Math.abs(offsetX), Math.abs(offsetY)) === radius &&
                     getTerrainType(tileX + offsetX, tileY + offsetY) !== 'water'
                 ) {
-                    return cacheWorldValue(mapWaterDepthCache, key, radius - 1);
+                    return radius - 1;
                 }
             }
         }
     }
 
-    return cacheWorldValue(mapWaterDepthCache, key, 2);
+    return 2;
 }
 
 function toMapPixel(color) {
