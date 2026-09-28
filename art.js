@@ -246,16 +246,11 @@ function generateTreeVariant(trunk, seed) {
         const x = pixel % width;
         const y = Math.floor(pixel / width);
         const edge = (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
-        let front = -1;
 
-        for (let index = puffs.length - 1; index >= 0 && front < 0; index--) {
-            const dx = x + 0.5 - puffs[index].x;
-            const dy = y + 0.5 - puffs[index].y;
-            const reach = puffs[index].radius + edge;
-            if (dx * dx + dy * dy <= reach * reach) front = index;
-        }
-
-        owner[pixel] = front;
+        owner[pixel] = puffs.findLastIndex(puff => {
+            const reach = puff.radius + edge;
+            return (x + 0.5 - puff.x) ** 2 + (y + 0.5 - puff.y) ** 2 <= reach * reach;
+        });
     }
 
     const neighbors = [-1, 1, -width, width];
@@ -280,57 +275,46 @@ function generateTreeVariant(trunk, seed) {
         }
     }
 
-    let top = height;
-    let bottom = 0;
-
-    for (let pixel = 0; pixel < owner.length; pixel++) {
-        if (owner[pixel] < 0) continue;
-        top = Math.min(top, Math.floor(pixel / width));
-        bottom = Math.max(bottom, Math.floor(pixel / width));
-    }
-
+    const filled = [];
     const heights = new Float32Array(width * height);
-
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const pixel = y * width + x;
-            if (owner[pixel] < 0) continue;
-
-            let best = 0;
-
-            for (const puff of puffs) {
-                const dx = x + 0.5 - puff.x;
-                const dy = y + 0.5 - puff.y;
-                const lift = puff.radius * puff.radius - dx * dx - dy * dy;
-                if (lift > 0) best = Math.max(best, Math.sqrt(lift) * (puff.core ? 0.8 : 1));
-            }
-
-            heights[pixel] = best;
-        }
-    }
-
     const smooth = new Float32Array(width * height);
 
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const pixel = y * width + x;
-            if (owner[pixel] < 0) continue;
+    for (let pixel = 0; pixel < owner.length; pixel++) {
+        if (owner[pixel] >= 0) filled.push(pixel);
+    }
 
-            let total = 0;
-            let count = 0;
+    const top = Math.floor(filled[0] / width);
+    const bottom = Math.floor(filled[filled.length - 1] / width);
 
-            for (let offsetY = -1; offsetY <= 1; offsetY++) {
-                for (let offsetX = -1; offsetX <= 1; offsetX++) {
-                    const sampleX = x + offsetX;
-                    const sampleY = y + offsetY;
-                    if (sampleX < 0 || sampleY < 0 || sampleX >= width || sampleY >= height) continue;
-                    total += heights[sampleY * width + sampleX];
-                    count++;
-                }
-            }
+    for (const pixel of filled) {
+        const x = pixel % width;
+        const y = Math.floor(pixel / width);
+        let best = 0;
 
-            smooth[pixel] = total / count;
+        for (const puff of puffs) {
+            const dx = x + 0.5 - puff.x;
+            const dy = y + 0.5 - puff.y;
+            const lift = puff.radius * puff.radius - dx * dx - dy * dy;
+            if (lift > 0) best = Math.max(best, Math.sqrt(lift) * (puff.core ? 0.8 : 1));
         }
+
+        heights[pixel] = best;
+    }
+
+    for (const pixel of filled) {
+        const x = pixel % width;
+        const y = Math.floor(pixel / width);
+        let total = 0;
+        let count = 0;
+
+        for (let sampleY = Math.max(0, y - 1); sampleY <= Math.min(height - 1, y + 1); sampleY++) {
+            for (let sampleX = Math.max(0, x - 1); sampleX <= Math.min(width - 1, x + 1); sampleX++) {
+                total += heights[sampleY * width + sampleX];
+                count++;
+            }
+        }
+
+        smooth[pixel] = total / count;
     }
 
     const textureSalt = Math.floor(random() * 100000);
@@ -338,69 +322,48 @@ function generateTreeVariant(trunk, seed) {
     const values = new Float32Array(width * height);
     const span = Math.max(1, bottom - top);
 
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const pixel = y * width + x;
-            if (owner[pixel] < 0) continue;
+    for (const pixel of filled) {
+        const x = pixel % width;
+        const y = Math.floor(pixel / width);
+        const depth = (y - top) / span;
+        const left = x > 0 ? smooth[pixel - 1] : 0;
+        const right = x + 1 < width ? smooth[pixel + 1] : 0;
+        const up = y > 0 ? smooth[pixel - width] : 0;
+        const down = y + 1 < height ? smooth[pixel + width] : 0;
+        const nx = (left - right) * 0.5;
+        const ny = (up - down) * 0.5;
+        const length = Math.hypot(nx, ny, 1.6);
+        const puff = puffs[owner[pixel]];
+        const puffX = (x + 0.5 - puff.x) / puff.radius;
+        const puffY = (y + 0.5 - puff.y) / puff.radius;
+        const puffZ = Math.sqrt(Math.max(0, 1 - puffX * puffX - puffY * puffY));
+        const local = puff.core ? 0.5 : -0.45 * puffX - 0.7 * puffY + 0.35 * puffZ;
+        const lit = (-0.5 * nx - 0.65 * ny + 0.57 * 1.6) / length * 0.5 + (local * 0.5 + 0.3) * 0.5;
+        const global = -0.2 * (x + 0.5 - centerX) / radiusX - 0.6 * (depth - 0.45);
+        let value = (lit - 0.62) * 1.9 + global;
 
-            const depth = (y - top) / span;
-            const left = x > 0 ? smooth[pixel - 1] : 0;
-            const right = x + 1 < width ? smooth[pixel + 1] : 0;
-            const up = y > 0 ? smooth[pixel - width] : 0;
-            const down = y + 1 < height ? smooth[pixel + width] : 0;
-            const nx = (left - right) * 0.5;
-            const ny = (up - down) * 0.5;
-            const length = Math.hypot(nx, ny, 1.6);
-            const puff = puffs[owner[pixel]];
-            const puffX = (x + 0.5 - puff.x) / puff.radius;
-            const puffY = (y + 0.5 - puff.y) / puff.radius;
-            const puffZ = Math.sqrt(Math.max(0, 1 - puffX * puffX - puffY * puffY));
-            const local = puff.core ? 0.5 : -0.45 * puffX - 0.7 * puffY + 0.35 * puffZ;
-            const lit = (-0.5 * nx - 0.65 * ny + 0.57 * 1.6) / length * 0.5 + (local * 0.5 + 0.3) * 0.5;
-            const global = -0.2 * (x + 0.5 - centerX) / radiusX - 0.6 * (depth - 0.45);
-            let value = (lit - 0.62) * 1.9 + global;
+        const speck = leafHash((x + (y & 1)) >> 1, y >> 1, textureSalt);
+        if (speck > 0.8) value += 0.28;
+        else if (speck < 0.2) value -= 0.28;
 
-            const speck = leafHash((x + (y & 1)) >> 1, y >> 1, textureSalt);
-            if (speck > 0.8) value += 0.28;
-            else if (speck < 0.2) value -= 0.28;
-
-            values[pixel] = value;
-        }
+        values[pixel] = value;
     }
 
-    const sorted = [];
-    for (let pixel = 0; pixel < owner.length; pixel++) {
-        if (owner[pixel] >= 0) sorted.push(values[pixel]);
-    }
-
-    sorted.sort((a, b) => a - b);
+    const sorted = filled.map(pixel => values[pixel]).sort((a, b) => a - b);
 
     const quantile = amount => sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(amount * sorted.length)))];
     const bands = TREE_TONE_SHARES.map(share => [quantile(share - TREE_DITHER_SHARE), quantile(share + TREE_DITHER_SHARE)]);
 
-    for (let pixel = 0; pixel < owner.length; pixel++) {
-        if (owner[pixel] < 0) continue;
-
-        const value = values[pixel];
+    for (const pixel of filled) {
         const checker = (pixel % width + Math.floor(pixel / width)) & 1;
-        let level = 0;
-
-        for (const [low, high] of bands) {
-            if (value >= high || (value >= low && checker)) level++;
-        }
-
-        levels[pixel] = level;
+        levels[pixel] = bands.filter(([low, high]) => values[pixel] >= high || values[pixel] >= low && checker).length;
     }
 
-    for (let y = 0; y < bottom - 3; y++) {
-        for (let x = 0; x < width; x++) {
-            if (owner[y * width + x] < 0) data[(y * width + x) * 4 + 3] = 0;
-        }
+    for (let pixel = 0; pixel < (bottom - 3) * width; pixel++) {
+        if (owner[pixel] < 0) data[pixel * 4 + 3] = 0;
     }
 
-    for (let pixel = 0; pixel < levels.length; pixel++) {
-        if (levels[pixel] >= 0) writeTreePixel(data, pixel, colors[levels[pixel]]);
-    }
+    for (const pixel of filled) writeTreePixel(data, pixel, colors[levels[pixel]]);
 
     if (palette.extras.length && random() < 0.4) {
         const extra = palette.extras[Math.floor(random() * palette.extras.length)];
@@ -463,8 +426,7 @@ function generateTreeVariant(trunk, seed) {
         }
     }
 
-    const shadowPoints = [];
-    for (const point of shadow) shadowPoints.push(point % 1024, Math.floor(point / 1024));
+    const shadowPoints = [...shadow].flatMap(point => [point % 1024, Math.floor(point / 1024)]);
 
     let hitLeft = width;
     let hitRight = 0;
