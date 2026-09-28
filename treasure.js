@@ -159,10 +159,7 @@ function haulChest(time) {
     eraseChestSilhouette(chunk);
     saveDirty = true;
 
-    fishing.state = 'reeling';
-    fishing.start = time;
-    fishing.fromX = fishing.bobberX;
-    fishing.fromY = fishing.bobberY;
+    startReeling(time);
     fishing.hauling = true;
     splash(mainCamera.scene, time, fishing.bobberX, fishing.bobberY);
 }

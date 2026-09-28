@@ -448,7 +448,6 @@ const baitInventory = new Map();
 const openedChests = new Set();
 let activeBaitId = null;
 let baitSlotImage;
-let baitCountLayer;
 let baitCountText;
 let saveDirty = false;
 let newGameResetting = false;
@@ -701,10 +700,8 @@ function create() {
         } else if (!mapOpen) {
             const target = getClickedWorldTarget(pointer);
 
-            if (target === 'guide') {
-                openGuideDialogue(this);
-            } else if (target === 'market') {
-                openMarket(this);
+            if (target) {
+                openInteraction(this, target);
             } else if (isBaitSlotAt(pointer.x, pointer.y)) {
                 cycleBait(this);
             } else {
@@ -808,14 +805,7 @@ function create() {
         }
 
         if (key === 'e') {
-            const target = getInteractionTarget(true);
-
-            if (target === 'guide') {
-                openGuideDialogue(this);
-            } else if (target === 'market') {
-                openMarket(this);
-            }
-
+            openInteraction(this, getInteractionTarget(true));
             return;
         }
 

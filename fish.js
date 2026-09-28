@@ -283,6 +283,23 @@ function chooseFishTarget(chunk, fish, awayX, awayY) {
     return false;
 }
 
+function setFishIdle(fish, timer) {
+    fish.state = 'idle';
+    fish.thrusting = false;
+    fish.timer = timer;
+}
+
+function moveFishForward(chunk, fish, seconds) {
+    const nextX = fish.x + Math.cos(fish.heading) * fish.velocity * seconds;
+    const nextY = fish.y + Math.sin(fish.heading) * fish.velocity * seconds;
+
+    if (!canFishSwim(chunk, fish, nextX, nextY)) return false;
+
+    fish.x = nextX;
+    fish.y = nextY;
+    return true;
+}
+
 function startFishFlee(fish, burst) {
     fish.state = 'flee';
     fish.topSpeed = FISH_FLEE_SPEED;
@@ -391,9 +408,7 @@ function getHookedBobber() {
 
 function updateLuredFish(chunk, fish, delta) {
     if (!fishing || fishing.targetFish !== fish) {
-        fish.state = 'idle';
-        fish.thrusting = false;
-        fish.timer = FISH_IDLE_MIN;
+        setFishIdle(fish, FISH_IDLE_MIN);
         return false;
     }
 
@@ -436,13 +451,7 @@ function updateLuredFish(chunk, fish, delta) {
     fish.heading += Phaser.Math.Clamp(turn, -FISH_LURE_TURN * seconds, FISH_LURE_TURN * seconds);
 
     if (dx * dx + dy * dy > stopDistance * stopDistance && fish.velocity > 0.05) {
-        const nextX = fish.x + Math.cos(fish.heading) * fish.velocity * seconds;
-        const nextY = fish.y + Math.sin(fish.heading) * fish.velocity * seconds;
-
-        if (canFishSwim(chunk, fish, nextX, nextY)) {
-            fish.x = nextX;
-            fish.y = nextY;
-        }
+        moveFishForward(chunk, fish, seconds);
     }
 
     const beat = fish.thrusting ? FISH_BEAT_THRUST + fish.velocity * 0.12 : FISH_BEAT_IDLE;
@@ -522,9 +531,7 @@ function updateFish(delta) {
                 const dx = fish.targetX - fish.x;
                 const dy = fish.targetY - fish.y;
                 if (dx * dx + dy * dy < 4) {
-                    fish.state = 'idle';
-                    fish.thrusting = false;
-                    fish.timer = FISH_IDLE_MIN + Math.random() * FISH_IDLE_RANGE;
+                    setFishIdle(fish, FISH_IDLE_MIN + Math.random() * FISH_IDLE_RANGE);
                     fish.idleTurn = (Math.random() - 0.5) * FISH_IDLE_TURN;
                 } else {
                     let turn = Math.atan2(dy, dx) - fish.heading;
@@ -551,17 +558,9 @@ function updateFish(delta) {
 
             animateFishTail(fish, seconds, beat, sweep, 6);
 
-            const nextX = fish.x + Math.cos(fish.heading) * fish.velocity * seconds;
-            const nextY = fish.y + Math.sin(fish.heading) * fish.velocity * seconds;
-
-            if (canFishSwim(chunk, fish, nextX, nextY)) {
-                fish.x = nextX;
-                fish.y = nextY;
-            } else {
+            if (!moveFishForward(chunk, fish, seconds)) {
                 fish.velocity = 0;
-                fish.state = 'idle';
-                fish.thrusting = false;
-                fish.timer = FISH_IDLE_MIN;
+                setFishIdle(fish, FISH_IDLE_MIN);
             }
 
             queueFishMigration(chunk, fish);

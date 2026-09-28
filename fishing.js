@@ -127,10 +127,8 @@ function releaseTargetFish(flee) {
         return;
     }
 
-    fish.state = 'idle';
-    fish.thrusting = false;
     fish.velocity = 0;
-    fish.timer = FISH_IDLE_MIN + Math.random() * FISH_IDLE_RANGE;
+    setFishIdle(fish, FISH_IDLE_MIN + Math.random() * FISH_IDLE_RANGE);
 }
 
 function hookFish(time) {
@@ -240,7 +238,10 @@ function reelIn(time) {
     }
 
     releaseTargetFish(true);
+    startReeling(time);
+}
 
+function startReeling(time) {
     fishing.state = 'reeling';
     fishing.start = time;
     fishing.fromX = fishing.bobberX;
@@ -356,11 +357,7 @@ function finishFishingMinigame(scene, time, caught) {
 
     fishing.targetFish = null;
     fishing.targetChunk = null;
-    fishing.state = 'reeling';
-    fishing.start = time;
-    fishing.fromX = fishing.bobberX;
-    fishing.fromY = fishing.bobberY;
-
+    startReeling(time);
     showCatchCard(scene, time, species);
 }
 

@@ -285,19 +285,15 @@ function redrawMap(scene) {
 }
 
 function openMap(scene) {
-    if (isMenuOpen() || !mapContainer) {
-        return;
-    }
+    if (isMenuOpen() || !mapContainer) return;
 
     mapOpen = true;
-    stopCharacterForMenu();
-
     mapPan.x = 0;
     mapPan.y = 0;
     mapDrag = null;
     mapDirty = false;
+    stopCharacterForMenu();
     redrawMap(scene);
-
     showSlidingPanel(scene, MAP_HIDDEN_Y, mapContainer, mapTextLayer);
 }
 
@@ -306,19 +302,13 @@ function updateMapPan(scene, delta) {
         (characterKeys.left.isDown || characterKeys.leftArrow.isDown ? 1 : 0);
     const panY = (characterKeys.down.isDown || characterKeys.downArrow.isDown ? 1 : 0) -
         (characterKeys.up.isDown || characterKeys.upArrow.isDown ? 1 : 0);
+    const distance = MAP_PAN_SPEED / mapZoom * Math.min(delta, 50) / 1000;
+    const beforeX = Math.round(mapPan.x);
+    const beforeY = Math.round(mapPan.y);
 
-    if (panX || panY) {
-        const distance = MAP_PAN_SPEED / mapZoom * Math.min(delta, 50) / 1000;
-        const beforeX = Math.round(mapPan.x);
-        const beforeY = Math.round(mapPan.y);
-
-        mapPan.x += panX * distance;
-        mapPan.y += panY * distance;
-
-        if (Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY) {
-            mapDirty = true;
-        }
-    }
+    mapPan.x += panX * distance;
+    mapPan.y += panY * distance;
+    mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
 
     if (mapDirty) {
         mapDirty = false;
@@ -339,9 +329,13 @@ function stopCharacterForMenu() {
 
 function getVerticalMenuStep(event) {
     const key = event.key.toLowerCase();
-    return key === 'w' || event.key === 'ArrowUp' ? -1
-        : key === 's' || event.key === 'ArrowDown' ? 1
-        : 0;
+    return key === 'w' || event.key === 'ArrowUp' ? -1 : key === 's' || event.key === 'ArrowDown' ? 1 : 0;
+}
+
+function popIn(scene, image, y) {
+    image.setY(y + 2);
+    scene.tweens.killTweensOf(image);
+    scene.tweens.add({ targets: image, y, duration: 140, ease: 'Quad.Out', onUpdate: snapTweenTarget });
 }
 
 function slidePanel(scene, y, duration, ease, targets, onComplete) {
@@ -361,21 +355,14 @@ function hideSlidingPanel(scene, hiddenY, isOpen, ...targets) {
 }
 
 function closeMap(scene) {
-    if (!mapOpen) {
-        return;
-    }
+    if (!mapOpen) return;
 
     mapOpen = false;
-
     hideSlidingPanel(scene, MAP_HIDDEN_Y, () => mapOpen, mapContainer, mapTextLayer);
 }
 
 function handleMapKey(scene, event) {
-    const key = event.key.toLowerCase();
-
-    if (key === 'm' || event.key === 'Escape') {
-        closeMap(scene);
-    }
+    if (event.key.toLowerCase() === 'm' || event.key === 'Escape') closeMap(scene);
 }
 
 function createInventoryUI(scene) {
@@ -449,7 +436,6 @@ function openInventory(scene) {
     newGameConfirmUntil = 0;
     stopCharacterForMenu();
     refreshInventoryUI(scene.time.now);
-
     showSlidingPanel(scene, INVENTORY_HIDDEN_Y, inventoryContainer, inventoryTextLayer);
 }
 
@@ -466,21 +452,15 @@ function handleInventoryKey(scene, event) {
 
     if (key === 'i' || event.key === 'Escape') {
         closeInventory(scene);
-        return;
-    }
-
-    if (key !== 'n') return;
-
-    if (scene.time.now < newGameConfirmUntil) {
+    } else if (key === 'n' && scene.time.now < newGameConfirmUntil) {
         newGameResetting = true;
         saveDirty = false;
         localStorage.removeItem(SAVE_KEY);
         window.location.reload();
-        return;
+    } else if (key === 'n') {
+        newGameConfirmUntil = scene.time.now + 2500;
+        refreshInventoryUI(scene.time.now);
     }
-
-    newGameConfirmUntil = scene.time.now + 2500;
-    refreshInventoryUI(scene.time.now);
 }
 
 function createCatchCardUI(scene) {
@@ -507,33 +487,15 @@ function showRewardCard(scene, time, title, detail) {
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 
+    const card = [catchCardContainer, catchCardTextLayer];
+
     if (catchCardHideEvent) catchCardHideEvent.remove(false);
-    scene.tweens.killTweensOf(catchCardContainer);
-    scene.tweens.killTweensOf(catchCardTextLayer);
-
-    for (const target of [catchCardContainer, catchCardTextLayer]) {
-        target.setVisible(true).setY(CATCH_CARD_Y + 8);
-    }
-
-    scene.tweens.add({
-        targets: [catchCardContainer, catchCardTextLayer],
-        y: CATCH_CARD_Y,
-        duration: 180,
-        ease: 'Cubic.Out',
-        onUpdate: snapTweenTarget
-    });
+    for (const target of card) target.setVisible(true).setY(CATCH_CARD_Y + 8);
+    slidePanel(scene, CATCH_CARD_Y, 180, 'Cubic.Out', card);
 
     catchCardHideEvent = scene.time.delayedCall(CATCH_CARD_DURATION - 180, () => {
-        scene.tweens.add({
-            targets: [catchCardContainer, catchCardTextLayer],
-            y: CATCH_CARD_Y + 8,
-            duration: 180,
-            ease: 'Cubic.In',
-            onUpdate: snapTweenTarget,
-            onComplete: () => {
-                catchCardContainer.setVisible(false);
-                catchCardTextLayer.setVisible(false);
-            }
+        slidePanel(scene, CATCH_CARD_Y + 8, 180, 'Cubic.In', card, () => {
+            for (const target of card) target.setVisible(false);
         });
     });
 }
@@ -602,23 +564,19 @@ function createInteractionPromptUI(scene) {
 }
 
 function updateInteractionPrompt(scene, guideReach, marketReach) {
-    if (!interactionPromptLayer || !marketPrompt || !guidePrompt) return;
+    if (!interactionPromptLayer) return;
 
     const available = !isMenuOpen() && scene.time.now >= catchCardUntil;
     const target = available && (guideReach < 1 || marketReach < 1)
         ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
         : null;
-    const showMarket = target === 'market';
-    const showGuide = target === 'guide';
     const showItem = available && !target && scene.time.now < itemLabelUntil;
-
-    const state = (showMarket ? 1 : 0) | (showGuide ? 2 : 0) | (showItem ? 4 : 0);
+    const state = (target === 'market' ? 1 : 0) | (target === 'guide' ? 2 : 0) | (showItem ? 4 : 0);
 
     if (state === promptState) return;
 
     const wasShowing = promptState > 0;
     promptState = state;
-
     scene.tweens.killTweensOf(promptMotion);
 
     if (state === 0) {
@@ -627,32 +585,18 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
             value: 0,
             duration: 90,
             onUpdate: applyPromptMotion,
-            onComplete: () => {
-                if (promptState === 0) {
-                    interactionPromptLayer.setVisible(false);
-                }
-            }
+            onComplete: () => promptState === 0 && interactionPromptLayer.setVisible(false)
         });
         return;
     }
 
-    marketPrompt.style.display = showMarket ? 'flex' : 'none';
-    guidePrompt.style.display = showGuide ? 'flex' : 'none';
-    itemPrompt.style.display = showItem ? 'flex' : 'none';
+    marketPrompt.style.display = state & 1 ? 'flex' : 'none';
+    guidePrompt.style.display = state & 2 ? 'flex' : 'none';
+    itemPrompt.style.display = state & 4 ? 'flex' : 'none';
     interactionPromptLayer.setVisible(true);
-
-    if (!wasShowing) {
-        promptMotion.value = 0;
-    }
-
+    if (!wasShowing) promptMotion.value = 0;
     applyPromptMotion();
-    scene.tweens.add({
-        targets: promptMotion,
-        value: 1,
-        duration: 140,
-        ease: 'Cubic.Out',
-        onUpdate: applyPromptMotion
-    });
+    scene.tweens.add({ targets: promptMotion, value: 1, duration: 140, ease: 'Cubic.Out', onUpdate: applyPromptMotion });
 }
 
 function applyPromptMotion() {
@@ -745,29 +689,16 @@ function createMarketUI(scene) {
 
 function addHotbarItem(scene, textureKey, name) {
     const slot = hotbarItemImages.length;
+    if (slot >= 9) return;
 
-    if (slot >= 9) {
-        return;
-    }
-
-    hotbarItemNames[slot] = name;
-
-    const centerX = HOTBAR_X + slot * HOTBAR_SLOT_SIZE + 13;
-    const centerY = HOTBAR_Y + 13;
-    const image = scene.add.image(centerX, centerY, textureKey)
+    const image = scene.add.image(HOTBAR_X + slot * HOTBAR_SLOT_SIZE + 13, 0, textureKey)
         .setDepth(100.5)
         .setScrollFactor(0)
-        .setDisplaySize(16, 16)
-        .setPosition(centerX, centerY + 2);
-    hotbarItemImages.push(image);
+        .setDisplaySize(16, 16);
 
-    scene.tweens.add({
-        targets: image,
-        y: centerY,
-        duration: 140,
-        ease: 'Quad.Out',
-        onUpdate: snapTweenTarget
-    });
+    hotbarItemNames[slot] = name;
+    hotbarItemImages.push(image);
+    popIn(scene, image, HOTBAR_Y + 13);
 }
 
 function createBaitSlotUI(scene) {
@@ -782,26 +713,10 @@ function createBaitSlotUI(scene) {
         .setScrollFactor(0)
         .setVisible(false);
 
-    baitCountText = document.createElement('div');
+    const layer = createTextLayer(9, { width: `${HOTBAR_SLOT_SIZE}px`, fontSize: '11px', lineHeight: '9px' });
 
-    Object.assign(baitCountText.style, {
-        width: `${HOTBAR_SLOT_SIZE - 4}px`,
-        fontFamily: 'm6x11, monospace',
-        fontSize: '11px',
-        lineHeight: '9px',
-        textAlign: 'right',
-        color: '#e0f2fd',
-        textShadow: '1px 0 #230a03, 0 1px #230a03',
-        pointerEvents: 'none',
-        whiteSpace: 'nowrap'
-    });
-
-    baitCountLayer = scene.add.dom(BAIT_SLOT_X + 1, HOTBAR_Y + 15, baitCountText)
-        .setOrigin(0)
-        .setDepth(100.6)
-        .setScrollFactor(0);
-
-    baitCountLayer.pointerEvents = 'none';
+    baitCountText = createUIText(layer, 0, 0, '#e0f2fd', HOTBAR_SLOT_SIZE - 3, 'right', { textShadow: '1px 0 #230a03, 0 1px #230a03' });
+    addHudLayer(scene, layer, 0, 100.6).setPosition(BAIT_SLOT_X, HOTBAR_Y + 15).setVisible(true);
 }
 
 function refreshBaitSlot() {
@@ -813,12 +728,7 @@ function refreshBaitSlot() {
     baitCountText.textContent = bait ? baitInventory.get(bait.id) : '';
 
     if (bait && baitSlotImage.texture.key !== bait.icon) {
-        const scene = baitSlotImage.scene;
-        const centerY = HOTBAR_Y + 13;
-
-        baitSlotImage.setTexture(bait.icon).setY(centerY + 2);
-        scene.tweens.killTweensOf(baitSlotImage);
-        scene.tweens.add({ targets: baitSlotImage, y: centerY, duration: 140, ease: 'Quad.Out', onUpdate: snapTweenTarget });
+        popIn(baitSlotImage.scene, baitSlotImage.setTexture(bait.icon), HOTBAR_Y + 13);
     }
 }
 
@@ -893,33 +803,18 @@ function setMarketPage(page) {
 function getMarketRowAt(x, y) {
     const localY = y - DIALOGUE_VISIBLE_Y - MARKET_LIST_Y;
     const row = Math.floor(localY / MARKET_ROW_HEIGHT);
+    const inside = x >= MARKET_LIST_X && x < MARKET_LIST_X + MARKET_LIST_WIDTH && localY >= 0 &&
+        row < MARKET_ROW_COUNT && localY - row * MARKET_ROW_HEIGHT < MARKET_ROW_HEIGHT - 2;
 
-    if (
-        x < MARKET_LIST_X ||
-        x >= MARKET_LIST_X + MARKET_LIST_WIDTH ||
-        localY < 0 ||
-        row >= MARKET_ROW_COUNT ||
-        localY - row * MARKET_ROW_HEIGHT >= MARKET_ROW_HEIGHT - 2
-    ) {
-        return -1;
-    }
-
-    return row;
+    return inside ? row : -1;
 }
 
 function getDialogueOptionAt(x, y) {
     const option = Math.floor((y - DIALOGUE_VISIBLE_Y - DIALOGUE_OPTION_TOP) / DIALOGUE_OPTION_STEP);
+    const inside = x >= DIALOGUE_OPTION_X - 3 && x < DIALOGUE_OPTION_X - 3 + DIALOGUE_OPTION_WIDTH &&
+        option >= 0 && option < GUIDE_DIALOGUE[dialogueNode].options.length;
 
-    if (
-        x < DIALOGUE_OPTION_X - 3 ||
-        x >= DIALOGUE_OPTION_X - 3 + DIALOGUE_OPTION_WIDTH ||
-        option < 0 ||
-        option >= GUIDE_DIALOGUE[dialogueNode].options.length
-    ) {
-        return -1;
-    }
-
-    return option;
+    return inside ? option : -1;
 }
 
 function isMarketItemOwned(item) {
@@ -952,102 +847,64 @@ function getFishInventorySummary() {
     return { count, value };
 }
 
+function setMarketDetail(name, status, statusColor, action, actionColor = '#acccf9') {
+    marketDetailName.textContent = name;
+    marketDetailStatus.textContent = status;
+    marketDetailStatus.style.color = statusColor;
+    marketDetailAction.textContent = marketFeedback ? marketFeedback.text : action;
+    marketDetailAction.style.color = marketFeedback ? marketFeedback.color : actionColor;
+}
+
 function refreshMarketOptions() {
-    if (!marketMessageText) {
-        return;
-    }
+    if (!marketMessageText) return;
+
+    const items = MARKET_PAGES[marketPage].items;
+    const rowColor = index => index === selectedMarketOption ? '#e0f2fd' : '#c0a887';
 
     marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`;
     marketHighlight.setY(MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT);
-
-    const items = MARKET_PAGES[marketPage].items;
-
-    marketTabTexts.forEach((tab, index) => {
-        tab.style.color = index === marketPage ? '#acccf9' : '#6f5b49';
-    });
+    marketTabTexts.forEach((tab, index) => tab.style.color = index === marketPage ? '#acccf9' : '#6f5b49');
 
     for (let index = 0; index < MARKET_ITEM_ROWS; index++) {
         const item = items[index];
+        const owned = item && isMarketItemOwned(item);
         const priceText = marketPriceTexts[index];
-        const image = marketItemImages[index];
 
-        if (!item) {
-            marketOptionTexts[index].textContent = '';
-            priceText.textContent = '';
-            image.setVisible(false);
-            continue;
-        }
-
-        const selected = index === selectedMarketOption;
-        const owned = isMarketItemOwned(item);
-        const affordable = playerCoins >= item.price;
-
-        marketOptionTexts[index].textContent = item.label;
-        marketOptionTexts[index].style.color = selected ? '#e0f2fd' : owned ? '#7a6450' : '#c0a887';
-        priceText.textContent = owned ? 'Owned' : `${item.price}c`;
-        priceText.style.color = owned ? '#8fbf7a' : affordable ? '#e8c170' : '#9a5a47';
-        image.setTexture(item.icon).setVisible(true);
-        if (owned) image.setTint(OWNED_ROD_TINT); else image.clearTint();
+        marketOptionTexts[index].textContent = item ? item.label : '';
+        marketOptionTexts[index].style.color = owned && index !== selectedMarketOption ? '#7a6450' : rowColor(index);
+        priceText.textContent = !item ? '' : owned ? 'Owned' : `${item.price}c`;
+        priceText.style.color = owned ? '#8fbf7a' : item && playerCoins >= item.price ? '#e8c170' : '#9a5a47';
+        marketItemImages[index].setVisible(Boolean(item));
+        if (item) marketItemImages[index].setTexture(item.icon).setTint(owned ? OWNED_ROD_TINT : 0xffffff);
     }
 
-    const sellSummary = getFishInventorySummary();
-    const sellText = marketOptionTexts[MARKET_SELL_INDEX];
-    const exitText = marketOptionTexts[MARKET_EXIT_INDEX];
-
-    sellText.textContent = 'Sell fish';
-    sellText.style.color = MARKET_SELL_INDEX === selectedMarketOption ? '#e0f2fd' : '#c0a887';
-    exitText.textContent = 'Leave';
-    exitText.style.color = MARKET_EXIT_INDEX === selectedMarketOption ? '#e0f2fd' : '#c0a887';
+    marketOptionTexts[MARKET_SELL_INDEX].textContent = 'Sell fish';
+    marketOptionTexts[MARKET_SELL_INDEX].style.color = rowColor(MARKET_SELL_INDEX);
+    marketOptionTexts[MARKET_EXIT_INDEX].textContent = 'Leave';
+    marketOptionTexts[MARKET_EXIT_INDEX].style.color = rowColor(MARKET_EXIT_INDEX);
 
     const item = items[selectedMarketOption];
+    marketDetailImage.setVisible(Boolean(item));
 
-    if (!item) {
-        marketDetailImage.setVisible(false);
-
-        if (selectedMarketOption === MARKET_SELL_INDEX) {
-            marketDetailName.textContent = 'Sell fish';
-            marketDetailStatus.textContent = sellSummary.count
-                ? `${sellSummary.count} fish · ${sellSummary.value}c`
-                : 'No fish to sell';
-            marketDetailStatus.style.color = sellSummary.count ? '#e8c170' : '#c0a887';
-            marketDetailAction.textContent = marketFeedback
-                ? marketFeedback.text
-                : sellSummary.count ? 'Enter - Sell all' : '';
-            marketDetailAction.style.color = marketFeedback ? marketFeedback.color : '#acccf9';
-        } else if (selectedMarketOption === MARKET_EXIT_INDEX) {
-            marketDetailName.textContent = 'Leave shop';
-            marketDetailStatus.textContent = '';
-            marketDetailAction.textContent = 'Enter - Leave';
-            marketDetailAction.style.color = '#acccf9';
-        } else {
-            marketDetailName.textContent = '';
-            marketDetailStatus.textContent = '';
-            marketDetailAction.textContent = '';
-        }
-
-        return;
-    }
-
-    const status = getMarketItemStatus(item);
-    const owned = isMarketItemOwned(item);
-    const held = baitInventory.get(item.id);
-
-    marketDetailImage
-        .setTexture(item.texture)
-        .setVisible(true)
-        .setTint(owned ? OWNED_ROD_TINT : 0xffffff);
-    marketDetailName.textContent = item.label;
-    marketDetailStatus.textContent = item.bundle && held ? `Have ${held} · ${status.text}` : status.text;
-    marketDetailStatus.style.color = status.color;
-
-    if (marketFeedback) {
-        marketDetailAction.textContent = marketFeedback.text;
-        marketDetailAction.style.color = marketFeedback.color;
-    } else if (owned || playerCoins < item.price) {
-        marketDetailAction.textContent = '';
+    if (selectedMarketOption === MARKET_SELL_INDEX) {
+        const { count, value } = getFishInventorySummary();
+        setMarketDetail('Sell fish', count ? `${count} fish · ${value}c` : 'No fish to sell', count ? '#e8c170' : '#c0a887', count ? 'Enter - Sell all' : '');
+    } else if (selectedMarketOption === MARKET_EXIT_INDEX) {
+        setMarketDetail('Leave shop', '', '#c0a887', 'Enter - Leave');
+    } else if (!item) {
+        setMarketDetail('', '', '#c0a887', '');
     } else {
-        marketDetailAction.textContent = 'Enter - Buy';
-        marketDetailAction.style.color = '#acccf9';
+        const status = getMarketItemStatus(item);
+        const owned = isMarketItemOwned(item);
+        const held = baitInventory.get(item.id);
+
+        marketDetailImage.setTexture(item.texture).setTint(owned ? OWNED_ROD_TINT : 0xffffff);
+        setMarketDetail(
+            item.label,
+            item.bundle && held ? `Have ${held} · ${status.text}` : status.text,
+            status.color,
+            owned || playerCoins < item.price ? '' : 'Enter - Buy'
+        );
     }
 }
 
@@ -1063,6 +920,8 @@ function animateCoinTotal(scene) {
 }
 
 function buySelectedMarketItem(scene) {
+    const item = MARKET_PAGES[marketPage].items[selectedMarketOption];
+
     if (selectedMarketOption === MARKET_EXIT_INDEX) {
         closeMarket(scene);
         return;
@@ -1070,63 +929,37 @@ function buySelectedMarketItem(scene) {
 
     if (selectedMarketOption === MARKET_SELL_INDEX) {
         const summary = getFishInventorySummary();
-
         if (!summary.count) return;
 
         playerCoins += summary.value;
         fishInventory.clear();
-        saveDirty = true;
         marketFeedback = { text: `Sold for ${summary.value}c!`, color: '#8fbf7a' };
-
-        animateCoinTotal(scene);
-
-        refreshMarketOptions();
+    } else if (!item || isMarketItemOwned(item) || playerCoins < item.price) {
         return;
-    }
-
-    const item = MARKET_PAGES[marketPage].items[selectedMarketOption];
-
-    if (!item || isMarketItemOwned(item) || playerCoins < item.price) {
-        return;
-    }
-
-    playerCoins -= item.price;
-    saveDirty = true;
-
-    if (item.bundle) {
+    } else if (item.bundle) {
+        playerCoins -= item.price;
         addBait(item, item.bundle, true);
         marketFeedback = { text: `+${item.bundle} ${item.label}!`, color: '#8fbf7a' };
     } else {
+        playerCoins -= item.price;
         ownedRods.add(item.id);
         addHotbarItem(scene, item.icon, item.label);
         marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
     }
 
+    saveDirty = true;
     animateCoinTotal(scene);
-
     refreshMarketOptions();
 }
 
 function moveMarketSelection(amount) {
-    selectedMarketOption = Phaser.Math.Wrap(
-        selectedMarketOption + amount,
-        0,
-        MARKET_ROW_COUNT
-    );
+    selectedMarketOption = Phaser.Math.Wrap(selectedMarketOption + amount, 0, MARKET_ROW_COUNT);
     marketFeedback = null;
-
     refreshMarketOptions();
 }
 
 function openMarket(scene) {
-    if (
-        isMenuOpen() ||
-        !marketContainer ||
-        !marketTextLayer ||
-        !isMarketNear()
-    ) {
-        return;
-    }
+    if (isMenuOpen() || !marketContainer || !isMarketNear()) return;
 
     marketOpen = true;
     selectedMarketOption = 0;
@@ -1134,53 +967,35 @@ function openMarket(scene) {
     marketFeedback = null;
     coinDisplay.value = playerCoins;
     stopCharacterForMenu();
-
     refreshMarketOptions();
-
     showSlidingPanel(scene, MARKET_HIDDEN_Y, marketContainer, marketTextLayer);
 }
 
 function closeMarket(scene) {
-    if (!marketOpen) {
-        return;
-    }
+    if (!marketOpen) return;
 
     marketOpen = false;
-
     hideSlidingPanel(scene, MARKET_HIDDEN_Y, () => marketOpen, marketContainer, marketTextLayer);
 }
 
 function handleMarketKey(scene, event) {
     const key = event.key.toLowerCase();
     const step = getVerticalMenuStep(event);
+    const page = key === 'a' || event.key === 'ArrowLeft' ? -1 : key === 'd' || event.key === 'ArrowRight' ? 1 : 0;
 
     if (step) {
         moveMarketSelection(step);
-        return;
-    }
-
-    if (key === 'a' || key === 'd' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-        setMarketPage(marketPage + (key === 'a' || event.key === 'ArrowLeft' ? -1 : 1));
-        return;
-    }
-
-    if (
-        event.key === 'Enter' ||
-        event.code === 'Space'
-    ) {
+    } else if (page) {
+        setMarketPage(marketPage + page);
+    } else if (event.key === 'Enter' || event.code === 'Space') {
         buySelectedMarketItem(scene);
-        return;
-    }
-
-    if (key === 'e' || event.key === 'Escape') {
+    } else if (key === 'e' || event.key === 'Escape') {
         closeMarket(scene);
     }
 }
 
 function getMarketReach() {
-    if (!store) {
-        return Infinity;
-    }
+    if (!store) return Infinity;
 
     const x = character.x + CHARACTER_SIZE / 2 - store.x - STORE_WIDTH / 2;
     const y = character.y + CHARACTER_SIZE / 2 - store.y - STORE_HEIGHT / 2;
@@ -1189,9 +1004,7 @@ function getMarketReach() {
 }
 
 function getGuideReach() {
-    if (!guide) {
-        return Infinity;
-    }
+    if (!guide) return Infinity;
 
     const x = character.x - guide.x;
     const y = character.y - guide.y;
@@ -1208,25 +1021,11 @@ function isGuideNear() {
 }
 
 function getClickedWorldTarget(pointer) {
-    const x = pointer.worldX;
-    const y = pointer.worldY;
+    const inside = (target, width, height) => pointer.worldX >= target.x && pointer.worldX < target.x + width &&
+        pointer.worldY >= target.y && pointer.worldY < target.y + height;
 
-    if (
-        guide && isGuideNear() &&
-        x >= guide.x && x < guide.x + GUIDE_SIZE &&
-        y >= guide.y && y < guide.y + GUIDE_SIZE
-    ) {
-        return 'guide';
-    }
-
-    if (
-        store && isMarketNear() &&
-        x >= store.x && x < store.x + STORE_WIDTH &&
-        y >= store.y && y < store.y + STORE_HEIGHT
-    ) {
-        return 'market';
-    }
-
+    if (guide && isGuideNear() && inside(guide, GUIDE_SIZE, GUIDE_SIZE)) return 'guide';
+    if (store && isMarketNear() && inside(store, STORE_WIDTH, STORE_HEIGHT)) return 'market';
     return null;
 }
 
@@ -1245,10 +1044,7 @@ function getInteractionTarget(guideAvailable, guideReach, marketReach) {
     guideReach = guideAvailable ? guideReach ?? getGuideReach() : Infinity;
     marketReach ??= getMarketReach();
 
-    if (guideReach >= 1 && marketReach >= 1) {
-        return null;
-    }
-
+    if (guideReach >= 1 && marketReach >= 1) return null;
     if (guideReach >= 1) return 'market';
     if (marketReach >= 1) return 'guide';
 
@@ -1263,168 +1059,110 @@ function refreshGuideDialogueOptions() {
 
     dialogueOptionTexts.forEach((optionText, index) => {
         const option = options[index];
-        
-        if (!option) {
-            optionText.style.display = 'none';
-            return;
-        }
 
-        optionText.style.display = 'block';
+        optionText.style.display = option ? 'block' : 'none';
+        if (!option) return;
+
         optionText.textContent = option.label;
-        optionText.style.color = index === selectedDialogueOption
-            ? '#e0f2fd'
-            : '#c0a887';
+        optionText.style.color = index === selectedDialogueOption ? '#e0f2fd' : '#c0a887';
     });
 
     dialogueHighlight.setY(DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP);
 }
 
 function finishGuideDialogueText() {
-    if (!dialogueTypingEvent) {
-        return false;
-    }
+    if (!stopDialogueTyping()) return false;
+
+    dialogueText.textContent = dialogueFullText;
+    return true;
+}
+
+function openInteraction(scene, target) {
+    if (target === 'guide') openGuideDialogue(scene);
+    else if (target === 'market') openMarket(scene);
+}
+
+function stopDialogueTyping() {
+    if (!dialogueTypingEvent) return false;
 
     dialogueTypingEvent.remove(false);
     dialogueTypingEvent = null;
-    dialogueText.textContent = dialogueFullText;
-
     return true;
 }
 
 function showGuideDialogueNode(scene, nodeKey) {
-    if (dialogueTypingEvent) {
-        dialogueTypingEvent.remove(false);
-        dialogueTypingEvent = null;
-    }
+    const node = GUIDE_DIALOGUE[nodeKey];
+    let characterIndex = 0;
 
+    stopDialogueTyping();
     dialogueNode = nodeKey;
     selectedDialogueOption = 0;
-    const node = GUIDE_DIALOGUE[nodeKey];
     dialogueFullText = node.text;
     dialoguePortrait.setTexture(node.portrait);
-
     dialogueText.textContent = '';
     refreshGuideDialogueOptions();
-
-    let characterIndex = 0;
 
     dialogueTypingEvent = scene.time.addEvent({
         delay: 24,
         repeat: dialogueFullText.length - 1,
         callback: () => {
-            characterIndex += 1;
-
-            dialogueText.textContent = dialogueFullText.slice(
-                0,
-                characterIndex
-            );
-
-            if (characterIndex === dialogueFullText.length) {
-                dialogueTypingEvent = null;
-            }
+            characterIndex++;
+            dialogueText.textContent = dialogueFullText.slice(0, characterIndex);
+            if (characterIndex === dialogueFullText.length) dialogueTypingEvent = null;
         }
     });
 }
 
 function openGuideDialogue(scene) {
-    if (
-        isMenuOpen() ||
-        !guide ||
-        !dialogueContainer ||
-        !dialogueTextLayer
-    ) {
-        return;
-    }
+    if (isMenuOpen() || !guide || !dialogueContainer) return;
 
     dialogueOpen = true;
     stopCharacterForMenu();
-
     showSlidingPanel(scene, DIALOGUE_HIDDEN_Y, dialogueContainer, dialogueTextLayer);
-
     showGuideDialogueNode(scene, 'intro');
 }
 
 function closeGuideDialogue(scene) {
-    if (!dialogueOpen) {
-        return;
-    }
+    if (!dialogueOpen) return;
 
     dialogueOpen = false;
     guideHasMetPlayer = true;
     saveDirty = true;
-
-    if (dialogueTypingEvent) {
-        dialogueTypingEvent.remove(false);
-        dialogueTypingEvent = null;
-    }
-
+    stopDialogueTyping();
     hideSlidingPanel(scene, DIALOGUE_HIDDEN_Y, () => dialogueOpen, dialogueContainer, dialogueTextLayer);
 }
 
 function selectGuideDialogueOption(scene) {
-    if (finishGuideDialogueText()) {
-        return;
-    }
+    if (finishGuideDialogueText()) return;
 
-    const option =
-        GUIDE_DIALOGUE[dialogueNode]
-            .options[selectedDialogueOption];
+    const option = GUIDE_DIALOGUE[dialogueNode].options[selectedDialogueOption];
 
     if (option.close) {
         closeGuideDialogue(scene);
-        return;
+    } else {
+        showGuideDialogueNode(scene, option.next);
     }
-
-    showGuideDialogueNode(
-        scene,
-        option.next
-    );
 }
 
 function moveGuideDialogueSelection(amount) {
-    const options =
-        GUIDE_DIALOGUE[dialogueNode].options;
-
-    selectedDialogueOption =
-        Phaser.Math.Wrap(
-            selectedDialogueOption + amount,
-            0,
-            options.length
-        );
-
+    selectedDialogueOption = Phaser.Math.Wrap(selectedDialogueOption + amount, 0, GUIDE_DIALOGUE[dialogueNode].options.length);
     refreshGuideDialogueOptions();
 }
 
 function handleGuideDialogueKey(scene, event) {
-    const key = event.key.toLowerCase();
     const step = getVerticalMenuStep(event);
 
     if (step) {
         moveGuideDialogueSelection(step);
-        return;
-    }
-
-    if (
-        event.key === 'Enter' ||
-        event.code === 'Space' ||
-        key === 'e'
-    ) {
+    } else if (event.key === 'Enter' || event.code === 'Space' || event.key.toLowerCase() === 'e') {
         selectGuideDialogueOption(scene);
-        return;
-    }
-
-    if (event.key === 'Escape') {
+    } else if (event.key === 'Escape') {
         closeGuideDialogue(scene);
     }
 }
 
 function updateGuideInteraction(scene, guideIsNear) {
-    if (
-        guideIsNear &&
-        !guideWasNear &&
-        !guideHasMetPlayer &&
-        !isMenuOpen()
-    ) {
+    if (guideIsNear && !guideWasNear && !guideHasMetPlayer && !isMenuOpen()) {
         openGuideDialogue(scene);
     }
 
