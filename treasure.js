@@ -138,8 +138,7 @@ function findChestAt(x, y) {
 }
 
 function snagChest(scene, time, chunk) {
-    fishing.state = 'snagged';
-    fishing.start = time;
+    setFishingState('snagged', time);
     fishing.chestChunk = chunk;
     fishing.bobberY = fishing.toY + 3;
     splash(scene, time, fishing.toX, fishing.toY);
@@ -195,12 +194,9 @@ function openHauledChest(scene, time, x, y) {
 
     if (Math.random() < CHEST_FISH_CHANCE) {
         const species = chooseFishSpecies(CHEST_FISH_WATER);
-        fishInventory.set(species.id, (fishInventory.get(species.id) || 0) + 1);
-        catchLog.add(species.id);
+        addCaughtFish(species);
         rewards.push(species.name);
     }
-
-    saveDirty = true;
 
     for (let index = 0; index < CHEST_SPARKLE_COLORS.length * 2; index++) {
         spawnParticle(
