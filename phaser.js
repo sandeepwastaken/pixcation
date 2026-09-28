@@ -322,6 +322,7 @@ let fishingCatchZoneMiddle;
 let fishingCatchZoneBottom;
 let fishingFishMarker;
 let fishingProgressFill;
+let fishingUiParts = [];
 let fishingActionHeld = false;
 const CAST_MIN_DISTANCE = 16;
 const CAST_METER_WIDTH = 14;
@@ -556,22 +557,20 @@ function create() {
     createCharacterShadow(this);
     fishingLine = this.add.graphics();
     worldObjectLayer.add(fishingLine);
-    fishingUiPanel = this.add.image(FISHING_GAME_X, FISHING_GAME_Y, 'fishing-ui')
-        .setOrigin(0).setDepth(220).setScrollFactor(0).setVisible(false);
     const catchZoneTexture = this.textures.get('fishing-catch-zone');
+    const hudImage = (key, frame, depth, origin = 0) => this.add.image(0, 0, key, frame)
+        .setOrigin(origin).setDepth(depth).setScrollFactor(0).setVisible(false);
+
     catchZoneTexture.add('top', 0, 0, 0, 8, 3);
     catchZoneTexture.add('middle', 0, 0, 3, 8, 2);
     catchZoneTexture.add('bottom', 0, 0, 5, 8, 3);
-    fishingCatchZoneTop = this.add.image(0, 0, 'fishing-catch-zone', 'top')
-        .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
-    fishingCatchZoneMiddle = this.add.image(0, 0, 'fishing-catch-zone', 'middle')
-        .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
-    fishingCatchZoneBottom = this.add.image(0, 0, 'fishing-catch-zone', 'bottom')
-        .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
-    fishingFishMarker = this.add.image(0, 0, 'fishing-fish')
-        .setOrigin(0.5).setDepth(222).setScrollFactor(0).setVisible(false);
-    fishingProgressFill = this.add.image(0, 0, 'fishing-progress')
-        .setOrigin(0).setDepth(221).setScrollFactor(0).setVisible(false);
+    fishingUiPanel = hudImage('fishing-ui', undefined, 220).setPosition(FISHING_GAME_X, FISHING_GAME_Y);
+    fishingCatchZoneTop = hudImage('fishing-catch-zone', 'top', 221);
+    fishingCatchZoneMiddle = hudImage('fishing-catch-zone', 'middle', 221);
+    fishingCatchZoneBottom = hudImage('fishing-catch-zone', 'bottom', 221);
+    fishingFishMarker = hudImage('fishing-fish', undefined, 222, 0.5);
+    fishingProgressFill = hudImage('fishing-progress', undefined, 221);
+    fishingUiParts = [fishingUiPanel, fishingCatchZoneTop, fishingCatchZoneMiddle, fishingCatchZoneBottom, fishingFishMarker, fishingProgressFill];
 
     character = this.add.sprite(0, 0, 'character-front')
         .setOrigin(0)

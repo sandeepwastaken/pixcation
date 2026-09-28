@@ -444,12 +444,7 @@ function drawFishingMinigame() {
         if (!fishingMinigameVisible) return;
 
         fishingMinigameVisible = false;
-        fishingUiPanel.setVisible(false);
-        fishingCatchZoneTop.setVisible(false);
-        fishingCatchZoneMiddle.setVisible(false);
-        fishingCatchZoneBottom.setVisible(false);
-        fishingFishMarker.setVisible(false);
-        fishingProgressFill.setVisible(false);
+        for (const part of fishingUiParts) part.setVisible(false);
         return;
     }
 
