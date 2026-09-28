@@ -228,7 +228,7 @@ function spawnRegionFish(chunk, region, label, count, originX, originY) {
     }
 }
 
-function showCheatLabel(scene, text) {
+function showItemLabel(scene, text) {
     if (!itemPrompt) return;
 
     itemPrompt.label.textContent = text;
@@ -245,7 +245,7 @@ function spawnSturgeonAtCursor(scene) {
     const region = getFishRegionAt(chunk, x, y);
 
     if (!region) {
-        showCheatLabel(scene, 'No fish water there');
+        showItemLabel(scene, 'No fish water there');
         return;
     }
 
@@ -259,12 +259,12 @@ function spawnSturgeonAtCursor(scene) {
             fish.x = x;
             fish.y = y;
             chunk.fish.push(fish);
-            showCheatLabel(scene, 'Spawned a Sturgeon');
+            showItemLabel(scene, 'Spawned a Sturgeon');
             return;
         }
     }
 
-    showCheatLabel(scene, 'Too shallow for a Sturgeon');
+    showItemLabel(scene, 'Too shallow for a Sturgeon');
 }
 
 function chooseFishTarget(chunk, fish, awayX, awayY) {
@@ -426,7 +426,7 @@ function updateLuredFish(chunk, fish, delta) {
 
         fish.thrusting = pulsing;
         fish.velocity += pulsing ? FISH_ACCELERATION * 0.55 * seconds : 0;
-        fish.velocity = Math.min(FISH_LURE_SPEED, fish.velocity);
+        fish.velocity = Math.min(FISH_LURE_SPEED * getBaitLure(), fish.velocity);
         fish.velocity *= Math.exp(-(pulsing ? FISH_DRAG : FISH_COAST_DRAG * 1.8) * seconds);
     }
 

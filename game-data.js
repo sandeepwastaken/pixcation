@@ -4,6 +4,14 @@ const MARKET_RODS = [
     { id: 'master', label: 'Master Rod', texture: 'rod-master', icon: 'rod-master-icon', price: 50, castDistance: 104, chargeTime: 720, lineStrength: 1.75, catchZone: 34 }
 ];
 
+const MARKET_BAITS = [
+    { id: 'novice', label: 'Novice Bait', texture: 'bait-novice', icon: 'bait-novice-icon', price: 6, bundle: 5, zoneBonus: 4, lure: 1.2 },
+    { id: 'trainer', label: 'Trainer Bait', texture: 'bait-trainer', icon: 'bait-trainer-icon', price: 12, bundle: 5, zoneBonus: 7, lure: 1.45 },
+    { id: 'advanced', label: 'Advanced Bait', texture: 'bait-advanced', icon: 'bait-advanced-icon', price: 20, bundle: 5, zoneBonus: 11, lure: 1.75 }
+];
+
+const CHEST_BAIT_WEIGHTS = [6, 3, 1];
+
 const FISH_SPECIES = [
     { id: 'bluegill', name: 'Bluegill', size: 'small', minWater: 1800, weight: 7, price: 7 },
     { id: 'pumpkinseed', name: 'Pumpkinseed', size: 'small', minWater: 1800, weight: 6, price: 8 },
@@ -56,7 +64,16 @@ const GUIDE_DIALOGUE = {
         portrait: 'guide-portrait-surprised',
         text: "Ignore small taps. On the big splash, press Space or click, then hold to keep the bar on the fish.",
         options: [
+            { label: 'Bait', next: 'bait' },
             { label: 'Back', next: 'help' },
+            { label: 'Exit', close: true }
+        ]
+    },
+    bait: {
+        portrait: 'guide-portrait-laughing',
+        text: "Bait makes your bar longer and lures fish in. B swaps it. See a chest shadow underwater? Cast right on it!",
+        options: [
+            { label: 'Back', next: 'fishing' },
             { label: 'Exit', close: true }
         ]
     },
@@ -73,7 +90,13 @@ const GUIDE_DIALOGUE = {
 const MARKET_RODS_BY_ID = new Map(MARKET_RODS.map(rod => [rod.id, rod]));
 const MARKET_RODS_BY_LABEL = new Map(MARKET_RODS.map(rod => [rod.label, rod]));
 const FISH_SPECIES_BY_ID = new Map(FISH_SPECIES.map(species => [species.id, species]));
-const MARKET_SELL_INDEX = MARKET_RODS.length;
+const MARKET_BAITS_BY_ID = new Map(MARKET_BAITS.map(bait => [bait.id, bait]));
+const MARKET_PAGES = [
+    { title: 'Rods', items: MARKET_RODS },
+    { title: 'Bait', items: MARKET_BAITS }
+];
+const MARKET_ITEM_ROWS = Math.max(...MARKET_PAGES.map(page => page.items.length));
+const MARKET_SELL_INDEX = MARKET_ITEM_ROWS;
 const MARKET_EXIT_INDEX = MARKET_SELL_INDEX + 1;
-const MARKET_ROW_COUNT = MARKET_RODS.length + 2;
+const MARKET_ROW_COUNT = MARKET_ITEM_ROWS + 2;
 const SAVE_KEY = 'pixcation-save-v1';

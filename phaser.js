@@ -268,6 +268,23 @@ const MARKET_ROW_HEIGHT = 20;
 const MARKET_DETAIL_X = 178;
 const MARKET_DETAIL_WIDTH = 130;
 const MARKET_FOOTER_Y = 126;
+const MARKET_TAB_Y = 5;
+const MARKET_TAB_X = 14;
+const MARKET_TAB_WIDTH = 34;
+const BAIT_SLOT_X = HOTBAR_X + 9 * HOTBAR_SLOT_SIZE + 4;
+const CHEST_SALT = 7331;
+const CHEST_CHANCE = 0.4;
+const CHEST_PLACEMENT_ATTEMPTS = 24;
+const CHEST_MIN_DEPTH = 8;
+const CHEST_SNAG_MARGIN = 2;
+const CHEST_REEL_DURATION = 560;
+const CHEST_FISH_CHANCE = 0.55;
+const CHEST_FISH_WATER = 8000;
+const CHEST_BUBBLE_MIN = 1400;
+const CHEST_BUBBLE_RANGE = 2600;
+const CHEST_BUBBLE_LIFETIME = 540;
+const CHEST_BUBBLE_COLOR = 0xa9d4e4;
+const CHEST_SPARKLE_COLORS = [0xe8c170, 0xf6f5e5, 0xd69a55];
 const PROMPT_Y = HOTBAR_Y - 25;
 const SHIMMER_RECOLOR_FROM = [0x87, 0xbe, 0xd8];
 const SHIMMER_RECOLOR_TO = [0x78, 0xaf, 0xd3];
@@ -414,7 +431,7 @@ let marketContainer;
 let marketTextLayer;
 let marketOptionTexts = [];
 let marketMessageText;
-let marketRodImages = [];
+let marketItemImages = [];
 let marketPriceTexts = [];
 let marketHighlight;
 let marketDetailImage;
@@ -423,11 +440,20 @@ let marketDetailStatus;
 let marketDetailAction;
 let marketFeedback = null;
 let selectedMarketOption = 0;
+let marketPage = 0;
+let marketTabTexts = [];
+let marketBuyHint;
 let playerCoins = 100;
 const coinDisplay = { value: playerCoins };
 const ownedRods = new Set();
 const fishInventory = new Map();
 const catchLog = new Set();
+const baitInventory = new Map();
+const openedChests = new Set();
+let activeBaitId = null;
+let baitSlotImage;
+let baitCountLayer;
+let baitCountText;
 let saveDirty = false;
 let newGameResetting = false;
 
@@ -537,6 +563,12 @@ function preload() {
     this.load.image('rod-basic-icon', withCacheBuster('media/items/rods/basic-icon.png'));
     this.load.image('rod-intermediate-icon', withCacheBuster('media/items/rods/intermediate-icon.png'));
     this.load.image('rod-master-icon', withCacheBuster('media/items/rods/master-icon.png'));
+    this.load.image('chest', withCacheBuster('media/items/chest.png'));
+
+    for (const bait of MARKET_BAITS) {
+        this.load.image(bait.texture, withCacheBuster(`media/items/baits/${bait.id}Bait.png`));
+        this.load.image(bait.icon, withCacheBuster(`media/items/baits/${bait.id}-icon.png`));
+    }
     this.load.image('fishing-ui', withCacheBuster('media/ui/fishing/panel.png'));
     this.load.image('fishing-catch-zone', withCacheBuster('media/ui/fishing/catch-zone.png'));
     this.load.image('fishing-fish', withCacheBuster('media/ui/fishing/fish.png'));
@@ -560,6 +592,7 @@ function create() {
     createRoundedCliffTextures(this);
     createShimmerSheet(this);
     extractRodArtStyles(this);
+    createChestSilhouette(this);
 
     this.anims.create({
         key: 'shimmer',
@@ -618,6 +651,8 @@ function create() {
         .setOrigin(0)
         .setDepth(101)
         .setScrollFactor(0);
+
+    createBaitSlotUI(this);
 
     const selectHotBarSlot = (slot, immediate = false) => {
         selectedHotbarSlot = Phaser.Math.Wrap(slot, 0, 9);
@@ -694,8 +729,11 @@ function create() {
             if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(this);
         } else if (marketOpen) {
             const row = getMarketRowAt(pointer.x, pointer.y);
+            const tab = getMarketTabAt(pointer.x, pointer.y);
 
-            if (row !== -1) {
+            if (tab !== -1) {
+                setMarketPage(tab);
+            } else if (row !== -1) {
                 selectedMarketOption = row;
                 buySelectedMarketItem(this);
             } else if (pointer.y > DIALOGUE_VISIBLE_Y + MARKET_HEIGHT) {
@@ -717,6 +755,8 @@ function create() {
                 openGuideDialogue(this);
             } else if (target === 'market') {
                 openMarket(this);
+            } else if (isBaitSlotAt(pointer.x, pointer.y)) {
+                cycleBait(this);
             } else {
                 fishingActionHeld = true;
                 beginCast(this.time.now);
@@ -805,6 +845,11 @@ function create() {
 
         if (key === 'm') {
             openMap(this);
+            return;
+        }
+
+        if (key === 'b') {
+            cycleBait(this);
             return;
         }
 
@@ -937,6 +982,22 @@ function loadProgress(scene) {
         if (Number.isSafeInteger(tileId)) discoveredChunks.add(tileId);
     }
 
+    for (const [id, count] of Array.isArray(saved.bait) ? saved.bait : []) {
+        if (MARKET_BAITS_BY_ID.has(id) && Number.isInteger(count) && count > 0) baitInventory.set(id, count);
+    }
+
+    activeBaitId = baitInventory.has(saved.activeBait) ? saved.activeBait : null;
+
+    for (const chestId of Array.isArray(saved.chests) ? saved.chests : []) {
+        if (Number.isSafeInteger(chestId)) openedChests.add(chestId);
+    }
+
+    for (const chunk of loadedWaterChunks) {
+        if (chunk.chest && openedChests.has(chunk.chest.id)) eraseChestSilhouette(chunk);
+    }
+
+    refreshBaitSlot();
+
     refreshMarketOptions();
     mapDirty = true;
 }
@@ -952,6 +1013,9 @@ function saveProgress() {
             fish: [...fishInventory],
             catchLog: [...catchLog],
             explored: [...discoveredChunks],
+            bait: [...baitInventory],
+            activeBait: activeBaitId,
+            chests: [...openedChests],
             guideMet: guideHasMetPlayer
         }));
         saveDirty = false;
@@ -1244,6 +1308,7 @@ function update(time, delta) {
     updateCharacterShadow(this);
     updateParticles(time);
     updateFishing(this, time, delta, isWalking);
+    updateChestBubbles(this, time);
     updateBushRustle(this, time, isWalking);
 
     const guideReach = getGuideReach();

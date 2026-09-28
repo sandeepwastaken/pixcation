@@ -653,8 +653,12 @@ function createCatchCardUI(scene) {
 }
 
 function showCatchCard(scene, time, species) {
-    catchCardTitle.textContent = `You caught a ${species.name}!`;
-    catchCardDetail.textContent = `${species.price}c`;
+    showRewardCard(scene, time, `You caught a ${species.name}!`, `${species.price}c`);
+}
+
+function showRewardCard(scene, time, title, detail) {
+    catchCardTitle.textContent = title;
+    catchCardDetail.textContent = detail;
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 
@@ -827,10 +831,9 @@ function createMarketUI(scene) {
         .fillStyle(0x4a2216, 1)
         .fillRect(MARKET_LIST_X + 1, 1, MARKET_LIST_WIDTH - 2, MARKET_ROW_HEIGHT - 4);
 
-    marketRodImages = MARKET_RODS.map((rod, index) => {
+    marketItemImages = MARKET_RODS.map((rod, index) => {
         return scene.add.image(MARKET_LIST_X + 3, MARKET_LIST_Y + index * MARKET_ROW_HEIGHT + 2, rod.icon)
-            .setOrigin(0)
-            .setDisplaySize(16, 16);
+            .setOrigin(0);
     });
 
     marketDetailImage = scene.add.image(
@@ -838,8 +841,7 @@ function createMarketUI(scene) {
         MARKET_LIST_Y + 4,
         MARKET_RODS[0].texture
     )
-        .setOrigin(0)
-        .setDisplaySize(31, 32);
+        .setOrigin(0);
 
     const textLayer = document.createElement('div');
 
@@ -873,7 +875,11 @@ function createMarketUI(scene) {
         return text;
     };
 
-    createText(14, 5, '#acccf9').textContent = 'Rod Shop';
+    marketTabTexts = MARKET_PAGES.map((page, index) => {
+        const tab = createText(MARKET_TAB_X + index * MARKET_TAB_WIDTH, MARKET_TAB_Y, '#6f5b49');
+        tab.textContent = page.title;
+        return tab;
+    });
     marketMessageText = createText(160, 5, '#e8c170', 146, 'right');
 
     marketOptionTexts = [];
@@ -881,7 +887,7 @@ function createMarketUI(scene) {
 
     for (let index = 0; index < MARKET_ROW_COUNT; index++) {
         const rowY = MARKET_LIST_Y + index * MARKET_ROW_HEIGHT + 6;
-        const isAction = index >= MARKET_RODS.length;
+        const isAction = index >= MARKET_ITEM_ROWS;
 
         marketOptionTexts.push(createText(isAction ? MARKET_LIST_X + 6 : MARKET_LIST_X + 24, rowY, '#c0a887'));
 
@@ -905,7 +911,7 @@ function createMarketUI(scene) {
         gap: '12px'
     });
 
-    for (const [key, label] of [['W/S', 'Select'], ['Enter', 'Buy'], ['E', 'Close']]) {
+    for (const [key, label] of [['A/D', 'Tab'], ['W/S', 'Select'], ['Enter', 'Buy'], ['E', 'Close']]) {
         const hint = document.createElement('span');
         const keycap = document.createElement('span');
 
@@ -928,7 +934,7 @@ function createMarketUI(scene) {
         [
             panel,
             marketHighlight,
-            ...marketRodImages,
+            ...marketItemImages,
             marketDetailImage
         ]
     )
@@ -978,6 +984,119 @@ function addHotbarItem(scene, textureKey, name) {
     });
 }
 
+function createBaitSlotUI(scene) {
+    scene.textures.get('hotbar').add('slot', 0, 0, 0, HOTBAR_SLOT_SIZE, HOTBAR_SLOT_SIZE);
+    scene.add.image(BAIT_SLOT_X, HOTBAR_Y, 'hotbar', 'slot')
+        .setOrigin(0)
+        .setDepth(100)
+        .setScrollFactor(0);
+
+    baitSlotImage = scene.add.image(BAIT_SLOT_X + 13, HOTBAR_Y + 13, MARKET_BAITS[0].icon)
+        .setDepth(100.5)
+        .setScrollFactor(0)
+        .setVisible(false);
+
+    baitCountText = document.createElement('div');
+
+    Object.assign(baitCountText.style, {
+        width: `${HOTBAR_SLOT_SIZE - 4}px`,
+        fontFamily: 'm6x11, monospace',
+        fontSize: '11px',
+        lineHeight: '9px',
+        textAlign: 'right',
+        color: '#e0f2fd',
+        textShadow: '1px 0 #230a03, 0 1px #230a03',
+        pointerEvents: 'none',
+        whiteSpace: 'nowrap'
+    });
+
+    baitCountLayer = scene.add.dom(BAIT_SLOT_X + 1, HOTBAR_Y + 15, baitCountText)
+        .setOrigin(0)
+        .setDepth(100.6)
+        .setScrollFactor(0);
+
+    baitCountLayer.pointerEvents = 'none';
+}
+
+function refreshBaitSlot() {
+    if (!baitSlotImage) return;
+
+    const bait = getActiveBait();
+
+    baitSlotImage.setVisible(Boolean(bait));
+    baitCountText.textContent = bait ? baitInventory.get(bait.id) : '';
+
+    if (bait && baitSlotImage.texture.key !== bait.icon) {
+        const scene = baitSlotImage.scene;
+        const centerY = HOTBAR_Y + 13;
+
+        baitSlotImage.setTexture(bait.icon).setY(centerY + 2);
+        scene.tweens.killTweensOf(baitSlotImage);
+        scene.tweens.add({ targets: baitSlotImage, y: centerY, duration: 140, ease: 'Quad.Out', onUpdate: snapTweenTarget });
+    }
+}
+
+function getActiveBait() {
+    return baitInventory.get(activeBaitId) ? MARKET_BAITS_BY_ID.get(activeBaitId) : null;
+}
+
+function addBait(bait, amount, equip) {
+    baitInventory.set(bait.id, (baitInventory.get(bait.id) || 0) + amount);
+    if (equip || !getActiveBait()) activeBaitId = bait.id;
+    saveDirty = true;
+    refreshBaitSlot();
+}
+
+function useBait(bait) {
+    if (!bait || !baitInventory.get(bait.id)) return;
+
+    const left = baitInventory.get(bait.id) - 1;
+
+    if (left) {
+        baitInventory.set(bait.id, left);
+    } else {
+        baitInventory.delete(bait.id);
+        if (activeBaitId === bait.id) activeBaitId = MARKET_BAITS.find(other => baitInventory.has(other.id))?.id ?? null;
+    }
+
+    saveDirty = true;
+    refreshBaitSlot();
+}
+
+function cycleBait(scene) {
+    const owned = MARKET_BAITS.filter(bait => baitInventory.has(bait.id));
+
+    if (!owned.length) {
+        showItemLabel(scene, 'No bait - buy some at the shop');
+        return;
+    }
+
+    const current = owned.indexOf(getActiveBait());
+    const next = current + 1 < owned.length ? owned[current + 1] : null;
+
+    activeBaitId = next ? next.id : null;
+    saveDirty = true;
+    refreshBaitSlot();
+    showItemLabel(scene, next ? `${next.label} x${baitInventory.get(next.id)}` : 'No bait');
+}
+
+function isBaitSlotAt(x, y) {
+    return x >= BAIT_SLOT_X && x < BAIT_SLOT_X + HOTBAR_SLOT_SIZE && y >= HOTBAR_Y && y < HOTBAR_Y + HOTBAR_SLOT_SIZE;
+}
+
+function getMarketTabAt(x, y) {
+    const localY = y - DIALOGUE_VISIBLE_Y - MARKET_TAB_Y;
+    const tab = Math.floor((x - MARKET_TAB_X) / MARKET_TAB_WIDTH);
+
+    return localY >= -2 && localY < 12 && x >= MARKET_TAB_X && tab < MARKET_PAGES.length ? tab : -1;
+}
+
+function setMarketPage(page) {
+    marketPage = Phaser.Math.Wrap(page, 0, MARKET_PAGES.length);
+    marketFeedback = null;
+    refreshMarketOptions();
+}
+
 function getMarketRowAt(x, y) {
     const localY = y - DIALOGUE_VISIBLE_Y - MARKET_LIST_Y;
     const row = Math.floor(localY / MARKET_ROW_HEIGHT);
@@ -1010,16 +1129,20 @@ function getDialogueOptionAt(x, y) {
     return option;
 }
 
-function getMarketRodStatus(rod) {
-    if (ownedRods.has(rod.id)) {
+function isMarketItemOwned(item) {
+    return !item.bundle && ownedRods.has(item.id);
+}
+
+function getMarketItemStatus(item) {
+    if (isMarketItemOwned(item)) {
         return { text: 'Owned', color: '#8fbf7a' };
     }
 
-    if (playerCoins < rod.price) {
-        return { text: `Need ${rod.price - playerCoins}c more`, color: '#d9745b' };
+    if (playerCoins < item.price) {
+        return { text: `Need ${item.price - playerCoins}c more`, color: '#d9745b' };
     }
 
-    return { text: `${rod.price}c`, color: '#e8c170' };
+    return { text: item.bundle ? `${item.bundle} for ${item.price}c` : `${item.price}c`, color: '#e8c170' };
 }
 
 function getFishInventorySummary() {
@@ -1044,18 +1167,35 @@ function refreshMarketOptions() {
     marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`;
     marketHighlight.setY(MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT);
 
-    MARKET_RODS.forEach((rod, index) => {
-        const selected = index === selectedMarketOption;
-        const owned = ownedRods.has(rod.id);
-        const affordable = playerCoins >= rod.price;
-        const priceText = marketPriceTexts[index];
+    const items = MARKET_PAGES[marketPage].items;
 
-        marketOptionTexts[index].textContent = rod.label;
-        marketOptionTexts[index].style.color = selected ? '#e0f2fd' : owned ? '#7a6450' : '#c0a887';
-        priceText.textContent = owned ? 'Owned' : `${rod.price}c`;
-        priceText.style.color = owned ? '#8fbf7a' : affordable ? '#e8c170' : '#9a5a47';
-        if (owned) marketRodImages[index].setTint(OWNED_ROD_TINT); else marketRodImages[index].clearTint();
+    marketTabTexts.forEach((tab, index) => {
+        tab.style.color = index === marketPage ? '#acccf9' : '#6f5b49';
     });
+
+    for (let index = 0; index < MARKET_ITEM_ROWS; index++) {
+        const item = items[index];
+        const priceText = marketPriceTexts[index];
+        const image = marketItemImages[index];
+
+        if (!item) {
+            marketOptionTexts[index].textContent = '';
+            priceText.textContent = '';
+            image.setVisible(false);
+            continue;
+        }
+
+        const selected = index === selectedMarketOption;
+        const owned = isMarketItemOwned(item);
+        const affordable = playerCoins >= item.price;
+
+        marketOptionTexts[index].textContent = item.label;
+        marketOptionTexts[index].style.color = selected ? '#e0f2fd' : owned ? '#7a6450' : '#c0a887';
+        priceText.textContent = owned ? 'Owned' : `${item.price}c`;
+        priceText.style.color = owned ? '#8fbf7a' : affordable ? '#e8c170' : '#9a5a47';
+        image.setTexture(item.icon).setVisible(true);
+        if (owned) image.setTint(OWNED_ROD_TINT); else image.clearTint();
+    }
 
     const sellSummary = getFishInventorySummary();
     const sellText = marketOptionTexts[MARKET_SELL_INDEX];
@@ -1066,9 +1206,9 @@ function refreshMarketOptions() {
     exitText.textContent = 'Leave';
     exitText.style.color = MARKET_EXIT_INDEX === selectedMarketOption ? '#e0f2fd' : '#c0a887';
 
-    const rod = MARKET_RODS[selectedMarketOption];
+    const item = items[selectedMarketOption];
 
-    if (!rod) {
+    if (!item) {
         marketDetailImage.setVisible(false);
 
         if (selectedMarketOption === MARKET_SELL_INDEX) {
@@ -1081,30 +1221,36 @@ function refreshMarketOptions() {
                 ? marketFeedback.text
                 : sellSummary.count ? 'Enter - Sell all' : '';
             marketDetailAction.style.color = marketFeedback ? marketFeedback.color : '#acccf9';
-        } else {
+        } else if (selectedMarketOption === MARKET_EXIT_INDEX) {
             marketDetailName.textContent = 'Leave shop';
             marketDetailStatus.textContent = '';
             marketDetailAction.textContent = 'Enter - Leave';
             marketDetailAction.style.color = '#acccf9';
+        } else {
+            marketDetailName.textContent = '';
+            marketDetailStatus.textContent = '';
+            marketDetailAction.textContent = '';
         }
 
         return;
     }
 
-    const status = getMarketRodStatus(rod);
+    const status = getMarketItemStatus(item);
+    const owned = isMarketItemOwned(item);
+    const held = baitInventory.get(item.id);
 
     marketDetailImage
-        .setTexture(rod.texture)
+        .setTexture(item.texture)
         .setVisible(true)
-        .setTint(ownedRods.has(rod.id) ? OWNED_ROD_TINT : 0xffffff);
-    marketDetailName.textContent = rod.label;
-    marketDetailStatus.textContent = status.text;
+        .setTint(owned ? OWNED_ROD_TINT : 0xffffff);
+    marketDetailName.textContent = item.label;
+    marketDetailStatus.textContent = item.bundle && held ? `Have ${held} · ${status.text}` : status.text;
     marketDetailStatus.style.color = status.color;
 
     if (marketFeedback) {
         marketDetailAction.textContent = marketFeedback.text;
         marketDetailAction.style.color = marketFeedback.color;
-    } else if (ownedRods.has(rod.id) || playerCoins < rod.price) {
+    } else if (owned || playerCoins < item.price) {
         marketDetailAction.textContent = '';
     } else {
         marketDetailAction.textContent = 'Enter - Buy';
@@ -1145,19 +1291,25 @@ function buySelectedMarketItem(scene) {
         return;
     }
 
-    const rod = MARKET_RODS[selectedMarketOption];
+    const item = MARKET_PAGES[marketPage].items[selectedMarketOption];
 
-    if (ownedRods.has(rod.id) || playerCoins < rod.price) {
+    if (!item || isMarketItemOwned(item) || playerCoins < item.price) {
         return;
     }
 
-    playerCoins -= rod.price;
-    ownedRods.add(rod.id);
+    playerCoins -= item.price;
     saveDirty = true;
 
+    if (item.bundle) {
+        addBait(item, item.bundle, true);
+        marketFeedback = { text: `+${item.bundle} ${item.label}!`, color: '#8fbf7a' };
+    } else {
+        ownedRods.add(item.id);
+        addHotbarItem(scene, item.icon, item.label);
+        marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
+    }
+
     animateCoinTotal(scene);
-    addHotbarItem(scene, rod.icon, rod.label);
-    marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
 
     refreshMarketOptions();
 }
@@ -1188,6 +1340,7 @@ function openMarket(scene) {
 
     marketOpen = true;
     selectedMarketOption = 0;
+    marketPage = 0;
     marketFeedback = null;
     coinDisplay.value = playerCoins;
     stopCharacterForMenu();
@@ -1213,6 +1366,11 @@ function handleMarketKey(scene, event) {
 
     if (step) {
         moveMarketSelection(step);
+        return;
+    }
+
+    if (key === 'a' || key === 'd' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        setMarketPage(marketPage + (key === 'a' || event.key === 'ArrowLeft' ? -1 : 1));
         return;
     }
 

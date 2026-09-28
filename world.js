@@ -1439,6 +1439,8 @@ function buildChunkWater(scene, chunk) {
         }
     }
 
+    bakeChestSilhouette(chunk, data);
+
     for (let cell = 0; cell < edgeCells.length; cell += 3) {
         let index = ((edgeCells[cell + 1] - pixelY) * CHUNK_PIXEL_SIZE + edgeCells[cell] - pixelX) * 4 + 2;
 

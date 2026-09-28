@@ -8,6 +8,9 @@ const castDirections = {
     back: [0, -1],
     front: [0, 1]
 };
+const waterFishingStates = new Set([
+    'floating', 'landing', 'approaching', 'inspecting', 'nibbleWait', 'nibbleDip', 'bite', 'hooked', 'minigame', 'snagged'
+]);
 const rodHandPosition = new Int32Array(2);
 const rodTipPosition = new Int32Array(2);
 const hookedBobberPosition = new Int32Array(2);
@@ -51,17 +54,7 @@ function getRodTip(time) {
 
         rodTipPosition[0] += Math.round(directionX * reach + (directionY === 0 ? 0 : lift));
         rodTipPosition[1] += Math.round(directionY * reach - (directionY === 0 ? lift : 0));
-    } else if (
-        fishing.state === 'floating' ||
-        fishing.state === 'landing' ||
-        fishing.state === 'approaching' ||
-        fishing.state === 'inspecting' ||
-        fishing.state === 'nibbleWait' ||
-        fishing.state === 'nibbleDip' ||
-        fishing.state === 'bite' ||
-        fishing.state === 'hooked' ||
-        fishing.state === 'minigame'
-    ) {
+    } else if (waterFishingStates.has(fishing.state)) {
         const wobble = Math.sin((time - fishing.start) / 95 + fishing.driftPhase);
 
         rodTipPosition[0] += directionY === 0 ? 0 : Math.round(wobble);
@@ -79,7 +72,14 @@ function isWaterPixel(scene, x, y) {
     return getTerrainSurface(scene, tile).water[(y - tileY * TILE_SIZE) * TILE_SIZE + x - tileX * TILE_SIZE] === 1;
 }
 
+function getBaitLure() {
+    return fishing?.bait ? fishing.bait.lure : 1;
+}
+
 function findFishForBobber() {
+    const lure = getBaitLure();
+    const noticeMaxDistanceSquared = FISH_NOTICE_MAX_DISTANCE_SQUARED * lure * lure;
+    const noticeDot = FISH_NOTICE_DOT - (lure - 1) * 0.8;
     let nearestFish = null;
     let nearestChunk = null;
     let nearestDistanceSquared = Infinity;
@@ -92,11 +92,11 @@ function findFishForBobber() {
             const dy = fishing.bobberY - fish.y;
             const distanceSquared = dx * dx + dy * dy;
 
-            if (distanceSquared < FISH_NOTICE_MIN_DISTANCE_SQUARED || distanceSquared > FISH_NOTICE_MAX_DISTANCE_SQUARED) continue;
+            if (distanceSquared < FISH_NOTICE_MIN_DISTANCE_SQUARED || distanceSquared > noticeMaxDistanceSquared) continue;
 
             const facing = (Math.cos(fish.heading) * dx + Math.sin(fish.heading) * dy) / Math.sqrt(distanceSquared);
 
-            if (facing < FISH_NOTICE_DOT || !isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)) {
+            if (facing < noticeDot || !isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)) {
                 continue;
             }
 
@@ -144,12 +144,18 @@ function hookFish(time) {
     fishing.state = 'hooked';
     fishing.start = time;
     fishing.bobberY = fishing.toY + 2;
+    useBait(fishing.bait);
     return true;
 }
 
 function beginCast(time) {
     if (fishing) {
         if (fishing.state === 'minigame' || fishing.state === 'hooked') {
+            return;
+        }
+
+        if (fishing.state === 'snagged') {
+            haulChest(time);
             return;
         }
 
@@ -205,6 +211,7 @@ function releaseCast(time) {
         releaseAt: time + CAST_SWING_DURATION + CAST_HANG_TIME,
         power,
         rod,
+        bait: getActiveBait(),
         duration: CAST_DURATION * (0.6 + power * 0.6),
         arc: CAST_ARC * (0.5 + power * 0.7),
         fromX: tipX,
@@ -321,7 +328,7 @@ function startFishBite(scene, time) {
 function startFishingMinigame(time) {
     const fish = fishing.targetFish;
     const difficulty = FISH_SIZE_CLASSES[fish.size].difficulty;
-    const zoneHeight = fishing.rod.catchZone;
+    const zoneHeight = fishing.rod.catchZone + (fishing.bait ? fishing.bait.zoneBonus : 0);
     const zoneY = FISHING_GAME_PLAY_HEIGHT - zoneHeight;
     const initialFishY = zoneY + zoneHeight / 2;
 
@@ -708,26 +715,24 @@ function updateFishing(scene, time, delta, isWalking) {
         fishing.bobberY = fishing.toY - Math.round(Math.sin(amount * Math.PI) * 2 * (1 - amount));
 
         if (amount >= 1) {
+            const chestChunk = findChestAt(fishing.toX, fishing.toY);
+
             fishing.state = 'floating';
             fishing.start = time;
-            startFishApproach(time);
+
+            if (chestChunk) {
+                snagChest(scene, time, chestChunk);
+            } else {
+                startFishApproach(time);
+            }
         }
-    } else if (
-        fishing.state === 'floating' ||
-        fishing.state === 'approaching' ||
-        fishing.state === 'inspecting' ||
-        fishing.state === 'nibbleWait' ||
-        fishing.state === 'nibbleDip' ||
-        fishing.state === 'bite' ||
-        fishing.state === 'hooked' ||
-        fishing.state === 'minigame'
-    ) {
+    } else if (waterFishingStates.has(fishing.state)) {
         const stateAge = time - fishing.start;
         const driftX = Math.round(Math.sin(age / 1300 + fishing.driftPhase));
         const driftY = Math.round(Math.sin(age / 1700 + fishing.driftPhase * 0.7));
         const candidateX = fishing.toX + driftX;
         const candidateY = fishing.toY + driftY;
-        const canDrift = fishing.state !== 'bite' && fishing.state !== 'hooked';
+        const canDrift = fishing.state !== 'bite' && fishing.state !== 'hooked' && fishing.state !== 'snagged';
         const baseX = canDrift && isWaterPixel(scene, candidateX, candidateY) ? candidateX : fishing.toX;
         const baseY = canDrift && isWaterPixel(scene, candidateX, candidateY) ? candidateY : fishing.toY;
 
@@ -747,11 +752,11 @@ function updateFishing(scene, time, delta, isWalking) {
             } else if (Math.hypot(fish.x - fishing.bobberX, fish.y - fishing.bobberY) <= fish.radius + 4) {
                 fishing.state = 'inspecting';
                 fishing.start = time;
-                fishing.inspectDuration = FISH_INSPECT_MIN + Math.random() * FISH_INSPECT_RANGE;
+                fishing.inspectDuration = (FISH_INSPECT_MIN + Math.random() * FISH_INSPECT_RANGE) / getBaitLure();
                 fish.velocity = 0;
             }
         } else if (fishing.state === 'inspecting' && stateAge >= fishing.inspectDuration) {
-            fishing.nibblesRemaining = Math.floor(Math.random() * 5);
+            fishing.nibblesRemaining = Math.floor(Math.random() * 5 / getBaitLure());
             fishing.state = 'nibbleWait';
             fishing.start = time;
             fishing.nextNibbleAt = time + 300 + Math.random() * 420;
@@ -779,10 +784,10 @@ function updateFishing(scene, time, delta, isWalking) {
                 fishing.start = time;
                 fishing.nextNibbleAt = time + 260 + Math.random() * 380;
             }
-        } else if (fishing.state === 'bite') {
+        } else if (fishing.state === 'bite' || fishing.state === 'snagged') {
             fishing.bobberY = fishing.toY + 3;
 
-            if (time > fishing.biteDeadline) {
+            if (fishing.state === 'bite' && time > fishing.biteDeadline) {
                 releaseTargetFish(true);
                 fishing.state = 'floating';
                 fishing.start = time;
@@ -817,12 +822,15 @@ function updateFishing(scene, time, delta, isWalking) {
             }
         }
     } else {
-        const amount = Math.min(1, age / REEL_DURATION);
+        const amount = Math.min(1, age / (fishing.hauling ? CHEST_REEL_DURATION : REEL_DURATION));
 
         fishing.bobberX = Math.round(fishing.fromX + (tipX - fishing.fromX) * amount);
         fishing.bobberY = Math.round(fishing.fromY + (tipY - fishing.fromY) * amount);
 
+        if (fishing.hauling) drawHauledChest(amount);
+
         if (amount >= 1) {
+            if (fishing.hauling) openHauledChest(scene, time, tipX, tipY);
             fishing = null;
             drawFishingMinigame();
             return;
@@ -855,7 +863,7 @@ function updateFishing(scene, time, delta, isWalking) {
         fishing.bobberX,
         fishing.bobberY - 2,
         delta,
-        fishing.state === 'reeling' || fishing.state === 'bite' || fishing.state === 'hooked' || fishing.state === 'minigame'
+        fishing.state === 'reeling' || fishing.state === 'bite' || fishing.state === 'hooked' || fishing.state === 'minigame' || fishing.state === 'snagged'
             ? 1
             : fishing.state === 'flying' ? 0.7 : 0
     );

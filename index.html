@@ -39,7 +39,7 @@
     <div id="game-container"></div>
 
     <script>
-        const supportScripts = ['game-data.js', 'water-pipeline.js', 'art.js', 'world.js', 'environment.js', 'fish.js', 'fishing.js', 'ui.js'];
+        const supportScripts = ['game-data.js', 'water-pipeline.js', 'art.js', 'world.js', 'environment.js', 'fish.js', 'fishing.js', 'treasure.js', 'ui.js'];
         if (new URLSearchParams(window.location.search).has('test')) supportScripts.push('automated-tests.js');
         const loadGameScript = source => new Promise((resolve, reject) => {
             const script = document.createElement('script');
