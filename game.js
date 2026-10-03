@@ -4648,8 +4648,11 @@ function createStartup(scene) {
     createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px #230a03' }).textContent = 'Enter / Space / Click to begin';
     const textLayer = addHudLayer(scene, text, 0, 801).setVisible(true);
     const texture = scene.textures.createCanvas('startup-dither', 320, 192);
+    const pattern = document.createElement('canvas');
+    pattern.width = 4;
+    pattern.height = 4;
     const fade = scene.add.image(0, 0, texture.key).setOrigin(0).setScrollFactor(0).setDepth(1000);
-    startup = { phase: 'title', start: scene.time.now, hud, logo, title, button, textLayer, texture, fade, level: -1, spawnX: character.x, spawnY: character.y };
+    startup = { phase: 'title', start: scene.time.now, hud, logo, title, button, textLayer, texture, pattern, fade, level: -1, spawnX: character.x, spawnY: character.y };
 }
 
 function beginStartup(time) {
@@ -4664,13 +4667,17 @@ function drawStartupDither(level) {
     startup.level = level;
     const ranks = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
     const context = startup.texture.getContext();
+    const patternContext = startup.pattern.getContext('2d');
+    patternContext.clearRect(0, 0, 4, 4);
     context.clearRect(0, 0, 320, 192);
-    context.fillStyle = '#000000';
-    for (let y = 0; y < 192; y++) {
-        for (let x = 0; x < 320; x++) {
-            if (ranks[(y % 4) * 4 + x % 4] < level) context.fillRect(x, y, 1, 1);
+    patternContext.fillStyle = '#000000';
+    for (let y = 0; y < 4; y++) {
+        for (let x = 0; x < 4; x++) {
+            if (ranks[y * 4 + x] < level) patternContext.fillRect(x, y, 1, 1);
         }
     }
+    context.fillStyle = context.createPattern(startup.pattern, 'repeat');
+    context.fillRect(0, 0, 320, 192);
     startup.texture.refresh();
 }
 
@@ -4678,10 +4685,13 @@ function updateStartup(scene, time, delta) {
     const age = time - startup.start;
     if (startup.phase === 'title') {
         const angle = age / 18000;
-        mainCamera.setScroll(Math.round(startup.spawnX + Math.cos(angle) * 100 - 160), Math.round(startup.spawnY + Math.sin(angle) * 72 - 96));
+        const scrollX = Math.round(startup.spawnX + Math.cos(angle) * 100 - 160);
+        const scrollY = Math.round(startup.spawnY + Math.sin(angle) * 72 - 96);
+        if (mainCamera.scrollX !== scrollX || mainCamera.scrollY !== scrollY) mainCamera.setScroll(scrollX, scrollY);
         const hover = Math.round(Math.sin(age / 1000) * 2);
-        startup.logo.y = 40 + hover;
-        startup.title.style.top = `${57 + hover}px`;
+        if (startup.logo.y !== 40 + hover) startup.logo.y = 40 + hover;
+        const titleTop = `${57 + hover}px`;
+        if (startup.title.style.top !== titleTop) startup.title.style.top = titleTop;
     } else if (startup.phase === 'closing') {
         drawStartupDither(Math.min(16, Math.floor(age / 45)));
         if (age >= 850) {
