@@ -167,7 +167,9 @@ function buildAtlas() {
         .map(file => ({ name: path.relative(MEDIA, file).replace(/\\/g, '/').replace(/\.png$/, ''), ...decodePng(file) }))
         .sort((a, b) => b.height - a.height || b.width - a.width || a.name.localeCompare(b.name));
     const area = images.reduce((total, image) => total + (image.width + PADDING) * (image.height + PADDING), 0);
-    const width = Math.min(MAX_WIDTH, Math.max(Math.ceil(Math.sqrt(area) * 1.15), ...images.map(image => image.width)));
+    const widest = images.reduce((maximum, image) => Math.max(maximum, image.width), 0);
+    // A shelf must fit its widest image, even beyond the preferred width limit.
+    const width = Math.max(widest, Math.min(MAX_WIDTH, Math.ceil(Math.sqrt(area) * 1.15)));
     let x = 0;
     let y = 0;
     let shelf = 0;

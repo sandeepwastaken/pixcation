@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const zlib = require('node:zlib');
+const vm = require('node:vm');
 const { decodePng, encodePng } = require('../build-atlas');
 
 const pixels = Buffer.from([
@@ -106,4 +107,36 @@ test('RGB color keys require all three channels to match and retain opaque neigh
     withScanlines(raw, file => assert.deepEqual(decodePng(file).rgba, Buffer.from(
         colors.flatMap(color => [...color, 255])
     )), { type: 2 });
+});
+
+test('atlas shelves preserve every pixel of images wider than the preferred width', t => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pixcation-wide-atlas-'));
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const media = path.join(directory, 'media');
+    fs.mkdirSync(media);
+    const images = [
+        { name: 'wide', width: 1100, height: 2 },
+        { name: 'small', width: 2, height: 3 }
+    ];
+    for (const image of images) {
+        image.rgba = Buffer.from(Array.from({ length: image.width * image.height }, (_, pixel) =>
+            [pixel & 255, pixel >> 8, 93, pixel % 3 ? 255 : 128]).flat());
+        fs.writeFileSync(path.join(media, `${image.name}.png`), encodePng(image.width, image.height, image.rgba));
+    }
+    const context = vm.createContext({ require, __dirname: directory, Buffer, console: { log() {} }, module: { exports: {} } });
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../build-atlas.js'), 'utf8'), context);
+    context.module.exports.buildAtlas();
+    const atlas = decodePng(path.join(media, 'atlas.png'));
+    const metadata = JSON.parse(fs.readFileSync(path.join(media, 'atlas.json'), 'utf8'));
+    assert.equal(atlas.width, 1100);
+    for (const image of images) {
+        const { x, y, w, h } = metadata.frames[image.name].frame;
+        assert.equal(w, image.width);
+        assert.equal(h, image.height);
+        assert.ok(x + w <= atlas.width && y + h <= atlas.height);
+        for (let row = 0; row < h; row++) {
+            const start = ((y + row) * atlas.width + x) * 4;
+            assert.deepEqual(atlas.rgba.subarray(start, start + w * 4), image.rgba.subarray(row * w * 4, (row + 1) * w * 4));
+        }
+    }
 });
