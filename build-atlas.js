@@ -78,11 +78,17 @@ function decodePng(file) {
     const pixels = Buffer.alloc(stride * height);
 
     for (let y = 0; y < height; y++) {
-        const filter = raw[y * (stride + 1)];
+        const sourceRow = y * (stride + 1) + 1;
+        const filter = raw[sourceRow - 1];
         const row = y * stride;
 
+        if (filter === 0) {
+            raw.copy(pixels, row, sourceRow, sourceRow + stride);
+            continue;
+        }
+
         for (let x = 0; x < stride; x++) {
-            const value = raw[y * (stride + 1) + 1 + x];
+            const value = raw[sourceRow + x];
             const left = x >= channels ? pixels[row + x - channels] : 0;
             const up = y ? pixels[row - stride + x] : 0;
             const corner = x >= channels && y ? pixels[row - stride + x - channels] : 0;
