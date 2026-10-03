@@ -23,12 +23,13 @@ function fixture(t, files) {
 
 test('bundling preserves multiline strings, comments, and dependency order', t => {
     const files = {
-        'first.js': 'const text = `first\n  indented\n\nlast`; // trailing comment',
-        'nested/second.js': 'globalThis.result = text;'
+        'first.js': 'function getText() {\n    return `first\n  indented\n\nlast`; // trailing comment\n}',
+        'nested/second.js': 'globalThis.result = getText();'
     };
     const options = fixture(t, files);
     const stats = buildBundle({ ...options, order: Object.keys(files) });
     const bundle = fs.readFileSync(options.output, 'utf8');
+    assert.equal(bundle, Object.values(files).join('\n') + '\n');
     const context = vm.createContext({});
     vm.runInContext(bundle, context);
     assert.equal(context.result, 'first\n  indented\n\nlast');
