@@ -60,6 +60,33 @@ test('right clicks do not cast or release a held left click', () => {
     assert.equal(run('releases'), 1);
 });
 
+test('outside mouse releases clear drags and release a held cast only once', () => {
+    const { input, run } = createInput();
+    input.emit('pointerdown', left);
+    run('mapDrag = { x: 10, y: 10 }');
+    input.emit('pointerupoutside', { ...left, button: 2 });
+    assert.equal(run('fishingActionHeld'), true);
+    assert.equal(run('mapDrag !== null'), true);
+    input.emit('pointerupoutside', left);
+    assert.equal(run('fishingActionHeld'), false);
+    assert.equal(run('castCharge'), null);
+    assert.equal(run('mapDrag'), null);
+    input.emit('pointerup', left);
+    assert.equal(run('releases'), 1);
+});
+
+test('outside mouse releases preserve a simultaneous keyboard hold', () => {
+    const { input, run } = createInput();
+    input.emit('pointerdown', left);
+    input.keyboard.emit('keydown', space);
+    input.emit('pointerupoutside', left);
+    assert.equal(run('fishingActionHeld'), true);
+    assert.equal(run('releases'), 0);
+    input.keyboard.emit('keyup', space);
+    assert.equal(run('fishingActionHeld'), false);
+    assert.equal(run('releases'), 1);
+});
+
 test('losing focus cancels a charge and drag without casting on return', () => {
     const { input, gameEvents, run } = createInput();
     input.keyboard.emit('keydown', space);

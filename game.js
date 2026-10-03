@@ -6421,11 +6421,13 @@ function bindGameInput(scene) {
         resetActions();
     });
 
-    scene.input.on('pointerup', pointer => {
+    const releasePointer = pointer => {
         if (pointer.button !== 0) return;
         mapDrag = null;
         releaseAction('pointer');
-    });
+    };
+    scene.input.on('pointerup', releasePointer);
+    scene.input.on('pointerupoutside', releasePointer);
 
     scene.input.keyboard.on('keyup', event => event.code === 'Space' && releaseAction('keyboard'));
 
