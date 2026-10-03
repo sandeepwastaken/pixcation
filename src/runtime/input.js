@@ -1,6 +1,10 @@
 function bindGameInput(scene) {
     const heldActions = new Set();
     scene.input.on('pointermove', pointer => {
+        if (startup) {
+            scene.input.setDefaultCursor(startup.phase === 'title' && pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144 ? 'pointer' : 'default');
+            return;
+        }
         if (marketOpen) {
             const row = getMarketRowAt(pointer.x, pointer.y);
 
@@ -64,6 +68,10 @@ function bindGameInput(scene) {
 
     scene.input.on('pointerdown', pointer => {
         if (pointer.button !== 0) return;
+        if (startup) {
+            if (pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144) beginStartup(scene.time.now);
+            return;
+        }
         if (inventoryOpen) {
             if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(scene);
         } else if (marketOpen) {
@@ -107,7 +115,7 @@ function bindGameInput(scene) {
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
         const step = Math.sign(deltaY);
 
-        if (!step || inventoryOpen) return;
+        if (!step || inventoryOpen || startup) return;
 
         if (isMenuOpen()) {
             if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
@@ -130,6 +138,10 @@ function bindGameInput(scene) {
 
     scene.input.keyboard.on('keydown', event => {
         if (event.repeat) return;
+        if (startup) {
+            if (event.code === 'Enter' || event.code === 'Space') beginStartup(scene.time.now);
+            return;
+        }
 
         const code = event.code;
         const key = event.key.toLowerCase();

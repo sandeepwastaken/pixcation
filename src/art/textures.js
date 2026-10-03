@@ -76,6 +76,11 @@ function createPropArt(scene) {
         createCanvasTexture(scene, variant.key, variant.width, variant.height, context => {
             context.putImageData(new ImageData(variant.data, variant.width, variant.height), 0, 0);
         });
+        for (const part of ['trunk', 'canopy']) {
+            createCanvasTexture(scene, `${variant.key}-${part}`, variant.width, variant.height, context => {
+                context.putImageData(new ImageData(variant[`${part}Data`], variant.width, variant.height), 0, 0);
+            });
+        }
         treeVariants.push(variant);
     }
 }

@@ -77,6 +77,7 @@ function create() {
         document.documentElement.dataset.testResults = JSON.stringify(window.PIXCATION_TEST_RESULTS);
     } else {
         loadProgress(this);
+        createStartup(this);
     }
 
     for (let index = 0; index < 20; index++) {
