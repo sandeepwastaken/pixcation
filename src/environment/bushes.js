@@ -1,6 +1,7 @@
-function getWindOffset(time, x, y, strength = 1) {
+const windRowCache = new Map();
+
+function getWindOffset(time, x, y, strength = 1, gust = 0.7 + 0.3 * Math.sin(time / 7100)) {
     const phase = x * 0.013 + y * 0.007;
-    const gust = 0.7 + 0.3 * Math.sin(time / 7100);
     return Math.round((Math.sin(time / 1700 + phase) + 0.35 * Math.sin(time / 530 + phase)) * gust * strength);
 }
 
@@ -8,14 +9,25 @@ function getWindRowOffset(offset, y, height) {
     return Math.round(offset * (height - 1 - y) / Math.max(1, height - 1));
 }
 
+function getWindRows(offset, height) {
+    let offsets = windRowCache.get(height);
+    if (!offsets) windRowCache.set(height, offsets = new Map());
+    const cached = offsets.get(offset);
+    if (cached) return cached;
+    const rows = Int8Array.from({ length: height }, (_, y) => getWindRowOffset(offset, y, height));
+    offsets.set(offset, rows);
+    return rows;
+}
+
 function getWindTexture(scene, key, offset) {
     const name = `${key}-wind-${offset}`;
     if (scene.textures.exists(name)) return name;
     const source = getTextureSource(scene, key);
+    const shifts = getWindRows(offset, source.height);
     createCanvasTexture(scene, name, source.width + 6, source.height, context => {
         context.imageSmoothingEnabled = false;
         for (let y = 0; y < source.height; y++) {
-            const shift = getWindRowOffset(offset, y, source.height);
+            const shift = shifts[y];
             context.drawImage(source, 0, y, source.width, 1, 3 + shift, y, source.width, 1);
         }
     });
@@ -23,6 +35,7 @@ function getWindTexture(scene, key, offset) {
 }
 
 function updateBushRustle(scene, time, isWalking) {
+    const gust = 0.7 + 0.3 * Math.sin(time / 7100);
     const left = character.x + CHARACTER_HITBOX_X;
     const top = character.y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH;
@@ -48,7 +61,7 @@ function updateBushRustle(scene, time, isWalking) {
                 ? BUSH_RUSTLE_PATTERN[Math.floor(age / BUSH_RUSTLE_STEP)]
                 : 0;
 
-            const offset = rustle + getWindOffset(time, bush.x, bush.y);
+            const offset = rustle + getWindOffset(time, bush.x, bush.y, 1, gust);
             if (offset === bush.offset) continue;
 
             bush.offset = offset;
@@ -66,7 +79,7 @@ function updateBushRustle(scene, time, isWalking) {
             const age = time - tree.rustleStart;
             const rustle = age < BUSH_RUSTLE_PATTERN.length * BUSH_RUSTLE_STEP
                 ? BUSH_RUSTLE_PATTERN[Math.floor(age / BUSH_RUSTLE_STEP)] : 0;
-            const offset = getWindOffset(time, tree.x, tree.baseY, 1.6) + rustle;
+            const offset = getWindOffset(time, tree.x, tree.baseY, 1.6, gust) + rustle;
             if (tree.offset === offset) continue;
             tree.offset = offset;
             tree.canopy.setTexture(getWindTexture(scene, tree.texture, offset));
@@ -97,9 +110,7 @@ function updateTreeShadows(scene, time) {
         const points = [];
         for (const tree of shadowTrees) {
             const x = tree.x;
-            const rows = tree.shadowRows ||= new Map();
-            if (!rows.has(tree.offset)) rows.set(tree.offset, Int8Array.from({ length: tree.shadowHeight }, (_, y) => getWindRowOffset(tree.offset, y, tree.shadowHeight)));
-            const shifts = rows.get(tree.offset);
+            const shifts = getWindRows(tree.offset, tree.shadowHeight);
             for (let point = 0; point < tree.shadow.length; point += 2) {
                 const shift = shifts[tree.shadow[point + 1] - tree.shadowTop];
                 const localX = x + tree.shadow[point] + shift - chunk.pixelX;
