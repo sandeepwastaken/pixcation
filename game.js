@@ -6493,9 +6493,11 @@ function bindGameInput(scene) {
                 refreshGuideDialogueOptions();
             }
         } else if (mapOpen && mapDrag && pointer.isDown) {
+            const beforeX = Math.round(mapPan.x);
+            const beforeY = Math.round(mapPan.y);
             mapPan.x = mapDrag.panX + Math.round((mapDrag.x - pointer.x) / mapZoom);
             mapPan.y = mapDrag.panY + Math.round((mapDrag.y - pointer.y) / mapZoom);
-            mapDirty = true;
+            mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
         }
 
         scene.input.setDefaultCursor(!isMenuOpen() && getClickedWorldTarget(pointer) ? 'pointer' : 'default');

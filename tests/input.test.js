@@ -8,6 +8,7 @@ const { EventEmitter } = require('node:events');
 function createInput() {
     const input = new EventEmitter();
     input.keyboard = new EventEmitter();
+    input.setDefaultCursor = () => {};
     const events = new EventEmitter();
     const gameEvents = new EventEmitter();
     const context = vm.createContext({
@@ -109,4 +110,31 @@ test('scene shutdown removes its game focus handler and clears held input', () =
     assert.equal(gameEvents.listenerCount('blur'), 0);
     assert.equal(run('fishingActionHeld'), false);
     assert.equal(run('castCharge'), null);
+});
+
+test('map drags redraw only after the displayed tile changes and keep fractional anchors', () => {
+    for (const zoom of [1, 2, 3]) {
+        const { input, run } = createInput();
+        run(`mapOpen = true; mapZoom = ${zoom}; mapPan.x = -0.25; mapPan.y = 0.25;
+            mapDrag = { x: 10, y: 10, panX: -0.25, panY: 0.25 }; mapDirty = false;`);
+        input.emit('pointermove', { x: 10 - 0.4 * zoom, y: 10 + 0.4 * zoom, isDown: true });
+        assert.equal(run('mapDirty'), false);
+        assert.equal(run('mapPan.x'), -0.25);
+        assert.equal(run('mapPan.y'), 0.25);
+        input.emit('pointermove', { x: 10 - 0.6 * zoom, y: 10 + 0.6 * zoom, isDown: true });
+        assert.equal(run('mapDirty'), true);
+        assert.equal(run('mapPan.x'), 0.75);
+        assert.equal(run('mapPan.y'), -0.75);
+        run('mapDirty = false');
+        input.emit('pointermove', { x: 10 - 0.7 * zoom, y: 10 + 0.7 * zoom, isDown: true });
+        assert.equal(run('mapDirty'), false);
+        run('mapDirty = true');
+        input.emit('pointermove', { x: 10 - 0.7 * zoom, y: 10 + 0.7 * zoom, isDown: true });
+        assert.equal(run('mapDirty'), true);
+        run('mapDirty = false');
+        input.emit('pointermove', { x: 0, y: 0, isDown: false });
+        assert.equal(run('mapDirty'), false);
+        assert.equal(run('mapPan.x'), 0.75);
+        assert.equal(run('mapPan.y'), -0.75);
+    }
 });
