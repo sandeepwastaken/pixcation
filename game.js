@@ -3275,6 +3275,7 @@ function setFishIdle(fish, timer) {
 }
 
 function moveFishForward(chunk, fish, seconds) {
+    if (fish.velocity === 0 || seconds === 0) return canFishSwim(chunk, fish, fish.x, fish.y);
     const nextX = fish.x + Math.cos(fish.heading) * fish.velocity * seconds;
     const nextY = fish.y + Math.sin(fish.heading) * fish.velocity * seconds;
 
@@ -3306,8 +3307,13 @@ function animateFishTail(fish, seconds, beat, sweep, response) {
 
 function scatterFishFromSplash(x, y) {
     const radius = 12;
+    const radiusSquared = radius * radius;
 
     for (const chunk of loadedWaterChunks) {
+        if (!chunk.fish.length) continue;
+        const distanceX = Math.max(chunk.pixelX - x, 0, x - chunk.pixelX - CHUNK_PIXEL_SIZE);
+        const distanceY = Math.max(chunk.pixelY - y, 0, y - chunk.pixelY - CHUNK_PIXEL_SIZE);
+        if (distanceX * distanceX + distanceY * distanceY > radiusSquared) continue;
         for (const fish of chunk.fish) {
             if (fishing && fishing.targetFish === fish) continue;
 
@@ -3315,7 +3321,7 @@ function scatterFishFromSplash(x, y) {
             const awayY = fish.y - y;
 
             if (
-                awayX * awayX + awayY * awayY > radius * radius ||
+                awayX * awayX + awayY * awayY > radiusSquared ||
                 !chooseFishTarget(chunk, fish, awayX, awayY)
             ) {
                 continue;
@@ -3494,7 +3500,7 @@ function updateSwimmingFish(chunk, fish, seconds, delta) {
             (0.4 + Math.min(1, fish.velocity / FISH_SWIM_SPEED) * 0.6);
         const turn = turnFishToward(fish, Math.atan2(dy, dx), maxTurn);
 
-        if (fish.thrusting && Math.cos(turn) > 0) {
+        if (fish.thrusting && Math.abs(turn) <= Math.PI / 2) {
             const acceleration = fish.state === 'flee' ? FISH_FLEE_ACCELERATION : FISH_ACCELERATION;
             fish.velocity = Math.min(fish.topSpeed, fish.velocity + acceleration * seconds);
         }
