@@ -2207,7 +2207,11 @@ function canHoldProp(type, tileX, tileY) {
 }
 
 function getPropCandidate(tileX, tileY) {
-    if (Math.abs(tileX) <= PROP_SPAWN_CLEARANCE && Math.abs(tileY) <= PROP_SPAWN_CLEARANCE) return null;
+    return PROP_CODES[propCandidateTiles(tileX, tileY, generatePropCandidateCode)];
+}
+
+function generatePropCandidateCode(tileX, tileY) {
+    if (Math.abs(tileX) <= PROP_SPAWN_CLEARANCE && Math.abs(tileY) <= PROP_SPAWN_CLEARANCE) return 1;
 
     const score = worldHash(tileX, tileY, 760);
     let type = null;
@@ -2221,7 +2225,7 @@ function getPropCandidate(tileX, tileY) {
         type = 'tree';
     }
 
-    return type && canHoldProp(type, tileX, tileY) ? type : null;
+    return type && canHoldProp(type, tileX, tileY) ? PROP_CODES.indexOf(type) : 1;
 }
 
 function isUnderCanopy(treeX, treeY, otherX, otherY, otherWidth) {
@@ -2241,6 +2245,7 @@ function propsConflict(typeA, ax, ay, typeB, bx, by) {
 }
 
 const PROP_CODES = [undefined, null, 'bush', 'rock', 'boulder', 'tree'];
+const propCandidateTiles = createTileCache(() => new Uint8Array(CHUNK_SIZE * CHUNK_SIZE));
 const propTiles = createTileCache(() => new Uint8Array(CHUNK_SIZE * CHUNK_SIZE));
 const propSprites = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
 
