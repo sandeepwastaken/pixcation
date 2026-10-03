@@ -4860,23 +4860,23 @@ function refreshInventoryUI(time) {
     if (!inventorySummaryText) return;
 
     const summary = getFishInventorySummary();
-    inventorySummaryText.textContent = `${catchLog.size}/${FISH_SPECIES.length} caught · ${summary.count} fish · ${summary.value}c`;
+    setUITextContent(inventorySummaryText, `${catchLog.size}/${FISH_SPECIES.length} caught · ${summary.count} fish · ${summary.value}c`);
     inventorySummaryText.style.color = summary.count ? '#e8c170' : '#8c7358';
 
     FISH_SPECIES.forEach((species, index) => {
         const caught = catchLog.has(species.id);
         const count = fishInventory.get(species.id) || 0;
 
-        inventoryRowTexts[index].textContent = caught ? species.name : '???';
+        setUITextContent(inventoryRowTexts[index], caught ? species.name : '???');
         inventoryRowTexts[index].style.color = caught ? '#e0f2fd' : '#6f5b49';
-        inventoryCountTexts[index].textContent = caught ? `x${count} ${species.price}c` : '—';
+        setUITextContent(inventoryCountTexts[index], caught ? `x${count} ${species.price}c` : '—');
         inventoryCountTexts[index].style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
     });
 
     const confirming = time < newGameConfirmUntil;
 
     if (confirming) {
-        inventoryNewGameText.textContent = 'Press N again to erase all progress';
+        setUITextContent(inventoryNewGameText, 'Press N again to erase all progress');
     } else if (inventoryNewGameText.firstChild !== inventoryFooterHints) {
         inventoryNewGameText.replaceChildren(inventoryFooterHints);
     }
