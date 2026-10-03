@@ -5262,10 +5262,15 @@ function getSavedList(value) {
 return Array.isArray(value) ? value : [];
 }
 function getSavedSpeciesId(id) {
-return LEGACY_SPECIES_IDS[id] || id;
+return typeof id === 'string' ? LEGACY_SPECIES_IDS[id] || id : null;
+}
+function getSavedInventory(value) {
+return getSavedList(value).filter(entry => Array.isArray(entry) && entry.length === 2 &&
+typeof entry[0] === 'string' && Number.isSafeInteger(entry[1]) && entry[1] > 0);
 }
 function restoreSavedRods(scene, rods) {
 for (const savedId of getSavedList(rods)) {
+if (typeof savedId !== 'string') continue;
 const id = LEGACY_ROD_IDS[savedId] || savedId;
 const rod = MARKET_RODS_BY_ID.get(id);
 if (rod && !ownedRods.has(id)) {
@@ -5275,11 +5280,10 @@ addHotbarItem(scene, rod.icon, rod.label);
 }
 }
 function restoreSavedFish(fish) {
-for (const [savedId, count] of getSavedList(fish)) {
+for (const [savedId, count] of getSavedInventory(fish)) {
 const id = getSavedSpeciesId(savedId);
-if (FISH_SPECIES_BY_ID.has(id) && Number.isInteger(count) && count > 0) {
-fishInventory.set(id, (fishInventory.get(id) || 0) + count);
-}
+const total = (fishInventory.get(id) || 0) + count;
+if (FISH_SPECIES_BY_ID.has(id) && Number.isSafeInteger(total)) fishInventory.set(id, total);
 }
 }
 function restoreSavedCatchLog(ids) {
@@ -5294,8 +5298,8 @@ if (Number.isSafeInteger(id)) target.add(id);
 }
 }
 function restoreSavedBait(bait) {
-for (const [id, count] of getSavedList(bait)) {
-if (MARKET_BAITS_BY_ID.has(id) && Number.isInteger(count) && count > 0) baitInventory.set(id, count);
+for (const [id, count] of getSavedInventory(bait)) {
+if (MARKET_BAITS_BY_ID.has(id)) baitInventory.set(id, count);
 }
 }
 function loadProgress(scene) {
@@ -5306,7 +5310,7 @@ saved = JSON.parse(localStorage.getItem(SAVE_KEY));
 return;
 }
 if (!saved || saved.version !== 1) return;
-if (Number.isFinite(saved.coins) && saved.coins >= 0) {
+if (typeof saved.coins === 'number' && saved.coins >= 0 && Number.isSafeInteger(Math.floor(saved.coins))) {
 playerCoins = Math.floor(saved.coins);
 coinDisplay.value = playerCoins;
 }

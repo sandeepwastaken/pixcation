@@ -143,3 +143,38 @@ test('opening saved chests removes only their loaded silhouettes', () => {
     assert.deepEqual(session.erased, [17]);
     assert.equal(session.run('mapDirty'), true);
 });
+
+
+test('malformed inventory rows do not prevent valid progress from loading', () => {
+    const session = createSession({
+        version: 1, coins: 250, rods: [null, {}, 'basic'],
+        fish: [null, 7, {}, 'bluegill', [], ['bluegill'], ['bluegill', 2, 3], [{ toString: null }, 5], ['roach', 3]],
+        catchLog: [null, { toString: null }, 'roach'],
+        bait: [null, false, {}, 'trainer', ['trainer'], ['trainer', 2, 3], ['novice', 4]],
+        activeBait: 'novice', explored: [7], chests: [8], guideMet: true
+    });
+    assert.doesNotThrow(session.load);
+    const saved = persisted(session);
+    assert.equal(saved.coins, 250);
+    assert.deepEqual(saved.rods, ['basic']);
+    assert.deepEqual(saved.fish, [['roach', 3]]);
+    assert.deepEqual(saved.catchLog, ['roach']);
+    assert.deepEqual(saved.bait, [['novice', 4]]);
+    assert.equal(saved.activeBait, 'novice');
+    assert.deepEqual(saved.explored, [7]);
+    assert.deepEqual(saved.chests, [8]);
+    assert.equal(saved.guideMet, true);
+});
+
+test('unsafe saved amounts cannot overflow inventory counts or coins', () => {
+    const session = createSession({
+        version: 1, coins: Number.MAX_SAFE_INTEGER + 1,
+        fish: [['roach', Number.MAX_SAFE_INTEGER], ['roach', 1], ['bluegill', Number.MAX_SAFE_INTEGER + 1]],
+        bait: [['novice', Number.MAX_SAFE_INTEGER + 1], ['trainer', 4]]
+    });
+    session.load();
+    const saved = persisted(session);
+    assert.equal(saved.coins, 100);
+    assert.deepEqual(saved.fish, [['roach', Number.MAX_SAFE_INTEGER]]);
+    assert.deepEqual(saved.bait, [['trainer', 4]]);
+});
