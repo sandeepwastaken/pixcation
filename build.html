@@ -190,22 +190,23 @@
                     cell.appendChild(image);
                     mapElement.appendChild(cell);
 
-                    cell.addEventListener('mousedown', () => {
+                    cell.addEventListener('mousedown', event => {
+                        if (event.button !== 0) return;
                         isPainting = true;
                         paintCell(cell);
                     });
 
-                    cell.addEventListener('mouseenter', () => {
+                    cell.addEventListener('mouseenter', event => {
+                        if (!(event.buttons & 1)) {
+                            isPainting = false;
+                            return;
+                        }
                         if (isPainting) {
                             paintCell(cell);
                         }
                     });
                 }
             }
-
-            document.addEventListener('mouseup', () => {
-                isPainting = false;
-            });
 
             renderMap();
         }
@@ -214,6 +215,7 @@
             const x = Number(cell.dataset.x);
             const y = Number(cell.dataset.y);
 
+            if (mapData[y][x] === selectedTile) return;
             mapData[y][x] = selectedTile;
             cell.querySelector('img').src = withCacheBuster(`media/environment/terrain/${selectedTile}.png`);
         }
@@ -301,6 +303,10 @@
 
         exportButton.addEventListener('click', exportMap);
         importInput.addEventListener('change', importMap);
+        document.addEventListener('mouseup', event => {
+            if (event.button === 0) isPainting = false;
+        });
+        window.addEventListener('blur', () => { isPainting = false; });
 
         createPalette();
         createMap();
