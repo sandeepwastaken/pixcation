@@ -4,18 +4,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function createWindow() {
+function createWindow(fontLoad) {
     const listeners = new Map();
     const frames = [];
     let start;
     let zoomWrites = 0;
+    let starts = 0;
     const window = {
         APP_CACHE_BUSTER: 'test', location: { search: '' }, devicePixelRatio: 1,
         addEventListener(name, callback) { listeners.set(name, callback); }
     };
     const document = {
         documentElement: { clientWidth: 1280, clientHeight: 768 },
-        fonts: { load() { return { finally(callback) { start = callback; } }; } }
+        fonts: { load() { return fontLoad || { then(callback) { start = callback; } }; } }
     };
     const context = vm.createContext({
         window, document, URLSearchParams,
@@ -23,6 +24,7 @@ function createWindow() {
         saveProgress() {}, preload() {}, create() {}, update() {},
         Phaser: { AUTO: 0, Scale: { NONE: 0, NO_CENTER: 0 }, Game: class {
             constructor(config) {
+                starts++;
                 this.scale = { zoom: config.scale.zoom, setZoom(zoom) { zoomWrites++; this.zoom = zoom; } };
             }
         } }
@@ -39,6 +41,7 @@ function createWindow() {
         flush: () => frames.splice(0).forEach(callback => callback()),
         queued: () => frames.length,
         writes: () => zoomWrites,
+        starts: () => starts,
         zoom: () => vm.runInContext('game.scale.zoom', context)
     };
 }
@@ -49,6 +52,16 @@ test('startup uses a viewport resized while fonts were loading', () => {
     screen.flush();
     screen.start();
     assert.equal(screen.zoom(), 1);
+});
+
+test('font loading success and failure start one game with the current zoom', async () => {
+    for (const load of [() => Promise.resolve([]), () => Promise.reject(new Error('Font unavailable'))]) {
+        const screen = createWindow(load());
+        screen.resize(640, 384);
+        await new Promise(resolve => setImmediate(resolve));
+        assert.equal(screen.starts(), 1);
+        assert.equal(screen.zoom(), 2);
+    }
 });
 
 test('resize bursts coalesce and unchanged pixel zoom avoids scale writes', () => {

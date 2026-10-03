@@ -5943,10 +5943,12 @@ const config = {
 
 let game;
 
-document.fonts.load('16px m6x11').finally(() => {
+function startGame() {
     config.scale.zoom = getPixelPerfectZoom();
     game = new Phaser.Game(config);
-});
+}
+
+document.fonts.load('16px m6x11').then(startGame, startGame);
 
 const TILE_SIZE = 16;
 const DIRT_CLIFF_TILES = [
