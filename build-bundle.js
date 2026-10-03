@@ -35,7 +35,14 @@ function buildBundle({ source = SOURCE, output = OUTPUT, order = ORDER } = {}) {
 
     // Check the shared script scope before replacing the playable bundle.
     new vm.Script(bundle, { filename: output });
-    fs.writeFileSync(output, bundle);
+    const temporaryDirectory = fs.mkdtempSync(path.join(path.dirname(output), '.pixcation-bundle-'));
+    try {
+        const temporaryOutput = path.join(temporaryDirectory, 'game.js');
+        fs.writeFileSync(temporaryOutput, bundle);
+        fs.renameSync(temporaryOutput, output);
+    } finally {
+        fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+    }
     return { scripts: order.length, bytes: Buffer.byteLength(bundle) };
 }
 

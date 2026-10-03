@@ -35,6 +35,7 @@ test('bundling preserves multiline strings, comments, and dependency order', t =
     assert.equal(context.result, 'first\n  indented\n\nlast');
     assert.equal(stats.scripts, 2);
     assert.equal(stats.bytes, Buffer.byteLength(bundle));
+    assert.deepEqual(fs.readdirSync(path.dirname(options.output)).sort(), ['game.js', 'src']);
 });
 
 test('invalid manifests leave the previous bundle intact', t => {
@@ -52,4 +53,24 @@ test('invalid syntax and duplicate shared declarations leave the previous bundle
     fs.writeFileSync(path.join(options.source, 'second.js'), 'function broken( {');
     assert.throws(() => buildBundle({ ...options, order }), SyntaxError);
     assert.equal(fs.readFileSync(options.output, 'utf8'), 'previous bundle');
+});
+
+test('an incomplete filesystem write preserves the previous bundle and removes staging files', t => {
+    const options = fixture(t, { 'first.js': 'const first = 1;' });
+    const write = fs.writeFileSync;
+    t.mock.method(fs, 'writeFileSync', file => {
+        write(file, 'partial bundle');
+        throw new Error('Write failed');
+    });
+    assert.throws(() => buildBundle({ ...options, order: ['first.js'] }), /Write failed/);
+    assert.equal(fs.readFileSync(options.output, 'utf8'), 'previous bundle');
+    assert.deepEqual(fs.readdirSync(path.dirname(options.output)).sort(), ['game.js', 'src']);
+});
+
+test('a failed replacement preserves the previous bundle and removes staging files', t => {
+    const options = fixture(t, { 'first.js': 'const first = 1;' });
+    t.mock.method(fs, 'renameSync', () => { throw new Error('Rename failed'); });
+    assert.throws(() => buildBundle({ ...options, order: ['first.js'] }), /Rename failed/);
+    assert.equal(fs.readFileSync(options.output, 'utf8'), 'previous bundle');
+    assert.deepEqual(fs.readdirSync(path.dirname(options.output)).sort(), ['game.js', 'src']);
 });
