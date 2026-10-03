@@ -91,7 +91,7 @@
     <div class="layout">
         <div>
             <h2>Tiles</h2>
-            <div id="palette"></div>
+            <div id="palette" class="palette"></div>
             <input id="import-input" type="file" accept=".json,application/json">
             <button id="export-button">Export map.json</button>
         </div>
@@ -164,7 +164,7 @@
         }
 
         function updateSelectedTile() {
-            document.querySelectorAll('.tile-button').forEach((button) => {
+            paletteElement.querySelectorAll('.tile-button').forEach((button) => {
                 button.classList.toggle(
                     'selected',
                     button.dataset.tileKey === selectedTile
@@ -221,7 +221,7 @@
         }
 
         function renderMap() {
-            document.querySelectorAll('.map-cell').forEach((cell) => {
+            mapElement.querySelectorAll('.map-cell').forEach((cell) => {
                 const x = Number(cell.dataset.x);
                 const y = Number(cell.dataset.y);
                 const tileKey = mapData[y][x];
