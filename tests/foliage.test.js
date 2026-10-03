@@ -4,9 +4,12 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 test('wind stays on the pixel grid and rustling keeps tree trunks anchored', () => {
+    let sineCalls = 0;
+    const math = Object.create(Math);
+    math.sin = angle => { sineCalls++; return Math.sin(angle); };
     const tree = { x: -40, y: -64, baseY: 0, width: 64, canopy: { x: -40, setTexture(key) { this.key = key; } }, rustleStart: -Infinity, touching: false };
     const bush = { x: -16, y: 0, slices: [{ x: -16, setTexture() {} }], rustleStart: -Infinity, touching: false, offset: 0 };
-    const context = vm.createContext({ character: { x: -16, y: -16 }, loadedChunks: new Map([['0', { trees: [tree], bushes: [bush] }]]), dropLeaves() {} });
+    const context = vm.createContext({ Math: math, character: { x: -16, y: -16 }, loadedChunks: new Map([['0', { trees: [tree], bushes: [bush] }]]), dropLeaves() {} });
     vm.runInContext(fs.readFileSync('src/runtime/settings.js', 'utf8') + fs.readFileSync('src/environment/bushes.js', 'utf8'), context);
     context.getWindTexture = (scene, key, offset) => `${offset}`;
     const positions = new Set();
@@ -22,6 +25,7 @@ test('wind stays on the pixel grid and rustling keeps tree trunks anchored', () 
     assert.ok(positions.size >= 3);
     assert.ok(Number.isFinite(tree.rustleStart));
     assert.ok(Number.isFinite(bush.rustleStart));
+    assert.equal(sineCalls, 5 * Math.ceil(20000 / 17));
 });
 
 test('tree shadows move across chunk borders and restore uncovered water', () => {
@@ -61,7 +65,7 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
     base[16] = 128;
     base[17] = 21;
     context.updateTreeShadows(scene, 100);
-    assert.deepEqual(Array.from(tree.shadowRows.get(2)), [2, 0]);
+    assert.deepEqual(Array.from(context.getWindRows(2, tree.shadowHeight)), [2, 0]);
     assert.equal(right.waterTexture.image, firstWaterImage);
     assert.equal(left.treeShadowImage.data[255 * 4 + 3], 0);
     assert.equal(right.waterTexture.image.data[0], 255);
@@ -84,4 +88,24 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
     assert.ok(shadowReads > 0);
     assert.equal(right.waterTexture.image.data[17], 25);
     assert.equal(right.waterTexture.refreshCount, refreshCount + 1);
+});
+
+test('wind reuses row tables across textures and shadow profiles', () => {
+    const draws = [];
+    let rowCalls = 0;
+    const context = vm.createContext({ getTextureSource: () => ({ width: 32, height: 32 }), createCanvasTexture: (scene, key, width, height, draw) => draw({ drawImage: (...args) => draws.push(args) }) });
+    vm.runInContext(fs.readFileSync('src/environment/bushes.js', 'utf8'), context);
+    const originalRows = context.getWindRowOffset;
+    context.getWindRowOffset = (...args) => { rowCalls++; return originalRows(...args); };
+    const scene = { textures: { exists: () => false } };
+    for (let offset = -3; offset <= 3; offset++) {
+        for (let slice = 0; slice < 16; slice++) context.getWindTexture(scene, `slice-${slice}`, offset);
+        const rows = context.getWindRows(offset, 32);
+        assert.equal(context.getWindRows(offset, 32), rows);
+        assert.equal(rows[31], 0);
+        for (const draw of draws.splice(0)) assert.equal(draw[5], 3 + rows[draw[2]]);
+    }
+    assert.equal(rowCalls, 7 * 32);
+    assert.equal(context.getWindRows(2, 16).length, 16);
+    assert.equal(rowCalls, 7 * 32 + 16);
 });
