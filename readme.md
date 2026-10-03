@@ -40,7 +40,7 @@ Use four spaces for indentation. The `.editorconfig` sets this for JavaScript an
 
 Run `node build-bundle.js` after changing the source. This builds `game.js`, which is what the game loads. Serve this folder with `python3 -m http.server 8000` and open `http://localhost:8000`. Add `?test` to run the game's automated checks.
 
-Run `node --test tests/*.test.js` to check builds, saves, storage behavior, and water sparkle placement without a browser.
+Run `node --test tests/*.test.js` to check builds, saves, storage behavior, input, particles, chunk streaming, and water sparkle placement without a browser.
 
 The source is split up by what it does:
 
