@@ -3720,7 +3720,19 @@ function drawPixelPath() {
             fishingLine.fillStyle(activeColor, 1);
         }
 
-        fishingLine.fillRect(pixelPathX[index], pixelPathY[index], 1, 1);
+        const y = pixelPathY[index];
+        let left = pixelPathX[index];
+        let right = left;
+
+        while (index + 1 < pixelPathLength && pixelPathColor[index + 1] === activeColor && pixelPathY[index + 1] === y) {
+            const nextX = pixelPathX[index + 1];
+            if (nextX === right + 1) right = nextX;
+            else if (nextX === left - 1) left = nextX;
+            else break;
+            index++;
+        }
+
+        fishingLine.fillRect(left, y, right - left + 1, 1);
     }
 }
 
@@ -3735,8 +3747,11 @@ function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
     for (let step = 0; step <= steps; step++) {
         const amount = step / steps;
         const inverse = 1 - amount;
-        const x = Math.round(inverse * inverse * fromX + 2 * inverse * amount * controlX + amount * amount * toX);
-        const y = Math.round(inverse * inverse * fromY + 2 * inverse * amount * controlY + amount * amount * toY);
+        const fromWeight = inverse * inverse;
+        const controlWeight = 2 * inverse * amount;
+        const toWeight = amount * amount;
+        const x = Math.round(fromWeight * fromX + controlWeight * controlX + toWeight * toX);
+        const y = Math.round(fromWeight * fromY + controlWeight * controlY + toWeight * toY);
 
         addPixelPathPoint(x, y, palette ? samplePalette(palette, amount) : color);
     }
@@ -3822,15 +3837,17 @@ function drawFishingRope(rope, palette) {
     for (let index = 0; index < lastIndex; index++) {
         const first = points[index];
         const second = points[index + 1];
-        const distance = Math.max(1, Math.ceil(Math.hypot(second.x - first.x, second.y - first.y)));
+        const dx = second.x - first.x;
+        const dy = second.y - first.y;
+        const distance = Math.max(1, Math.ceil(Math.hypot(dx, dy)));
         const amount = index / paletteSteps;
         const color = samplePalette(palette, 1 - Math.abs(amount * 2 - 1));
 
         for (let step = 0; step <= distance; step++) {
             const blend = step / distance;
             addPixelPathPoint(
-                Math.round(first.x + (second.x - first.x) * blend),
-                Math.round(first.y + (second.y - first.y) * blend),
+                Math.round(first.x + dx * blend),
+                Math.round(first.y + dy * blend),
                 color
             );
         }
