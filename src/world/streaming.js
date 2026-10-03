@@ -3,8 +3,8 @@ function isChunkNear(chunkX, chunkY, radius) {
 }
 
 function updateLoadedChunks(scene, force = false) {
-    const centerChunkX = Math.floor(Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE) / CHUNK_SIZE);
-    const centerChunkY = Math.floor(Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE) / CHUNK_SIZE);
+    const centerChunkX = Math.floor((character.x + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
+    const centerChunkY = Math.floor((character.y + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
 
     if (!force && centerChunkX === activeChunkX && centerChunkY === activeChunkY) return;
 

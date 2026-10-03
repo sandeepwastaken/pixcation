@@ -5,7 +5,7 @@ function update(time, delta) {
 
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
-    character.setDepth(character.y + CHARACTER_SIZE);
+    if (character.depth !== character.y + CHARACTER_SIZE) character.setDepth(character.y + CHARACTER_SIZE);
     updateCharacterShadow(this);
     updateParticles(time);
     updateFishing(this, time, delta, isWalking);
