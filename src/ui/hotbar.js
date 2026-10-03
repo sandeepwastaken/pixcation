@@ -90,15 +90,13 @@ function useBait(bait) {
 }
 
 function cycleBait(scene) {
-    const owned = MARKET_BAITS.filter(bait => baitInventory.has(bait.id));
+    const current = MARKET_BAITS.findIndex(bait => bait.id === activeBaitId && baitInventory.has(bait.id));
+    const next = MARKET_BAITS.find((bait, index) => index > current && baitInventory.has(bait.id)) || null;
 
-    if (!owned.length) {
+    if (current === -1 && !next) {
         showItemLabel(scene, 'No bait - buy some at the shop');
         return;
     }
-
-    const current = owned.findIndex(bait => bait.id === activeBaitId);
-    const next = current + 1 < owned.length ? owned[current + 1] : null;
 
     activeBaitId = next ? next.id : null;
     saveDirty = true;

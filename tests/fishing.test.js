@@ -52,6 +52,31 @@ test('using the last bait equips another owned bait and ignores missing bait', (
     assert.equal(run('activeBaitId'), null);
 });
 
+test('bait cycling keeps inventory order and the unequipped step for every owned subset', () => {
+    const ids = ['novice', 'trainer', 'advanced'];
+    for (let mask = 0; mask < 8; mask++) {
+        const run = createSession();
+        const owned = ids.filter((id, index) => mask & 1 << index);
+        run(`
+            let lastItemLabel;
+            function showItemLabel(scene, text) { lastItemLabel = text; }
+            ${owned.map(id => `baitInventory.set('${id}', 2);`).join('\n')}
+        `);
+        for (const id of [...owned, null, ...owned, null]) {
+            run('cycleBait(null)');
+            assert.equal(run('activeBaitId'), id);
+            assert.equal(run('saveDirty'), Boolean(owned.length));
+        }
+        if (!owned.length) {
+            assert.equal(run('lastItemLabel'), 'No bait - buy some at the shop');
+        } else {
+            assert.equal(run('lastItemLabel'), 'No bait');
+            run("activeBaitId = 'missing'; cycleBait(null)");
+            assert.equal(run('activeBaitId'), owned[0]);
+        }
+    }
+});
+
 
 test('bobbers keep the nearest reachable fish and skip distant chunks', () => {
     const run = createSession();
