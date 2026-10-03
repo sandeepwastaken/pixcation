@@ -3255,25 +3255,29 @@ function updateIdleFish(chunk, fish, seconds, delta) {
     fish.timer -= delta;
     fish.heading += fish.idleTurn * seconds;
 
-    if (fish.timer <= 0 && !chooseFishTarget(chunk, fish)) {
-        fish.timer = 500;
-    } else if (fish.timer <= 0) {
-        fish.state = 'swim';
-        fish.topSpeed = FISH_SWIM_SPEED * (0.7 + Math.random() * 0.6);
-        fish.thrusting = true;
-        fish.burstTimer = FISH_BURST_MIN + Math.random() * FISH_BURST_RANGE;
+    if (fish.timer <= 0) {
+        if (!chooseFishTarget(chunk, fish)) {
+            fish.timer = 500;
+        } else {
+            fish.state = 'swim';
+            fish.topSpeed = FISH_SWIM_SPEED * (0.7 + Math.random() * 0.6);
+            fish.thrusting = true;
+            fish.burstTimer = FISH_BURST_MIN + Math.random() * FISH_BURST_RANGE;
+        }
     }
 }
 
 function updateSwimmingFish(chunk, fish, seconds, delta) {
     fish.burstTimer -= delta;
 
-    if (fish.burstTimer <= 0 && fish.state === 'swim') {
-        fish.thrusting = !fish.thrusting;
-        fish.burstTimer = fish.thrusting ? FISH_BURST_MIN + Math.random() * FISH_BURST_RANGE : FISH_COAST_MIN + Math.random() * FISH_COAST_RANGE;
-    } else if (fish.burstTimer <= 0) {
-        fish.state = 'swim';
-        fish.topSpeed = FISH_SWIM_SPEED;
+    if (fish.burstTimer <= 0) {
+        if (fish.state === 'swim') {
+            fish.thrusting = !fish.thrusting;
+            fish.burstTimer = fish.thrusting ? FISH_BURST_MIN + Math.random() * FISH_BURST_RANGE : FISH_COAST_MIN + Math.random() * FISH_COAST_RANGE;
+        } else {
+            fish.state = 'swim';
+            fish.topSpeed = FISH_SWIM_SPEED;
+        }
     }
 
     const dx = fish.targetX - fish.x;
