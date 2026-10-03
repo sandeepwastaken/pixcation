@@ -107,6 +107,7 @@ function eraseChestSilhouette(chunk) {
     context.putImageData(image, chest.localX, chest.localY + top);
     chunk.waterTexture.refresh();
     chunk.chest = null;
+    chunk.treeShadowSignature = null;
     if (mainCamera) mainCamera.scene.treeShadowSignature = null;
 }
 
