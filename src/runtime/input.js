@@ -1,4 +1,5 @@
 function bindGameInput(scene) {
+    const heldActions = new Set();
     scene.input.on('pointermove', pointer => {
         if (marketOpen) {
             const row = getMarketRowAt(pointer.x, pointer.y);
@@ -24,24 +25,41 @@ function bindGameInput(scene) {
         scene.input.setDefaultCursor(!isMenuOpen() && getClickedWorldTarget(pointer) ? 'pointer' : 'default');
     });
 
-    const releaseAction = () => {
-        fishingActionHeld = false;
-        releaseCast(scene.time.now);
+    const releaseAction = source => {
+        if (!heldActions.delete(source)) return;
+        fishingActionHeld = heldActions.size > 0;
+        if (!fishingActionHeld) releaseCast(scene.time.now);
     };
 
-    const pressAction = () => {
+    const pressAction = source => {
+        const wasHeld = heldActions.size > 0;
+        heldActions.add(source);
         fishingActionHeld = true;
-        beginCast(scene.time.now);
+        if (!wasHeld) beginCast(scene.time.now);
     };
 
-    scene.input.on('pointerup', () => {
+    const resetActions = () => {
+        heldActions.clear();
+        fishingActionHeld = false;
+        castCharge = null;
         mapDrag = null;
-        releaseAction();
+    };
+    scene.game.events.on(Phaser.Core.Events.BLUR, resetActions);
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        scene.game.events.off(Phaser.Core.Events.BLUR, resetActions);
+        resetActions();
     });
 
-    scene.input.keyboard.on('keyup', event => event.code === 'Space' && releaseAction());
+    scene.input.on('pointerup', pointer => {
+        if (pointer.button !== 0) return;
+        mapDrag = null;
+        releaseAction('pointer');
+    });
+
+    scene.input.keyboard.on('keyup', event => event.code === 'Space' && releaseAction('keyboard'));
 
     scene.input.on('pointerdown', pointer => {
+        if (pointer.button !== 0) return;
         if (inventoryOpen) {
             if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(scene);
         } else if (marketOpen) {
@@ -73,7 +91,7 @@ function bindGameInput(scene) {
             } else if (isBaitSlotAt(pointer.x, pointer.y)) {
                 cycleBait(scene);
             } else {
-                pressAction();
+                pressAction('pointer');
             }
         } else if (pointer.y < DIALOGUE_VISIBLE_Y + MAP_PANEL_HEIGHT) {
             mapDrag = { x: pointer.x, y: pointer.y, panX: mapPan.x, panY: mapPan.y };
@@ -122,7 +140,7 @@ function bindGameInput(scene) {
         else if (mapOpen) handleMapKey(scene, event);
         else if (marketOpen) handleMarketKey(scene, event);
         else if (key === 'i') openInventory(scene);
-        else if (code === 'Space') pressAction();
+        else if (code === 'Space') pressAction('keyboard');
         else if (key === 'm') openMap(scene);
         else if (key === 'b') cycleBait(scene);
         else if (key === 'e') openInteraction(scene, getInteractionTarget(true));
