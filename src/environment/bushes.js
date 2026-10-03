@@ -111,7 +111,8 @@ function updateTreeShadows(scene, time) {
         }
         const image = chunk.treeShadowImage;
         image.data.fill(0);
-        const water = chunk.waterShadowBase ? new ImageData(new Uint8ClampedArray(chunk.waterShadowBase), CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE) : null;
+        const water = chunk.waterShadowBase ? (chunk.treeWaterShadowImage ||= new ImageData(new Uint8ClampedArray(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE * 4), CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE)) : null;
+        if (water) water.data.set(chunk.waterShadowBase);
         for (const pixel of points) {
             const worldX = chunk.pixelX + pixel % CHUNK_PIXEL_SIZE;
             const worldY = chunk.pixelY + Math.floor(pixel / CHUNK_PIXEL_SIZE);

@@ -150,16 +150,20 @@ function buySelectedMarketItem(scene) {
         if (!summary.count) return;
 
         playerCoins += summary.value;
+        recordPlayerStat('moneyEarned', summary.value);
+        recordPlayerStat('fishSold', summary.count);
         fishInventory.clear();
         marketFeedback = { text: `Sold for ${summary.value}c!`, color: '#8fbf7a' };
     } else if (!item || isMarketItemOwned(item) || playerCoins < item.price) {
         return;
     } else if (item.bundle) {
         playerCoins -= item.price;
+        recordPlayerStat('moneySpent', item.price);
         addBait(item, item.bundle, true);
         marketFeedback = { text: `+${item.bundle} ${item.label}!`, color: '#8fbf7a' };
     } else {
         playerCoins -= item.price;
+        recordPlayerStat('moneySpent', item.price);
         ownedRods.add(item.id);
         addHotbarItem(scene, item.icon, item.label);
         marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };

@@ -52,9 +52,10 @@ function finishFishingMinigame(scene, time, caught) {
     showCatchCard(scene, time, species);
 }
 
-function addCaughtFish(species) {
+function addCaughtFish(species, caught = true) {
     fishInventory.set(species.id, (fishInventory.get(species.id) || 0) + 1);
     catchLog.add(species.id);
+    if (caught) recordPlayerStat('fishCaught');
     saveDirty = true;
 }
 

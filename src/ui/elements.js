@@ -1,5 +1,5 @@
 function isMenuOpen() {
-    return dialogueOpen || marketOpen || mapOpen || inventoryOpen;
+    return dialogueOpen || marketOpen || mapOpen || inventoryOpen || statsOpen;
 }
 
 function drawPanelFrame(panel, x, width, height) {

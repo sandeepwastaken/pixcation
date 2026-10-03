@@ -1,11 +1,13 @@
 function update(time, delta) {
     if (!character) return;
     if (startup) {
+        lastPlayTime = null;
         updateStartup(this, time, delta);
         return;
     }
 
     const isWalking = updateCharacter(this, time, delta);
+    updatePlayTime(time);
 
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
@@ -20,6 +22,7 @@ function update(time, delta) {
     const marketReach = getMarketReach();
     updateGuideInteraction(this, guideReach < 1);
     updateInteractionPrompt(this, guideReach, marketReach);
+    updateStatsUI();
 
     if (mapOpen) updateMapPan(this, delta);
 
