@@ -44,7 +44,9 @@ function createChestSilhouette(scene) {
 
     createCanvasTexture(scene, 'chest-small', width, height, context => context.putImageData(image, 0, 0));
 
-    chestSilhouette = { width, top, bottom, points };
+    const offsets = Uint32Array.from({ length: points.length / 2 }, (_, index) =>
+        points[index * 2 + 1] * CHUNK_PIXEL_SIZE + points[index * 2]);
+    chestSilhouette = { width, top, bottom, points, offsets };
     chestSprite = scene.add.image(0, 0, 'chest-small').setOrigin(0.5, 1).setVisible(false);
     worldObjectLayer.add(chestSprite);
 }
@@ -55,19 +57,20 @@ function findChunkChest(chunk) {
 
     if (openedChests.has(id) || worldHash(chunkX, chunkY, CHEST_SALT) > CHEST_CHANCE) return null;
 
-    const { width, bottom, points } = chestSilhouette;
+    const { width, bottom, offsets } = chestSilhouette;
 
     for (let attempt = 0; attempt < CHEST_PLACEMENT_ATTEMPTS; attempt++) {
         const localX = Math.floor(worldHash(chunkX * CHEST_PLACEMENT_ATTEMPTS + attempt, chunkY, CHEST_SALT + 1) * (CHUNK_PIXEL_SIZE - width));
         const localY = Math.floor(worldHash(chunkX, chunkY * CHEST_PLACEMENT_ATTEMPTS + attempt, CHEST_SALT + 2) * (CHUNK_PIXEL_SIZE - bottom - 1));
+        const origin = localY * CHUNK_PIXEL_SIZE + localX;
         let deep = true;
 
-        for (let point = 0; point < points.length && deep; point += 2) {
-            deep = shoreDistances[(localY + points[point + 1]) * CHUNK_PIXEL_SIZE + localX + points[point]] >= CHEST_MIN_DEPTH;
+        for (let point = 0; point < offsets.length && deep; point++) {
+            deep = shoreDistances[origin + offsets[point]] >= CHEST_MIN_DEPTH;
         }
 
         if (deep) {
-            return { id, localX, localY, x: chunk.pixelX + localX, y: chunk.pixelY + localY, original: new Uint8Array(points.length / 2), nextBubbleAt: 0 };
+            return { id, localX, localY, x: chunk.pixelX + localX, y: chunk.pixelY + localY, original: new Uint8Array(offsets.length), nextBubbleAt: 0 };
         }
     }
 
@@ -78,11 +81,12 @@ function bakeChestSilhouette(chunk, data) {
     const chest = chunk.chest = findChunkChest(chunk);
     if (!chest) return;
 
-    const points = chestSilhouette.points;
+    const offsets = chestSilhouette.offsets;
+    const origin = chest.localY * CHUNK_PIXEL_SIZE + chest.localX;
 
-    for (let point = 0; point < points.length; point += 2) {
-        const index = ((chest.localY + points[point + 1]) * CHUNK_PIXEL_SIZE + chest.localX + points[point]) * 4;
-        chest.original[point / 2] = data[index];
+    for (let point = 0; point < offsets.length; point++) {
+        const index = (origin + offsets[point]) * 4;
+        chest.original[point] = data[index];
         data[index] = 128;
     }
 }
