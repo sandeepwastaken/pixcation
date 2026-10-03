@@ -58,14 +58,32 @@ function drawPixelPath() {
 }
 
 function drawFishingWaterShadow(scene, fromHeight, toHeight) {
+    if (!pixelPathLength) return;
     const lastIndex = Math.max(1, pixelPathLength - 1);
+    const heightRange = toHeight - fromHeight;
+    let previousX;
+    let previousY;
+    let water;
+    let tileX;
+    let tileY;
     fishingWaterShadow.fillStyle(0x5a7eb6, 1);
     for (let index = 0; index < pixelPathLength; index++) {
         const amount = index / lastIndex;
-        const height = Math.max(0, fromHeight + (toHeight - fromHeight) * amount);
+        const height = Math.max(0, fromHeight + heightRange * amount);
         const x = pixelPathX[index] + Math.round(height / 6);
         const y = pixelPathY[index] + Math.round(height);
-        if ((x + y) % 2 || !isWaterPixel(scene, x, y)) continue;
+        if (x === previousX && y === previousY) continue;
+        previousX = x;
+        previousY = y;
+        if ((x + y) % 2) continue;
+        const nextTileX = Math.floor(x / TILE_SIZE);
+        const nextTileY = Math.floor(y / TILE_SIZE);
+        if (nextTileX !== tileX || nextTileY !== tileY) {
+            water = getTerrainSurface(scene, getWorldTile(nextTileX, nextTileY)).water;
+            tileX = nextTileX;
+            tileY = nextTileY;
+        }
+        if (water[(y - tileY * TILE_SIZE) * TILE_SIZE + x - tileX * TILE_SIZE] !== 1) continue;
         fishingWaterShadow.fillRect(x, y, 1, 1);
     }
 }
