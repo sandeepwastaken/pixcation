@@ -26,11 +26,17 @@ function pngChunk(name, data) {
     return Buffer.concat([header, data, footer]);
 }
 
-function withScanlines(raw, check) {
+function withScanlines(raw, check, { type = 6, transparency = null } = {}) {
     const encoded = encodePng(2, 2, pixels);
     const idat = 33; // Signature and the IHDR chunk emitted by encodePng.
     const end = idat + encoded.readUInt32BE(idat) + 12;
-    const fixture = Buffer.concat([encoded.subarray(0, idat), pngChunk('IDAT', zlib.deflateSync(raw)), encoded.subarray(end)]);
+    const header = Buffer.from(encoded.subarray(16, 29));
+    header[9] = type;
+    const fixture = Buffer.concat([
+        encoded.subarray(0, 8), pngChunk('IHDR', header),
+        ...(transparency ? [pngChunk('tRNS', transparency)] : []),
+        pngChunk('IDAT', zlib.deflateSync(raw)), encoded.subarray(end)
+    ]);
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pixcation-png-'));
     const file = path.join(directory, 'fixture.png');
     try {
@@ -73,4 +79,31 @@ test('truncated and excess inflated scanlines are rejected', () => {
     for (const raw of [Buffer.alloc(0), complete.subarray(0, -1), Buffer.concat([complete, Buffer.from([0])])]) {
         withScanlines(raw, file => assert.throws(() => decodePng(file), /invalid PNG scanline length/));
     }
+});
+
+test('grayscale color keys retain gray values and make only matching pixels transparent', () => {
+    const raw = Buffer.from([0, 0, 80, 0, 81, 80]);
+    for (const transparentGray of [0, 80, 255, 0x1250]) {
+        const transparency = Buffer.alloc(2);
+        transparency.writeUInt16BE(transparentGray);
+        const expected = Buffer.from([0, 80, 81, 80].flatMap(gray => [gray, gray, gray, gray === (transparentGray & 255) ? 0 : 255]));
+        withScanlines(raw, file => assert.deepEqual(decodePng(file).rgba, expected), { type: 0, transparency });
+    }
+    withScanlines(raw, file => assert.deepEqual(decodePng(file).rgba, Buffer.from([
+        0, 0, 0, 255, 80, 80, 80, 255, 81, 81, 81, 255, 80, 80, 80, 255
+    ])), { type: 0 });
+});
+
+test('RGB color keys require all three channels to match and retain opaque neighbors', () => {
+    const colors = [[10, 20, 30], [10, 20, 31], [10, 21, 30], [11, 20, 30]];
+    const raw = Buffer.from([0, ...colors[0], ...colors[1], 0, ...colors[2], ...colors[3]]);
+    const transparency = Buffer.from([0, 10, 0, 20, 0, 30]);
+    const expected = Buffer.from(colors.flatMap((color, index) => [...color, index === 0 ? 0 : 255]));
+    withScanlines(raw, file => assert.deepEqual(decodePng(file).rgba, expected), { type: 2, transparency });
+    withScanlines(raw, file => assert.deepEqual(decodePng(file).rgba, expected), {
+        type: 2, transparency: Buffer.from([1, 10, 2, 20, 3, 30])
+    });
+    withScanlines(raw, file => assert.deepEqual(decodePng(file).rgba, Buffer.from(
+        colors.flatMap(color => [...color, 255])
+    )), { type: 2 });
 });

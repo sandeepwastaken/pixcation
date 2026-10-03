@@ -99,6 +99,9 @@ function decodePng(file) {
     if (type === 6) return { width, height, rgba: pixels };
 
     const rgba = Buffer.alloc(width * height * 4);
+    const transparentGray = type === 0 && transparency ? transparency.readUInt16BE(0) & 255 : -1;
+    const transparentRGB = type === 2 && transparency
+        ? [transparency.readUInt16BE(0) & 255, transparency.readUInt16BE(2) & 255, transparency.readUInt16BE(4) & 255] : null;
 
     for (let pixel = 0; pixel < width * height; pixel++) {
         const source = pixel * channels;
@@ -110,10 +113,11 @@ function decodePng(file) {
             rgba[target + 3] = transparency && index < transparency.length ? transparency[index] : 255;
         } else if (type === 0 || type === 4) {
             rgba.fill(pixels[source], target, target + 3);
-            rgba[target + 3] = type === 4 ? pixels[source + 1] : 255;
+            rgba[target + 3] = type === 4 ? pixels[source + 1] : pixels[source] === transparentGray ? 0 : 255;
         } else {
             pixels.copy(rgba, target, source, source + 3);
-            rgba[target + 3] = 255;
+            rgba[target + 3] = transparentRGB && pixels[source] === transparentRGB[0] &&
+                pixels[source + 1] === transparentRGB[1] && pixels[source + 2] === transparentRGB[2] ? 0 : 255;
         }
     }
 
