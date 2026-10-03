@@ -1,11 +1,13 @@
 function splash(scene, time, x, y) {
     scatterFishFromSplash(x, y);
+    const centerX = Math.round(x);
+    const centerY = Math.round(y);
 
     for (let index = 0; index < SPLASH_PARTICLES; index++) {
         const angle = index / SPLASH_PARTICLES * Math.PI * 2;
 
         spawnParticle(
-            scene, shadowLayer, time, Math.round(x), Math.round(y), 0, 0, SPLASH_LIFETIME,
+            scene, shadowLayer, time, centerX, centerY, 0, 0, SPLASH_LIFETIME,
             index % 2 ? 0x87bed8 : 0x78afd3, 0, Math.cos(angle), Math.sin(angle), true
         );
     }
@@ -33,12 +35,15 @@ function nibbleRipple(scene, time, x, y) {
 function spawnLineSnap(scene, time, rope) {
     if (!rope || !rope.points.length) return;
 
-    const stride = Math.max(1, Math.floor(rope.points.length / 9));
+    const points = rope.points;
+    const lastIndex = Math.max(1, points.length - 1);
+    const stride = Math.max(1, Math.floor(points.length / 9));
+    const palette = fishing?.rod?.linePalette;
 
-    for (let index = stride; index < rope.points.length; index += stride) {
-        const point = rope.points[index];
-        const amount = index / Math.max(1, rope.points.length - 1);
-        const color = samplePalette(fishing?.rod?.linePalette, 1 - Math.abs(amount * 2 - 1));
+    for (let index = stride; index < points.length; index += stride) {
+        const point = points[index];
+        const amount = index / lastIndex;
+        const color = samplePalette(palette, 1 - Math.abs(amount * 2 - 1));
 
         spawnParticle(
             scene, worldObjectLayer, time, Math.round(point.x), Math.round(point.y),

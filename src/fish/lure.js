@@ -29,8 +29,10 @@ function updateHookedFish(fish, seconds, delta) {
 
     spin.angle += spin.direction * speed * seconds;
 
-    const nextX = spin.centerX + Math.cos(spin.angle) * radius;
-    const nextY = spin.centerY + Math.sin(spin.angle) * radius * HOOKED_SQUASH;
+    const cosine = Math.cos(spin.angle);
+    const sine = Math.sin(spin.angle);
+    const nextX = spin.centerX + cosine * radius;
+    const nextY = spin.centerY + sine * radius * HOOKED_SQUASH;
 
     if (isWaterPixel(scene, Math.round(nextX), Math.round(nextY))) {
         fish.x = nextX;
@@ -38,8 +40,8 @@ function updateHookedFish(fish, seconds, delta) {
     }
 
     fish.heading = Math.atan2(
-        Math.cos(spin.angle) * radius * HOOKED_SQUASH * spin.direction,
-        -Math.sin(spin.angle) * radius * spin.direction
+        cosine * radius * HOOKED_SQUASH * spin.direction,
+        -sine * radius * spin.direction
     );
     fish.thrusting = true;
     fish.velocity = speed * radius;

@@ -2455,15 +2455,17 @@ if (Math.random() < seconds * HOOKED_THRASH_RATE) spin.direction *= -1;
 const radius = HOOKED_RADIUS_BASE + fish.length * HOOKED_RADIUS_PER_LENGTH;
 const speed = Phaser.Math.Clamp(HOOKED_SPIN_BASE - fish.length * HOOKED_SPIN_PER_LENGTH, HOOKED_SPIN_MIN, HOOKED_SPIN_BASE);
 spin.angle += spin.direction * speed * seconds;
-const nextX = spin.centerX + Math.cos(spin.angle) * radius;
-const nextY = spin.centerY + Math.sin(spin.angle) * radius * HOOKED_SQUASH;
+const cosine = Math.cos(spin.angle);
+const sine = Math.sin(spin.angle);
+const nextX = spin.centerX + cosine * radius;
+const nextY = spin.centerY + sine * radius * HOOKED_SQUASH;
 if (isWaterPixel(scene, Math.round(nextX), Math.round(nextY))) {
 fish.x = nextX;
 fish.y = nextY;
 }
 fish.heading = Math.atan2(
-Math.cos(spin.angle) * radius * HOOKED_SQUASH * spin.direction,
--Math.sin(spin.angle) * radius * spin.direction
+cosine * radius * HOOKED_SQUASH * spin.direction,
+-sine * radius * spin.direction
 );
 fish.thrusting = true;
 fish.velocity = speed * radius;
@@ -2727,10 +2729,12 @@ splash(scene, time, fishing.bobberX, fishing.bobberY);
 }
 function splash(scene, time, x, y) {
 scatterFishFromSplash(x, y);
+const centerX = Math.round(x);
+const centerY = Math.round(y);
 for (let index = 0; index < SPLASH_PARTICLES; index++) {
 const angle = index / SPLASH_PARTICLES * Math.PI * 2;
 spawnParticle(
-scene, shadowLayer, time, Math.round(x), Math.round(y), 0, 0, SPLASH_LIFETIME,
+scene, shadowLayer, time, centerX, centerY, 0, 0, SPLASH_LIFETIME,
 index % 2 ? 0x87bed8 : 0x78afd3, 0, Math.cos(angle), Math.sin(angle), true
 );
 }
@@ -2753,11 +2757,14 @@ horizontal ? side : 0, 0, 180, index % 2 ? 0x78afd3 : 0x87bed8
 }
 function spawnLineSnap(scene, time, rope) {
 if (!rope || !rope.points.length) return;
-const stride = Math.max(1, Math.floor(rope.points.length / 9));
-for (let index = stride; index < rope.points.length; index += stride) {
-const point = rope.points[index];
-const amount = index / Math.max(1, rope.points.length - 1);
-const color = samplePalette(fishing?.rod?.linePalette, 1 - Math.abs(amount * 2 - 1));
+const points = rope.points;
+const lastIndex = Math.max(1, points.length - 1);
+const stride = Math.max(1, Math.floor(points.length / 9));
+const palette = fishing?.rod?.linePalette;
+for (let index = stride; index < points.length; index += stride) {
+const point = points[index];
+const amount = index / lastIndex;
+const color = samplePalette(palette, 1 - Math.abs(amount * 2 - 1));
 spawnParticle(
 scene, worldObjectLayer, time, Math.round(point.x), Math.round(point.y),
 index % 2 ? -1 : 1, 1, 300, color, Math.max(character.depth + 0.2, point.y)
