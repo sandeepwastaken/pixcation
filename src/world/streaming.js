@@ -1,0 +1,130 @@
+function isChunkNear(chunkX, chunkY, radius) {
+    return Math.abs(chunkX - activeChunkX) <= radius && Math.abs(chunkY - activeChunkY) <= radius;
+}
+
+function updateLoadedChunks(scene, force = false) {
+    const centerChunkX = Math.floor(Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE) / CHUNK_SIZE);
+    const centerChunkY = Math.floor(Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE) / CHUNK_SIZE);
+
+    if (!force && centerChunkX === activeChunkX && centerChunkY === activeChunkY) return;
+
+    const discoveredBefore = discoveredChunks.size;
+
+    activeChunkX = centerChunkX;
+    activeChunkY = centerChunkY;
+    visibleChunkLeft = null;
+    pendingChunks.length = 0;
+
+    for (let offsetY = -CHUNK_DISCOVERY_RADIUS; offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
+        for (let offsetX = -CHUNK_DISCOVERY_RADIUS; offsetX <= CHUNK_DISCOVERY_RADIUS; offsetX++) {
+            discoveredChunks.add(getTileId(centerChunkX + offsetX, centerChunkY + offsetY));
+        }
+    }
+
+    if (discoveredChunks.size !== discoveredBefore) saveDirty = true;
+
+    for (let offsetY = -CHUNK_LOAD_RADIUS; offsetY <= CHUNK_LOAD_RADIUS; offsetY++) {
+        for (let offsetX = -CHUNK_LOAD_RADIUS; offsetX <= CHUNK_LOAD_RADIUS; offsetX++) {
+            const chunkX = centerChunkX + offsetX;
+            const chunkY = centerChunkY + offsetY;
+
+            if (force || offsetX === 0 && offsetY === 0) {
+                createWorldChunk(scene, chunkX, chunkY);
+            } else if (!loadedChunks.has(getChunkKey(chunkX, chunkY))) {
+                pendingChunks.push(chunkX, chunkY);
+            }
+        }
+    }
+
+    for (const [key, chunk] of loadedChunks) {
+        if (!isChunkNear(chunk.chunkX, chunk.chunkY, CHUNK_LOAD_RADIUS)) destroyWorldChunk(key);
+    }
+}
+
+function buildPendingChunk(scene) {
+    while (pendingChunks.length > 0) {
+        const chunkY = pendingChunks.pop();
+        const chunkX = pendingChunks.pop();
+
+        if (isChunkNear(chunkX, chunkY, CHUNK_LOAD_RADIUS) && !loadedChunks.has(getChunkKey(chunkX, chunkY))) {
+            createWorldChunk(scene, chunkX, chunkY, true);
+            visibleChunkLeft = null;
+            return;
+        }
+    }
+
+    while (pendingWaterChunks.length > 0) {
+        const chunk = pendingWaterChunks.pop();
+
+        if (loadedChunks.get(chunk.key) === chunk && chunk.waterBuild) {
+            buildChunkWater(scene, chunk);
+            return;
+        }
+    }
+}
+
+function updateChunkVisibility() {
+    const chunkLeft = Math.floor(mainCamera.scrollX / CHUNK_PIXEL_SIZE);
+    const chunkRight = Math.ceil((mainCamera.scrollX + mainCamera.width) / CHUNK_PIXEL_SIZE) - 1;
+    const chunkTop = Math.floor(mainCamera.scrollY / CHUNK_PIXEL_SIZE);
+    const chunkBottom = Math.ceil((mainCamera.scrollY + mainCamera.height) / CHUNK_PIXEL_SIZE) - 1;
+
+    if (
+        chunkLeft === visibleChunkLeft && chunkRight === visibleChunkRight &&
+        chunkTop === visibleChunkTop && chunkBottom === visibleChunkBottom
+    ) {
+        return;
+    }
+
+    visibleChunkLeft = chunkLeft;
+    visibleChunkRight = chunkRight;
+    visibleChunkTop = chunkTop;
+    visibleChunkBottom = chunkBottom;
+
+    for (const chunk of loadedChunks.values()) {
+        const visible = chunk.chunkX >= chunkLeft && chunk.chunkX <= chunkRight && chunk.chunkY >= chunkTop && chunk.chunkY <= chunkBottom;
+        if (visible === chunk.visible) continue;
+
+        chunk.visible = visible;
+        chunk.groundLayer.setVisible(visible);
+        if (chunk.upperLayer) chunk.upperLayer.setVisible(visible);
+        if (chunk.overlay) chunk.overlay.setVisible(visible);
+    }
+}
+
+function updateChunkWater(time) {
+    if (!waterPipeline || loadedWaterChunks.size === 0) return;
+
+    waterPipeline.set1f('uTime', time / 1000);
+    waterPipeline.set2f('uScroll', mainCamera.scrollX, mainCamera.scrollY);
+    waterPipeline.set1f('uViewHeight', mainCamera.height);
+
+    const left = mainCamera.scrollX - FISH_VIEW_MARGIN;
+    const top = mainCamera.scrollY - FISH_VIEW_MARGIN;
+    const right = mainCamera.scrollX + mainCamera.width + FISH_VIEW_MARGIN;
+    const bottom = mainCamera.scrollY + mainCamera.height + FISH_VIEW_MARGIN;
+    let count = 0;
+
+    fishChunks: for (const chunk of loadedWaterChunks) {
+        if (!chunk.visible) continue;
+
+        for (const fish of chunk.fish) {
+            if (count >= FISH_MAX_VISIBLE) break fishChunks;
+            if (fish.x < left || fish.x > right || fish.y < top || fish.y > bottom) continue;
+
+            fishUniforms[count * 4] = Math.round(fish.x);
+            fishUniforms[count * 4 + 1] = Math.round(fish.y);
+            fishUniforms[count * 4 + 2] = Math.cos(fish.heading);
+            fishUniforms[count * 4 + 3] = Math.sin(fish.heading);
+            fishShapeUniforms[count * 4] = fish.length;
+            fishShapeUniforms[count * 4 + 1] = fish.radius;
+            fishShapeUniforms[count * 4 + 2] = fish.phase;
+            fishShapeUniforms[count * 4 + 3] = fish.amplitude;
+            count++;
+        }
+    }
+
+    waterPipeline.set4fv('uFish', fishUniforms);
+    waterPipeline.set4fv('uFishShape', fishShapeUniforms);
+    waterPipeline.set1f('uFishCount', count);
+}

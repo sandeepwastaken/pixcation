@@ -3,14 +3,30 @@ const path = require('path');
 
 const SOURCE = path.join(__dirname, 'src');
 const OUTPUT = path.join(__dirname, 'game.js');
-const FIRST = ['game-data.js', 'water-pipeline.js', 'art.js', 'world.js', 'environment.js', 'fish.js', 'fishing.js', 'treasure.js', 'ui.js'];
-const LAST = ['automated-tests.js', 'phaser.js'];
+const ORDER = require('./bundle-order.json');
+
+function getSourceFiles(directory = SOURCE, prefix = '') {
+    return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+        const file = prefix + entry.name;
+        if (entry.isDirectory()) return getSourceFiles(path.join(directory, entry.name), `${file}/`);
+        return entry.isFile() && file.endsWith('.js') ? [file] : [];
+    });
+}
+
+function validateBundleOrder(files) {
+    const sources = new Set(files);
+    const listed = new Set(ORDER);
+    const missing = ORDER.filter(file => !sources.has(file));
+    const unlisted = files.filter(file => !listed.has(file));
+
+    if (listed.size !== ORDER.length || missing.length || unlisted.length) {
+        throw new Error(`Invalid bundle order: duplicate entries=${ORDER.length - listed.size}, missing=[${missing.join(', ')}], unlisted=[${unlisted.join(', ')}]`);
+    }
+}
 
 function buildBundle() {
-    const files = fs.readdirSync(SOURCE).filter(file => file.endsWith('.js'));
-    const middle = files.filter(file => !FIRST.includes(file) && !LAST.includes(file)).sort();
-    const order = [...FIRST, ...middle, ...LAST].filter(file => files.includes(file));
-    const bundle = order
+    validateBundleOrder(getSourceFiles());
+    const bundle = ORDER
         .map(file => fs.readFileSync(path.join(SOURCE, file), 'utf8'))
         .join('\n')
         .split('\n')
@@ -19,7 +35,7 @@ function buildBundle() {
         .join('\n');
 
     fs.writeFileSync(OUTPUT, `${bundle}\n`);
-    console.log(`Bundled ${order.length} scripts into game.js (${Math.round(Buffer.byteLength(bundle) / 1024)} KB)`);
+    console.log(`Bundled ${ORDER.length} scripts into game.js (${Math.round(Buffer.byteLength(bundle) / 1024)} KB)`);
 }
 
 buildBundle();

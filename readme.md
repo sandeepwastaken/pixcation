@@ -33,3 +33,11 @@ We decided to go with a pixel-art-meets-Animal-Crossing style, with a lot of the
 You'll probably notice this most with the fish and their designs, but it carries through the rest of the world too. We wanted everything to feel colorful, simple, and nostalgic without taking itself too seriously.
 
 Thanks for playing Pixcation. We hope you have fun.
+
+# Working on the game
+
+Run `node build-bundle.js` after changing the source. This builds `game.js`, which is what the game loads. Serve this folder with `python3 -m http.server 8000` and open `http://localhost:8000`. Add `?test` to run the game's automated checks.
+
+The source is split up by what it does. `src/world` handles terrain, surfaces, shadows, chunks, and streaming. `src/fishing` handles casting, the minigame, rope physics, and the fishing update. `src/ui` contains the screens and their controls. `src/runtime` handles startup, shared state, assets, the scene, saves, the character, the camera, and the main update.
+
+These files still share one script scope. `bundle-order.json` lists them in the order they need to load, including when shared state is initialized. If you add or rename a source file, update that list too. The build checks for missing files, unlisted files, and duplicate entries before writing the bundle.
