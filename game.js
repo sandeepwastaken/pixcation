@@ -1462,7 +1462,7 @@ for (const cell of shoreline.waterCells) {
 const x = worldX + cell.x;
 const y = worldY + cell.y;
 waterMaskCells.push(x, y, cell.width, cell.height);
-if (isWater && cell.width >= 12) waterCells.push(x, y, cell.width, cell.height);
+if (isWater && !worldTile.bridge && cell.width >= 12) waterCells.push(x, y, cell.width, cell.height);
 }
 for (const cell of shoreline.edgeCells) {
 edgeCells.push(worldX + cell.x, worldY + cell.y, cell.width);
