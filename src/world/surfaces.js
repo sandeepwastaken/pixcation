@@ -1,3 +1,5 @@
+const EMPTY_TILE_PATCHES = Object.freeze([]);
+
 function getChunkKey(chunkX, chunkY) {
     return getTileId(chunkX, chunkY);
 }
@@ -38,9 +40,11 @@ function getTerrainPixels(scene, key) {
 function getTerrainSurface(scene, tile) {
     if (tile.surface) return tile.surface;
 
-    const patches = tile.patches || [];
-    const signature = `${tile.key}|${tile.textureKey}|${tile.baseKey}|${tile.rotation}|` +
-        patches.map(patch => `${patch.key},${patch.x},${patch.y},${patch.flipX},${patch.flipY}`).join(';');
+    const patches = tile.patches || EMPTY_TILE_PATCHES;
+    const patchSignature = patches.length
+        ? patches.map(patch => `${patch.key},${patch.x},${patch.y},${patch.flipX},${patch.flipY}`).join(';')
+        : '';
+    const signature = `${tile.key}|${tile.textureKey}|${tile.baseKey}|${tile.rotation}|${patchSignature}`;
     const cached = scene.terrainSurfaceCache.get(signature);
 
     if (cached) {
@@ -64,12 +68,14 @@ function getTerrainSurface(scene, tile) {
         const pixels = getTerrainPixels(scene, patch.key);
 
         for (let y = 0; y < pixels.height; y++) {
+            const sourceY = patch.flipY ? pixels.height - 1 - y : y;
+            const sourceRow = sourceY * pixels.width;
+            const targetRow = (patch.y + y) * TILE_SIZE + patch.x;
             for (let x = 0; x < pixels.width; x++) {
                 const sourceX = patch.flipX ? pixels.width - 1 - x : x;
-                const sourceY = patch.flipY ? pixels.height - 1 - y : y;
-                if (!pixels.data[(sourceY * pixels.width + sourceX) * 4 + 3]) continue;
+                if (!pixels.data[(sourceRow + sourceX) * 4 + 3]) continue;
 
-                const index = (patch.y + y) * TILE_SIZE + patch.x + x;
+                const index = targetRow + x;
                 land[index] = 1;
                 water[index] = 0;
             }
@@ -223,9 +229,10 @@ function getChunkWoodMask(scene, tiles) {
         const originY = tiles[index + 1] * TILE_SIZE + WOOD_MASK_MARGIN;
 
         for (let y = top - 1; y <= bottom; y++) {
+            const row = (originY + y) * WOOD_MASK_SIZE + originX;
             for (let x = left - 1; x <= right; x++) {
                 const core = x >= left && x < right && y >= top && y < bottom;
-                if (core || ((x + y) & 1) === 0) mask[(originY + y) * WOOD_MASK_SIZE + originX + x] = 1;
+                if (core || ((x + y) & 1) === 0) mask[row + x] = 1;
             }
         }
     }
@@ -295,22 +302,23 @@ function getShoreDistances(scene, chunkX, chunkY) {
 
             for (let y = 0; y < TILE_SIZE; y++) {
                 const row = (originY + y) * stride + originX;
+                const sourceRow = y * TILE_SIZE;
 
                 for (let x = 0; x < TILE_SIZE; x++) {
-                    distances[row + x] = water[y * TILE_SIZE + x] ? 65535 : 0;
+                    distances[row + x] = water[sourceRow + x] ? 65535 : 0;
                 }
             }
         }
     }
 
-    for (const direction of [1, -1]) {
+    for (let direction = 1; direction >= -1; direction -= 2) {
         const back = direction * stride;
 
         for (let step = 0; step < size; step++) {
             const y = direction > 0 ? step : size - 1 - step;
+            const row = (y + 1) * stride + (direction > 0 ? 1 : size);
 
-            for (let column = 0; column < size; column++) {
-                const index = (y + 1) * stride + (direction > 0 ? column : size - 1 - column) + 1;
+            for (let column = 0, index = row; column < size; column++, index += direction) {
                 const value = distances[index];
                 if (value === 0) continue;
 
@@ -329,9 +337,10 @@ function getShoreDistances(scene, chunkX, chunkY) {
 
     for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
         const row = (y + margin + 1) * stride + margin + 1;
+        const resultRow = y * CHUNK_PIXEL_SIZE;
 
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
-            result[y * CHUNK_PIXEL_SIZE + x] = Math.min(SHORE_DISTANCE_MAX, Math.round(distances[row + x] / 3));
+            result[resultRow + x] = Math.min(SHORE_DISTANCE_MAX, Math.round(distances[row + x] / 3));
         }
     }
 

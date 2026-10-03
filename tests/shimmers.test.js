@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
-const source = ['runtime/settings.js', 'runtime/state.js', 'world/chunks.js', 'environment/shimmers.js']
+const source = ['runtime/settings.js', 'runtime/state.js', 'world/surfaces.js', 'world/chunks.js', 'environment/shimmers.js']
     .map(file => fs.readFileSync(path.join(ROOT, 'src', file), 'utf8')).join('\n');
 
 function createWorld(includeOpenWater = true) {

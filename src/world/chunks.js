@@ -108,7 +108,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 terrainTile.rotation
             );
 
-            for (const patch of terrainTile.patches || []) {
+            for (const patch of terrainTile.patches || EMPTY_TILE_PATCHES) {
                 drawChunkTexture(getUpperContext(), scene, patch.key, drawX + patch.x, drawY + patch.y, 0, patch.flipX, patch.flipY);
             }
 
