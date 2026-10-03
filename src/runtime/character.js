@@ -81,6 +81,7 @@ function canCharacterOccupy(scene, x, y) {
     const rightTile = Math.floor((right - 1) / TILE_SIZE);
     const topTile = Math.floor(top / TILE_SIZE);
     const bottomTile = Math.floor((bottom - 1) / TILE_SIZE);
+    const wholePixels = Number.isInteger(x) && Number.isInteger(y);
 
     for (let tileY = topTile; tileY <= bottomTile; tileY++) {
         for (let tileX = leftTile; tileX <= rightTile; tileX++) {
@@ -90,15 +91,25 @@ function canCharacterOccupy(scene, x, y) {
             if (tile.blocking === 'lower' && bottom > tileY * TILE_SIZE + TILE_SIZE / 2) return false;
             if (tile.blocking === 'lower' || tile.blocking !== 'full' && tile.baseKey !== 'water') continue;
 
-            const water = getTerrainSurface(scene, tile).water;
+            const surface = getTerrainSurface(scene, tile);
             const startX = Math.max(left, tileX * TILE_SIZE) - tileX * TILE_SIZE;
             const endX = Math.min(right, (tileX + 1) * TILE_SIZE) - tileX * TILE_SIZE;
             const startY = Math.max(top, tileY * TILE_SIZE) - tileY * TILE_SIZE;
             const endY = Math.min(bottom, (tileY + 1) * TILE_SIZE) - tileY * TILE_SIZE;
 
+            if (wholePixels) {
+                const rows = getSurfaceWaterRows(surface);
+                // Bits startX through endX - 1 cover the hitbox in this tile.
+                const columns = (1 << endX) - (1 << startX);
+                for (let pixelY = startY; pixelY < endY; pixelY++) {
+                    if (rows[pixelY] & columns) return false;
+                }
+                continue;
+            }
+
             for (let pixelY = startY; pixelY < endY; pixelY++) {
                 for (let pixelX = startX; pixelX < endX; pixelX++) {
-                    if (water[pixelY * TILE_SIZE + pixelX]) return false;
+                    if (surface.water[pixelY * TILE_SIZE + pixelX]) return false;
                 }
             }
         }

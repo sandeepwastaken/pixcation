@@ -88,6 +88,21 @@ function getTerrainSurface(scene, tile) {
     return surface;
 }
 
+function getSurfaceWaterRows(surface) {
+    if (surface.waterRows) return surface.waterRows;
+
+    const rows = new Uint16Array(TILE_SIZE);
+    for (let y = 0; y < TILE_SIZE; y++) {
+        const row = y * TILE_SIZE;
+        for (let x = 0; x < TILE_SIZE; x++) {
+            if (surface.water[row + x]) rows[y] |= 1 << x;
+        }
+    }
+
+    surface.waterRows = rows;
+    return rows;
+}
+
 function getTileMaskRuns(mask, mergeRows = false) {
     const cells = [];
     const previous = mergeRows ? [] : null;
