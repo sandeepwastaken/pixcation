@@ -12,6 +12,7 @@ function createSession(saved, options = {}) {
     const writes = [];
     const items = [];
     const erased = [];
+    const removals = [];
     const context = vm.createContext({
         TEST_MODE: Boolean(options.testMode),
         localStorage: {
@@ -23,6 +24,11 @@ function createSession(saved, options = {}) {
             setItem(key, value) {
                 if (options.failWrite) throw new Error('Storage full');
                 writes.push([key, value]);
+            },
+            removeItem(key) {
+                assert.equal(key, 'pixcation-save-v1');
+                if (options.failRemove) throw new Error('Storage unavailable');
+                removals.push(key);
             }
         },
         addHotbarItem: (scene, icon, label) => items.push([icon, label]),
@@ -32,9 +38,10 @@ function createSession(saved, options = {}) {
     });
     vm.runInContext(source, context);
     return {
-        writes, items, erased,
+        writes, items, erased, removals,
         load: () => context.loadProgress({}),
         save: () => context.saveProgress(),
+        reset: () => context.resetProgress(),
         run: code => vm.runInContext(code, context)
     };
 }
@@ -177,4 +184,28 @@ test('unsafe saved amounts cannot overflow inventory counts or coins', () => {
     assert.equal(saved.coins, 100);
     assert.deepEqual(saved.fish, [['roach', Number.MAX_SAFE_INTEGER]]);
     assert.deepEqual(saved.bait, [['trainer', 4]]);
+});
+
+
+test('failed new game reset leaves progress saveable and can be retried', () => {
+    const options = { failRemove: true };
+    const session = createSession({ version: 1, coins: 345 }, options);
+    session.load();
+    session.run('saveDirty = true');
+    assert.equal(session.reset(), false);
+    assert.equal(session.run('newGameResetting'), false);
+    assert.equal(session.run('saveDirty'), true);
+    assert.equal(session.run('playerCoins'), 345);
+    session.save();
+    assert.equal(JSON.parse(session.writes[0][1]).coins, 345);
+
+    options.failRemove = false;
+    session.run('saveDirty = true');
+    assert.equal(session.reset(), true);
+    assert.deepEqual(session.removals, ['pixcation-save-v1']);
+    assert.equal(session.run('newGameResetting'), true);
+    assert.equal(session.run('saveDirty'), false);
+    session.run('saveDirty = true');
+    session.save();
+    assert.equal(session.writes.length, 1);
 });

@@ -116,3 +116,15 @@ function saveProgress() {
         saveDirty = true;
     }
 }
+
+function resetProgress() {
+    try {
+        localStorage.removeItem(SAVE_KEY);
+    } catch (error) {
+        return false;
+    }
+
+    newGameResetting = true;
+    saveDirty = false;
+    return true;
+}

@@ -86,10 +86,13 @@ function handleInventoryKey(scene, event) {
     if (key === 'i' || event.key === 'Escape') {
         closeInventory(scene);
     } else if (key === 'n' && scene.time.now < newGameConfirmUntil) {
-        newGameResetting = true;
-        saveDirty = false;
-        localStorage.removeItem(SAVE_KEY);
-        window.location.reload();
+        if (resetProgress()) {
+            window.location.reload();
+        } else {
+            newGameConfirmUntil = 0;
+            inventoryNewGameText.textContent = 'Could not erase save - press N to retry';
+            inventoryNewGameText.style.color = '#d9745b';
+        }
     } else if (key === 'n') {
         newGameConfirmUntil = scene.time.now + 2500;
         refreshInventoryUI(scene.time.now);
