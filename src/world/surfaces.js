@@ -98,9 +98,11 @@ function getSurfaceWaterRows(surface) {
     const rows = new Uint16Array(TILE_SIZE);
     for (let y = 0; y < TILE_SIZE; y++) {
         const row = y * TILE_SIZE;
+        let bits = 0;
         for (let x = 0; x < TILE_SIZE; x++) {
-            if (surface.water[row + x]) rows[y] |= 1 << x;
+            if (surface.water[row + x]) bits |= 1 << x;
         }
+        rows[y] = bits;
     }
 
     surface.waterRows = rows;
