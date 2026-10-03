@@ -94,12 +94,20 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
 
     for (let viewY = 0; viewY < viewHeight; viewY++) {
         const tileY = originY + viewY;
+        const chunkY = Math.floor(tileY / CHUNK_SIZE);
         const top = viewY * zoom;
         const bottom = Math.min(top + zoom, MAP_HEIGHT);
+        let previousChunkX = null;
+        let discovered = false;
 
         for (let viewX = 0; viewX < viewWidth; viewX++) {
             const tileX = originX + viewX;
-            if (!isTileDiscovered(tileX, tileY)) continue;
+            const chunkX = Math.floor(tileX / CHUNK_SIZE);
+            if (chunkX !== previousChunkX) {
+                previousChunkX = chunkX;
+                discovered = discoveredChunks.has(getTileId(chunkX, chunkY));
+            }
+            if (!discovered) continue;
 
             const color = mapColors(tileX, tileY, generateMapTileColor);
             const left = viewX * zoom;
