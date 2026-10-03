@@ -2194,9 +2194,10 @@ function spawnChunkShimmer(scene, chunk) {
 }
 
 function canHoldProp(type, tileX, tileY) {
-    for (let offsetX = 0; offsetX < PROP_TYPES[type].width; offsetX++) {
+    const definition = PROP_TYPES[type];
+    for (let offsetX = 0; offsetX < definition.width; offsetX++) {
         const terrain = getTerrainType(tileX + offsetX, tileY);
-        if (terrain !== 'grass' && (terrain !== 'dirt' || !PROP_TYPES[type].onDirt)) return false;
+        if (terrain !== 'grass' && (terrain !== 'dirt' || !definition.onDirt)) return false;
         if (type === 'bush') continue;
 
         const tile = getWorldTile(tileX + offsetX, tileY);
@@ -2333,8 +2334,9 @@ function createPropSprite(tileX, tileY) {
     }
 
     const art = propArt.get(type);
-    const x = tileX * TILE_SIZE + Math.floor((PROP_TYPES[type].width * TILE_SIZE - art.width) / 2);
-    const hitbox = PROP_TYPES[type].hitbox;
+    const definition = PROP_TYPES[type];
+    const x = tileX * TILE_SIZE + Math.floor((definition.width * TILE_SIZE - art.width) / 2);
+    const hitbox = definition.hitbox;
 
     return {
         texture: type,
