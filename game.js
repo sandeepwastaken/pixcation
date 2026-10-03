@@ -6384,6 +6384,7 @@ function bindGameInput(scene) {
         if (mapOpen) {
             const zoom = Phaser.Math.Clamp(mapZoom - step, 1, MAP_MAX_ZOOM);
             mapDirty ||= zoom !== mapZoom;
+            if (zoom !== mapZoom) mapDrag = null;
             mapZoom = zoom;
         } else if (marketOpen) {
             moveMarketSelection(step);
