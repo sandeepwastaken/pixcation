@@ -48,6 +48,11 @@ function createUIText(layer, x, y, color, width, align, style) {
     return text;
 }
 
+function setUITextContent(element, content) {
+    const text = content == null ? '' : String(content);
+    if (element.textContent !== text) element.textContent = text;
+}
+
 function addHudLayer(scene, element, y, depth) {
     const layer = scene.add.dom(0, y, element)
         .setOrigin(0)

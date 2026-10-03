@@ -54,7 +54,7 @@ function refreshBaitSlot() {
     const bait = getActiveBait();
 
     baitSlotImage.setVisible(Boolean(bait));
-    baitCountText.textContent = bait ? baitInventory.get(bait.id) : '';
+    setUITextContent(baitCountText, bait ? baitInventory.get(bait.id) : '');
 
     if (bait && baitSlotImage.texture.key !== bait.icon) {
         popIn(baitSlotImage.scene, baitSlotImage.setTexture(bait.icon), HOTBAR_Y + 13);

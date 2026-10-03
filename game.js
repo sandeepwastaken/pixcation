@@ -4344,6 +4344,11 @@ function createUIText(layer, x, y, color, width, align, style) {
     return text;
 }
 
+function setUITextContent(element, content) {
+    const text = content == null ? '' : String(content);
+    if (element.textContent !== text) element.textContent = text;
+}
+
 function addHudLayer(scene, element, y, depth) {
     const layer = scene.add.dom(0, y, element)
         .setOrigin(0)
@@ -5149,7 +5154,7 @@ function refreshBaitSlot() {
     const bait = getActiveBait();
 
     baitSlotImage.setVisible(Boolean(bait));
-    baitCountText.textContent = bait ? baitInventory.get(bait.id) : '';
+    setUITextContent(baitCountText, bait ? baitInventory.get(bait.id) : '');
 
     if (bait && baitSlotImage.texture.key !== bait.icon) {
         popIn(baitSlotImage.scene, baitSlotImage.setTexture(bait.icon), HOTBAR_Y + 13);
@@ -5300,10 +5305,10 @@ function getFishInventorySummary() {
 }
 
 function setMarketDetail(name, status, statusColor, action, actionColor = '#acccf9') {
-    marketDetailName.textContent = name;
-    marketDetailStatus.textContent = status;
+    setUITextContent(marketDetailName, name);
+    setUITextContent(marketDetailStatus, status);
     marketDetailStatus.style.color = statusColor;
-    marketDetailAction.textContent = marketFeedback ? marketFeedback.text : action;
+    setUITextContent(marketDetailAction, marketFeedback ? marketFeedback.text : action);
     marketDetailAction.style.color = marketFeedback ? marketFeedback.color : actionColor;
 }
 
@@ -5313,7 +5318,7 @@ function refreshMarketOptions() {
     const items = MARKET_PAGES[marketPage].items;
     const rowColor = index => index === selectedMarketOption ? '#e0f2fd' : '#c0a887';
 
-    marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`;
+    setUITextContent(marketMessageText, `${Math.round(coinDisplay.value)}c`);
     marketHighlight.setY(MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT);
     marketTabTexts.forEach((tab, index) => tab.style.color = index === marketPage ? '#acccf9' : '#6f5b49');
 
@@ -5323,10 +5328,10 @@ function refreshMarketOptions() {
         const priceText = marketPriceTexts[index];
 
         const label = item ? item.label : '';
-        if (marketOptionTexts[index].textContent !== label) marketOptionTexts[index].textContent = label;
+        setUITextContent(marketOptionTexts[index], label);
         marketOptionTexts[index].style.color = owned && index !== selectedMarketOption ? '#7a6450' : rowColor(index);
         const price = !item ? '' : owned ? 'Owned' : `${item.price}c`;
-        if (priceText.textContent !== price) priceText.textContent = price;
+        setUITextContent(priceText, price);
         priceText.style.color = owned ? '#8fbf7a' : item && playerCoins >= item.price ? '#e8c170' : '#9a5a47';
         marketItemImages[index].setVisible(Boolean(item));
         if (item) {
@@ -5374,7 +5379,7 @@ function animateCoinTotal(scene) {
         value: playerCoins,
         duration: 260,
         ease: 'Quad.Out',
-        onUpdate: () => marketMessageText.textContent = `${Math.round(coinDisplay.value)}c`
+        onUpdate: () => setUITextContent(marketMessageText, `${Math.round(coinDisplay.value)}c`)
     });
 }
 
