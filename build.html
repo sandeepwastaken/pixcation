@@ -174,7 +174,7 @@
         }
 
         function createMap() {
-            mapElement.replaceChildren();
+            const cells = document.createDocumentFragment();
             mapElement.style.gridTemplateColumns =
                 `repeat(${mapWidth}, 32px)`;
 
@@ -189,7 +189,7 @@
 
                     image.alt = '';
                     cell.appendChild(image);
-                    mapElement.appendChild(cell);
+                    cells.appendChild(cell);
 
                     cell.addEventListener('mousedown', event => {
                         if (event.button !== 0) return;
@@ -209,6 +209,7 @@
                 }
             }
 
+            mapElement.replaceChildren(cells);
             renderMap();
         }
 
