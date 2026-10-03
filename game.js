@@ -570,6 +570,7 @@ function generateTreeVariant(trunk, seed) {
     }
 
     puffs.sort((a, b) => (a.core ? -1 : b.core ? 1 : a.y - b.y));
+    for (const puff of puffs) puff.radiusSquared = puff.radius * puff.radius;
 
     const edgeSalt = Math.floor(random() * 100000);
     const owner = createTreeCanopyMask(puffs, width, height, edgeSalt);
@@ -593,7 +594,7 @@ function generateTreeVariant(trunk, seed) {
         for (const puff of puffs) {
             const dx = x + 0.5 - puff.x;
             const dy = y + 0.5 - puff.y;
-            const lift = puff.radius * puff.radius - dx * dx - dy * dy;
+            const lift = puff.radiusSquared - dx * dx - dy * dy;
             if (lift > 0) best = Math.max(best, Math.sqrt(lift) * (puff.core ? 0.8 : 1));
         }
 
