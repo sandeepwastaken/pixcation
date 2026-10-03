@@ -6752,26 +6752,6 @@ function moveCharacterAxis(scene, amountX, amountY, allowNudge) {
     return true;
 }
 
-function followCameraAxis(offset, lag) {
-    return Math.abs(lag - offset) > 0.6 ? Math.round(lag) : offset;
-}
-
-function updateCamera(delta) {
-    const baseScrollX = character.x + CHARACTER_SIZE / 2 - mainCamera.width / 2;
-    const baseScrollY = character.y + CHARACTER_SIZE / 2 - mainCamera.height / 2;
-    const targetX = baseScrollX + characterMoveRemainderX;
-    const targetY = baseScrollY + characterMoveRemainderY;
-    const followAmount = 1 - Math.exp(-CAMERA_EASE * characterPace * delta / 1000);
-
-    cameraScrollX += (targetX - cameraScrollX) * followAmount;
-    cameraScrollY += (targetY - cameraScrollY) * followAmount;
-
-    cameraOffsetX = followCameraAxis(cameraOffsetX, cameraScrollX - targetX);
-    cameraOffsetY = followCameraAxis(cameraOffsetY, cameraScrollY - targetY);
-
-    mainCamera.setScroll(baseScrollX + cameraOffsetX, baseScrollY + cameraOffsetY);
-}
-
 function setCharacterTexture(key) {
     if (key === characterTextureKey) return false;
 
@@ -6780,9 +6760,7 @@ function setCharacterTexture(key) {
     return true;
 }
 
-function update(time, delta) {
-    if (!character) return;
-
+function updateCharacter(scene, time, delta) {
     let moveX = 0;
     let moveY = 0;
 
@@ -6819,15 +6797,43 @@ function update(time, delta) {
 
         characterMoveRemainderX -= wholeMoveX;
         characterMoveRemainderY -= wholeMoveY;
-        if (!moveCharacterAxis(this, wholeMoveX, 0, moveY === 0)) characterMoveRemainderX = 0;
-        if (!moveCharacterAxis(this, 0, wholeMoveY, moveX === 0)) characterMoveRemainderY = 0;
+        if (!moveCharacterAxis(scene, wholeMoveX, 0, moveY === 0)) characterMoveRemainderX = 0;
+        if (!moveCharacterAxis(scene, 0, wholeMoveY, moveX === 0)) characterMoveRemainderY = 0;
 
         const walkFrame = CHARACTER_WALK_FRAMES[Math.floor(characterWalkPhase) % 4];
 
         if (setCharacterTexture(`character-${characterDirection}${walkFrame ? `walk${walkFrame}` : ''}`) && walkFrame) {
-            kickUpDust(this, time, moveX, moveY);
+            kickUpDust(scene, time, moveX, moveY);
         }
     }
+
+    return isWalking;
+}
+
+function followCameraAxis(offset, lag) {
+    return Math.abs(lag - offset) > 0.6 ? Math.round(lag) : offset;
+}
+
+function updateCamera(delta) {
+    const baseScrollX = character.x + CHARACTER_SIZE / 2 - mainCamera.width / 2;
+    const baseScrollY = character.y + CHARACTER_SIZE / 2 - mainCamera.height / 2;
+    const targetX = baseScrollX + characterMoveRemainderX;
+    const targetY = baseScrollY + characterMoveRemainderY;
+    const followAmount = 1 - Math.exp(-CAMERA_EASE * characterPace * delta / 1000);
+
+    cameraScrollX += (targetX - cameraScrollX) * followAmount;
+    cameraScrollY += (targetY - cameraScrollY) * followAmount;
+
+    cameraOffsetX = followCameraAxis(cameraOffsetX, cameraScrollX - targetX);
+    cameraOffsetY = followCameraAxis(cameraOffsetY, cameraScrollY - targetY);
+
+    mainCamera.setScroll(baseScrollX + cameraOffsetX, baseScrollY + cameraOffsetY);
+}
+
+function update(time, delta) {
+    if (!character) return;
+
+    const isWalking = updateCharacter(this, time, delta);
 
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
