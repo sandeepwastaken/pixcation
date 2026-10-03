@@ -319,6 +319,14 @@ function createCanvasTexture(scene, key, width, height, draw) {
     texture.refresh();
 }
 
+function writeRGBPixel(data, pixel, color) {
+    const index = pixel * 4;
+    data[index] = (color >> 16) & 255;
+    data[index + 1] = (color >> 8) & 255;
+    data[index + 2] = color & 255;
+    data[index + 3] = 255;
+}
+
 function extractSilhouetteShadow(scene, key) {
     const pixels = getTerrainPixels(scene, key);
     const { width, height } = pixels;
@@ -404,14 +412,6 @@ function pickTreePalette(random) {
     }
 
     return TREE_LEAF_PALETTES[0];
-}
-
-function writeTreePixel(data, pixel, color) {
-    const index = pixel * 4;
-    data[index] = color >> 16;
-    data[index + 1] = (color >> 8) & 255;
-    data[index + 2] = color & 255;
-    data[index + 3] = 255;
 }
 
 function readTreePixel(data, pixel) {
@@ -528,7 +528,7 @@ function generateTreeVariant(trunk, seed) {
             if (!trunk.data[source + 3]) continue;
 
             const pixel = targetRow + x;
-            writeTreePixel(data, pixel, (trunk.data[source] << 16) | (trunk.data[source + 1] << 8) | trunk.data[source + 2]);
+            writeRGBPixel(data, pixel, (trunk.data[source] << 16) | (trunk.data[source + 1] << 8) | trunk.data[source + 2]);
         }
     }
 
@@ -660,7 +660,7 @@ function generateTreeVariant(trunk, seed) {
         if (owner[pixel] < 0) data[pixel * 4 + 3] = 0;
     }
 
-    for (const pixel of filled) writeTreePixel(data, pixel, colors[levels[pixel]]);
+    for (const pixel of filled) writeRGBPixel(data, pixel, colors[levels[pixel]]);
 
     if (palette.extras.length && random() < 0.4) {
         const extra = palette.extras[Math.floor(random() * palette.extras.length)];
@@ -670,7 +670,7 @@ function generateTreeVariant(trunk, seed) {
             const pixel = Math.floor(random() * levels.length);
             if (levels[pixel] < 1 || levels[pixel] > 2 || levels[pixel + 1] < 0 || levels[pixel - width] < 0) continue;
 
-            writeTreePixel(data, pixel, extra);
+            writeRGBPixel(data, pixel, extra);
             placed++;
         }
     }
@@ -698,7 +698,7 @@ function generateTreeVariant(trunk, seed) {
             }
 
             if (shade > 0 && data[pixel * 4 + 3] && (shade > 2 || (x + y) & 1)) {
-                writeTreePixel(data, pixel, bark[Math.max(0, bark.indexOf(readTreePixel(data, pixel)) - 1)]);
+                writeRGBPixel(data, pixel, bark[Math.max(0, bark.indexOf(readTreePixel(data, pixel)) - 1)]);
             }
 
             shade--;
@@ -4123,7 +4123,7 @@ function createChestSilhouette(scene) {
 
             if (cover < 3) continue;
 
-            image.data.set([best >> 16 & 255, best >> 8 & 255, best & 255, 255], (y * width + x) * 4);
+            writeRGBPixel(image.data, y * width + x, best);
             points.push(x, y);
             top = Math.min(top, y);
             bottom = Math.max(bottom, y);

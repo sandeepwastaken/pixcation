@@ -35,7 +35,7 @@ function createChestSilhouette(scene) {
 
             if (cover < 3) continue;
 
-            image.data.set([best >> 16 & 255, best >> 8 & 255, best & 255, 255], (y * width + x) * 4);
+            writeRGBPixel(image.data, y * width + x, best);
             points.push(x, y);
             top = Math.min(top, y);
             bottom = Math.max(bottom, y);

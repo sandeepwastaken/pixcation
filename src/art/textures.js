@@ -38,6 +38,14 @@ function createCanvasTexture(scene, key, width, height, draw) {
     texture.refresh();
 }
 
+function writeRGBPixel(data, pixel, color) {
+    const index = pixel * 4;
+    data[index] = (color >> 16) & 255;
+    data[index + 1] = (color >> 8) & 255;
+    data[index + 2] = color & 255;
+    data[index + 3] = 255;
+}
+
 function extractSilhouetteShadow(scene, key) {
     const pixels = getTerrainPixels(scene, key);
     const { width, height } = pixels;
