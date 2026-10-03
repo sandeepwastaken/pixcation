@@ -115,11 +115,13 @@ function generateTerrainType(tileX, tileY) {
         return 'water';
     }
 
+    if (elevation < 0.38) return 'dirt';
+
     const dirtAmount = fractalNoise(tileX - 317, tileY + 191, 40);
     const localDirt = valueNoise(tileX, tileY, 4, 44);
     const dirtScore = dirtAmount + (localDirt - 0.5) * 0.14;
 
-    return elevation < 0.38 || dirtScore > 0.63 ? 'dirt' : 'grass';
+    return dirtScore > 0.63 ? 'dirt' : 'grass';
 }
 
 function isLandTile(tileX, tileY) {
@@ -214,7 +216,7 @@ function getTerrainTile(tileX, tileY) {
     for (const [dx, dy] of TERRAIN_CORNER_OFFSETS) {
         const horizontal = dx < 0 ? west : east;
         const vertical = dy < 0 ? north : south;
-        const diagonal = getTerrainType(tileX + dx, tileY + dy);
+        const diagonal = terrain === 'dirt' ? null : getTerrainType(tileX + dx, tileY + dy);
         const patchKey = getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy);
 
         if (!patchKey) continue;
