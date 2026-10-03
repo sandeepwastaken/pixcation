@@ -355,43 +355,8 @@ data[pixel * 4 + 3] = 255;
 function readTreePixel(data, pixel) {
 return (data[pixel * 4] << 16) | (data[pixel * 4 + 1] << 8) | data[pixel * 4 + 2];
 }
-function generateTreeVariant(trunk, seed) {
-const random = createSeededRandom(seed);
-const flip = random() < 0.5;
-const width = trunk.width + TREE_PAD_X * 2;
-const height = trunk.height + TREE_PAD_TOP;
-const data = new Uint8ClampedArray(width * height * 4);
-for (let y = 0; y < trunk.height; y++) {
-for (let x = 0; x < trunk.width; x++) {
-const source = (y * trunk.width + (flip ? trunk.width - 1 - x : x)) * 4;
-if (!trunk.data[source + 3]) continue;
-const pixel = (y + TREE_PAD_TOP) * width + x + TREE_PAD_X;
-writeTreePixel(data, pixel, (trunk.data[source] << 16) | (trunk.data[source + 1] << 8) | trunk.data[source + 2]);
-}
-}
-const palette = pickTreePalette(random);
-const colors = palette.colors;
-const radiusX = 23 + random() * 5;
-const radiusY = 17 + random() * 3;
-const centerX = width / 2 + (flip ? -1 : 1) + (random() - 0.5) * 3;
-const centerY = TREE_PAD_TOP + 22 + random() * 2;
-const puffs = [{ x: centerX, y: centerY, radius: Math.min(radiusX, radiusY) - 4, core: true }];
-const ringCount = 7 + Math.floor(random() * 3);
-const ringPhase = random() * Math.PI * 2;
-for (let index = 0; index < ringCount; index++) {
-const angle = ringPhase + index / ringCount * Math.PI * 2 + (random() - 0.5) * 0.5;
-const radius = 6.5 + random() * 3;
-puffs.push({ x: centerX + Math.cos(angle) * (radiusX - radius), y: centerY + Math.sin(angle) * (radiusY - radius), radius, core: false });
-}
-const innerCount = 3 + Math.floor(random() * 3);
-for (let index = 0; index < innerCount; index++) {
-const angle = random() * Math.PI * 2;
-const distance = Math.sqrt(random()) * 0.5;
-puffs.push({ x: centerX + Math.cos(angle) * distance * radiusX, y: centerY + Math.sin(angle) * distance * radiusY + 2, radius: 7 + random() * 3, core: false });
-}
-puffs.sort((a, b) => (a.core ? -1 : b.core ? 1 : a.y - b.y));
+function createTreeCanopyMask(puffs, width, height, edgeSalt) {
 const owner = new Int16Array(width * height).fill(-1);
-const edgeSalt = Math.floor(random() * 100000);
 const extent = (axis, sign) => Math.floor(Math.max(...puffs.map(puff => sign * puff[axis] + puff.radius + 1)) * sign);
 const minY = Math.max(0, extent('y', -1) - 1);
 const maxY = Math.min(height - 1, extent('y', 1));
@@ -446,6 +411,63 @@ else if (owner[pixel] < 0 && count >= 3) owner[pixel] = front;
 }
 }
 }
+return owner;
+}
+function createTreeShadow(puffs, centerX, centerY, height, edgeSalt) {
+const shadow = new Set();
+const groundY = height - 1;
+for (const puff of puffs) {
+const shadowX = centerX + (puff.x - centerX) * 0.8 + 3;
+const shadowY = groundY + (puff.y - centerY) * 0.35;
+const reachX = puff.radius * 0.85;
+const reachY = puff.radius * 0.55;
+for (let y = Math.floor(shadowY - reachY); y <= Math.ceil(shadowY + reachY); y++) {
+for (let x = Math.floor(shadowX - reachX); x <= Math.ceil(shadowX + reachX); x++) {
+const dx = (x + 0.5 - shadowX) / reachX;
+const dy = (y + 0.5 - shadowY) / reachY;
+if (dx * dx + dy * dy <= 1 + (leafHash(x, y, edgeSalt + 1) - 0.5) * 0.25) shadow.add(y * 1024 + x);
+}
+}
+}
+return [...shadow].flatMap(point => [point % 1024, Math.floor(point / 1024)]);
+}
+function generateTreeVariant(trunk, seed) {
+const random = createSeededRandom(seed);
+const flip = random() < 0.5;
+const width = trunk.width + TREE_PAD_X * 2;
+const height = trunk.height + TREE_PAD_TOP;
+const data = new Uint8ClampedArray(width * height * 4);
+for (let y = 0; y < trunk.height; y++) {
+for (let x = 0; x < trunk.width; x++) {
+const source = (y * trunk.width + (flip ? trunk.width - 1 - x : x)) * 4;
+if (!trunk.data[source + 3]) continue;
+const pixel = (y + TREE_PAD_TOP) * width + x + TREE_PAD_X;
+writeTreePixel(data, pixel, (trunk.data[source] << 16) | (trunk.data[source + 1] << 8) | trunk.data[source + 2]);
+}
+}
+const palette = pickTreePalette(random);
+const colors = palette.colors;
+const radiusX = 23 + random() * 5;
+const radiusY = 17 + random() * 3;
+const centerX = width / 2 + (flip ? -1 : 1) + (random() - 0.5) * 3;
+const centerY = TREE_PAD_TOP + 22 + random() * 2;
+const puffs = [{ x: centerX, y: centerY, radius: Math.min(radiusX, radiusY) - 4, core: true }];
+const ringCount = 7 + Math.floor(random() * 3);
+const ringPhase = random() * Math.PI * 2;
+for (let index = 0; index < ringCount; index++) {
+const angle = ringPhase + index / ringCount * Math.PI * 2 + (random() - 0.5) * 0.5;
+const radius = 6.5 + random() * 3;
+puffs.push({ x: centerX + Math.cos(angle) * (radiusX - radius), y: centerY + Math.sin(angle) * (radiusY - radius), radius, core: false });
+}
+const innerCount = 3 + Math.floor(random() * 3);
+for (let index = 0; index < innerCount; index++) {
+const angle = random() * Math.PI * 2;
+const distance = Math.sqrt(random()) * 0.5;
+puffs.push({ x: centerX + Math.cos(angle) * distance * radiusX, y: centerY + Math.sin(angle) * distance * radiusY + 2, radius: 7 + random() * 3, core: false });
+}
+puffs.sort((a, b) => (a.core ? -1 : b.core ? 1 : a.y - b.y));
+const edgeSalt = Math.floor(random() * 100000);
+const owner = createTreeCanopyMask(puffs, width, height, edgeSalt);
 const filled = [];
 const heights = new Float32Array(width * height);
 const smooth = new Float32Array(width * height);
@@ -512,7 +534,11 @@ const quantile = amount => sorted[Math.min(sorted.length - 1, Math.max(0, Math.f
 const bands = TREE_TONE_SHARES.map(share => [quantile(share - TREE_DITHER_SHARE), quantile(share + TREE_DITHER_SHARE)]);
 for (const pixel of filled) {
 const checker = (pixel % width + Math.floor(pixel / width)) & 1;
-levels[pixel] = bands.filter(([low, high]) => values[pixel] >= high || values[pixel] >= low && checker).length;
+let level = 0;
+for (const [low, high] of bands) {
+if (values[pixel] >= high || values[pixel] >= low && checker) level++;
+}
+levels[pixel] = level;
 }
 for (let pixel = 0; pixel < (bottom - 3) * width; pixel++) {
 if (owner[pixel] < 0) data[pixel * 4 + 3] = 0;
@@ -550,22 +576,7 @@ writeTreePixel(data, pixel, bark[Math.max(0, bark.indexOf(readTreePixel(data, pi
 shade--;
 }
 }
-const shadow = new Set();
-const groundY = height - 1;
-for (const puff of puffs) {
-const shadowX = centerX + (puff.x - centerX) * 0.8 + 3;
-const shadowY = groundY + (puff.y - centerY) * 0.35;
-const reachX = puff.radius * 0.85;
-const reachY = puff.radius * 0.55;
-for (let y = Math.floor(shadowY - reachY); y <= Math.ceil(shadowY + reachY); y++) {
-for (let x = Math.floor(shadowX - reachX); x <= Math.ceil(shadowX + reachX); x++) {
-const dx = (x + 0.5 - shadowX) / reachX;
-const dy = (y + 0.5 - shadowY) / reachY;
-if (dx * dx + dy * dy <= 1 + (leafHash(x, y, edgeSalt + 1) - 0.5) * 0.25) shadow.add(y * 1024 + x);
-}
-}
-}
-const shadowPoints = [...shadow].flatMap(point => [point % 1024, Math.floor(point / 1024)]);
+const shadowPoints = createTreeShadow(puffs, centerX, centerY, height, edgeSalt);
 let hitLeft = width;
 let hitRight = 0;
 for (let y = height - 12; y < height - 8; y++) {

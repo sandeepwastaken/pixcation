@@ -1,7 +1,9 @@
 [
     "game-data.js",
     "water-pipeline.js",
-    "art.js",
+    "art/textures.js",
+    "art/trees.js",
+    "art/cliffs.js",
     "world/terrain.js",
     "world/surfaces.js",
     "world/shadows.js",
