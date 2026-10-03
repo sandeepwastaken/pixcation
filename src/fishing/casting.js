@@ -48,6 +48,7 @@ function releaseCast(time) {
         driftPhase: Math.random() * Math.PI * 2,
         rope: null
     };
+    recordPlayerStat('casts');
 
     setCharacterTexture(`character-${characterDirection}`);
 }

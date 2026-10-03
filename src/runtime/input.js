@@ -28,7 +28,9 @@ function bindGameInput(scene) {
             mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
         }
 
-        scene.input.setDefaultCursor(!isMenuOpen() && getClickedWorldTarget(pointer) ? 'pointer' : 'default');
+        const overStats = (!isMenuOpen() || statsOpen) && isStatsButtonAt(pointer.x, pointer.y);
+        const overActor = !isMenuOpen() && getClickedWorldTarget(pointer);
+        scene.input.setDefaultCursor(overStats || overActor ? 'pointer' : 'default');
     });
 
     const releaseAction = source => {
@@ -49,10 +51,14 @@ function bindGameInput(scene) {
         fishingActionHeld = false;
         castCharge = null;
         mapDrag = null;
+        lastPlayTime = null;
     };
+    const resetPlayClock = () => { lastPlayTime = null; };
     scene.game.events.on(Phaser.Core.Events.BLUR, resetActions);
+    scene.game.events.on(Phaser.Core.Events.FOCUS, resetPlayClock);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
         scene.game.events.off(Phaser.Core.Events.BLUR, resetActions);
+        scene.game.events.off(Phaser.Core.Events.FOCUS, resetPlayClock);
         resetActions();
     });
 
@@ -70,6 +76,14 @@ function bindGameInput(scene) {
         if (pointer.button !== 0) return;
         if (startup) {
             if (pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144) beginStartup(scene.time.now);
+            return;
+        }
+        if (statsOpen) {
+            if (pointer.x < 32 || pointer.x >= 288 || pointer.y < 24 || pointer.y >= 168) closeStats();
+            return;
+        }
+        if (!isMenuOpen() && isStatsButtonAt(pointer.x, pointer.y)) {
+            openStats();
             return;
         }
         if (inventoryOpen) {
@@ -115,7 +129,7 @@ function bindGameInput(scene) {
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
         const step = Math.sign(deltaY);
 
-        if (!step || inventoryOpen || startup) return;
+        if (!step || inventoryOpen || startup || statsOpen) return;
 
         if (isMenuOpen()) {
             if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
@@ -146,17 +160,21 @@ function bindGameInput(scene) {
         const code = event.code;
         const key = event.key.toLowerCase();
         const slot = Number(event.key) - 1;
+        if (code === 'Tab') event.preventDefault();
 
         if (code === 'KeyA' || code === 'ArrowLeft') horizontalPriority = -1;
         if (code === 'KeyD' || code === 'ArrowRight') horizontalPriority = 1;
         if (code === 'KeyW' || code === 'ArrowUp') verticalPriority = -1;
         if (code === 'KeyS' || code === 'ArrowDown') verticalPriority = 1;
 
-        if (dialogueOpen) handleGuideDialogueKey(scene, event);
+        if (statsOpen) {
+            if (code === 'Escape' || code === 'Tab') closeStats();
+        } else if (dialogueOpen) handleGuideDialogueKey(scene, event);
         else if (inventoryOpen) handleInventoryKey(scene, event);
         else if (mapOpen) handleMapKey(scene, event);
         else if (marketOpen) handleMarketKey(scene, event);
         else if (key === 'i') openInventory(scene);
+        else if (code === 'Tab') openStats();
         else if (code === 'Space') pressAction('keyboard');
         else if (key === 'm') openMap(scene);
         else if (key === 'b') cycleBait(scene);

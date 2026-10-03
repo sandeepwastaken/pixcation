@@ -24,6 +24,7 @@ function create() {
 
     createCharacterShadow(this);
     fishingLine = this.add.graphics();
+    fishingWaterShadow = this.add.graphics().setDepth(1.25);
     worldObjectLayer.add(fishingLine);
     createFishingUI(this);
 
@@ -64,6 +65,7 @@ function create() {
     createInventoryUI(this);
     createCatchCardUI(this);
     createInteractionPromptUI(this);
+    createStatsUI(this);
     if (TEST_MODE) {
         try {
             window.PIXCATION_TEST_RESULTS = runAutomatedTests(this);

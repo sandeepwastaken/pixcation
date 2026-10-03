@@ -90,6 +90,7 @@ function updateFishing(scene, time, delta, isWalking) {
     const interrupted = isWalking || isMenuOpen() || !hasRodSelected();
 
     fishingLine.clear();
+    fishingWaterShadow.clear();
     if (castCharge && interrupted) castCharge = null;
     drawCastCharge(time);
 
@@ -168,12 +169,15 @@ function updateFishing(scene, time, delta, isWalking) {
     const depth = fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY);
     if (fishingLine.depth !== depth) fishingLine.setDepth(depth);
     plotFishingLine(handX, handY, tipX, tipY, 0, polePalette);
+    const tipHeight = Math.max(0, character.y + CHARACTER_SIZE - tipY);
+    drawFishingWaterShadow(scene, character.y + CHARACTER_SIZE - handY, tipHeight);
 
     if (fishing.state === 'casting') return;
 
     fishing.rope ||= createFishingRope(tipX, tipY, fishing.bobberX, fishing.bobberY - 2, Math.hypot(fishing.bobberX - tipX, fishing.bobberY - 2 - tipY) + 5);
     updateFishingRope(fishing.rope, tipX, tipY, fishing.bobberX, fishing.bobberY - 2, delta, taut ? 1 : fishing.state === 'flying' ? 0.7 : 0);
     drawFishingRope(fishing.rope, linePalette);
+    if (waterFishingStates.has(fishing.state) || fishing.state === 'reeling') drawFishingWaterShadow(scene, tipHeight, 2);
     fishingLine
         .fillStyle(bobberPalette?.[2] || BOBBER_BOTTOM_COLOR, 1)
         .fillRect(fishing.bobberX - 1, fishing.bobberY - 2, 2, 1)

@@ -64,3 +64,25 @@ test('batching preserves gaps, row changes, reversals, and overpainted colors', 
 test('an empty path emits no graphics commands', () => {
     assert.deepEqual(createRenderer().draw([]), { pixels: [], rectangles: [] });
 });
+
+test('fishing shadows project whole pixels onto water and skip land', () => {
+    const renderer = createRenderer();
+    renderer.run(`
+        const shadowPixels = [];
+        fishingWaterShadow = { fillStyle() {}, fillRect(x, y, width, height) { shadowPixels.push([x, y, width, height]); } };
+        function isWaterPixel(scene, x, y) { return x >= 2 && y >= 2; }
+        pixelPathLength = 4;
+        pixelPathX.set([0, 1, 2, 3]);
+        pixelPathY.set([0, 0, 0, 0]);
+        drawFishingWaterShadow({}, 6, 2);
+    `);
+    const pixels = JSON.parse(renderer.run('JSON.stringify(shadowPixels)'));
+    assert.ok(pixels.length > 0);
+    for (const [x, y, width, height] of pixels) {
+        assert.ok(Number.isInteger(x) && Number.isInteger(y));
+        assert.ok(x >= 2 && y >= 2);
+        assert.equal((x + y) % 2, 0);
+        assert.equal(width, 1);
+        assert.equal(height, 1);
+    }
+});

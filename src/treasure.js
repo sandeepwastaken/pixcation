@@ -179,7 +179,7 @@ function openHauledChest(scene, time, x, y) {
 
     if (Math.random() < CHEST_FISH_CHANCE) {
         const species = chooseFishSpecies(CHEST_FISH_WATER);
-        addCaughtFish(species);
+        addCaughtFish(species, false);
         rewards.push(species.name);
     }
 

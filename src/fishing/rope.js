@@ -57,6 +57,19 @@ function drawPixelPath() {
     }
 }
 
+function drawFishingWaterShadow(scene, fromHeight, toHeight) {
+    const lastIndex = Math.max(1, pixelPathLength - 1);
+    fishingWaterShadow.fillStyle(0x5a7eb6, 1);
+    for (let index = 0; index < pixelPathLength; index++) {
+        const amount = index / lastIndex;
+        const height = Math.max(0, fromHeight + (toHeight - fromHeight) * amount);
+        const x = pixelPathX[index] + Math.round(height / 6);
+        const y = pixelPathY[index] + Math.round(height);
+        if ((x + y) % 2 || !isWaterPixel(scene, x, y)) continue;
+        fishingWaterShadow.fillRect(x, y, 1, 1);
+    }
+}
+
 function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
     const controlX = (fromX + toX) / 2;
     const controlY = (fromY + toY) / 2 + sag;

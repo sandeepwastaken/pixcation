@@ -60,6 +60,28 @@ function restoreSavedBait(bait) {
     }
 }
 
+function restoreSavedStats(stats) {
+    let knownFish = 0;
+    for (const count of fishInventory.values()) knownFish = Math.min(Number.MAX_SAFE_INTEGER, knownFish + count);
+    playerStats.fishCaught = knownFish;
+    if (!stats || typeof stats !== 'object' || Array.isArray(stats)) return;
+    for (const key of Object.keys(playerStats)) {
+        if (Number.isSafeInteger(stats[key]) && stats[key] >= 0) playerStats[key] = stats[key];
+    }
+}
+
+function recordPlayerStat(key, amount = 1) {
+    playerStats[key] = Math.min(Number.MAX_SAFE_INTEGER, playerStats[key] + amount);
+    saveDirty = true;
+}
+
+function updatePlayTime(time) {
+    if (!TEST_MODE && lastPlayTime !== null && document.visibilityState === 'visible' && document.hasFocus()) {
+        recordPlayerStat('playTimeMs', Math.max(0, time - lastPlayTime));
+    }
+    lastPlayTime = time;
+}
+
 function loadProgress(scene) {
     let saved;
 
@@ -80,6 +102,7 @@ function loadProgress(scene) {
 
     restoreSavedRods(scene, saved.rods);
     restoreSavedFish(saved.fish);
+    restoreSavedStats(saved.stats);
     restoreSavedCatchLog(saved.catchLog);
     restoreSavedTileIds(discoveredChunks, saved.explored);
     restoreSavedBait(saved.bait);
@@ -109,7 +132,8 @@ function saveProgress() {
             bait: [...baitInventory],
             activeBait: activeBaitId,
             chests: [...openedChests],
-            guideMet: guideHasMetPlayer
+            guideMet: guideHasMetPlayer,
+            stats: Object.fromEntries(Object.entries(playerStats).map(([key, value]) => [key, Math.floor(value)]))
         }));
         saveDirty = false;
     } catch (error) {

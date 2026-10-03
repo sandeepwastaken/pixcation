@@ -13,7 +13,7 @@ function createInput() {
     const gameEvents = new EventEmitter();
     const context = vm.createContext({
         scene: { input, events, game: { events: gameEvents }, time: { now: 100 } },
-        Phaser: { Core: { Events: { BLUR: 'blur' } }, Scenes: { Events: { SHUTDOWN: 'shutdown' } } },
+        Phaser: { Core: { Events: { BLUR: 'blur', FOCUS: 'focus' } }, Scenes: { Events: { SHUTDOWN: 'shutdown' } } },
         CHEATS_ENABLED: false
     });
     const source = ['runtime/settings.js', 'runtime/state.js', 'runtime/input.js']
@@ -25,6 +25,9 @@ function createInput() {
         function releaseCast() { releases++; castCharge = null; }
         function getClickedWorldTarget() { return null; }
         function isBaitSlotAt() { return false; }
+        function isStatsButtonAt(x, y) { return x >= 264 && x < 312 && y >= 8 && y < 24; }
+        function openStats() { statsOpen = true; }
+        function closeStats() { statsOpen = false; }
         function isMenuOpen() { return false; }
         bindGameInput(scene);
     `, context);
@@ -59,6 +62,23 @@ test('right clicks do not cast or release a held left click', () => {
     assert.equal(run('releases'), 0);
     input.emit('pointerup', left);
     assert.equal(run('releases'), 1);
+});
+
+test('the stats button and Tab open stats without casting and Escape closes it', () => {
+    const { input, run } = createInput();
+    input.emit('pointerdown', { button: 0, x: 280, y: 12 });
+    assert.equal(run('statsOpen'), true);
+    assert.equal(run('presses'), 0);
+    input.keyboard.emit('keydown', { key: 'Escape', code: 'Escape', repeat: false });
+    assert.equal(run('statsOpen'), false);
+    let prevented = false;
+    const tab = { key: 'Tab', code: 'Tab', repeat: false, preventDefault() { prevented = true; } };
+    input.keyboard.emit('keydown', tab);
+    assert.equal(run('statsOpen'), true);
+    assert.equal(prevented, true);
+    input.emit('pointerdown', { button: 0, x: 280, y: 12 });
+    assert.equal(run('statsOpen'), false);
+    assert.equal(run('presses'), 0);
 });
 
 test('outside mouse releases clear drags and release a held cast only once', () => {

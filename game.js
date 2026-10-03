@@ -2976,7 +2976,8 @@ function updateTreeShadows(scene, time) {
         }
         const image = chunk.treeShadowImage;
         image.data.fill(0);
-        const water = chunk.waterShadowBase ? new ImageData(new Uint8ClampedArray(chunk.waterShadowBase), CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE) : null;
+        const water = chunk.waterShadowBase ? (chunk.treeWaterShadowImage ||= new ImageData(new Uint8ClampedArray(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE * 4), CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE)) : null;
+        if (water) water.data.set(chunk.waterShadowBase);
         for (const pixel of points) {
             const worldX = chunk.pixelX + pixel % CHUNK_PIXEL_SIZE;
             const worldY = chunk.pixelY + Math.floor(pixel / CHUNK_PIXEL_SIZE);
@@ -3798,6 +3799,7 @@ function releaseCast(time) {
         driftPhase: Math.random() * Math.PI * 2,
         rope: null
     };
+    recordPlayerStat('casts');
 
     setCharacterTexture(`character-${characterDirection}`);
 }
@@ -3874,9 +3876,10 @@ function finishFishingMinigame(scene, time, caught) {
     showCatchCard(scene, time, species);
 }
 
-function addCaughtFish(species) {
+function addCaughtFish(species, caught = true) {
     fishInventory.set(species.id, (fishInventory.get(species.id) || 0) + 1);
     catchLog.add(species.id);
+    if (caught) recordPlayerStat('fishCaught');
     saveDirty = true;
 }
 
@@ -3976,6 +3979,19 @@ function drawPixelPath() {
         }
 
         fishingLine.fillRect(left, y, right - left + 1, 1);
+    }
+}
+
+function drawFishingWaterShadow(scene, fromHeight, toHeight) {
+    const lastIndex = Math.max(1, pixelPathLength - 1);
+    fishingWaterShadow.fillStyle(0x5a7eb6, 1);
+    for (let index = 0; index < pixelPathLength; index++) {
+        const amount = index / lastIndex;
+        const height = Math.max(0, fromHeight + (toHeight - fromHeight) * amount);
+        const x = pixelPathX[index] + Math.round(height / 6);
+        const y = pixelPathY[index] + Math.round(height);
+        if ((x + y) % 2 || !isWaterPixel(scene, x, y)) continue;
+        fishingWaterShadow.fillRect(x, y, 1, 1);
     }
 }
 
@@ -4193,6 +4209,7 @@ function updateFishing(scene, time, delta, isWalking) {
     const interrupted = isWalking || isMenuOpen() || !hasRodSelected();
 
     fishingLine.clear();
+    fishingWaterShadow.clear();
     if (castCharge && interrupted) castCharge = null;
     drawCastCharge(time);
 
@@ -4271,12 +4288,15 @@ function updateFishing(scene, time, delta, isWalking) {
     const depth = fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY);
     if (fishingLine.depth !== depth) fishingLine.setDepth(depth);
     plotFishingLine(handX, handY, tipX, tipY, 0, polePalette);
+    const tipHeight = Math.max(0, character.y + CHARACTER_SIZE - tipY);
+    drawFishingWaterShadow(scene, character.y + CHARACTER_SIZE - handY, tipHeight);
 
     if (fishing.state === 'casting') return;
 
     fishing.rope ||= createFishingRope(tipX, tipY, fishing.bobberX, fishing.bobberY - 2, Math.hypot(fishing.bobberX - tipX, fishing.bobberY - 2 - tipY) + 5);
     updateFishingRope(fishing.rope, tipX, tipY, fishing.bobberX, fishing.bobberY - 2, delta, taut ? 1 : fishing.state === 'flying' ? 0.7 : 0);
     drawFishingRope(fishing.rope, linePalette);
+    if (waterFishingStates.has(fishing.state) || fishing.state === 'reeling') drawFishingWaterShadow(scene, tipHeight, 2);
     fishingLine
         .fillStyle(bobberPalette?.[2] || BOBBER_BOTTOM_COLOR, 1)
         .fillRect(fishing.bobberX - 1, fishing.bobberY - 2, 2, 1)
@@ -4467,7 +4487,7 @@ function openHauledChest(scene, time, x, y) {
 
     if (Math.random() < CHEST_FISH_CHANCE) {
         const species = chooseFishSpecies(CHEST_FISH_WATER);
-        addCaughtFish(species);
+        addCaughtFish(species, false);
         rewards.push(species.name);
     }
 
@@ -4494,7 +4514,7 @@ function updateChestBubbles(scene, time) {
 }
 
 function isMenuOpen() {
-    return dialogueOpen || marketOpen || mapOpen || inventoryOpen;
+    return dialogueOpen || marketOpen || mapOpen || inventoryOpen || statsOpen;
 }
 
 function drawPanelFrame(panel, x, width, height) {
@@ -4681,6 +4701,62 @@ function updateStartup(scene, time, delta) {
     updateParticles(time);
     updateFish(delta);
     updateChunkWater(time);
+}
+
+function createStatsUI(scene) {
+    statsButton = scene.add.image(264, 8, 'stats-button').setOrigin(0).setScrollFactor(0).setDepth(210);
+    const buttonText = createTextLayer(16, { width: '48px', fontSize: '11px', lineHeight: '11px' });
+    createUIText(buttonText, 0, 2, '#000000', 48, 'center').textContent = 'Stats';
+    statsButtonTextLayer = addHudLayer(scene, buttonText, 8, 211).setX(264).setVisible(true);
+    statsContainer = scene.add.image(32, 24, 'stats-panel').setOrigin(0).setScrollFactor(0).setDepth(220).setVisible(false);
+    const text = createTextLayer(144, { color: '#000000', fontSize: '11px', lineHeight: '11px' });
+    createUIText(text, 44, 10, '#000000', 232, 'center', { fontSize: '16px' }).textContent = 'Your stats';
+    const labels = ['Fish caught', 'Species discovered', 'Time playing', 'Total money earned', 'Fish sold', 'Casts made', 'Total money spent', 'Chests opened', 'Areas explored'];
+    for (let index = 0; index < labels.length; index++) {
+        createUIText(text, 44, 30 + index * 11, '#000000', 156).textContent = labels[index];
+        statsValueTexts.push(createUIText(text, 200, 30 + index * 11, '#000000', 76, 'right'));
+    }
+    createUIText(text, 44, 129, '#000000', 232, 'center', { fontSize: '9px' }).textContent = 'Tab / Esc / Click outside to close';
+    statsTextLayer = addHudLayer(scene, text, 24, 221);
+    refreshStatsUI();
+}
+
+function formatPlayTime(milliseconds) {
+    const seconds = Math.floor(milliseconds / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${String(minutes % 60).padStart(2, '0')}m ${String(seconds % 60).padStart(2, '0')}s`;
+}
+
+function refreshStatsUI() {
+    const values = [playerStats.fishCaught, `${catchLog.size}/${FISH_SPECIES.length}`, formatPlayTime(playerStats.playTimeMs), `${playerStats.moneyEarned}c`, playerStats.fishSold, playerStats.casts, `${playerStats.moneySpent}c`, openedChests.size, discoveredChunks.size];
+    for (let index = 0; index < statsValueTexts.length; index++) setUITextContent(statsValueTexts[index], values[index]);
+}
+
+function updateStatsUI() {
+    const visible = !isMenuOpen() || statsOpen;
+    if (statsButton.visible !== visible) statsButton.setVisible(visible);
+    if (statsButtonTextLayer.visible !== visible) statsButtonTextLayer.setVisible(visible);
+    if (statsOpen) refreshStatsUI();
+}
+
+function isStatsButtonAt(x, y) {
+    return x >= 264 && x < 312 && y >= 8 && y < 24;
+}
+
+function openStats() {
+    if (isMenuOpen() || startup) return;
+    statsOpen = true;
+    stopCharacterForMenu();
+    refreshStatsUI();
+    statsContainer.setVisible(true);
+    statsTextLayer.setVisible(true);
+}
+
+function closeStats() {
+    statsOpen = false;
+    statsContainer.setVisible(false);
+    statsTextLayer.setVisible(false);
 }
 
 let fishingMinigameVisible = false;
@@ -5695,16 +5771,20 @@ function buySelectedMarketItem(scene) {
         if (!summary.count) return;
 
         playerCoins += summary.value;
+        recordPlayerStat('moneyEarned', summary.value);
+        recordPlayerStat('fishSold', summary.count);
         fishInventory.clear();
         marketFeedback = { text: `Sold for ${summary.value}c!`, color: '#8fbf7a' };
     } else if (!item || isMarketItemOwned(item) || playerCoins < item.price) {
         return;
     } else if (item.bundle) {
         playerCoins -= item.price;
+        recordPlayerStat('moneySpent', item.price);
         addBait(item, item.bundle, true);
         marketFeedback = { text: `+${item.bundle} ${item.label}!`, color: '#8fbf7a' };
     } else {
         playerCoins -= item.price;
+        recordPlayerStat('moneySpent', item.price);
         ownedRods.add(item.id);
         addHotbarItem(scene, item.icon, item.label);
         marketFeedback = { text: 'Purchased!', color: '#8fbf7a' };
@@ -6561,6 +6641,7 @@ const availableParticles = [];
 
 let fishing = null;
 let fishingLine;
+let fishingWaterShadow;
 const pixelPathX = new Int32Array(1024);
 const pixelPathY = new Int32Array(1024);
 const pixelPathColor = new Int32Array(1024);
@@ -6663,6 +6744,14 @@ let cameraOffsetY = 0;
 let promptState = -1;
 const promptMotion = { value: 0 };
 let startup = null;
+let statsOpen = false;
+let statsButton;
+let statsButtonTextLayer;
+let statsContainer;
+let statsTextLayer;
+const statsValueTexts = [];
+const playerStats = { fishCaught: 0, playTimeMs: 0, moneyEarned: 0, fishSold: 0, casts: 0, moneySpent: 0 };
+let lastPlayTime = null;
 
 function preload() {
     this.load.atlas('atlas', withCacheBuster('media/atlas.png'), withCacheBuster('media/atlas.json'));
@@ -6773,7 +6862,9 @@ function bindGameInput(scene) {
             mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
         }
 
-        scene.input.setDefaultCursor(!isMenuOpen() && getClickedWorldTarget(pointer) ? 'pointer' : 'default');
+        const overStats = (!isMenuOpen() || statsOpen) && isStatsButtonAt(pointer.x, pointer.y);
+        const overActor = !isMenuOpen() && getClickedWorldTarget(pointer);
+        scene.input.setDefaultCursor(overStats || overActor ? 'pointer' : 'default');
     });
 
     const releaseAction = source => {
@@ -6794,10 +6885,14 @@ function bindGameInput(scene) {
         fishingActionHeld = false;
         castCharge = null;
         mapDrag = null;
+        lastPlayTime = null;
     };
+    const resetPlayClock = () => { lastPlayTime = null; };
     scene.game.events.on(Phaser.Core.Events.BLUR, resetActions);
+    scene.game.events.on(Phaser.Core.Events.FOCUS, resetPlayClock);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
         scene.game.events.off(Phaser.Core.Events.BLUR, resetActions);
+        scene.game.events.off(Phaser.Core.Events.FOCUS, resetPlayClock);
         resetActions();
     });
 
@@ -6815,6 +6910,14 @@ function bindGameInput(scene) {
         if (pointer.button !== 0) return;
         if (startup) {
             if (pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144) beginStartup(scene.time.now);
+            return;
+        }
+        if (statsOpen) {
+            if (pointer.x < 32 || pointer.x >= 288 || pointer.y < 24 || pointer.y >= 168) closeStats();
+            return;
+        }
+        if (!isMenuOpen() && isStatsButtonAt(pointer.x, pointer.y)) {
+            openStats();
             return;
         }
         if (inventoryOpen) {
@@ -6860,7 +6963,7 @@ function bindGameInput(scene) {
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
         const step = Math.sign(deltaY);
 
-        if (!step || inventoryOpen || startup) return;
+        if (!step || inventoryOpen || startup || statsOpen) return;
 
         if (isMenuOpen()) {
             if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
@@ -6891,17 +6994,21 @@ function bindGameInput(scene) {
         const code = event.code;
         const key = event.key.toLowerCase();
         const slot = Number(event.key) - 1;
+        if (code === 'Tab') event.preventDefault();
 
         if (code === 'KeyA' || code === 'ArrowLeft') horizontalPriority = -1;
         if (code === 'KeyD' || code === 'ArrowRight') horizontalPriority = 1;
         if (code === 'KeyW' || code === 'ArrowUp') verticalPriority = -1;
         if (code === 'KeyS' || code === 'ArrowDown') verticalPriority = 1;
 
-        if (dialogueOpen) handleGuideDialogueKey(scene, event);
+        if (statsOpen) {
+            if (code === 'Escape' || code === 'Tab') closeStats();
+        } else if (dialogueOpen) handleGuideDialogueKey(scene, event);
         else if (inventoryOpen) handleInventoryKey(scene, event);
         else if (mapOpen) handleMapKey(scene, event);
         else if (marketOpen) handleMarketKey(scene, event);
         else if (key === 'i') openInventory(scene);
+        else if (code === 'Tab') openStats();
         else if (code === 'Space') pressAction('keyboard');
         else if (key === 'm') openMap(scene);
         else if (key === 'b') cycleBait(scene);
@@ -6937,6 +7044,7 @@ function create() {
 
     createCharacterShadow(this);
     fishingLine = this.add.graphics();
+    fishingWaterShadow = this.add.graphics().setDepth(1.25);
     worldObjectLayer.add(fishingLine);
     createFishingUI(this);
 
@@ -6977,6 +7085,7 @@ function create() {
     createInventoryUI(this);
     createCatchCardUI(this);
     createInteractionPromptUI(this);
+    createStatsUI(this);
     if (TEST_MODE) {
         try {
             window.PIXCATION_TEST_RESULTS = runAutomatedTests(this);
@@ -7074,6 +7183,28 @@ function restoreSavedBait(bait) {
     }
 }
 
+function restoreSavedStats(stats) {
+    let knownFish = 0;
+    for (const count of fishInventory.values()) knownFish = Math.min(Number.MAX_SAFE_INTEGER, knownFish + count);
+    playerStats.fishCaught = knownFish;
+    if (!stats || typeof stats !== 'object' || Array.isArray(stats)) return;
+    for (const key of Object.keys(playerStats)) {
+        if (Number.isSafeInteger(stats[key]) && stats[key] >= 0) playerStats[key] = stats[key];
+    }
+}
+
+function recordPlayerStat(key, amount = 1) {
+    playerStats[key] = Math.min(Number.MAX_SAFE_INTEGER, playerStats[key] + amount);
+    saveDirty = true;
+}
+
+function updatePlayTime(time) {
+    if (!TEST_MODE && lastPlayTime !== null && document.visibilityState === 'visible' && document.hasFocus()) {
+        recordPlayerStat('playTimeMs', Math.max(0, time - lastPlayTime));
+    }
+    lastPlayTime = time;
+}
+
 function loadProgress(scene) {
     let saved;
 
@@ -7094,6 +7225,7 @@ function loadProgress(scene) {
 
     restoreSavedRods(scene, saved.rods);
     restoreSavedFish(saved.fish);
+    restoreSavedStats(saved.stats);
     restoreSavedCatchLog(saved.catchLog);
     restoreSavedTileIds(discoveredChunks, saved.explored);
     restoreSavedBait(saved.bait);
@@ -7123,7 +7255,8 @@ function saveProgress() {
             bait: [...baitInventory],
             activeBait: activeBaitId,
             chests: [...openedChests],
-            guideMet: guideHasMetPlayer
+            guideMet: guideHasMetPlayer,
+            stats: Object.fromEntries(Object.entries(playerStats).map(([key, value]) => [key, Math.floor(value)]))
         }));
         saveDirty = false;
     } catch (error) {
@@ -7386,11 +7519,13 @@ function updateCamera(delta) {
 function update(time, delta) {
     if (!character) return;
     if (startup) {
+        lastPlayTime = null;
         updateStartup(this, time, delta);
         return;
     }
 
     const isWalking = updateCharacter(this, time, delta);
+    updatePlayTime(time);
 
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
@@ -7405,6 +7540,7 @@ function update(time, delta) {
     const marketReach = getMarketReach();
     updateGuideInteraction(this, guideReach < 1);
     updateInteractionPrompt(this, guideReach, marketReach);
+    updateStatsUI();
 
     if (mapOpen) updateMapPan(this, delta);
 
