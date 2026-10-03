@@ -6,7 +6,7 @@ function createCharacterShadow(scene) {
 
     shadowLayer.add(image);
     const context = texture.getContext();
-    characterShadow = { texture, image, context, pixels: context.createImageData(width, height), x: null, y: null };
+    characterShadow = { texture, image, context, width, height, pixels: context.createImageData(width, height), x: null, y: null };
 }
 
 function updateCharacterShadow(scene) {
@@ -19,8 +19,7 @@ function updateCharacterShadow(scene) {
     characterShadow.y = y;
     characterShadow.image.setPosition(x, y);
 
-    const width = ACTOR_SHADOW_SHAPE[0].length;
-    const height = ACTOR_SHADOW_SHAPE.length;
+    const { width, height } = characterShadow;
     const image = characterShadow.pixels;
     image.data.fill(0);
 

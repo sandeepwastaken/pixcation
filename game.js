@@ -2496,13 +2496,11 @@ function buildShadowLut(scene) {
             const hueGap = Math.min(Math.abs(color.hue - other.hue), 360 - Math.abs(color.hue - other.hue));
             if (hueGap >= 24) continue;
 
-            const distance = Math.hypot(
-                color.rgb[0] - other.rgb[0],
-                color.rgb[1] - other.rgb[1],
-                color.rgb[2] - other.rgb[2]
-            );
+            const dr = color.rgb[0] - other.rgb[0];
+            const dg = color.rgb[1] - other.rgb[1];
+            const db = color.rgb[2] - other.rgb[2];
 
-            if (distance < 48) best = other;
+            if (dr * dr + dg * dg + db * db < 48 * 48) best = other;
         }
 
         shadowLut.set(color.key, best ? best.rgb : color.rgb.map(value => Math.round(value * 0.86)));
@@ -2583,11 +2581,11 @@ function getChunkPixels(chunk) {
 }
 
 function getGroundShadowColor(scene, worldX, worldY) {
-    if (isWaterPixel(scene, worldX, worldY)) return null;
-
     const tileX = Math.floor(worldX / TILE_SIZE);
     const tileY = Math.floor(worldY / TILE_SIZE);
     const tile = getWorldTile(tileX, tileY);
+    if (isWaterPixel(scene, worldX, worldY, tile)) return null;
+
     const chunkX = Math.floor(tileX / CHUNK_SIZE);
     const chunkY = Math.floor(tileY / CHUNK_SIZE);
     const chunk = loadedChunks.get(getChunkKey(chunkX, chunkY));
@@ -3338,10 +3336,10 @@ function getRodTip(time) {
     return rodTipPosition;
 }
 
-function isWaterPixel(scene, x, y) {
+function isWaterPixel(scene, x, y, tile) {
     const tileX = Math.floor(x / TILE_SIZE);
     const tileY = Math.floor(y / TILE_SIZE);
-    const tile = getWorldTile(tileX, tileY);
+    tile ||= getWorldTile(tileX, tileY);
 
     return getTerrainSurface(scene, tile).water[(y - tileY * TILE_SIZE) * TILE_SIZE + x - tileX * TILE_SIZE] === 1;
 }
@@ -3359,6 +3357,11 @@ function findFishForBobber() {
     let nearestDistanceSquared = Infinity;
 
     for (const chunk of loadedWaterChunks) {
+        if (!chunk.fish.length) continue;
+        const chunkDX = Math.max(chunk.pixelX - fishing.bobberX, 0, fishing.bobberX - chunk.pixelX - CHUNK_PIXEL_SIZE);
+        const chunkDY = Math.max(chunk.pixelY - fishing.bobberY, 0, fishing.bobberY - chunk.pixelY - CHUNK_PIXEL_SIZE);
+        if (chunkDX * chunkDX + chunkDY * chunkDY > noticeMaxDistanceSquared) continue;
+
         for (const fish of chunk.fish) {
             if (fish.state === 'flee' || fish.state === 'lure') continue;
 
@@ -6666,7 +6669,7 @@ function createCharacterShadow(scene) {
 
     shadowLayer.add(image);
     const context = texture.getContext();
-    characterShadow = { texture, image, context, pixels: context.createImageData(width, height), x: null, y: null };
+    characterShadow = { texture, image, context, width, height, pixels: context.createImageData(width, height), x: null, y: null };
 }
 
 function updateCharacterShadow(scene) {
@@ -6679,8 +6682,7 @@ function updateCharacterShadow(scene) {
     characterShadow.y = y;
     characterShadow.image.setPosition(x, y);
 
-    const width = ACTOR_SHADOW_SHAPE[0].length;
-    const height = ACTOR_SHADOW_SHAPE.length;
+    const { width, height } = characterShadow;
     const image = characterShadow.pixels;
     image.data.fill(0);
 

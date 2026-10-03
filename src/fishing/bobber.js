@@ -1,7 +1,7 @@
-function isWaterPixel(scene, x, y) {
+function isWaterPixel(scene, x, y, tile) {
     const tileX = Math.floor(x / TILE_SIZE);
     const tileY = Math.floor(y / TILE_SIZE);
-    const tile = getWorldTile(tileX, tileY);
+    tile ||= getWorldTile(tileX, tileY);
 
     return getTerrainSurface(scene, tile).water[(y - tileY * TILE_SIZE) * TILE_SIZE + x - tileX * TILE_SIZE] === 1;
 }
@@ -19,6 +19,11 @@ function findFishForBobber() {
     let nearestDistanceSquared = Infinity;
 
     for (const chunk of loadedWaterChunks) {
+        if (!chunk.fish.length) continue;
+        const chunkDX = Math.max(chunk.pixelX - fishing.bobberX, 0, fishing.bobberX - chunk.pixelX - CHUNK_PIXEL_SIZE);
+        const chunkDY = Math.max(chunk.pixelY - fishing.bobberY, 0, fishing.bobberY - chunk.pixelY - CHUNK_PIXEL_SIZE);
+        if (chunkDX * chunkDX + chunkDY * chunkDY > noticeMaxDistanceSquared) continue;
+
         for (const fish of chunk.fish) {
             if (fish.state === 'flee' || fish.state === 'lure') continue;
 

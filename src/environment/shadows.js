@@ -66,13 +66,11 @@ function buildShadowLut(scene) {
             const hueGap = Math.min(Math.abs(color.hue - other.hue), 360 - Math.abs(color.hue - other.hue));
             if (hueGap >= 24) continue;
 
-            const distance = Math.hypot(
-                color.rgb[0] - other.rgb[0],
-                color.rgb[1] - other.rgb[1],
-                color.rgb[2] - other.rgb[2]
-            );
+            const dr = color.rgb[0] - other.rgb[0];
+            const dg = color.rgb[1] - other.rgb[1];
+            const db = color.rgb[2] - other.rgb[2];
 
-            if (distance < 48) best = other;
+            if (dr * dr + dg * dg + db * db < 48 * 48) best = other;
         }
 
         shadowLut.set(color.key, best ? best.rgb : color.rgb.map(value => Math.round(value * 0.86)));
@@ -153,11 +151,11 @@ function getChunkPixels(chunk) {
 }
 
 function getGroundShadowColor(scene, worldX, worldY) {
-    if (isWaterPixel(scene, worldX, worldY)) return null;
-
     const tileX = Math.floor(worldX / TILE_SIZE);
     const tileY = Math.floor(worldY / TILE_SIZE);
     const tile = getWorldTile(tileX, tileY);
+    if (isWaterPixel(scene, worldX, worldY, tile)) return null;
+
     const chunkX = Math.floor(tileX / CHUNK_SIZE);
     const chunkY = Math.floor(tileY / CHUNK_SIZE);
     const chunk = loadedChunks.get(getChunkKey(chunkX, chunkY));
