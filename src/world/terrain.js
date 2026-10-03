@@ -126,15 +126,14 @@ function isLandTile(tileX, tileY) {
     return getTerrainType(tileX, tileY) !== 'water';
 }
 
-function getTerrainTileKey(tileX, tileY) {
-    const terrain = getTerrainType(tileX, tileY);
-
+function getTerrainTileKey(tileX, tileY, terrain = getTerrainType(tileX, tileY), north, south) {
     if (terrain === 'water') {
-        const north = getTerrainType(tileX, tileY - 1);
+        north ??= getTerrainType(tileX, tileY - 1);
         return north === 'dirt' ? 'waterDirt' : north === 'grass' ? 'waterGrass' : 'water';
     }
 
-    if (getTerrainType(tileX, tileY + 1) === 'water') return terrain === 'dirt' ? 'dirtEdge' : 'grassEdge';
+    south ??= getTerrainType(tileX, tileY + 1);
+    if (south === 'water') return terrain === 'dirt' ? 'dirtEdge' : 'grassEdge';
     if (terrain === 'dirt') return 'dirt1';
     if (worldHash(tileX, tileY, 670) <= 0.80) return 'grass1';
     if (valueNoise(tileX, tileY, 8, 671) <= 0.62) return 'grass2';
@@ -166,7 +165,7 @@ function getTerrainTile(tileX, tileY) {
     const east = getTerrainType(tileX + 1, tileY);
 
     const tile = {
-        key: getTerrainTileKey(tileX, tileY),
+        key: getTerrainTileKey(tileX, tileY, terrain, north, south),
         rotation: 0
     };
 
