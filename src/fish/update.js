@@ -70,11 +70,13 @@ function updateFish(delta) {
                 continue;
             }
 
-            const awayX = fish.x - playerX;
-            const awayY = fish.y - playerY;
+            if (running && fish.state !== 'flee') {
+                const awayX = fish.x - playerX;
+                const awayY = fish.y - playerY;
 
-            if (running && fish.state !== 'flee' && awayX * awayX + awayY * awayY < FISH_SCARE_DISTANCE_SQUARED && chooseFishTarget(chunk, fish, awayX, awayY)) {
-                startFishFlee(fish, 900);
+                if (awayX * awayX + awayY * awayY < FISH_SCARE_DISTANCE_SQUARED && chooseFishTarget(chunk, fish, awayX, awayY)) {
+                    startFishFlee(fish, 900);
+                }
             }
 
             if (fish.state === 'idle') {

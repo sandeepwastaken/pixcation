@@ -3284,11 +3284,13 @@ function updateFish(delta) {
                 continue;
             }
 
-            const awayX = fish.x - playerX;
-            const awayY = fish.y - playerY;
+            if (running && fish.state !== 'flee') {
+                const awayX = fish.x - playerX;
+                const awayY = fish.y - playerY;
 
-            if (running && fish.state !== 'flee' && awayX * awayX + awayY * awayY < FISH_SCARE_DISTANCE_SQUARED && chooseFishTarget(chunk, fish, awayX, awayY)) {
-                startFishFlee(fish, 900);
+                if (awayX * awayX + awayY * awayY < FISH_SCARE_DISTANCE_SQUARED && chooseFishTarget(chunk, fish, awayX, awayY)) {
+                    startFishFlee(fish, 900);
+                }
             }
 
             if (fish.state === 'idle') {
@@ -3896,9 +3898,10 @@ function resumeFloating(time) {
 function updateWaterFishing(scene, time, delta) {
     const age = time - fishing.start;
     const state = fishing.state;
-    const candidateX = fishing.toX + Math.round(Math.sin(age / 1300 + fishing.driftPhase));
-    const candidateY = fishing.toY + Math.round(Math.sin(age / 1700 + fishing.driftPhase * 0.7));
-    const drifts = state !== 'bite' && state !== 'hooked' && state !== 'snagged' && isWaterPixel(scene, candidateX, candidateY);
+    const canDrift = state !== 'bite' && state !== 'hooked' && state !== 'snagged';
+    const candidateX = canDrift ? fishing.toX + Math.round(Math.sin(age / 1300 + fishing.driftPhase)) : fishing.toX;
+    const candidateY = canDrift ? fishing.toY + Math.round(Math.sin(age / 1700 + fishing.driftPhase * 0.7)) : fishing.toY;
+    const drifts = canDrift && isWaterPixel(scene, candidateX, candidateY);
 
     fishing.bobberX = drifts ? candidateX : fishing.toX;
     fishing.bobberY = (drifts ? candidateY : fishing.toY) + (Math.floor(age / BOBBER_BOB_TIME) % 2);
