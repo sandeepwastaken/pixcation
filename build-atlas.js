@@ -27,7 +27,7 @@ function getFilterPrediction(filter, left, up, corner) {
     if (filter === 1) return left;
     if (filter === 2) return up;
     if (filter === 3) return (left + up) >> 1;
-    if (filter !== 4) return undefined;
+    if (filter !== 4) throw new Error(`Unsupported PNG row filter: ${filter}`);
 
     const estimate = left + up - corner;
     const leftDistance = Math.abs(estimate - left);
@@ -72,6 +72,9 @@ function decodePng(file) {
     const channels = CHANNELS[type];
     const stride = width * channels;
     const raw = zlib.inflateSync(Buffer.concat(chunks));
+    if (raw.length !== (stride + 1) * height) {
+        throw new Error(`${path.relative(__dirname, file)} has an invalid PNG scanline length`);
+    }
     const pixels = Buffer.alloc(stride * height);
 
     for (let y = 0; y < height; y++) {
@@ -86,6 +89,8 @@ function decodePng(file) {
             pixels[row + x] = value + getFilterPrediction(filter, left, up, corner);
         }
     }
+
+    if (type === 6) return { width, height, rgba: pixels };
 
     const rgba = Buffer.alloc(width * height * 4);
 
@@ -102,7 +107,7 @@ function decodePng(file) {
             rgba[target + 3] = type === 4 ? pixels[source + 1] : 255;
         } else {
             pixels.copy(rgba, target, source, source + 3);
-            rgba[target + 3] = type === 6 ? pixels[source + 3] : 255;
+            rgba[target + 3] = 255;
         }
     }
 
@@ -192,4 +197,6 @@ function buildAtlas() {
     console.log(`Packed ${images.length} images into media/atlas.png (${width}x${height})`);
 }
 
-buildAtlas();
+if (require.main === module) buildAtlas();
+
+module.exports = { buildAtlas, decodePng, encodePng };
