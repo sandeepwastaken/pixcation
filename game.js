@@ -3290,7 +3290,7 @@ const rodHandPosition = new Int32Array(2);
 const rodTipPosition = new Int32Array(2);
 
 function hasRodSelected() {
-    return (hotbarItemNames[selectedHotbarSlot] || '').endsWith('Rod');
+    return MARKET_RODS_BY_LABEL.has(hotbarItemNames[selectedHotbarSlot]);
 }
 
 function getSelectedRod() {
@@ -5025,9 +5025,10 @@ function addBait(bait, amount, equip) {
 }
 
 function useBait(bait) {
-    if (!bait || !baitInventory.get(bait.id)) return;
+    const count = bait && baitInventory.get(bait.id);
+    if (!count) return;
 
-    const left = baitInventory.get(bait.id) - 1;
+    const left = count - 1;
 
     if (left) {
         baitInventory.set(bait.id, left);
@@ -5048,7 +5049,7 @@ function cycleBait(scene) {
         return;
     }
 
-    const current = owned.indexOf(getActiveBait());
+    const current = owned.findIndex(bait => bait.id === activeBaitId);
     const next = current + 1 < owned.length ? owned[current + 1] : null;
 
     activeBaitId = next ? next.id : null;

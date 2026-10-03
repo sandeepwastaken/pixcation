@@ -6,7 +6,7 @@ const rodHandPosition = new Int32Array(2);
 const rodTipPosition = new Int32Array(2);
 
 function hasRodSelected() {
-    return (hotbarItemNames[selectedHotbarSlot] || '').endsWith('Rod');
+    return MARKET_RODS_BY_LABEL.has(hotbarItemNames[selectedHotbarSlot]);
 }
 
 function getSelectedRod() {
