@@ -7,6 +7,7 @@
     "world/terrain.js",
     "world/surfaces.js",
     "world/shadows.js",
+    "world/water.js",
     "world/chunks.js",
     "world/streaming.js",
     "environment/shimmers.js",
