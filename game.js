@@ -2587,6 +2587,7 @@ function getDominantColor(scene, key) {
     let bestCount = 0;
 
     for (let index = 0; index < pixels.length; index += 4) {
+        if (!pixels[index + 3]) continue;
         const color = (pixels[index] << 16) | (pixels[index + 1] << 8) | pixels[index + 2];
         const count = (counts.get(color) || 0) + 1;
 
