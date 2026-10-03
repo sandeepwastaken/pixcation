@@ -1236,14 +1236,18 @@ function getTerrainSurface(scene, tile) {
 
     const isWater = tile.key.startsWith('water');
     const isWood = tile.key.startsWith('wood');
-    const pixels = getTerrainPixels(scene, tile.textureKey || tile.key);
     const land = new Uint8Array(TILE_SIZE * TILE_SIZE);
     const water = new Uint8Array(TILE_SIZE * TILE_SIZE);
 
-    for (let index = 0; index < land.length; index++) {
-        const opaque = pixels.data[index * 4 + 3] > 0;
-        land[index] = !isWater && !isWood && opaque ? 1 : 0;
-        water[index] = isWater || tile.baseKey === 'water' && !opaque ? 1 : 0;
+    if (isWater) {
+        water.fill(1);
+    } else {
+        const pixels = getTerrainPixels(scene, tile.textureKey || tile.key);
+        for (let index = 0; index < land.length; index++) {
+            const opaque = pixels.data[index * 4 + 3] > 0;
+            land[index] = !isWood && opaque ? 1 : 0;
+            water[index] = tile.baseKey === 'water' && !opaque ? 1 : 0;
+        }
     }
 
     for (const patch of patches) {
@@ -1290,16 +1294,17 @@ function getTileMaskRuns(mask, mergeRows = false) {
     const previous = mergeRows ? [] : null;
 
     for (let y = 0; y < TILE_SIZE; y++) {
+        const row = y * TILE_SIZE;
         let x = 0;
 
         while (x < TILE_SIZE) {
-            if (!mask[y * TILE_SIZE + x]) {
+            if (!mask[row + x]) {
                 x++;
                 continue;
             }
 
             const start = x;
-            while (x < TILE_SIZE && mask[y * TILE_SIZE + x]) x++;
+            while (x < TILE_SIZE && mask[row + x]) x++;
             const key = start * (TILE_SIZE + 1) + x - start;
             const above = previous?.[key];
 
