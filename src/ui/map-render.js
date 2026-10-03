@@ -33,11 +33,9 @@ function getMapPalette(scene) {
 function getMapWaterDepth(tileX, tileY) {
     for (let radius = 1; radius <= 2; radius++) {
         for (let offsetY = -radius; offsetY <= radius; offsetY++) {
-            for (let offsetX = -radius; offsetX <= radius; offsetX++) {
-                if (
-                    Math.max(Math.abs(offsetX), Math.abs(offsetY)) === radius &&
-                    getTerrainType(tileX + offsetX, tileY + offsetY) !== 'water'
-                ) {
+            const edgeRow = offsetY === -radius || offsetY === radius;
+            for (let offsetX = -radius; offsetX <= radius; offsetX += edgeRow ? 1 : radius * 2) {
+                if (getTerrainType(tileX + offsetX, tileY + offsetY) !== 'water') {
                     return radius - 1;
                 }
             }

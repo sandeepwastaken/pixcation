@@ -2426,11 +2426,8 @@ function findGuideAndStoreSpawn() {
 
     for (let radius = 3; radius <= 8; radius += 1) {
         for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
-            for (let offsetX = -radius; offsetX <= radius; offsetX += 1) {
-                if (Math.max(Math.abs(offsetX), Math.abs(offsetY)) !== radius) {
-                    continue;
-                }
-
+            const edgeRow = offsetY === -radius || offsetY === radius;
+            for (let offsetX = -radius; offsetX <= radius; offsetX += edgeRow ? 1 : radius * 2) {
                 const guideTileX = centerTileX + offsetX;
                 const guideTileY = centerTileY + offsetY;
                 const storeTileX = guideTileX - 1;
@@ -4546,11 +4543,9 @@ function getMapPalette(scene) {
 function getMapWaterDepth(tileX, tileY) {
     for (let radius = 1; radius <= 2; radius++) {
         for (let offsetY = -radius; offsetY <= radius; offsetY++) {
-            for (let offsetX = -radius; offsetX <= radius; offsetX++) {
-                if (
-                    Math.max(Math.abs(offsetX), Math.abs(offsetY)) === radius &&
-                    getTerrainType(tileX + offsetX, tileY + offsetY) !== 'water'
-                ) {
+            const edgeRow = offsetY === -radius || offsetY === radius;
+            for (let offsetX = -radius; offsetX <= radius; offsetX += edgeRow ? 1 : radius * 2) {
+                if (getTerrainType(tileX + offsetX, tileY + offsetY) !== 'water') {
                     return radius - 1;
                 }
             }

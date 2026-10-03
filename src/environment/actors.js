@@ -26,11 +26,8 @@ function findGuideAndStoreSpawn() {
 
     for (let radius = 3; radius <= 8; radius += 1) {
         for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
-            for (let offsetX = -radius; offsetX <= radius; offsetX += 1) {
-                if (Math.max(Math.abs(offsetX), Math.abs(offsetY)) !== radius) {
-                    continue;
-                }
-
+            const edgeRow = offsetY === -radius || offsetY === radius;
+            for (let offsetX = -radius; offsetX <= radius; offsetX += edgeRow ? 1 : radius * 2) {
                 const guideTileX = centerTileX + offsetX;
                 const guideTileY = centerTileY + offsetY;
                 const storeTileX = guideTileX - 1;
