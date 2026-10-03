@@ -954,8 +954,9 @@ return pixels;
 }
 function getTerrainSurface(scene, tile) {
 if (tile.surface) return tile.surface;
+const patches = tile.patches || [];
 const signature = `${tile.key}|${tile.textureKey}|${tile.baseKey}|${tile.rotation}|` +
-(tile.patches || []).map(patch => `${patch.key},${patch.x},${patch.y},${patch.flipX},${patch.flipY}`).join(';');
+patches.map(patch => `${patch.key},${patch.x},${patch.y},${patch.flipX},${patch.flipY}`).join(';');
 const cached = scene.terrainSurfaceCache.get(signature);
 if (cached) {
 tile.surface = cached;
@@ -971,7 +972,7 @@ const opaque = pixels.data[index * 4 + 3] > 0;
 land[index] = !isWater && !isWood && opaque ? 1 : 0;
 water[index] = isWater || tile.baseKey === 'water' && !opaque ? 1 : 0;
 }
-for (const patch of tile.patches || []) {
+for (const patch of patches) {
 const pixels = getTerrainPixels(scene, patch.key);
 for (let y = 0; y < pixels.height; y++) {
 for (let x = 0; x < pixels.width; x++) {
@@ -988,6 +989,31 @@ const surface = { id: scene.terrainSurfaceCache.size, land, water };
 scene.terrainSurfaceCache.set(signature, surface);
 tile.surface = surface;
 return surface;
+}
+function getTileMaskRuns(mask, mergeRows = false) {
+const cells = [];
+const previous = mergeRows ? [] : null;
+for (let y = 0; y < TILE_SIZE; y++) {
+let x = 0;
+while (x < TILE_SIZE) {
+if (!mask[y * TILE_SIZE + x]) {
+x++;
+continue;
+}
+const start = x;
+while (x < TILE_SIZE && mask[y * TILE_SIZE + x]) x++;
+const key = start * (TILE_SIZE + 1) + x - start;
+const above = previous?.[key];
+if (mergeRows && above && above.y + above.height === y) {
+above.height++;
+} else {
+const cell = { x: start, y, width: x - start, height: 1 };
+cells.push(cell);
+if (previous) previous[key] = cell;
+}
+}
+}
+return cells;
 }
 function getShorelineTile(scene, tile, northTile) {
 const surface = getTerrainSurface(scene, tile);
@@ -1044,35 +1070,10 @@ edges[index] = distance === 0 ? 1 : 0;
 context.putImageData(image, 0, 0);
 texture.refresh();
 scene.terrainPixelCache.set(textureKey, image);
-const runs = (mask, mergeRows = false) => {
-const cells = [];
-const previous = new Map();
-for (let y = 0; y < TILE_SIZE; y++) {
-let x = 0;
-while (x < TILE_SIZE) {
-if (!mask[y * TILE_SIZE + x]) {
-x++;
-continue;
-}
-const start = x;
-while (x < TILE_SIZE && mask[y * TILE_SIZE + x]) x++;
-const key = start * (TILE_SIZE + 1) + x - start;
-const above = previous.get(key);
-if (mergeRows && above && above.y + above.height === y) {
-above.height++;
-} else {
-const cell = { x: start, y, width: x - start, height: 1 };
-cells.push(cell);
-previous.set(key, cell);
-}
-}
-}
-return cells;
-};
 const shoreline = {
 textureKey,
-waterCells: runs(surface.water, true),
-edgeCells: runs(edges)
+waterCells: getTileMaskRuns(surface.water, true),
+edgeCells: getTileMaskRuns(edges)
 };
 scene.shorelineTileCache.set(signature, shoreline);
 return shoreline;
@@ -2643,11 +2644,9 @@ const dx = fishing.bobberX - fish.x;
 const dy = fishing.bobberY - fish.y;
 const distanceSquared = dx * dx + dy * dy;
 if (distanceSquared < FISH_NOTICE_MIN_DISTANCE_SQUARED || distanceSquared > noticeMaxDistanceSquared) continue;
+if (!(distanceSquared < nearestDistanceSquared)) continue;
 const facing = (Math.cos(fish.heading) * dx + Math.sin(fish.heading) * dy) / Math.sqrt(distanceSquared);
-if (
-distanceSquared < nearestDistanceSquared && facing >= noticeDot &&
-isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)
-) {
+if (facing >= noticeDot && isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)) {
 nearestFish = fish;
 nearestChunk = chunk;
 nearestDistanceSquared = distanceSquared;
@@ -5320,16 +5319,18 @@ if (propBlocksRect(type, tileX, tileY, left, top, right, bottom)) return true;
 }
 return false;
 }
+function actorBlocksRect(actor, hitX, hitY, width, height, left, top, right, bottom) {
+return actor && left < actor.x + hitX + width && right > actor.x + hitX &&
+top < actor.y + hitY + height && bottom > actor.y + hitY;
+}
 function canCharacterOccupy(scene, x, y) {
 const left = x + CHARACTER_HITBOX_X;
 const top = y + CHARACTER_HITBOX_Y;
 const right = left + CHARACTER_HITBOX_WIDTH;
 const bottom = top + CHARACTER_HITBOX_HEIGHT;
-const overlaps = (object, hitX, hitY, width, height) => object &&
-left < object.x + hitX + width && right > object.x + hitX && top < object.y + hitY + height && bottom > object.y + hitY;
 if (
-overlaps(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT) ||
-overlaps(store, STORE_HITBOX_X, STORE_HITBOX_Y, STORE_HITBOX_WIDTH, STORE_HITBOX_HEIGHT) ||
+actorBlocksRect(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT, left, top, right, bottom) ||
+actorBlocksRect(store, STORE_HITBOX_X, STORE_HITBOX_Y, STORE_HITBOX_WIDTH, STORE_HITBOX_HEIGHT, left, top, right, bottom) ||
 isBlockedByProp(left, top, right, bottom)
 ) {
 return false;

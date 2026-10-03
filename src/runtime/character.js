@@ -59,17 +59,20 @@ function isBlockedByProp(left, top, right, bottom) {
     return false;
 }
 
+function actorBlocksRect(actor, hitX, hitY, width, height, left, top, right, bottom) {
+    return actor && left < actor.x + hitX + width && right > actor.x + hitX &&
+        top < actor.y + hitY + height && bottom > actor.y + hitY;
+}
+
 function canCharacterOccupy(scene, x, y) {
     const left = x + CHARACTER_HITBOX_X;
     const top = y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH;
     const bottom = top + CHARACTER_HITBOX_HEIGHT;
-    const overlaps = (object, hitX, hitY, width, height) => object &&
-        left < object.x + hitX + width && right > object.x + hitX && top < object.y + hitY + height && bottom > object.y + hitY;
 
     if (
-        overlaps(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT) ||
-        overlaps(store, STORE_HITBOX_X, STORE_HITBOX_Y, STORE_HITBOX_WIDTH, STORE_HITBOX_HEIGHT) ||
+        actorBlocksRect(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT, left, top, right, bottom) ||
+        actorBlocksRect(store, STORE_HITBOX_X, STORE_HITBOX_Y, STORE_HITBOX_WIDTH, STORE_HITBOX_HEIGHT, left, top, right, bottom) ||
         isBlockedByProp(left, top, right, bottom)
     ) {
         return false;

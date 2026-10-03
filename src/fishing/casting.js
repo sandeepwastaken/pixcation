@@ -83,13 +83,11 @@ function findFishForBobber() {
             const distanceSquared = dx * dx + dy * dy;
 
             if (distanceSquared < FISH_NOTICE_MIN_DISTANCE_SQUARED || distanceSquared > noticeMaxDistanceSquared) continue;
+            if (!(distanceSquared < nearestDistanceSquared)) continue;
 
             const facing = (Math.cos(fish.heading) * dx + Math.sin(fish.heading) * dy) / Math.sqrt(distanceSquared);
 
-            if (
-                distanceSquared < nearestDistanceSquared && facing >= noticeDot &&
-                isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)
-            ) {
+            if (facing >= noticeDot && isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)) {
                 nearestFish = fish;
                 nearestChunk = chunk;
                 nearestDistanceSquared = distanceSquared;

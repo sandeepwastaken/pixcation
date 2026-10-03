@@ -38,8 +38,9 @@ function getTerrainPixels(scene, key) {
 function getTerrainSurface(scene, tile) {
     if (tile.surface) return tile.surface;
 
+    const patches = tile.patches || [];
     const signature = `${tile.key}|${tile.textureKey}|${tile.baseKey}|${tile.rotation}|` +
-        (tile.patches || []).map(patch => `${patch.key},${patch.x},${patch.y},${patch.flipX},${patch.flipY}`).join(';');
+        patches.map(patch => `${patch.key},${patch.x},${patch.y},${patch.flipX},${patch.flipY}`).join(';');
     const cached = scene.terrainSurfaceCache.get(signature);
 
     if (cached) {
@@ -59,7 +60,7 @@ function getTerrainSurface(scene, tile) {
         water[index] = isWater || tile.baseKey === 'water' && !opaque ? 1 : 0;
     }
 
-    for (const patch of tile.patches || []) {
+    for (const patch of patches) {
         const pixels = getTerrainPixels(scene, patch.key);
 
         for (let y = 0; y < pixels.height; y++) {
@@ -79,6 +80,37 @@ function getTerrainSurface(scene, tile) {
     scene.terrainSurfaceCache.set(signature, surface);
     tile.surface = surface;
     return surface;
+}
+
+function getTileMaskRuns(mask, mergeRows = false) {
+    const cells = [];
+    const previous = mergeRows ? [] : null;
+
+    for (let y = 0; y < TILE_SIZE; y++) {
+        let x = 0;
+
+        while (x < TILE_SIZE) {
+            if (!mask[y * TILE_SIZE + x]) {
+                x++;
+                continue;
+            }
+
+            const start = x;
+            while (x < TILE_SIZE && mask[y * TILE_SIZE + x]) x++;
+            const key = start * (TILE_SIZE + 1) + x - start;
+            const above = previous?.[key];
+
+            if (mergeRows && above && above.y + above.height === y) {
+                above.height++;
+            } else {
+                const cell = { x: start, y, width: x - start, height: 1 };
+                cells.push(cell);
+                if (previous) previous[key] = cell;
+            }
+        }
+    }
+
+    return cells;
 }
 
 function getShorelineTile(scene, tile, northTile) {
@@ -146,41 +178,10 @@ function getShorelineTile(scene, tile, northTile) {
     texture.refresh();
     scene.terrainPixelCache.set(textureKey, image);
 
-    const runs = (mask, mergeRows = false) => {
-        const cells = [];
-        const previous = new Map();
-
-        for (let y = 0; y < TILE_SIZE; y++) {
-            let x = 0;
-
-            while (x < TILE_SIZE) {
-                if (!mask[y * TILE_SIZE + x]) {
-                    x++;
-                    continue;
-                }
-
-                const start = x;
-                while (x < TILE_SIZE && mask[y * TILE_SIZE + x]) x++;
-                const key = start * (TILE_SIZE + 1) + x - start;
-                const above = previous.get(key);
-
-                if (mergeRows && above && above.y + above.height === y) {
-                    above.height++;
-                } else {
-                    const cell = { x: start, y, width: x - start, height: 1 };
-                    cells.push(cell);
-                    previous.set(key, cell);
-                }
-            }
-        }
-
-        return cells;
-    };
-
     const shoreline = {
         textureKey,
-        waterCells: runs(surface.water, true),
-        edgeCells: runs(edges)
+        waterCells: getTileMaskRuns(surface.water, true),
+        edgeCells: getTileMaskRuns(edges)
     };
     scene.shorelineTileCache.set(signature, shoreline);
     return shoreline;
