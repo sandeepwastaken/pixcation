@@ -26,10 +26,16 @@ function updateWaterFishing(scene, time, delta) {
         if (!fish || fish.state !== 'lure') {
             releaseTargetFish(false);
             resumeFloating(time);
-        } else if (Math.hypot(fish.x - fishing.bobberX, fish.y - fishing.bobberY) <= fish.radius + 4) {
-            setFishingState('inspecting', time);
-            fishing.inspectDuration = (FISH_INSPECT_MIN + Math.random() * FISH_INSPECT_RANGE) / getBaitLure();
-            fish.velocity = 0;
+        } else {
+            const dx = fish.x - fishing.bobberX;
+            const dy = fish.y - fishing.bobberY;
+            const reach = fish.radius + 4;
+
+            if (dx * dx + dy * dy <= reach * reach) {
+                setFishingState('inspecting', time);
+                fishing.inspectDuration = (FISH_INSPECT_MIN + Math.random() * FISH_INSPECT_RANGE) / getBaitLure();
+                fish.velocity = 0;
+            }
         }
     } else if (state === 'inspecting' && age >= fishing.inspectDuration) {
         setFishingState('nibbleWait', time);

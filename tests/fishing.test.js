@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 function createSession() {
     const context = vm.createContext({});
-    const source = ['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'fishing/rod.js', 'fishing/bobber.js', 'ui/hotbar.js']
+    const source = ['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'fishing/rod.js', 'fishing/bobber.js', 'fishing/update.js', 'ui/hotbar.js']
         .map(file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8')).join('\n');
     vm.runInContext(source + `
         const water = new Uint8Array(TILE_SIZE * TILE_SIZE);
@@ -92,4 +92,22 @@ test('bobbers find fish across negative chunk borders and with bait range', () =
     assert.equal(run('findFishForBobber()'), null);
     run('fishing.bait = { lure: 10 }');
     assert.equal(run('findFishForBobber().chunk === east'), true);
+});
+
+
+test('fish approach switches to inspection at the reach boundary', () => {
+    const run = createSession();
+    run(`
+        const scene = {};
+        const fish = { x: 6, y: 0, radius: 2, state: 'lure', velocity: 5 };
+        fishing = { state: 'approaching', start: 100, toX: 0, toY: 0, driftPhase: 0, targetFish: fish };
+        updateWaterFishing(scene, 100, 16);
+    `);
+    assert.equal(run('fishing.state'), 'inspecting');
+    assert.equal(run('fish.velocity'), 0);
+    run("fish.x = 6.1; fish.velocity = 5; fishing.state = 'approaching'; updateWaterFishing(scene, 100, 16)");
+    assert.equal(run('fishing.state'), 'approaching');
+    assert.equal(run('fish.velocity'), 5);
+    run("fishing.targetFish = null; updateWaterFishing(scene, 100, 16)");
+    assert.equal(run('fishing.state'), 'floating');
 });
