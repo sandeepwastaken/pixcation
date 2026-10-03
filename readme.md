@@ -46,7 +46,7 @@ The source is split up by what it does:
 - `src/world` handles terrain, surfaces, shadows, water masks, chunks, and streaming.
 - `src/environment` handles sparkles, props, the guide and store, shadows, particles, and bush movement.
 - `src/fish` handles water regions, spawning, movement, lured fish, and fish updates.
-- `src/fishing` handles casting, the minigame, rope physics, and the fishing update.
+- `src/fishing` handles rod coordinates, casting, bobbers, effects, the minigame, rope physics, and the fishing update.
 - `src/ui` contains the screens and their controls.
 - `src/runtime` handles startup, shared state, assets, the scene, input, saves, the character, the camera, and the main update.
 

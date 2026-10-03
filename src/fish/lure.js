@@ -1,3 +1,5 @@
+const hookedBobberPosition = new Int32Array(2);
+
 function updateHookedFish(fish, seconds, delta) {
     const scene = mainCamera.scene;
     const spin = fishing.spin || (fishing.spin = {
