@@ -1690,7 +1690,6 @@ waterPipeline.set4fv('uFish', fishUniforms);
 waterPipeline.set4fv('uFishShape', fishShapeUniforms);
 waterPipeline.set1f('uFishCount', count);
 }
-const activeParticles = [];
 function poolShimmer(shimmer) {
 shimmer.shimmerChunk = null;
 shimmer.stop().setVisible(false).setActive(false);
@@ -1966,21 +1965,16 @@ const entries = [...colors].map(([key, rgb]) => ({ key, rgb, ...describe(rgb) })
 for (const color of entries) {
 let best = null;
 for (const other of entries) {
+if (other.luma >= color.luma || best && other.luma <= best.luma) continue;
+if (Math.abs(color.saturation - other.saturation) >= 0.14) continue;
 const hueGap = Math.min(Math.abs(color.hue - other.hue), 360 - Math.abs(color.hue - other.hue));
+if (hueGap >= 24) continue;
 const distance = Math.hypot(
 color.rgb[0] - other.rgb[0],
 color.rgb[1] - other.rgb[1],
 color.rgb[2] - other.rgb[2]
 );
-if (
-other.luma < color.luma &&
-hueGap < 24 &&
-Math.abs(color.saturation - other.saturation) < 0.14 &&
-distance < 48 &&
-(!best || other.luma > best.luma)
-) {
-best = other;
-}
+if (distance < 48) best = other;
 }
 shadowLut.set(color.key, best ? best.rgb : color.rgb.map(value => Math.round(value * 0.86)));
 }
@@ -2061,6 +2055,7 @@ return shadeColor(ground[index], ground[index + 1], ground[index + 2]);
 function getTileShadowColor(scene, tile) {
 return shadeColor(...getDominantColor(scene, tile.key));
 }
+const activeParticles = [];
 function kickUpDust(scene, time, moveX, moveY) {
 const footX = character.x + CHARACTER_SIZE / 2;
 const footY = character.y + CHARACTER_SIZE - 1;
@@ -4584,14 +4579,7 @@ const TERRAIN_CORNER_OFFSETS = [
 const HOTBAR_X = 43;
 const HOTBAR_Y = 155;
 const HOTBAR_SLOT_SIZE = 26;
-let hotbarSelector;
-const hotbarItemImages = [];
-const hotbarItemNames = [];
 const ITEM_LABEL_DURATION = 1300;
-let itemLabelUntil = 0;
-let itemPrompt;
-let selectedHotbarSlot = 0;
-let worldObjectLayer;
 const CHUNK_SIZE = 16;
 const CHUNK_PIXEL_SIZE = CHUNK_SIZE * TILE_SIZE;
 const WOOD_MASK_MARGIN = TILE_SIZE;
@@ -4611,32 +4599,6 @@ const MIN_PIER_WATER_LENGTH = 4;
 const MAX_PIER_WATER_LENGTH = 7;
 const WORLD_CACHE_LIMIT = 50000;
 const TILE_CACHE_CHUNK_LIMIT = 256;
-const loadedChunks = new Map();
-const loadedWaterChunks = new Set();
-const loadedShimmerChunks = new Set();
-const bridgeCandidateCache = new Map();
-const pierCandidateCache = new Map();
-const discoveredChunks = new Set();
-const pendingChunks = [];
-const pendingWaterChunks = [];
-const shimmerPool = [];
-const chunkCanvasPool = [];
-let chunkCanvasCount = 0;
-let waterPipeline;
-let activeChunkX = null;
-let activeChunkY = null;
-let visibleChunkLeft = null;
-let visibleChunkRight = null;
-let visibleChunkTop = null;
-let visibleChunkBottom = null;
-let character;
-let characterKeys;
-let characterDirection = 'front';
-let characterWalkPhase = 0;
-let characterPace = 1;
-let characterMoving = false;
-const fishUniforms = new Float32Array(96);
-const fishShapeUniforms = new Float32Array(96);
 const FISH_MAX_VISIBLE = 24;
 const FISH_VIEW_MARGIN = 12;
 const FISH_SIZE_CLASSES = {
@@ -4685,9 +4647,6 @@ const FISH_IDLE_MIN = 700;
 const FISH_IDLE_RANGE = 2600;
 const FISH_SCARE_DISTANCE = 40;
 const FISH_SCARE_DISTANCE_SQUARED = FISH_SCARE_DISTANCE * FISH_SCARE_DISTANCE;
-let horizontalPriority = 0;
-let lastMenuWheelTime = -Infinity;
-let verticalPriority = 0;
 const CHARACTER_SIZE = 16;
 const CHARACTER_SPEED = 60;
 const CHARACTER_ANIMATION_SPEED = 8;
@@ -4771,22 +4730,6 @@ const CHEST_SPARKLE_COLORS = [0xe8c170, 0xf6f5e5, 0xd69a55];
 const PROMPT_Y = HOTBAR_Y - 25;
 const SHIMMER_RECOLOR_FROM = [0x87, 0xbe, 0xd8];
 const SHIMMER_RECOLOR_TO = [0x78, 0xaf, 0xd3];
-let guide;
-let shadowLayer;
-let characterShadow;
-const shadowLut = new Map();
-const propArt = new Map();
-const treeVariants = [];
-const staticShadowCasters = [];
-const particlePool = [];
-const availableParticles = [];
-let fishing = null;
-let fishingLine;
-const pixelPathX = new Int32Array(1024);
-const pixelPathY = new Int32Array(1024);
-const pixelPathColor = new Int32Array(1024);
-let pixelPathLength = 0;
-let inventoryFooterHints;
 const OWNED_ROD_TINT = 0x8a7c6e;
 const HOOKED_REEL_PULL = 0.55;
 const HOOKED_THRASH_RATE = 0.35;
@@ -4800,17 +4743,8 @@ const HOOKED_BEAT = 6;
 const HOOKED_SWEEP = 0.22;
 const HOOKED_SPLASH_MIN = 180;
 const HOOKED_SPLASH_RANGE = 160;
-let fishingUiPanel;
-let fishingCatchZoneTop;
-let fishingCatchZoneMiddle;
-let fishingCatchZoneBottom;
-let fishingFishMarker;
-let fishingProgressFill;
-let fishingUiParts = [];
-let fishingActionHeld = false;
 const CAST_MIN_DISTANCE = 16;
 const CAST_METER_WIDTH = 14;
-let castCharge = null;
 const CAST_DURATION = 420;
 const CAST_ARC = 18;
 const CAST_SWING_DURATION = 170;
@@ -4871,6 +4805,71 @@ const DUST_LIFETIME = 330;
 const DUST_COLORS = [0xa7825a, 0xb69a6c, 0x9f7751];
 const GRASS_FLECK_COLORS = [0xb0c579, 0x8eb067];
 const GRASS_FLECKS_PER_STEP = 2;
+const MAP_PAN_SPEED = 90;
+const MAP_MAX_ZOOM = 3;
+const CAMERA_EASE = 2;
+const PROMPT_SLIDE = 4;
+let hotbarSelector;
+const hotbarItemImages = [];
+const hotbarItemNames = [];
+let itemLabelUntil = 0;
+let itemPrompt;
+let selectedHotbarSlot = 0;
+let worldObjectLayer;
+const loadedChunks = new Map();
+const loadedWaterChunks = new Set();
+const loadedShimmerChunks = new Set();
+const bridgeCandidateCache = new Map();
+const pierCandidateCache = new Map();
+const discoveredChunks = new Set();
+const pendingChunks = [];
+const pendingWaterChunks = [];
+const shimmerPool = [];
+const chunkCanvasPool = [];
+let chunkCanvasCount = 0;
+let waterPipeline;
+let activeChunkX = null;
+let activeChunkY = null;
+let visibleChunkLeft = null;
+let visibleChunkRight = null;
+let visibleChunkTop = null;
+let visibleChunkBottom = null;
+let character;
+let characterKeys;
+let characterDirection = 'front';
+let characterWalkPhase = 0;
+let characterPace = 1;
+let characterMoving = false;
+const fishUniforms = new Float32Array(FISH_MAX_VISIBLE * 4);
+const fishShapeUniforms = new Float32Array(FISH_MAX_VISIBLE * 4);
+let horizontalPriority = 0;
+let lastMenuWheelTime = -Infinity;
+let verticalPriority = 0;
+let guide;
+let shadowLayer;
+let characterShadow;
+const shadowLut = new Map();
+const propArt = new Map();
+const treeVariants = [];
+const staticShadowCasters = [];
+const particlePool = [];
+const availableParticles = [];
+let fishing = null;
+let fishingLine;
+const pixelPathX = new Int32Array(1024);
+const pixelPathY = new Int32Array(1024);
+const pixelPathColor = new Int32Array(1024);
+let pixelPathLength = 0;
+let inventoryFooterHints;
+let fishingUiPanel;
+let fishingCatchZoneTop;
+let fishingCatchZoneMiddle;
+let fishingCatchZoneBottom;
+let fishingFishMarker;
+let fishingProgressFill;
+let fishingUiParts = [];
+let fishingActionHeld = false;
+let castCharge = null;
 let store;
 let guideWasNear = false;
 let guideHasMetPlayer = false;
@@ -4889,8 +4888,6 @@ let mapTextLayer;
 let mapDrag = null;
 let mapDirty = false;
 const mapPan = { x: 0, y: 0 };
-const MAP_PAN_SPEED = 90;
-const MAP_MAX_ZOOM = 3;
 let mapZoom = 1;
 let mapPalette = null;
 let inventoryOpen = false;
@@ -4948,12 +4945,10 @@ let characterTextureKey = 'character-front';
 let mainCamera;
 let cameraScrollX = 0;
 let cameraScrollY = 0;
-const CAMERA_EASE = 2;
 let cameraOffsetX = 0;
 let cameraOffsetY = 0;
 let promptState = -1;
 const promptMotion = { value: 0 };
-const PROMPT_SLIDE = 4;
 function preload() {
 this.load.atlas('atlas', withCacheBuster('media/atlas.png'), withCacheBuster('media/atlas.json'));
 }

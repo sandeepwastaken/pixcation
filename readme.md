@@ -42,9 +42,12 @@ The source is split up by what it does:
 
 - `src/art` builds textures, trees, and cliffs.
 - `src/world` handles terrain, surfaces, shadows, chunks, and streaming.
+- `src/environment` handles sparkles, props, the guide and store, shadows, particles, and bush movement.
 - `src/fish` handles water regions, spawning, movement, lured fish, and fish updates.
 - `src/fishing` handles casting, the minigame, rope physics, and the fishing update.
 - `src/ui` contains the screens and their controls.
 - `src/runtime` handles startup, shared state, assets, the scene, input, saves, the character, the camera, and the main update.
+
+Game sizes, speeds, timings, and palettes live in `src/runtime/settings.js`. The changing game state lives in `src/runtime/state.js`.
 
 These files still share one script scope. `bundle-order.json` lists them in the order they need to load, including when shared state is initialized. If you add or rename a source file, update that list too. The build checks for missing files, unlisted files, and duplicate entries before writing the bundle.
