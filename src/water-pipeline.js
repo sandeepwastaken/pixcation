@@ -13,8 +13,8 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                 uniform float uTime;
                 uniform vec2 uScroll;
                 uniform float uViewHeight;
-                uniform vec4 uFish[24];
-                uniform vec4 uFishShape[24];
+                uniform vec4 uFish[${FISH_MAX_VISIBLE}];
+                uniform vec4 uFishShape[${FISH_MAX_VISIBLE}];
                 uniform float uFishCount;
                 varying vec2 outTexCoord;
                 varying vec4 outTint;
@@ -124,7 +124,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     float shaded = mask.r < 0.75 ? 1.0 : 0.0;
                     float fishShaded = 0.0;
 
-                    for (int fish = 0; fish < 24; fish++) {
+                    for (int fish = 0; fish < ${FISH_MAX_VISIBLE}; fish++) {
                         if (float(fish) >= uFishCount) break;
 
                         vec4 body = uFish[fish];
