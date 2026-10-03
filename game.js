@@ -2688,9 +2688,9 @@ function kickUpDust(scene, time, moveX, moveY) {
     const footY = character.y + CHARACTER_SIZE - 1;
     const tileX = Math.floor(footX / TILE_SIZE);
     const tileY = Math.floor(footY / TILE_SIZE);
+    if (getWorldTile(tileX, tileY).key.startsWith('wood')) return;
     const terrain = getTerrainType(tileX, tileY);
-    const colors = getWorldTile(tileX, tileY).key.startsWith('wood') ? null
-        : terrain === 'dirt' ? DUST_COLORS
+    const colors = terrain === 'dirt' ? DUST_COLORS
         : terrain === 'grass' && characterPace > 1 ? GRASS_FLECK_COLORS
         : null;
 
@@ -4613,11 +4613,10 @@ function generateMapTileColor(tileX, tileY) {
         color = covering.type === 'tree' ? getTreeVariant(covering.tileX, tileY).color : palette[covering.type];
     } else {
         const tile = getWorldTile(tileX, tileY);
+        if (tile.key.startsWith('wood')) return toMapPixel(palette.wood);
         const terrain = getTerrainType(tileX, tileY);
 
-        if (tile.key.startsWith('wood')) {
-            color = palette.wood;
-        } else if (terrain === 'water') {
+        if (terrain === 'water') {
             color = palette.water[getMapWaterDepth(tileX, tileY)];
         } else if (tile.blocking === 'lower') {
             color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;

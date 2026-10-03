@@ -58,11 +58,10 @@ function generateMapTileColor(tileX, tileY) {
         color = covering.type === 'tree' ? getTreeVariant(covering.tileX, tileY).color : palette[covering.type];
     } else {
         const tile = getWorldTile(tileX, tileY);
+        if (tile.key.startsWith('wood')) return toMapPixel(palette.wood);
         const terrain = getTerrainType(tileX, tileY);
 
-        if (tile.key.startsWith('wood')) {
-            color = palette.wood;
-        } else if (terrain === 'water') {
+        if (terrain === 'water') {
             color = palette.water[getMapWaterDepth(tileX, tileY)];
         } else if (tile.blocking === 'lower') {
             color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;

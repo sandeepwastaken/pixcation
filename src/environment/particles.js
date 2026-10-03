@@ -5,9 +5,9 @@ function kickUpDust(scene, time, moveX, moveY) {
     const footY = character.y + CHARACTER_SIZE - 1;
     const tileX = Math.floor(footX / TILE_SIZE);
     const tileY = Math.floor(footY / TILE_SIZE);
+    if (getWorldTile(tileX, tileY).key.startsWith('wood')) return;
     const terrain = getTerrainType(tileX, tileY);
-    const colors = getWorldTile(tileX, tileY).key.startsWith('wood') ? null
-        : terrain === 'dirt' ? DUST_COLORS
+    const colors = terrain === 'dirt' ? DUST_COLORS
         : terrain === 'grass' && characterPace > 1 ? GRASS_FLECK_COLORS
         : null;
 
