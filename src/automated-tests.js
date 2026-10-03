@@ -50,6 +50,11 @@ function runAutomatedTests(scene) {
         !shimmerChunk.shimmers.includes(shimmer) && shimmerPool.includes(shimmer) &&
         shimmer.listenerCount(Phaser.Animations.Events.ANIMATION_COMPLETE) === 1;
     record('Shimmer completion returns sprites to the pool', shimmerPoolPassed, shimmerPoolPassed ? 'One permanent completion handler retained' : 'Shimmer lifecycle regressed');
+    const deckLayers = [...loadedChunks.values()].map(chunk => chunk.upperLayer).filter(Boolean);
+    const shimmerDepthPassed = shimmer && deckLayers.length > 0 && loadedWaterChunks.size > 0 &&
+        deckLayers.every(layer => shimmer.depth < layer.depth) &&
+        [...loadedWaterChunks].every(chunk => shimmer.depth > chunk.overlay.depth);
+    record('Water sparkles stay below bridges and piers', shimmerDepthPassed, shimmerDepthPassed ? 'Sparkles render above water and below deck textures' : 'Water sparkle draw order is incorrect');
     const rodArtPassed = MARKET_RODS.every(rod =>
         scene.textures.exists(rod.texture) && scene.textures.exists(rod.icon) && rod.polePalette?.length === 3 &&
         rod.linePalette?.length === 4 && rod.bobberPalette?.length === 3

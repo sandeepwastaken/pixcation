@@ -43,7 +43,7 @@ function spawnChunkShimmer(scene, chunk) {
     let shimmer = shimmerPool.pop();
 
     if (!shimmer) {
-        shimmer = scene.add.sprite(0, 0, 'shimmer').setOrigin(0).setDepth(2);
+        shimmer = scene.add.sprite(0, 0, 'shimmer').setOrigin(0).setDepth(1.25);
         shimmer.on(Phaser.Animations.Events.ANIMATION_COMPLETE, finishShimmer);
     }
 
