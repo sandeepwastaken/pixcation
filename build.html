@@ -128,6 +128,7 @@
 
         let selectedTile = 'grass1';
         let isPainting = false;
+        let mapImportReader = null;
 
         let mapData = Array.from(
             { length: mapHeight },
@@ -269,15 +270,26 @@
             }
 
             const reader = new FileReader();
+            if (mapImportReader) mapImportReader.abort();
+            mapImportReader = reader;
 
             reader.addEventListener('load', () => {
+                if (mapImportReader !== reader) return;
                 try {
                     loadMap(JSON.parse(reader.result));
                 } catch (error) {
                     window.alert(`Could not load map: ${error.message}`);
                 }
 
+                mapImportReader = null;
                 importInput.value = '';
+            });
+
+            reader.addEventListener('error', () => {
+                if (mapImportReader !== reader) return;
+                mapImportReader = null;
+                importInput.value = '';
+                window.alert(`Could not load map: ${reader.error?.message || 'The file could not be read.'}`);
             });
 
             reader.readAsText(file);
