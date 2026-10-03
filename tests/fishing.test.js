@@ -113,16 +113,16 @@ test('fish approach switches to inspection at the reach boundary', () => {
 });
 
 
-test('minigame progress redraws only when its pixel height changes and refreshes on reopen', () => {
+test('minigame sprites skip unchanged pixels and refresh changed dimensions and visibility', () => {
     const run = createSession();
     run(`
         function image() {
             return {
-                crops: [], positions: [],
+                crops: [], positions: [], sizes: [],
                 setOrigin() { return this; }, setDepth() { return this; }, setScrollFactor() { return this; },
                 setVisible(value) { this.visible = value; return this; },
-                setDisplaySize() { return this; },
-                setPosition(x, y) { this.positions.push([x, y]); return this; },
+                setDisplaySize(width, height) { this.sizes.push([width, height]); this.displayWidth = width; this.displayHeight = height; return this; },
+                setPosition(x, y) { this.positions.push([x, y]); this.x = x; this.y = y; return this; },
                 setCrop(...crop) { this.crops.push(crop); return this; }
             };
         }
@@ -135,6 +135,19 @@ test('minigame progress redraws only when its pixel height changes and refreshes
     `);
     assert.equal(run('fishingProgressFill.crops.length'), 1);
     assert.equal(run('fishingProgressFill.positions.length'), 1);
+    assert.equal(run('fishingCatchZoneTop.positions.length'), 1);
+    assert.equal(run('fishingCatchZoneMiddle.positions.length'), 1);
+    assert.equal(run('fishingCatchZoneBottom.positions.length'), 1);
+    assert.equal(run('fishingFishMarker.positions.length'), 1);
+    assert.equal(run('fishingCatchZoneMiddle.sizes.length'), 1);
+    run('fishing.game.zoneY = 10.1; fishing.game.fishY = 16.1; drawFishingMinigame()');
+    assert.equal(run('fishingCatchZoneTop.positions.length'), 1);
+    assert.equal(run('fishingFishMarker.positions.length'), 1);
+    run('fishing.game.zoneY = 11; fishing.game.fishY = 17; fishing.game.zoneHeight = 29; drawFishingMinigame()');
+    assert.equal(run('fishingCatchZoneTop.positions.length'), 2);
+    assert.equal(run('fishingFishMarker.positions.length'), 2);
+    assert.deepEqual(JSON.parse(run('JSON.stringify(fishingCatchZoneMiddle.sizes)')), [[8, 18], [8, 23]]);
+    assert.equal(run('fishingCatchZoneBottom.y - fishingCatchZoneTop.y'), 26);
     assert.equal(run('fishingUiParts.every(part => part.visible)'), true);
     run('fishing.game.progress = 0.75; drawFishingMinigame()');
     assert.equal(run('fishingProgressFill.crops.length'), 2);

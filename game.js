@@ -4365,7 +4365,9 @@ function drawFishingMinigame() {
     const playY = FISHING_GAME_Y + FISHING_GAME_PLAY_TOP;
     const progressHeight = Math.max(1, Math.round(FISHING_GAME_PLAY_HEIGHT * gameState.progress));
     const zoneY = playY + Math.round(gameState.zoneY);
+    const fishY = playY + Math.round(gameState.fishY);
     const zoneHeight = Math.round(gameState.zoneHeight);
+    const middleHeight = Math.max(1, zoneHeight - 6);
 
     if (!fishingMinigameVisible) {
         fishingMinigameVisible = true;
@@ -4373,10 +4375,18 @@ function drawFishingMinigame() {
         for (const part of fishingUiParts) part.setVisible(true);
     }
 
-    fishingCatchZoneTop.setPosition(playX, zoneY);
-    fishingCatchZoneMiddle.setPosition(playX, zoneY + 3).setDisplaySize(8, Math.max(1, zoneHeight - 6));
-    fishingCatchZoneBottom.setPosition(playX, zoneY + zoneHeight - 3);
-    fishingFishMarker.setPosition(playX + 4, playY + Math.round(gameState.fishY));
+    if (fishingCatchZoneTop.x !== playX || fishingCatchZoneTop.y !== zoneY ||
+        fishingCatchZoneBottom.y !== zoneY + zoneHeight - 3) {
+        fishingCatchZoneTop.setPosition(playX, zoneY);
+        fishingCatchZoneMiddle.setPosition(playX, zoneY + 3);
+        fishingCatchZoneBottom.setPosition(playX, zoneY + zoneHeight - 3);
+    }
+    if (fishingCatchZoneMiddle.displayWidth !== 8 || fishingCatchZoneMiddle.displayHeight !== middleHeight) {
+        fishingCatchZoneMiddle.setDisplaySize(8, middleHeight);
+    }
+    if (fishingFishMarker.x !== playX + 4 || fishingFishMarker.y !== fishY) {
+        fishingFishMarker.setPosition(playX + 4, fishY);
+    }
     if (progressHeight !== fishingProgressHeight) {
         fishingProgressHeight = progressHeight;
         fishingProgressFill.setCrop(0, FISHING_GAME_PLAY_HEIGHT - progressHeight, FISHING_GAME_PROGRESS_WIDTH, progressHeight);
