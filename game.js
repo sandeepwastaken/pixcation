@@ -357,6 +357,11 @@ function createPropArt(scene) {
         createCanvasTexture(scene, variant.key, variant.width, variant.height, context => {
             context.putImageData(new ImageData(variant.data, variant.width, variant.height), 0, 0);
         });
+        for (const part of ['trunk', 'canopy']) {
+            createCanvasTexture(scene, `${variant.key}-${part}`, variant.width, variant.height, context => {
+                context.putImageData(new ImageData(variant[`${part}Data`], variant.width, variant.height), 0, 0);
+            });
+        }
         treeVariants.push(variant);
     }
 }
@@ -731,7 +736,20 @@ function generateTreeVariant(trunk, seed) {
         }
     }
 
-    return { width, height, data, flip, shadowPoints, hitLeft, hitRight, color: colors[2] };
+    const trunkData = new Uint8ClampedArray(data);
+    const canopyData = new Uint8ClampedArray(data);
+    let shadowTop = Infinity;
+    let shadowBottom = -Infinity;
+    for (let point = 1; point < shadowPoints.length; point += 2) {
+        shadowTop = Math.min(shadowTop, shadowPoints[point]);
+        shadowBottom = Math.max(shadowBottom, shadowPoints[point]);
+    }
+    for (let pixel = 0; pixel < levels.length; pixel++) {
+        if (levels[pixel] >= 0) trunkData[pixel * 4 + 3] = 0;
+        else canopyData[pixel * 4 + 3] = 0;
+    }
+
+    return { width, height, data, trunkData, canopyData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, hitLeft, hitRight, color: colors[2] };
 }
 
 function createRoundedCliffTextures(scene) {
@@ -1604,7 +1622,7 @@ function forEachStaticShadowPoint(chunkX, chunkY, callback) {
     for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
         for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
             const type = getPropAt(tileX, tileY);
-            if (!type) continue;
+            if (!type || type === 'tree') continue;
 
             const sprite = getPropSprite(tileX, tileY);
 
@@ -1851,6 +1869,7 @@ function buildChunkWater(scene, chunk) {
     markWaterEdges(data, edgeCells, pixelX, pixelY);
 
     context.putImageData(image, 0, 0);
+    chunk.waterShadowBase = new Uint8ClampedArray(data);
     waterTexture.refresh();
 
     chunk.waterTexture = waterTexture;
@@ -1926,6 +1945,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
     const edgeCells = [];
     const woodTiles = [];
     const bushes = [];
+    const trees = [];
     const shorelineTiles = [];
     const groundTexture = acquireChunkCanvas(scene);
     const groundContext = groundTexture.getContext();
@@ -2003,6 +2023,14 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 }
 
                 bushes.push(bush);
+            } else if (prop === 'tree') {
+                const sprite = getPropSprite(tileX, tileY);
+                const trunk = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-trunk`).setOrigin(0).setDepth(baseY);
+                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1);
+                worldObjectLayer.add([trunk, canopy]);
+                tileSprites.push(trunk, canopy);
+                const variant = getTreeVariant(tileX, tileY);
+                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, shadow: sprite.shadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
             } else if (prop) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
@@ -2055,6 +2083,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
         waterTexture: null,
         shadowMask,
         bushes,
+        trees,
         fish: [],
         pixels: null,
         waterBuild: waterMaskCells.length > 0 ? { waterMaskCells, edgeCells, woodTiles, shorelineTiles } : null
@@ -2077,7 +2106,7 @@ function destroyWorldChunk(key) {
     while (chunk.shimmers.length) poolShimmer(chunk.shimmers.pop());
     for (const sprite of chunk.tileSprites) sprite.destroy();
 
-    for (const [layer, texture] of [[chunk.groundLayer, chunk.groundTexture], [chunk.upperLayer, chunk.upperTexture], [chunk.overlay, chunk.waterTexture]]) {
+    for (const [layer, texture] of [[chunk.groundLayer, chunk.groundTexture], [chunk.upperLayer, chunk.upperTexture], [chunk.overlay, chunk.waterTexture], [chunk.treeShadowLayer, chunk.treeShadowTexture]]) {
         if (layer) layer.destroy();
         if (texture) chunkCanvasPool.push(texture);
     }
@@ -2092,8 +2121,8 @@ function isChunkNear(chunkX, chunkY, radius) {
 }
 
 function updateLoadedChunks(scene, force = false) {
-    const centerChunkX = Math.floor((character.x + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
-    const centerChunkY = Math.floor((character.y + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
+    const centerChunkX = Math.floor((startup ? mainCamera.scrollX + mainCamera.width / 2 : character.x + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
+    const centerChunkY = Math.floor((startup ? mainCamera.scrollY + mainCamera.height / 2 : character.y + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
 
     if (!force && centerChunkX === activeChunkX && centerChunkY === activeChunkY) return;
 
@@ -2104,7 +2133,7 @@ function updateLoadedChunks(scene, force = false) {
     visibleChunkLeft = null;
     pendingChunks.length = 0;
 
-    for (let offsetY = -CHUNK_DISCOVERY_RADIUS; offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
+    for (let offsetY = -CHUNK_DISCOVERY_RADIUS; !startup && offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
         for (let offsetX = -CHUNK_DISCOVERY_RADIUS; offsetX <= CHUNK_DISCOVERY_RADIUS; offsetX++) {
             discoveredChunks.add(getTileId(centerChunkX + offsetX, centerChunkY + offsetY));
         }
@@ -2188,6 +2217,7 @@ function updateChunkVisibility() {
         chunk.groundLayer.setVisible(visible);
         if (chunk.upperLayer) chunk.upperLayer.setVisible(visible);
         if (chunk.overlay) chunk.overlay.setVisible(visible);
+        if (chunk.treeShadowLayer) chunk.treeShadowLayer.setVisible(visible);
     }
 }
 
@@ -2833,6 +2863,30 @@ function releaseParticle(image) {
     availableParticles.push(image);
 }
 
+function getWindOffset(time, x, y, strength = 1) {
+    const phase = x * 0.013 + y * 0.007;
+    const gust = 0.7 + 0.3 * Math.sin(time / 7100);
+    return Math.round((Math.sin(time / 1700 + phase) + 0.35 * Math.sin(time / 530 + phase)) * gust * strength);
+}
+
+function getWindRowOffset(offset, y, height) {
+    return Math.round(offset * (height - 1 - y) / Math.max(1, height - 1));
+}
+
+function getWindTexture(scene, key, offset) {
+    const name = `${key}-wind-${offset}`;
+    if (scene.textures.exists(name)) return name;
+    const source = getTextureSource(scene, key);
+    createCanvasTexture(scene, name, source.width + 6, source.height, context => {
+        context.imageSmoothingEnabled = false;
+        for (let y = 0; y < source.height; y++) {
+            const shift = getWindRowOffset(offset, y, source.height);
+            context.drawImage(source, 0, y, source.width, 1, 3 + shift, y, source.width, 1);
+        }
+    });
+    return name;
+}
+
 function updateBushRustle(scene, time, isWalking) {
     const left = character.x + CHARACTER_HITBOX_X;
     const top = character.y + CHARACTER_HITBOX_Y;
@@ -2840,7 +2894,6 @@ function updateBushRustle(scene, time, isWalking) {
     const bottom = top + CHARACTER_HITBOX_HEIGHT;
 
     for (const chunk of loadedChunks.values()) {
-        if (!chunk.visible) continue;
         for (const bush of chunk.bushes) {
             const touching =
                 left < bush.x + BUSH_FOOTPRINT_RIGHT &&
@@ -2856,17 +2909,90 @@ function updateBushRustle(scene, time, isWalking) {
             bush.touching = touching;
 
             const age = time - bush.rustleStart;
-            const offset = age < BUSH_RUSTLE_PATTERN.length * BUSH_RUSTLE_STEP
+            const rustle = age < BUSH_RUSTLE_PATTERN.length * BUSH_RUSTLE_STEP
                 ? BUSH_RUSTLE_PATTERN[Math.floor(age / BUSH_RUSTLE_STEP)]
                 : 0;
 
+            const offset = rustle + getWindOffset(time, bush.x, bush.y);
             if (offset === bush.offset) continue;
 
             bush.offset = offset;
 
-            for (const slice of bush.slices) {
-                slice.x = bush.x + offset;
+            for (let index = 0; index < bush.slices.length; index++) {
+                bush.slices[index].setTexture(getWindTexture(scene, `bush-slice-${index}`, offset));
+                bush.slices[index].x = bush.x - 3;
             }
+        }
+        for (const tree of chunk.trees) {
+            const touching = left < tree.x + tree.width / 2 + 8 && right > tree.x + tree.width / 2 - 8 &&
+                top < tree.baseY + 2 && bottom > tree.baseY - 12;
+            if (touching && isWalking && !tree.touching) tree.rustleStart = time;
+            tree.touching = touching;
+            const age = time - tree.rustleStart;
+            const rustle = age < BUSH_RUSTLE_PATTERN.length * BUSH_RUSTLE_STEP
+                ? BUSH_RUSTLE_PATTERN[Math.floor(age / BUSH_RUSTLE_STEP)] : 0;
+            const offset = getWindOffset(time, tree.x, tree.baseY, 1.6) + rustle;
+            if (tree.offset === offset) continue;
+            tree.offset = offset;
+            tree.canopy.setTexture(getWindTexture(scene, tree.texture, offset));
+            tree.canopy.x = tree.x - 3;
+        }
+    }
+}
+
+function updateTreeShadows(scene, time) {
+    if (time < (scene.nextTreeShadowAt || 0)) return;
+    scene.nextTreeShadowAt = time + 80;
+    const trees = [];
+    let signature = '';
+    for (const chunk of loadedChunks.values()) {
+        signature += `${chunk.key}:`;
+        for (const tree of chunk.trees) {
+            trees.push(tree);
+            signature += `${tree.offset},`;
+        }
+        signature += chunk.waterTexture ? 'w' : '';
+    }
+    if (signature === scene.treeShadowSignature) return;
+    scene.treeShadowSignature = signature;
+    for (const chunk of loadedChunks.values()) {
+        const points = [];
+        for (const tree of trees) {
+            const x = tree.x;
+            if (x + tree.width + 3 < chunk.pixelX || x - 3 > chunk.pixelX + CHUNK_PIXEL_SIZE ||
+                tree.baseY + 32 < chunk.pixelY || tree.baseY - 32 > chunk.pixelY + CHUNK_PIXEL_SIZE) continue;
+            for (let point = 0; point < tree.shadow.length; point += 2) {
+                const shift = getWindRowOffset(tree.offset, tree.shadow[point + 1] - tree.shadowTop, tree.shadowHeight);
+                const localX = x + tree.shadow[point] + shift - chunk.pixelX;
+                const localY = tree.y + tree.shadow[point + 1] - chunk.pixelY;
+                if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) points.push(localY * CHUNK_PIXEL_SIZE + localX);
+            }
+        }
+        if (!points.length && !chunk.treeShadowTexture) continue;
+        if (!chunk.treeShadowTexture) {
+            chunk.treeShadowTexture = acquireChunkCanvas(scene);
+            chunk.treeShadowLayer = createChunkLayer(scene, chunk.treeShadowTexture, chunk.pixelX, chunk.pixelY, 2);
+            chunk.treeShadowImage = chunk.treeShadowTexture.getContext().createImageData(CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
+        }
+        const image = chunk.treeShadowImage;
+        image.data.fill(0);
+        const water = chunk.waterShadowBase ? new ImageData(new Uint8ClampedArray(chunk.waterShadowBase), CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE) : null;
+        for (const pixel of points) {
+            const worldX = chunk.pixelX + pixel % CHUNK_PIXEL_SIZE;
+            const worldY = chunk.pixelY + Math.floor(pixel / CHUNK_PIXEL_SIZE);
+            if (water?.data[pixel * 4] && isWaterPixel(scene, worldX, worldY)) {
+                water.data[pixel * 4] = 128;
+                continue;
+            }
+            const color = getGroundShadowColor(scene, worldX, worldY);
+            if (color !== null) writeRGBPixel(image.data, pixel, (color[0] << 16) | (color[1] << 8) | color[2]);
+        }
+        chunk.treeShadowTexture.getContext().putImageData(image, 0, 0);
+        chunk.treeShadowTexture.refresh();
+        chunk.treeShadowLayer.setVisible(chunk.visible);
+        if (water) {
+            chunk.waterTexture.getContext().putImageData(water, 0, 0);
+            chunk.waterTexture.refresh();
         }
     }
 }
@@ -4262,11 +4388,14 @@ function eraseChestSilhouette(chunk) {
 
     for (let point = 0; point < points.length; point += 2) {
         image.data[((points[point + 1] - top) * width + points[point]) * 4] = chest.original[point / 2];
+        const pixel = (chest.localY + points[point + 1]) * CHUNK_PIXEL_SIZE + chest.localX + points[point];
+        if (chunk.waterShadowBase) chunk.waterShadowBase[pixel * 4] = chest.original[point / 2];
     }
 
     context.putImageData(image, chest.localX, chest.localY + top);
     chunk.waterTexture.refresh();
     chunk.chest = null;
+    if (mainCamera) mainCamera.scene.treeShadowSignature = null;
 }
 
 function findChestAt(x, y) {
@@ -4453,6 +4582,105 @@ function appendKeyHints(element, hints) {
     }
 
     return element;
+}
+
+function isPlaceholderArtwork(scene, key) {
+    const { data, width, height } = getTerrainPixels(scene, key);
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            const index = (y * width + x) * 4;
+            if (data[index] !== 255 || data[index + 1] !== 255 || data[index + 2] !== 255 || data[index + 3] !== 255) return false;
+        }
+    }
+    return true;
+}
+
+function createStartup(scene) {
+    const hud = scene.children.list.filter(child => child.depth >= 100).map(child => [child, child.visible]);
+    for (const [child] of hud) child.setVisible(false);
+    character.setVisible(false);
+    characterShadow.image.setVisible(false);
+    const logo = scene.add.image(80, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
+    const button = scene.add.image(112, 124, 'start-button').setOrigin(0).setScrollFactor(0).setDepth(800);
+    const text = createTextLayer(192);
+    const title = createUIText(text, 80, 57, '#000000', 160, 'center', { fontSize: '32px', lineHeight: '24px' });
+    if (isPlaceholderArtwork(scene, 'title-logo')) title.textContent = 'pixcation';
+    createUIText(text, 112, 127, '#000000', 96, 'center').textContent = 'Start';
+    createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px #230a03' }).textContent = 'Enter / Space / Click to begin';
+    const textLayer = addHudLayer(scene, text, 0, 801).setVisible(true);
+    const texture = scene.textures.createCanvas('startup-dither', 320, 192);
+    const fade = scene.add.image(0, 0, texture.key).setOrigin(0).setScrollFactor(0).setDepth(1000);
+    startup = { phase: 'title', start: scene.time.now, hud, logo, title, button, textLayer, texture, fade, level: -1, spawnX: character.x, spawnY: character.y };
+}
+
+function beginStartup(time) {
+    if (!startup || startup.phase !== 'title') return;
+    startup.phase = 'closing';
+    startup.start = time;
+    startup.textLayer.setVisible(false);
+}
+
+function drawStartupDither(level) {
+    if (startup.level === level) return;
+    startup.level = level;
+    const ranks = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    const context = startup.texture.getContext();
+    context.clearRect(0, 0, 320, 192);
+    context.fillStyle = '#000000';
+    for (let y = 0; y < 192; y++) {
+        for (let x = 0; x < 320; x++) {
+            if (ranks[(y % 4) * 4 + x % 4] < level) context.fillRect(x, y, 1, 1);
+        }
+    }
+    startup.texture.refresh();
+}
+
+function updateStartup(scene, time, delta) {
+    const age = time - startup.start;
+    if (startup.phase === 'title') {
+        const angle = age / 18000;
+        mainCamera.setScroll(Math.round(startup.spawnX + Math.cos(angle) * 100 - 160), Math.round(startup.spawnY + Math.sin(angle) * 72 - 96));
+        const hover = Math.round(Math.sin(age / 1000) * 2);
+        startup.logo.y = 40 + hover;
+        startup.title.style.top = `${57 + hover}px`;
+    } else if (startup.phase === 'closing') {
+        drawStartupDither(Math.min(16, Math.floor(age / 45)));
+        if (age >= 850) {
+            character.setPosition(startup.spawnX, startup.spawnY).setVisible(true);
+            characterShadow.image.setVisible(true);
+            mainCamera.setScroll(character.x + CHARACTER_SIZE / 2 - 160, character.y + CHARACTER_SIZE / 2 - 96);
+            cameraScrollX = mainCamera.scrollX;
+            cameraScrollY = mainCamera.scrollY;
+            cameraOffsetX = 0;
+            cameraOffsetY = 0;
+            startup.logo.setVisible(false);
+            startup.button.setVisible(false);
+            for (const [child, visible] of startup.hud) {
+                if (child.type !== 'DOMElement') child.setVisible(visible);
+            }
+            startup.phase = 'opening';
+            startup.start = time;
+            updateLoadedChunks(scene, true);
+        }
+    } else {
+        drawStartupDither(Math.max(0, 16 - Math.floor(age / 45)));
+        if (age >= 760) {
+            for (const [child, visible] of startup.hud) child.setVisible(visible);
+            for (const child of [startup.logo, startup.button, startup.textLayer, startup.fade]) child.destroy();
+            scene.textures.remove('startup-dither');
+            startup = null;
+            return;
+        }
+    }
+    updateLoadedChunks(scene);
+    buildPendingChunk(scene);
+    updateCharacterShadow(scene);
+    updateBushRustle(scene, time, false);
+    updateChunkVisibility();
+    updateTreeShadows(scene, time);
+    updateParticles(time);
+    updateFish(delta);
+    updateChunkWater(time);
 }
 
 let fishingMinigameVisible = false;
@@ -6434,9 +6662,14 @@ let cameraOffsetY = 0;
 
 let promptState = -1;
 const promptMotion = { value: 0 };
+let startup = null;
 
 function preload() {
     this.load.atlas('atlas', withCacheBuster('media/atlas.png'), withCacheBuster('media/atlas.json'));
+    this.load.image('title-logo', withCacheBuster('media/ui/title/logo.png'));
+    this.load.image('start-button', withCacheBuster('media/ui/title/start.png'));
+    this.load.image('stats-button', withCacheBuster('media/ui/stats/button.png'));
+    this.load.image('stats-panel', withCacheBuster('media/ui/stats/panel.png'));
 }
 
 function getTextureAliases() {
@@ -6513,6 +6746,10 @@ function unpackAtlas(scene) {
 function bindGameInput(scene) {
     const heldActions = new Set();
     scene.input.on('pointermove', pointer => {
+        if (startup) {
+            scene.input.setDefaultCursor(startup.phase === 'title' && pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144 ? 'pointer' : 'default');
+            return;
+        }
         if (marketOpen) {
             const row = getMarketRowAt(pointer.x, pointer.y);
 
@@ -6576,6 +6813,10 @@ function bindGameInput(scene) {
 
     scene.input.on('pointerdown', pointer => {
         if (pointer.button !== 0) return;
+        if (startup) {
+            if (pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144) beginStartup(scene.time.now);
+            return;
+        }
         if (inventoryOpen) {
             if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(scene);
         } else if (marketOpen) {
@@ -6619,7 +6860,7 @@ function bindGameInput(scene) {
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
         const step = Math.sign(deltaY);
 
-        if (!step || inventoryOpen) return;
+        if (!step || inventoryOpen || startup) return;
 
         if (isMenuOpen()) {
             if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
@@ -6642,6 +6883,10 @@ function bindGameInput(scene) {
 
     scene.input.keyboard.on('keydown', event => {
         if (event.repeat) return;
+        if (startup) {
+            if (event.code === 'Enter' || event.code === 'Space') beginStartup(scene.time.now);
+            return;
+        }
 
         const code = event.code;
         const key = event.key.toLowerCase();
@@ -6745,6 +6990,7 @@ function create() {
         document.documentElement.dataset.testResults = JSON.stringify(window.PIXCATION_TEST_RESULTS);
     } else {
         loadProgress(this);
+        createStartup(this);
     }
 
     for (let index = 0; index < 20; index++) {
@@ -7139,6 +7385,10 @@ function updateCamera(delta) {
 
 function update(time, delta) {
     if (!character) return;
+    if (startup) {
+        updateStartup(this, time, delta);
+        return;
+    }
 
     const isWalking = updateCharacter(this, time, delta);
 
@@ -7167,6 +7417,7 @@ function update(time, delta) {
     buildPendingChunk(this);
     updateCamera(delta);
     updateChunkVisibility();
+    updateTreeShadows(this, time);
     updateFish(delta);
     updateChunkWater(time);
 }

@@ -62,6 +62,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
     const edgeCells = [];
     const woodTiles = [];
     const bushes = [];
+    const trees = [];
     const shorelineTiles = [];
     const groundTexture = acquireChunkCanvas(scene);
     const groundContext = groundTexture.getContext();
@@ -139,6 +140,14 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 }
 
                 bushes.push(bush);
+            } else if (prop === 'tree') {
+                const sprite = getPropSprite(tileX, tileY);
+                const trunk = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-trunk`).setOrigin(0).setDepth(baseY);
+                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1);
+                worldObjectLayer.add([trunk, canopy]);
+                tileSprites.push(trunk, canopy);
+                const variant = getTreeVariant(tileX, tileY);
+                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, shadow: sprite.shadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
             } else if (prop) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
@@ -191,6 +200,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
         waterTexture: null,
         shadowMask,
         bushes,
+        trees,
         fish: [],
         pixels: null,
         waterBuild: waterMaskCells.length > 0 ? { waterMaskCells, edgeCells, woodTiles, shorelineTiles } : null
@@ -213,7 +223,7 @@ function destroyWorldChunk(key) {
     while (chunk.shimmers.length) poolShimmer(chunk.shimmers.pop());
     for (const sprite of chunk.tileSprites) sprite.destroy();
 
-    for (const [layer, texture] of [[chunk.groundLayer, chunk.groundTexture], [chunk.upperLayer, chunk.upperTexture], [chunk.overlay, chunk.waterTexture]]) {
+    for (const [layer, texture] of [[chunk.groundLayer, chunk.groundTexture], [chunk.upperLayer, chunk.upperTexture], [chunk.overlay, chunk.waterTexture], [chunk.treeShadowLayer, chunk.treeShadowTexture]]) {
         if (layer) layer.destroy();
         if (texture) chunkCanvasPool.push(texture);
     }

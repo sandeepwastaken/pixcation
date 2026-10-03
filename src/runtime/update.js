@@ -1,5 +1,9 @@
 function update(time, delta) {
     if (!character) return;
+    if (startup) {
+        updateStartup(this, time, delta);
+        return;
+    }
 
     const isWalking = updateCharacter(this, time, delta);
 
@@ -28,6 +32,7 @@ function update(time, delta) {
     buildPendingChunk(this);
     updateCamera(delta);
     updateChunkVisibility();
+    updateTreeShadows(this, time);
     updateFish(delta);
     updateChunkWater(time);
 }

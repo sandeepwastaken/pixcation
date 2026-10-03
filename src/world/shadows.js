@@ -33,7 +33,7 @@ function forEachStaticShadowPoint(chunkX, chunkY, callback) {
     for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
         for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
             const type = getPropAt(tileX, tileY);
-            if (!type) continue;
+            if (!type || type === 'tree') continue;
 
             const sprite = getPropSprite(tileX, tileY);
 

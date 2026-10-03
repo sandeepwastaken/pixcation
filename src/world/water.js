@@ -110,6 +110,7 @@ function buildChunkWater(scene, chunk) {
     markWaterEdges(data, edgeCells, pixelX, pixelY);
 
     context.putImageData(image, 0, 0);
+    chunk.waterShadowBase = new Uint8ClampedArray(data);
     waterTexture.refresh();
 
     chunk.waterTexture = waterTexture;

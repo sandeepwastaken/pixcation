@@ -148,3 +148,4 @@ let cameraOffsetY = 0;
 
 let promptState = -1;
 const promptMotion = { value: 0 };
+let startup = null;

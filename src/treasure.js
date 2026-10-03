@@ -100,11 +100,14 @@ function eraseChestSilhouette(chunk) {
 
     for (let point = 0; point < points.length; point += 2) {
         image.data[((points[point + 1] - top) * width + points[point]) * 4] = chest.original[point / 2];
+        const pixel = (chest.localY + points[point + 1]) * CHUNK_PIXEL_SIZE + chest.localX + points[point];
+        if (chunk.waterShadowBase) chunk.waterShadowBase[pixel * 4] = chest.original[point / 2];
     }
 
     context.putImageData(image, chest.localX, chest.localY + top);
     chunk.waterTexture.refresh();
     chunk.chest = null;
+    if (mainCamera) mainCamera.scene.treeShadowSignature = null;
 }
 
 function findChestAt(x, y) {

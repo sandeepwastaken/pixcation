@@ -340,5 +340,18 @@ function generateTreeVariant(trunk, seed) {
         }
     }
 
-    return { width, height, data, flip, shadowPoints, hitLeft, hitRight, color: colors[2] };
+    const trunkData = new Uint8ClampedArray(data);
+    const canopyData = new Uint8ClampedArray(data);
+    let shadowTop = Infinity;
+    let shadowBottom = -Infinity;
+    for (let point = 1; point < shadowPoints.length; point += 2) {
+        shadowTop = Math.min(shadowTop, shadowPoints[point]);
+        shadowBottom = Math.max(shadowBottom, shadowPoints[point]);
+    }
+    for (let pixel = 0; pixel < levels.length; pixel++) {
+        if (levels[pixel] >= 0) trunkData[pixel * 4 + 3] = 0;
+        else canopyData[pixel * 4 + 3] = 0;
+    }
+
+    return { width, height, data, trunkData, canopyData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, hitLeft, hitRight, color: colors[2] };
 }

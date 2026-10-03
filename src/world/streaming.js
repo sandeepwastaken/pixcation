@@ -3,8 +3,8 @@ function isChunkNear(chunkX, chunkY, radius) {
 }
 
 function updateLoadedChunks(scene, force = false) {
-    const centerChunkX = Math.floor((character.x + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
-    const centerChunkY = Math.floor((character.y + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
+    const centerChunkX = Math.floor((startup ? mainCamera.scrollX + mainCamera.width / 2 : character.x + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
+    const centerChunkY = Math.floor((startup ? mainCamera.scrollY + mainCamera.height / 2 : character.y + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
 
     if (!force && centerChunkX === activeChunkX && centerChunkY === activeChunkY) return;
 
@@ -15,7 +15,7 @@ function updateLoadedChunks(scene, force = false) {
     visibleChunkLeft = null;
     pendingChunks.length = 0;
 
-    for (let offsetY = -CHUNK_DISCOVERY_RADIUS; offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
+    for (let offsetY = -CHUNK_DISCOVERY_RADIUS; !startup && offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
         for (let offsetX = -CHUNK_DISCOVERY_RADIUS; offsetX <= CHUNK_DISCOVERY_RADIUS; offsetX++) {
             discoveredChunks.add(getTileId(centerChunkX + offsetX, centerChunkY + offsetY));
         }
@@ -99,6 +99,7 @@ function updateChunkVisibility() {
         chunk.groundLayer.setVisible(visible);
         if (chunk.upperLayer) chunk.upperLayer.setVisible(visible);
         if (chunk.overlay) chunk.overlay.setVisible(visible);
+        if (chunk.treeShadowLayer) chunk.treeShadowLayer.setVisible(visible);
     }
 }
 

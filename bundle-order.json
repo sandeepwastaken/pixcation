@@ -31,6 +31,7 @@
     "fishing/update.js",
     "treasure.js",
     "ui/elements.js",
+    "ui/startup.js",
     "ui/fishing.js",
     "ui/guide-panel.js",
     "ui/map.js",

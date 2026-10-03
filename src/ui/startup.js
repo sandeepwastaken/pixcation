@@ -1,0 +1,98 @@
+function isPlaceholderArtwork(scene, key) {
+    const { data, width, height } = getTerrainPixels(scene, key);
+    for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+            const index = (y * width + x) * 4;
+            if (data[index] !== 255 || data[index + 1] !== 255 || data[index + 2] !== 255 || data[index + 3] !== 255) return false;
+        }
+    }
+    return true;
+}
+
+function createStartup(scene) {
+    const hud = scene.children.list.filter(child => child.depth >= 100).map(child => [child, child.visible]);
+    for (const [child] of hud) child.setVisible(false);
+    character.setVisible(false);
+    characterShadow.image.setVisible(false);
+    const logo = scene.add.image(80, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
+    const button = scene.add.image(112, 124, 'start-button').setOrigin(0).setScrollFactor(0).setDepth(800);
+    const text = createTextLayer(192);
+    const title = createUIText(text, 80, 57, '#000000', 160, 'center', { fontSize: '32px', lineHeight: '24px' });
+    if (isPlaceholderArtwork(scene, 'title-logo')) title.textContent = 'pixcation';
+    createUIText(text, 112, 127, '#000000', 96, 'center').textContent = 'Start';
+    createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px #230a03' }).textContent = 'Enter / Space / Click to begin';
+    const textLayer = addHudLayer(scene, text, 0, 801).setVisible(true);
+    const texture = scene.textures.createCanvas('startup-dither', 320, 192);
+    const fade = scene.add.image(0, 0, texture.key).setOrigin(0).setScrollFactor(0).setDepth(1000);
+    startup = { phase: 'title', start: scene.time.now, hud, logo, title, button, textLayer, texture, fade, level: -1, spawnX: character.x, spawnY: character.y };
+}
+
+function beginStartup(time) {
+    if (!startup || startup.phase !== 'title') return;
+    startup.phase = 'closing';
+    startup.start = time;
+    startup.textLayer.setVisible(false);
+}
+
+function drawStartupDither(level) {
+    if (startup.level === level) return;
+    startup.level = level;
+    const ranks = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    const context = startup.texture.getContext();
+    context.clearRect(0, 0, 320, 192);
+    context.fillStyle = '#000000';
+    for (let y = 0; y < 192; y++) {
+        for (let x = 0; x < 320; x++) {
+            if (ranks[(y % 4) * 4 + x % 4] < level) context.fillRect(x, y, 1, 1);
+        }
+    }
+    startup.texture.refresh();
+}
+
+function updateStartup(scene, time, delta) {
+    const age = time - startup.start;
+    if (startup.phase === 'title') {
+        const angle = age / 18000;
+        mainCamera.setScroll(Math.round(startup.spawnX + Math.cos(angle) * 100 - 160), Math.round(startup.spawnY + Math.sin(angle) * 72 - 96));
+        const hover = Math.round(Math.sin(age / 1000) * 2);
+        startup.logo.y = 40 + hover;
+        startup.title.style.top = `${57 + hover}px`;
+    } else if (startup.phase === 'closing') {
+        drawStartupDither(Math.min(16, Math.floor(age / 45)));
+        if (age >= 850) {
+            character.setPosition(startup.spawnX, startup.spawnY).setVisible(true);
+            characterShadow.image.setVisible(true);
+            mainCamera.setScroll(character.x + CHARACTER_SIZE / 2 - 160, character.y + CHARACTER_SIZE / 2 - 96);
+            cameraScrollX = mainCamera.scrollX;
+            cameraScrollY = mainCamera.scrollY;
+            cameraOffsetX = 0;
+            cameraOffsetY = 0;
+            startup.logo.setVisible(false);
+            startup.button.setVisible(false);
+            for (const [child, visible] of startup.hud) {
+                if (child.type !== 'DOMElement') child.setVisible(visible);
+            }
+            startup.phase = 'opening';
+            startup.start = time;
+            updateLoadedChunks(scene, true);
+        }
+    } else {
+        drawStartupDither(Math.max(0, 16 - Math.floor(age / 45)));
+        if (age >= 760) {
+            for (const [child, visible] of startup.hud) child.setVisible(visible);
+            for (const child of [startup.logo, startup.button, startup.textLayer, startup.fade]) child.destroy();
+            scene.textures.remove('startup-dither');
+            startup = null;
+            return;
+        }
+    }
+    updateLoadedChunks(scene);
+    buildPendingChunk(scene);
+    updateCharacterShadow(scene);
+    updateBushRustle(scene, time, false);
+    updateChunkVisibility();
+    updateTreeShadows(scene, time);
+    updateParticles(time);
+    updateFish(delta);
+    updateChunkWater(time);
+}
