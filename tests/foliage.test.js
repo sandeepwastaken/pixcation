@@ -41,12 +41,13 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
     }
     base[4] = 128;
     const makeTexture = () => {
-        const texture = { key: 'test', refresh() {} };
+        const texture = { key: 'test', refresh() { this.refreshCount = (this.refreshCount || 0) + 1; } };
         texture.getContext = () => ({ createImageData: () => new PixelImage(new Uint8ClampedArray(base.length), size, size), putImageData: image => { texture.image = image; } });
         return texture;
     };
     const tree = { x: 255, y: 0, baseY: 0, width: 64, shadow: [0, 0, 1, 0], shadowTop: 0, shadowHeight: 2, offset: 0 };
-    const left = { key: 'left', pixelX: 0, pixelY: 0, trees: [tree], visible: true };
+    const distant = { ...tree, x: 1024 };
+    const left = { key: 'left', pixelX: 0, pixelY: 0, trees: [tree, distant], visible: true };
     const right = { key: 'right', pixelX: 256, pixelY: 0, trees: [], visible: true, waterTexture: makeTexture(), waterShadowBase: base };
     const context = vm.createContext({ ImageData: PixelImage, CHUNK_PIXEL_SIZE: size, loadedChunks: new Map([['left', left], ['right', right]]), acquireChunkCanvas: makeTexture, createChunkLayer: () => ({ setVisible() {} }), isWaterPixel: (scene, x) => x >= 256, getGroundShadowColor: () => [10, 20, 30], writeRGBPixel: (data, pixel, color) => { data.set([color >> 16, color >> 8 & 255, color & 255, 255], pixel * 4); } });
     vm.runInContext(fs.readFileSync('src/environment/bushes.js', 'utf8'), context);
@@ -60,6 +61,7 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
     base[16] = 128;
     base[17] = 21;
     context.updateTreeShadows(scene, 100);
+    assert.deepEqual(Array.from(tree.shadowRows.get(2)), [2, 0]);
     assert.equal(right.waterTexture.image, firstWaterImage);
     assert.equal(left.treeShadowImage.data[255 * 4 + 3], 0);
     assert.equal(right.waterTexture.image.data[0], 255);
@@ -68,4 +70,18 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
     assert.equal(right.waterTexture.image.data[16], 128);
     assert.equal(right.waterTexture.image.data[17], 21);
     assert.equal(base[0], 255);
+    const refreshCount = right.waterTexture.refreshCount;
+    let shadowReads = 0;
+    tree.shadow = new Proxy(tree.shadow, { get(target, key) { if (typeof key === 'string' && /^\d+$/.test(key)) shadowReads++; return Reflect.get(target, key); } });
+    distant.offset = 1;
+    context.updateTreeShadows(scene, 200);
+    assert.equal(shadowReads, 0);
+    assert.equal(right.waterTexture.refreshCount, refreshCount);
+    base[17] = 25;
+    right.treeShadowSignature = null;
+    scene.treeShadowSignature = null;
+    context.updateTreeShadows(scene, 300);
+    assert.ok(shadowReads > 0);
+    assert.equal(right.waterTexture.image.data[17], 25);
+    assert.equal(right.waterTexture.refreshCount, refreshCount + 1);
 });

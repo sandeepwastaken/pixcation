@@ -91,19 +91,24 @@ function updateTreeShadows(scene, time) {
     if (signature === scene.treeShadowSignature) return;
     scene.treeShadowSignature = signature;
     for (const chunk of loadedChunks.values()) {
+        const shadowTrees = trees.filter(tree => !(tree.x + tree.width + 3 < chunk.pixelX || tree.x - 3 > chunk.pixelX + CHUNK_PIXEL_SIZE || tree.baseY + 32 < chunk.pixelY || tree.baseY - 32 > chunk.pixelY + CHUNK_PIXEL_SIZE));
+        const nextShadowSignature = (chunk.waterTexture ? 'w:' : 'land:') + shadowTrees.map(tree => `${tree.x},${tree.y},${tree.offset};`).join('');
+        if (chunk.treeShadowSignature === nextShadowSignature) continue;
         const points = [];
-        for (const tree of trees) {
+        for (const tree of shadowTrees) {
             const x = tree.x;
-            if (x + tree.width + 3 < chunk.pixelX || x - 3 > chunk.pixelX + CHUNK_PIXEL_SIZE ||
-                tree.baseY + 32 < chunk.pixelY || tree.baseY - 32 > chunk.pixelY + CHUNK_PIXEL_SIZE) continue;
+            const rows = tree.shadowRows ||= new Map();
+            if (!rows.has(tree.offset)) rows.set(tree.offset, Int8Array.from({ length: tree.shadowHeight }, (_, y) => getWindRowOffset(tree.offset, y, tree.shadowHeight)));
+            const shifts = rows.get(tree.offset);
             for (let point = 0; point < tree.shadow.length; point += 2) {
-                const shift = getWindRowOffset(tree.offset, tree.shadow[point + 1] - tree.shadowTop, tree.shadowHeight);
+                const shift = shifts[tree.shadow[point + 1] - tree.shadowTop];
                 const localX = x + tree.shadow[point] + shift - chunk.pixelX;
                 const localY = tree.y + tree.shadow[point + 1] - chunk.pixelY;
                 if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) points.push(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }
         if (!points.length && !chunk.treeShadowTexture) continue;
+        chunk.treeShadowSignature = nextShadowSignature;
         if (!chunk.treeShadowTexture) {
             chunk.treeShadowTexture = acquireChunkCanvas(scene);
             chunk.treeShadowLayer = createChunkLayer(scene, chunk.treeShadowTexture, chunk.pixelX, chunk.pixelY, 2);

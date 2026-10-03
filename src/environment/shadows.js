@@ -16,6 +16,8 @@ function rebakeLoadedShadows(scene) {
         chunk.groundTexture.refresh();
         chunk.shadowMask = mask;
         chunk.pixels = null;
+        chunk.treeShadowSignature = null;
+        scene.treeShadowSignature = null;
     }
 }
 
