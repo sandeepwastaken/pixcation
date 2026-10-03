@@ -51,7 +51,7 @@ function updateSwimmingFish(chunk, fish, seconds, delta) {
             (0.4 + Math.min(1, fish.velocity / FISH_SWIM_SPEED) * 0.6);
         const turn = turnFishToward(fish, Math.atan2(dy, dx), maxTurn);
 
-        if (fish.thrusting && Math.cos(turn) > 0) {
+        if (fish.thrusting && Math.abs(turn) <= Math.PI / 2) {
             const acceleration = fish.state === 'flee' ? FISH_FLEE_ACCELERATION : FISH_ACCELERATION;
             fish.velocity = Math.min(fish.topSpeed, fish.velocity + acceleration * seconds);
         }
