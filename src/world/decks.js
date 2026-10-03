@@ -120,7 +120,8 @@ function findPier(anchorX, anchorY) {
 
     const lengthRange = MAX_PIER_WATER_LENGTH - MIN_PIER_WATER_LENGTH + 1;
     const waterLength = MIN_PIER_WATER_LENGTH + Math.floor(worldHash(anchorX, anchorY, 921) * lengthRange);
-    let openWaterTiles = 0;
+    // At least 15 of the 18 tiles beyond the deck must be water.
+    let dryTiles = 0;
 
     for (let distance = 1; distance <= waterLength + 2; distance++) {
         if (!isWater(0, distance) || !isWater(1, distance)) return null;
@@ -128,11 +129,11 @@ function findPier(anchorX, anchorY) {
 
     for (let y = waterLength; y <= waterLength + 2; y++) {
         for (let x = -2; x <= 3; x++) {
-            if (isWater(x, y)) openWaterTiles++;
+            if (!isWater(x, y) && ++dryTiles > 3) return null;
         }
     }
 
-    return openWaterTiles / 18 >= 0.8 ? { anchorX, anchorY, waterLength } : null;
+    return { anchorX, anchorY, waterLength };
 }
 
 function getPierTile(tileX, tileY) {
