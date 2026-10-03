@@ -70,6 +70,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     for (let localY = 0; localY < CHUNK_PIXEL_SIZE; localY++) {
         const tileY = chunkY * CHUNK_SIZE + Math.floor(localY / TILE_SIZE);
         const surfaceRow = (localY % TILE_SIZE) * TILE_SIZE;
+        const pixelRow = localY * CHUNK_PIXEL_SIZE;
         let runStart = -1;
         let runColor = null;
         let column = -1;
@@ -77,7 +78,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
         let flatStyle = null;
 
         for (let localX = 0; localX < CHUNK_PIXEL_SIZE; localX++) {
-            const pixel = localY * CHUNK_PIXEL_SIZE + localX;
+            const pixel = pixelRow + localX;
             let color = null;
 
             if (mask[pixel]) {

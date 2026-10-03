@@ -53,6 +53,8 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
     const pixelX = chunkX * CHUNK_PIXEL_SIZE;
     const pixelY = chunkY * CHUNK_PIXEL_SIZE;
+    const originTileX = chunkX * CHUNK_SIZE;
+    const originTileY = chunkY * CHUNK_SIZE;
 
     const tileSprites = [];
     const waterCells = [];
@@ -76,16 +78,17 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
     };
 
     for (let localY = 0; localY < CHUNK_SIZE; localY++) {
+        const tileY = originTileY + localY;
+        const drawY = localY * TILE_SIZE;
+        const baseY = (tileY + 1) * TILE_SIZE;
         for (let localX = 0; localX < CHUNK_SIZE; localX++) {
-            const tileX = chunkX * CHUNK_SIZE + localX;
-            const tileY = chunkY * CHUNK_SIZE + localY;
+            const tileX = originTileX + localX;
 
             const worldTile = getWorldTile(tileX, tileY);
             const terrainTile = worldTile.bridge ? getTerrainTile(tileX, tileY) : worldTile;
             const tileKey = terrainTile.key;
             const isWater = tileKey.startsWith('water');
             const drawX = localX * TILE_SIZE;
-            const drawY = localY * TILE_SIZE;
             let shoreline = null;
 
             if (isWater || terrainTile.baseKey === 'water') {
@@ -123,7 +126,6 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             const prop = getPropAt(tileX, tileY);
 
             if (prop === 'bush') {
-                const baseY = (tileY + 1) * TILE_SIZE;
                 const bush = { x: tileX * TILE_SIZE, y: baseY, slices: [], rustleStart: -Infinity, touching: false, offset: 0 };
 
                 for (let slice = 0; slice < TILE_SIZE; slice++) {
@@ -141,7 +143,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
                     .setOrigin(0)
-                    .setDepth((tileY + 1) * TILE_SIZE);
+                    .setDepth(baseY);
 
                 worldObjectLayer.add(image);
                 tileSprites.push(image);

@@ -1376,11 +1376,14 @@ function getShorelineTile(scene, tile, northTile) {
 }
 
 function gatherNearbyWoodTiles(chunkX, chunkY, woodTiles) {
+    const originX = chunkX * CHUNK_SIZE;
+    const originY = chunkY * CHUNK_SIZE;
     for (let localY = -1; localY <= CHUNK_SIZE; localY++) {
         const edgeRow = localY === -1 || localY === CHUNK_SIZE;
+        const tileY = originY + localY;
 
         for (let localX = -1; localX <= CHUNK_SIZE; localX += edgeRow ? 1 : CHUNK_SIZE + 1) {
-            const tile = getWorldTile(chunkX * CHUNK_SIZE + localX, chunkY * CHUNK_SIZE + localY);
+            const tile = getWorldTile(originX + localX, tileY);
             if (tile.key.startsWith('wood')) woodTiles.push(localX, localY, tile);
         }
     }
@@ -1435,9 +1438,10 @@ function getDeckBounds(scene, key) {
         let opaque = 0;
         let rowLeft = TILE_SIZE;
         let rowRight = 0;
+        const row = y * TILE_SIZE * 4 + 3;
 
         for (let x = 0; x < TILE_SIZE; x++) {
-            if (!pixels[(y * TILE_SIZE + x) * 4 + 3]) continue;
+            if (!pixels[row + x * 4]) continue;
 
             opaque++;
             rowLeft = Math.min(rowLeft, x);
@@ -1460,6 +1464,8 @@ function getShoreDistances(scene, chunkX, chunkY) {
     const margin = SHORE_DISTANCE_MARGIN_TILES * TILE_SIZE;
     const size = CHUNK_PIXEL_SIZE + margin * 2;
     const stride = size + 2;
+    const originTileX = chunkX * CHUNK_SIZE;
+    const originTileY = chunkY * CHUNK_SIZE;
 
     if (!scene.shoreDistanceScratch) {
         scene.shoreDistanceScratch = new Uint16Array(stride * stride);
@@ -1469,9 +1475,10 @@ function getShoreDistances(scene, chunkX, chunkY) {
     const distances = scene.shoreDistanceScratch;
 
     for (let localY = -SHORE_DISTANCE_MARGIN_TILES; localY < CHUNK_SIZE + SHORE_DISTANCE_MARGIN_TILES; localY++) {
+        const tileY = originTileY + localY;
+        const originY = localY * TILE_SIZE + margin + 1;
         for (let localX = -SHORE_DISTANCE_MARGIN_TILES; localX < CHUNK_SIZE + SHORE_DISTANCE_MARGIN_TILES; localX++) {
-            const tileX = chunkX * CHUNK_SIZE + localX;
-            const tileY = chunkY * CHUNK_SIZE + localY;
+            const tileX = originTileX + localX;
             let tile = getWorldTile(tileX, tileY);
 
             if (tile.key.startsWith('wood')) {
@@ -1480,7 +1487,6 @@ function getShoreDistances(scene, chunkX, chunkY) {
 
             const water = getTerrainSurface(scene, tile).water;
             const originX = localX * TILE_SIZE + margin + 1;
-            const originY = localY * TILE_SIZE + margin + 1;
 
             for (let y = 0; y < TILE_SIZE; y++) {
                 const row = (originY + y) * stride + originX;
@@ -1601,6 +1607,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     for (let localY = 0; localY < CHUNK_PIXEL_SIZE; localY++) {
         const tileY = chunkY * CHUNK_SIZE + Math.floor(localY / TILE_SIZE);
         const surfaceRow = (localY % TILE_SIZE) * TILE_SIZE;
+        const pixelRow = localY * CHUNK_PIXEL_SIZE;
         let runStart = -1;
         let runColor = null;
         let column = -1;
@@ -1608,7 +1615,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
         let flatStyle = null;
 
         for (let localX = 0; localX < CHUNK_PIXEL_SIZE; localX++) {
-            const pixel = localY * CHUNK_PIXEL_SIZE + localX;
+            const pixel = pixelRow + localX;
             let color = null;
 
             if (mask[pixel]) {
@@ -1848,6 +1855,8 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
     const pixelX = chunkX * CHUNK_PIXEL_SIZE;
     const pixelY = chunkY * CHUNK_PIXEL_SIZE;
+    const originTileX = chunkX * CHUNK_SIZE;
+    const originTileY = chunkY * CHUNK_SIZE;
 
     const tileSprites = [];
     const waterCells = [];
@@ -1871,16 +1880,17 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
     };
 
     for (let localY = 0; localY < CHUNK_SIZE; localY++) {
+        const tileY = originTileY + localY;
+        const drawY = localY * TILE_SIZE;
+        const baseY = (tileY + 1) * TILE_SIZE;
         for (let localX = 0; localX < CHUNK_SIZE; localX++) {
-            const tileX = chunkX * CHUNK_SIZE + localX;
-            const tileY = chunkY * CHUNK_SIZE + localY;
+            const tileX = originTileX + localX;
 
             const worldTile = getWorldTile(tileX, tileY);
             const terrainTile = worldTile.bridge ? getTerrainTile(tileX, tileY) : worldTile;
             const tileKey = terrainTile.key;
             const isWater = tileKey.startsWith('water');
             const drawX = localX * TILE_SIZE;
-            const drawY = localY * TILE_SIZE;
             let shoreline = null;
 
             if (isWater || terrainTile.baseKey === 'water') {
@@ -1918,7 +1928,6 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             const prop = getPropAt(tileX, tileY);
 
             if (prop === 'bush') {
-                const baseY = (tileY + 1) * TILE_SIZE;
                 const bush = { x: tileX * TILE_SIZE, y: baseY, slices: [], rustleStart: -Infinity, touching: false, offset: 0 };
 
                 for (let slice = 0; slice < TILE_SIZE; slice++) {
@@ -1936,7 +1945,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
                     .setOrigin(0)
-                    .setDepth((tileY + 1) * TILE_SIZE);
+                    .setDepth(baseY);
 
                 worldObjectLayer.add(image);
                 tileSprites.push(image);
