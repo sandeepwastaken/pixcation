@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 function createView() {
     const context = vm.createContext({});
-    const source = ['runtime/settings.js', 'runtime/state.js', 'runtime/camera.js', 'ui/map-controls.js']
+    const source = ['runtime/settings.js', 'runtime/state.js', 'runtime/camera.js', 'ui/map-controls.js', 'ui/startup.js']
         .map(file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8')).join('\n');
     vm.runInContext(source + `
         let redraws = 0;
@@ -46,4 +46,39 @@ test('camera scroll updates are skipped when settled and restore external scroll
     run('mainCamera.scrollX = 10; updateCamera(16)');
     assert.equal(run('scrolls'), 1);
     assert.equal(run('mainCamera.scrollX'), 0);
+});
+
+test('title animation skips unchanged pixels and restores altered positions', () => {
+    const run = createView();
+    run("for (const name of ['updateLoadedChunks', 'buildPendingChunk', 'updateCharacterShadow', 'updateBushRustle', 'updateChunkVisibility', 'updateTreeShadows', 'updateParticles', 'updateFish', 'updateChunkWater']) globalThis[name] = () => {}");
+    run("let titleWrites = 0; let titleTop = '57px'");
+    run("startup = { phase: 'title', start: 0, spawnX: 0, spawnY: 0, logo: { y: 40 }, title: { style: { get top() { return titleTop; }, set top(value) { titleWrites++; titleTop = value; } } } }");
+    run('updateStartup({}, 0, 16); updateStartup({}, 16, 16)');
+    assert.equal(run('scrolls'), 1);
+    assert.equal(run('titleWrites'), 0);
+    run('updateStartup({}, 400, 16); updateStartup({}, 401, 16)');
+    assert.equal(run('titleWrites'), 1);
+    assert.equal(run('scrolls'), 2);
+    run("titleTop = '0px'; mainCamera.scrollX = 999; startup.logo.y = 0; updateStartup({}, 401, 16)");
+    assert.equal(run('titleWrites'), 2);
+    assert.equal(run('scrolls'), 3);
+    assert.equal(run('startup.logo.y'), 41);
+    assert.equal(run('startup.title.style.top'), '58px');
+    assert.equal(run('mainCamera.scrollX'), -60);
+    assert.equal(run('mainCamera.scrollY'), -94);
+});
+
+test('startup dither uses a bounded tile and skips repeated fade levels', () => {
+    const run = createView();
+    run('let ditherFills = 0; let ditherRefreshes = 0');
+    run('const patternContext = { clearRect() {}, fillRect() { ditherFills++; } }');
+    run('const ditherContext = { clearRect() {}, createPattern(canvas, repeat) { return { canvas, repeat }; }, fillRect() { ditherFills++; } }');
+    run('startup = { level: -1, pattern: { getContext: () => patternContext }, texture: { getContext: () => ditherContext, refresh() { ditherRefreshes++; } } }');
+    run('drawStartupDither(16); drawStartupDither(16)');
+    assert.equal(run('ditherFills'), 17);
+    assert.equal(run('ditherRefreshes'), 1);
+    assert.equal(run('ditherContext.fillStyle.repeat'), 'repeat');
+    run('drawStartupDither(0); drawStartupDither(0)');
+    assert.equal(run('ditherFills'), 18);
+    assert.equal(run('ditherRefreshes'), 2);
 });
