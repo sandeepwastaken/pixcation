@@ -1753,10 +1753,11 @@ function shadeWaterShorelines(scene, data, shorelineTiles) {
             let target = ((originY + y) * CHUNK_PIXEL_SIZE + originX) * 4;
 
             for (let x = 0; x < TILE_SIZE; x++, source += 4, target += 4) {
+                if (!data[target] || !art[source + 3]) continue;
                 const baseWater = art[source] === WATER_BASE_COLOR[0] && art[source + 1] === WATER_BASE_COLOR[1] &&
                     art[source + 2] === WATER_BASE_COLOR[2];
 
-                if (data[target] && art[source + 3] && !baseWater) data[target] = 128;
+                if (!baseWater) data[target] = 128;
             }
         }
     }
@@ -1768,7 +1769,7 @@ function shadeWaterWood(data, woodMask) {
         let index = y * CHUNK_PIXEL_SIZE * 4;
 
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
-            if (data[index] && woodMask[maskRow + x]) data[index] = 128;
+            if (woodMask[maskRow + x] && data[index]) data[index] = 128;
         }
     }
 }
