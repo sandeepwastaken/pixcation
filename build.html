@@ -231,14 +231,19 @@
         }
 
         function loadMap(map) {
-            const importedData = map.data || map.tiles;
+            const importedData = map?.data || map?.tiles;
 
             if (!Array.isArray(importedData) || importedData.length === 0) {
                 throw new Error('The JSON must contain a data or tiles array.');
             }
 
             const importedHeight = Number(map.height) || importedData.length;
-            const importedWidth = Number(map.width) || importedData[0].length;
+            const importedWidth = Number(map.width) || (Array.isArray(importedData[0]) ? importedData[0].length : 0);
+
+            if (!Number.isSafeInteger(importedWidth) || !Number.isSafeInteger(importedHeight) ||
+                importedWidth <= 0 || importedHeight <= 0) {
+                throw new Error('The map dimensions must be positive whole numbers.');
+            }
 
             if (importedData.length !== importedHeight) {
                 throw new Error('The map height does not match its rows.');
