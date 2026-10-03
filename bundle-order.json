@@ -30,6 +30,7 @@
     "runtime/bootstrap.js",
     "runtime/state.js",
     "runtime/assets.js",
+    "runtime/input.js",
     "runtime/scene.js",
     "runtime/progress.js",
     "runtime/character.js",

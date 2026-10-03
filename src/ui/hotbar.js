@@ -1,3 +1,21 @@
+function createHotbarUI(scene) {
+    scene.add.image(HOTBAR_X, HOTBAR_Y, 'hotbar')
+        .setOrigin(0)
+        .setDepth(100)
+        .setScrollFactor(0);
+
+    hotbarSelector = scene.add.image(
+        HOTBAR_X - 2,
+        HOTBAR_Y - 3,
+        'selected'
+    )
+        .setOrigin(0)
+        .setDepth(101)
+        .setScrollFactor(0);
+
+    createBaitSlotUI(scene);
+}
+
 function addHotbarItem(scene, textureKey, name) {
     const slot = hotbarItemImages.length;
     if (slot >= 9) return;
@@ -96,4 +114,33 @@ function showItemLabel(scene, text) {
 
 function isBaitSlotAt(x, y) {
     return x >= BAIT_SLOT_X && x < BAIT_SLOT_X + HOTBAR_SLOT_SIZE && y >= HOTBAR_Y && y < HOTBAR_Y + HOTBAR_SLOT_SIZE;
+}
+
+function selectHotbarSlot(scene, slot, immediate = false) {
+    selectedHotbarSlot = Phaser.Math.Wrap(slot, 0, 9);
+
+    scene.tweens.killTweensOf(hotbarSelector);
+    const selectorX = HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE;
+
+    if (immediate) {
+        hotbarSelector.x = selectorX;
+    } else {
+        scene.tweens.add({
+            targets: hotbarSelector,
+            x: selectorX,
+            duration: 70,
+            ease: 'Quad.Out',
+            onUpdate: (tween, target) => {
+                target.x = Math.round(target.x);
+            }
+        });
+    }
+
+    const name = hotbarItemNames[selectedHotbarSlot];
+
+    if (name) {
+        showItemLabel(scene, name);
+    } else {
+        itemLabelUntil = 0;
+    }
 }

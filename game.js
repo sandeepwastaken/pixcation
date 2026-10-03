@@ -2801,6 +2801,21 @@ setFishingState('bite', time);
 fishing.biteDeadline = time + Phaser.Math.Linear(1050, 720, FISH_SIZE_CLASSES[fishing.targetFish.size].difficulty);
 splash(scene, time, fishing.bobberX, fishing.bobberY);
 }
+function createFishingUI(scene) {
+const catchZoneTexture = scene.textures.get('fishing-catch-zone');
+const hudImage = (key, frame, depth, origin = 0) => scene.add.image(0, 0, key, frame)
+.setOrigin(origin).setDepth(depth).setScrollFactor(0).setVisible(false);
+catchZoneTexture.add('top', 0, 0, 0, 8, 3);
+catchZoneTexture.add('middle', 0, 0, 3, 8, 2);
+catchZoneTexture.add('bottom', 0, 0, 5, 8, 3);
+fishingUiPanel = hudImage('fishing-ui', undefined, 220).setPosition(FISHING_GAME_X, FISHING_GAME_Y);
+fishingCatchZoneTop = hudImage('fishing-catch-zone', 'top', 221);
+fishingCatchZoneMiddle = hudImage('fishing-catch-zone', 'middle', 221);
+fishingCatchZoneBottom = hudImage('fishing-catch-zone', 'bottom', 221);
+fishingFishMarker = hudImage('fishing-fish', undefined, 222, 0.5);
+fishingProgressFill = hudImage('fishing-progress', undefined, 221);
+fishingUiParts = [fishingUiPanel, fishingCatchZoneTop, fishingCatchZoneMiddle, fishingCatchZoneBottom, fishingFishMarker, fishingProgressFill];
+}
 function startFishingMinigame(time) {
 const zoneHeight = fishing.rod.catchZone + (fishing.bait ? fishing.bait.zoneBonus : 0);
 const zoneY = FISHING_GAME_PLAY_HEIGHT - zoneHeight;
@@ -3874,6 +3889,21 @@ marketContainer = addPanelContainer(scene, MARKET_HIDDEN_Y, 203, [panel, marketH
 marketTextLayer = addHudLayer(scene, textLayer, MARKET_HIDDEN_Y, 204);
 refreshMarketOptions();
 }
+function createHotbarUI(scene) {
+scene.add.image(HOTBAR_X, HOTBAR_Y, 'hotbar')
+.setOrigin(0)
+.setDepth(100)
+.setScrollFactor(0);
+hotbarSelector = scene.add.image(
+HOTBAR_X - 2,
+HOTBAR_Y - 3,
+'selected'
+)
+.setOrigin(0)
+.setDepth(101)
+.setScrollFactor(0);
+createBaitSlotUI(scene);
+}
 function addHotbarItem(scene, textureKey, name) {
 const slot = hotbarItemImages.length;
 if (slot >= 9) return;
@@ -3949,6 +3979,30 @@ itemLabelUntil = scene.time.now + ITEM_LABEL_DURATION;
 }
 function isBaitSlotAt(x, y) {
 return x >= BAIT_SLOT_X && x < BAIT_SLOT_X + HOTBAR_SLOT_SIZE && y >= HOTBAR_Y && y < HOTBAR_Y + HOTBAR_SLOT_SIZE;
+}
+function selectHotbarSlot(scene, slot, immediate = false) {
+selectedHotbarSlot = Phaser.Math.Wrap(slot, 0, 9);
+scene.tweens.killTweensOf(hotbarSelector);
+const selectorX = HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE;
+if (immediate) {
+hotbarSelector.x = selectorX;
+} else {
+scene.tweens.add({
+targets: hotbarSelector,
+x: selectorX,
+duration: 70,
+ease: 'Quad.Out',
+onUpdate: (tween, target) => {
+target.x = Math.round(target.x);
+}
+});
+}
+const name = hotbarItemNames[selectedHotbarSlot];
+if (name) {
+showItemLabel(scene, name);
+} else {
+itemLabelUntil = 0;
+}
 }
 function getMarketTabAt(x, y) {
 const localY = y - DIALOGUE_VISIBLE_Y - MARKET_TAB_Y;
@@ -4941,6 +4995,119 @@ scene.textures.addCanvas(paths.get(path) || path, canvas);
 }
 scene.textures.remove('atlas');
 }
+function bindGameInput(scene) {
+scene.input.on('pointermove', pointer => {
+if (marketOpen) {
+const row = getMarketRowAt(pointer.x, pointer.y);
+if (row !== -1 && row !== selectedMarketOption) {
+selectedMarketOption = row;
+marketFeedback = null;
+refreshMarketOptions();
+}
+} else if (dialogueOpen) {
+const option = getDialogueOptionAt(pointer.x, pointer.y);
+if (option !== -1 && option !== selectedDialogueOption) {
+selectedDialogueOption = option;
+refreshGuideDialogueOptions();
+}
+} else if (mapOpen && mapDrag && pointer.isDown) {
+mapPan.x = mapDrag.panX + Math.round((mapDrag.x - pointer.x) / mapZoom);
+mapPan.y = mapDrag.panY + Math.round((mapDrag.y - pointer.y) / mapZoom);
+mapDirty = true;
+}
+scene.input.setDefaultCursor(!isMenuOpen() && getClickedWorldTarget(pointer) ? 'pointer' : 'default');
+});
+const releaseAction = () => {
+fishingActionHeld = false;
+releaseCast(scene.time.now);
+};
+const pressAction = () => {
+fishingActionHeld = true;
+beginCast(scene.time.now);
+};
+scene.input.on('pointerup', () => {
+mapDrag = null;
+releaseAction();
+});
+scene.input.keyboard.on('keyup', event => event.code === 'Space' && releaseAction());
+scene.input.on('pointerdown', pointer => {
+if (inventoryOpen) {
+if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(scene);
+} else if (marketOpen) {
+const row = getMarketRowAt(pointer.x, pointer.y);
+const tab = getMarketTabAt(pointer.x, pointer.y);
+if (tab !== -1) {
+setMarketPage(tab);
+} else if (row !== -1) {
+selectedMarketOption = row;
+buySelectedMarketItem(scene);
+} else if (pointer.y > DIALOGUE_VISIBLE_Y + MARKET_HEIGHT) {
+closeMarket(scene);
+}
+} else if (dialogueOpen) {
+const option = getDialogueOptionAt(pointer.x, pointer.y);
+if (option === -1) {
+finishGuideDialogueText();
+} else {
+selectedDialogueOption = option;
+selectGuideDialogueOption(scene);
+}
+} else if (!mapOpen) {
+const target = getClickedWorldTarget(pointer);
+if (target) {
+openInteraction(scene, target);
+} else if (isBaitSlotAt(pointer.x, pointer.y)) {
+cycleBait(scene);
+} else {
+pressAction();
+}
+} else if (pointer.y < DIALOGUE_VISIBLE_Y + MAP_PANEL_HEIGHT) {
+mapDrag = { x: pointer.x, y: pointer.y, panX: mapPan.x, panY: mapPan.y };
+} else {
+closeMap(scene);
+}
+});
+scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
+const step = Math.sign(deltaY);
+if (!step || inventoryOpen) return;
+if (isMenuOpen()) {
+if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
+lastMenuWheelTime = pointer.event.timeStamp;
+}
+if (mapOpen) {
+const zoom = Phaser.Math.Clamp(mapZoom - step, 1, MAP_MAX_ZOOM);
+mapDirty ||= zoom !== mapZoom;
+mapZoom = zoom;
+} else if (marketOpen) {
+moveMarketSelection(step);
+} else if (dialogueOpen) {
+moveGuideDialogueSelection(step);
+} else {
+selectHotbarSlot(scene, selectedHotbarSlot + step, true);
+}
+});
+scene.input.keyboard.on('keydown', event => {
+if (event.repeat) return;
+const code = event.code;
+const key = event.key.toLowerCase();
+const slot = Number(event.key) - 1;
+if (code === 'KeyA' || code === 'ArrowLeft') horizontalPriority = -1;
+if (code === 'KeyD' || code === 'ArrowRight') horizontalPriority = 1;
+if (code === 'KeyW' || code === 'ArrowUp') verticalPriority = -1;
+if (code === 'KeyS' || code === 'ArrowDown') verticalPriority = 1;
+if (dialogueOpen) handleGuideDialogueKey(scene, event);
+else if (inventoryOpen) handleInventoryKey(scene, event);
+else if (mapOpen) handleMapKey(scene, event);
+else if (marketOpen) handleMarketKey(scene, event);
+else if (key === 'i') openInventory(scene);
+else if (code === 'Space') pressAction();
+else if (key === 'm') openMap(scene);
+else if (key === 'b') cycleBait(scene);
+else if (key === 'e') openInteraction(scene, getInteractionTarget(true));
+else if (CHEATS_ENABLED && key === 's') spawnSturgeonAtCursor(scene);
+else if (slot >= 0 && slot < 9) selectHotbarSlot(scene, slot);
+});
+}
 function create() {
 unpackAtlas(this);
 this.textureSourceCache = new Map();
@@ -4966,19 +5133,7 @@ repeat: 0
 createCharacterShadow(this);
 fishingLine = this.add.graphics();
 worldObjectLayer.add(fishingLine);
-const catchZoneTexture = this.textures.get('fishing-catch-zone');
-const hudImage = (key, frame, depth, origin = 0) => this.add.image(0, 0, key, frame)
-.setOrigin(origin).setDepth(depth).setScrollFactor(0).setVisible(false);
-catchZoneTexture.add('top', 0, 0, 0, 8, 3);
-catchZoneTexture.add('middle', 0, 0, 3, 8, 2);
-catchZoneTexture.add('bottom', 0, 0, 5, 8, 3);
-fishingUiPanel = hudImage('fishing-ui', undefined, 220).setPosition(FISHING_GAME_X, FISHING_GAME_Y);
-fishingCatchZoneTop = hudImage('fishing-catch-zone', 'top', 221);
-fishingCatchZoneMiddle = hudImage('fishing-catch-zone', 'middle', 221);
-fishingCatchZoneBottom = hudImage('fishing-catch-zone', 'bottom', 221);
-fishingFishMarker = hudImage('fishing-fish', undefined, 222, 0.5);
-fishingProgressFill = hudImage('fishing-progress', undefined, 221);
-fishingUiParts = [fishingUiPanel, fishingCatchZoneTop, fishingCatchZoneMiddle, fishingCatchZoneBottom, fishingFishMarker, fishingProgressFill];
+createFishingUI(this);
 character = this.add.sprite(0, 0, 'character-front')
 .setOrigin(0)
 .setDepth(CHARACTER_SIZE);
@@ -4994,154 +5149,8 @@ leftArrow: Phaser.Input.Keyboard.KeyCodes.LEFT,
 rightArrow: Phaser.Input.Keyboard.KeyCodes.RIGHT,
 sprint: Phaser.Input.Keyboard.KeyCodes.SHIFT
 });
-this.add.image(HOTBAR_X, HOTBAR_Y, 'hotbar')
-.setOrigin(0)
-.setDepth(100)
-.setScrollFactor(0);
-hotbarSelector = this.add.image(
-HOTBAR_X - 2,
-HOTBAR_Y - 3,
-'selected'
-)
-.setOrigin(0)
-.setDepth(101)
-.setScrollFactor(0);
-createBaitSlotUI(this);
-const selectHotBarSlot = (slot, immediate = false) => {
-selectedHotbarSlot = Phaser.Math.Wrap(slot, 0, 9);
-this.tweens.killTweensOf(hotbarSelector);
-const selectorX = HOTBAR_X - 2 + selectedHotbarSlot * HOTBAR_SLOT_SIZE;
-if (immediate) {
-hotbarSelector.x = selectorX;
-} else {
-this.tweens.add({
-targets: hotbarSelector,
-x: selectorX,
-duration: 70,
-ease: 'Quad.Out',
-onUpdate: (tween, target) => {
-target.x = Math.round(target.x);
-}
-});
-}
-const name = hotbarItemNames[selectedHotbarSlot];
-if (name) {
-showItemLabel(this, name);
-} else {
-itemLabelUntil = 0;
-}
-};
-this.input.on('pointermove', pointer => {
-if (marketOpen) {
-const row = getMarketRowAt(pointer.x, pointer.y);
-if (row !== -1 && row !== selectedMarketOption) {
-selectedMarketOption = row;
-marketFeedback = null;
-refreshMarketOptions();
-}
-} else if (dialogueOpen) {
-const option = getDialogueOptionAt(pointer.x, pointer.y);
-if (option !== -1 && option !== selectedDialogueOption) {
-selectedDialogueOption = option;
-refreshGuideDialogueOptions();
-}
-} else if (mapOpen && mapDrag && pointer.isDown) {
-mapPan.x = mapDrag.panX + Math.round((mapDrag.x - pointer.x) / mapZoom);
-mapPan.y = mapDrag.panY + Math.round((mapDrag.y - pointer.y) / mapZoom);
-mapDirty = true;
-}
-this.input.setDefaultCursor(!isMenuOpen() && getClickedWorldTarget(pointer) ? 'pointer' : 'default');
-});
-const releaseAction = () => {
-fishingActionHeld = false;
-releaseCast(this.time.now);
-};
-const pressAction = () => {
-fishingActionHeld = true;
-beginCast(this.time.now);
-};
-this.input.on('pointerup', () => {
-mapDrag = null;
-releaseAction();
-});
-this.input.keyboard.on('keyup', event => event.code === 'Space' && releaseAction());
-this.input.on('pointerdown', pointer => {
-if (inventoryOpen) {
-if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(this);
-} else if (marketOpen) {
-const row = getMarketRowAt(pointer.x, pointer.y);
-const tab = getMarketTabAt(pointer.x, pointer.y);
-if (tab !== -1) {
-setMarketPage(tab);
-} else if (row !== -1) {
-selectedMarketOption = row;
-buySelectedMarketItem(this);
-} else if (pointer.y > DIALOGUE_VISIBLE_Y + MARKET_HEIGHT) {
-closeMarket(this);
-}
-} else if (dialogueOpen) {
-const option = getDialogueOptionAt(pointer.x, pointer.y);
-if (option === -1) {
-finishGuideDialogueText();
-} else {
-selectedDialogueOption = option;
-selectGuideDialogueOption(this);
-}
-} else if (!mapOpen) {
-const target = getClickedWorldTarget(pointer);
-if (target) {
-openInteraction(this, target);
-} else if (isBaitSlotAt(pointer.x, pointer.y)) {
-cycleBait(this);
-} else {
-pressAction();
-}
-} else if (pointer.y < DIALOGUE_VISIBLE_Y + MAP_PANEL_HEIGHT) {
-mapDrag = { x: pointer.x, y: pointer.y, panX: mapPan.x, panY: mapPan.y };
-} else {
-closeMap(this);
-}
-});
-this.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
-const step = Math.sign(deltaY);
-if (!step || inventoryOpen) return;
-if (isMenuOpen()) {
-if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
-lastMenuWheelTime = pointer.event.timeStamp;
-}
-if (mapOpen) {
-const zoom = Phaser.Math.Clamp(mapZoom - step, 1, MAP_MAX_ZOOM);
-mapDirty ||= zoom !== mapZoom;
-mapZoom = zoom;
-} else if (marketOpen) {
-moveMarketSelection(step);
-} else if (dialogueOpen) {
-moveGuideDialogueSelection(step);
-} else {
-selectHotBarSlot(selectedHotbarSlot + step, true);
-}
-});
-this.input.keyboard.on('keydown', event => {
-if (event.repeat) return;
-const code = event.code;
-const key = event.key.toLowerCase();
-const slot = Number(event.key) - 1;
-if (code === 'KeyA' || code === 'ArrowLeft') horizontalPriority = -1;
-if (code === 'KeyD' || code === 'ArrowRight') horizontalPriority = 1;
-if (code === 'KeyW' || code === 'ArrowUp') verticalPriority = -1;
-if (code === 'KeyS' || code === 'ArrowDown') verticalPriority = 1;
-if (dialogueOpen) handleGuideDialogueKey(this, event);
-else if (inventoryOpen) handleInventoryKey(this, event);
-else if (mapOpen) handleMapKey(this, event);
-else if (marketOpen) handleMarketKey(this, event);
-else if (key === 'i') openInventory(this);
-else if (code === 'Space') pressAction();
-else if (key === 'm') openMap(this);
-else if (key === 'b') cycleBait(this);
-else if (key === 'e') openInteraction(this, getInteractionTarget(true));
-else if (CHEATS_ENABLED && key === 's') spawnSturgeonAtCursor(this);
-else if (slot >= 0 && slot < 9) selectHotBarSlot(slot);
-});
+createHotbarUI(this);
+bindGameInput(this);
 mainCamera = this.cameras.main;
 mainCamera.setZoom(1);
 mainCamera.removeBounds();

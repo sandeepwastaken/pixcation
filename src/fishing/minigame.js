@@ -1,3 +1,20 @@
+function createFishingUI(scene) {
+    const catchZoneTexture = scene.textures.get('fishing-catch-zone');
+    const hudImage = (key, frame, depth, origin = 0) => scene.add.image(0, 0, key, frame)
+        .setOrigin(origin).setDepth(depth).setScrollFactor(0).setVisible(false);
+
+    catchZoneTexture.add('top', 0, 0, 0, 8, 3);
+    catchZoneTexture.add('middle', 0, 0, 3, 8, 2);
+    catchZoneTexture.add('bottom', 0, 0, 5, 8, 3);
+    fishingUiPanel = hudImage('fishing-ui', undefined, 220).setPosition(FISHING_GAME_X, FISHING_GAME_Y);
+    fishingCatchZoneTop = hudImage('fishing-catch-zone', 'top', 221);
+    fishingCatchZoneMiddle = hudImage('fishing-catch-zone', 'middle', 221);
+    fishingCatchZoneBottom = hudImage('fishing-catch-zone', 'bottom', 221);
+    fishingFishMarker = hudImage('fishing-fish', undefined, 222, 0.5);
+    fishingProgressFill = hudImage('fishing-progress', undefined, 221);
+    fishingUiParts = [fishingUiPanel, fishingCatchZoneTop, fishingCatchZoneMiddle, fishingCatchZoneBottom, fishingFishMarker, fishingProgressFill];
+}
+
 function startFishingMinigame(time) {
     const zoneHeight = fishing.rod.catchZone + (fishing.bait ? fishing.bait.zoneBonus : 0);
     const zoneY = FISHING_GAME_PLAY_HEIGHT - zoneHeight;
