@@ -1,7 +1,7 @@
 function spawnChunkFish(chunk) {
     const regions = labelFishRegions(chunk);
 
-    for (let regionIndex = 0; regionIndex < regions.length; regionIndex++) {
+    for (let regionIndex = 0; regionIndex < regions.length && chunk.fish.length < FISH_PER_CHUNK_MAX; regionIndex++) {
         const region = regions[regionIndex];
 
         if (region.length < FISH_MIN_REGION) continue;
