@@ -2,11 +2,12 @@ const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
 
 function isLocalHashPeak(tileX, tileY, stepX, stepY, radius, salt) {
-    const score = worldHash(tileX, tileY, salt);
+    const seedHash = Math.imul(WORLD_SEED + salt, WORLD_HASH_MULTIPLIER);
+    const score = coordinateHash(tileX, tileY, seedHash);
     if (score < 0.82) return false;
 
     for (let offset = -radius; offset <= radius; offset++) {
-        if (offset !== 0 && worldHash(tileX + stepX * offset, tileY + stepY * offset, salt) >= score) return false;
+        if (offset !== 0 && coordinateHash(tileX + stepX * offset, tileY + stepY * offset, seedHash) >= score) return false;
     }
 
     return true;
