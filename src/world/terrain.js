@@ -216,7 +216,9 @@ function getTerrainTile(tileX, tileY) {
     for (const [dx, dy] of TERRAIN_CORNER_OFFSETS) {
         const horizontal = dx < 0 ? west : east;
         const vertical = dy < 0 ? north : south;
-        const diagonal = terrain === 'dirt' ? null : getTerrainType(tileX + dx, tileY + dy);
+        // Dirt corners ignore diagonals; other corners need both sides to differ from this tile.
+        const diagonal = terrain !== 'dirt' && horizontal !== terrain && vertical !== terrain
+            ? getTerrainType(tileX + dx, tileY + dy) : null;
         const patchKey = getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy);
 
         if (!patchKey) continue;
