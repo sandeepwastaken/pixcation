@@ -5210,8 +5210,8 @@ function isMarketItemOwned(item) {
     return !item.bundle && ownedRods.has(item.id);
 }
 
-function getMarketItemStatus(item) {
-    if (isMarketItemOwned(item)) {
+function getMarketItemStatus(item, owned = isMarketItemOwned(item)) {
+    if (owned) {
         return { text: 'Owned', color: '#8fbf7a' };
     }
 
@@ -5264,7 +5264,11 @@ function refreshMarketOptions() {
         priceText.textContent = !item ? '' : owned ? 'Owned' : `${item.price}c`;
         priceText.style.color = owned ? '#8fbf7a' : item && playerCoins >= item.price ? '#e8c170' : '#9a5a47';
         marketItemImages[index].setVisible(Boolean(item));
-        if (item) marketItemImages[index].setTexture(item.icon).setTint(owned ? OWNED_ROD_TINT : 0xffffff);
+        if (item) {
+            const image = marketItemImages[index];
+            if (image.texture.key !== item.icon) image.setTexture(item.icon);
+            image.setTint(owned ? OWNED_ROD_TINT : 0xffffff);
+        }
     }
 
     marketOptionTexts[MARKET_SELL_INDEX].textContent = 'Sell fish';
@@ -5283,11 +5287,12 @@ function refreshMarketOptions() {
     } else if (!item) {
         setMarketDetail('', '', '#c0a887', '');
     } else {
-        const status = getMarketItemStatus(item);
         const owned = isMarketItemOwned(item);
+        const status = getMarketItemStatus(item, owned);
         const held = baitInventory.get(item.id);
 
-        marketDetailImage.setTexture(item.texture).setTint(owned ? OWNED_ROD_TINT : 0xffffff);
+        if (marketDetailImage.texture.key !== item.texture) marketDetailImage.setTexture(item.texture);
+        marketDetailImage.setTint(owned ? OWNED_ROD_TINT : 0xffffff);
         setMarketDetail(
             item.label,
             item.bundle && held ? `Have ${held} · ${status.text}` : status.text,
