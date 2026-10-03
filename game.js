@@ -504,15 +504,17 @@ function createTreeShadow(puffs, centerX, centerY, height, edgeSalt) {
         const reachY = puff.radius * 0.55;
 
         for (let y = Math.floor(shadowY - reachY); y <= Math.ceil(shadowY + reachY); y++) {
+            const dy = (y + 0.5 - shadowY) / reachY;
             for (let x = Math.floor(shadowX - reachX); x <= Math.ceil(shadowX + reachX); x++) {
                 const dx = (x + 0.5 - shadowX) / reachX;
-                const dy = (y + 0.5 - shadowY) / reachY;
                 if (dx * dx + dy * dy <= 1 + (leafHash(x, y, edgeSalt + 1) - 0.5) * 0.25) shadow.add(y * 1024 + x);
             }
         }
     }
 
-    return [...shadow].flatMap(point => [point % 1024, Math.floor(point / 1024)]);
+    const points = [];
+    for (const point of shadow) points.push(point % 1024, Math.floor(point / 1024));
+    return points;
 }
 
 function generateTreeVariant(trunk, seed) {
