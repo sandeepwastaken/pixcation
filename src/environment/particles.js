@@ -61,6 +61,7 @@ function spawnParticle(scene, layer, born, x, y, drift, rise, lifetime, color, d
     image.particleDirectionX = directionX;
     image.particleDirectionY = directionY;
     image.particleRing = ring;
+    image.particleStep = ring ? -1 : 0;
     image.activeParticleIndex = activeParticles.length;
     activeParticles.push(image);
     image
@@ -82,6 +83,8 @@ function updateParticles(time) {
         }
 
         const step = Math.floor(age / (image.particleLifetime / 3));
+        if (step === image.particleStep) continue;
+        image.particleStep = step;
 
         if (image.particleRing) {
             const radius = 2 + step * 2;
