@@ -55,3 +55,46 @@ test('play time includes slow frames and excludes hidden or unfocused time', () 
     context.updatePlayTime(12000);
     assert.equal(run('playerStats.playTimeMs'), 3750);
 });
+
+test('play time labels reuse a displayed second and refresh across boundaries and resets', () => {
+    const { context } = createStats();
+    let floorCalls = 0;
+    const math = Object.create(Math);
+    math.floor = value => { floorCalls++; return Math.floor(value); };
+    context.Math = math;
+    assert.equal(context.formatPlayTime(0), '0h 00m 00s');
+    assert.equal(floorCalls, 3);
+    assert.equal(context.formatPlayTime(999), '0h 00m 00s');
+    assert.equal(floorCalls, 4);
+    assert.equal(context.formatPlayTime(1000), '0h 00m 01s');
+    assert.equal(floorCalls, 7);
+    assert.equal(context.formatPlayTime(59999), '0h 00m 59s');
+    assert.equal(context.formatPlayTime(60000), '0h 01m 00s');
+    assert.equal(context.formatPlayTime(3599999), '0h 59m 59s');
+    assert.equal(context.formatPlayTime(3600000), '1h 00m 00s');
+    assert.equal(context.formatPlayTime(86400123), '24h 00m 00s');
+    assert.equal(context.formatPlayTime(0), '0h 00m 00s');
+});
+
+test('stats refresh only changed rows and populate replacement text elements', () => {
+    const { context, run } = createStats();
+    const updates = [];
+    context.setUITextContent = (element, value) => { updates.push([element.index, String(value)]); element.textContent = String(value); };
+    run('statsValueTexts.push(...Array.from({ length: 9 }, (_, index) => ({ index })))');
+    context.refreshStatsUI();
+    assert.equal(updates.splice(0).length, 9);
+    run('playerStats.playTimeMs = 999; refreshStatsUI()');
+    assert.deepEqual(updates, []);
+    run('playerStats.playTimeMs = 1000; refreshStatsUI()');
+    assert.deepEqual(updates.splice(0), [[2, '0h 00m 01s']]);
+    run("recordPlayerStat('moneyEarned', 50); catchLog.add('bluegill'); openedChests.add(1); discoveredChunks.add(1); refreshStatsUI()");
+    assert.deepEqual(updates.splice(0), [[1, `1/${run('FISH_SPECIES.length')}`], [3, '50c'], [7, '1'], [8, '1']]);
+    run('statsValueTexts[0] = { index: 0 }; refreshStatsUI()');
+    assert.deepEqual(updates.splice(0), [[0, '0']]);
+    run("recordPlayerStat('fishCaught', 2); recordPlayerStat('fishSold', 3); recordPlayerStat('casts', 4); recordPlayerStat('moneySpent', 10); refreshStatsUI()");
+    assert.deepEqual(updates.splice(0), [[0, '2'], [4, '3'], [5, '4'], [6, '10c']]);
+    run('playerStats.playTimeMs = 0; refreshStatsUI()');
+    assert.deepEqual(updates.splice(0), [[2, '0h 00m 00s']]);
+    run('statsValueTexts[1] = { index: 1 }; refreshStatsUI()');
+    assert.deepEqual(updates.splice(0), [[1, `1/${run('FISH_SPECIES.length')}`]]);
+});

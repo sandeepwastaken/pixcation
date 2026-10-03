@@ -1,3 +1,6 @@
+const playTimeFormatCache = { seconds: null, label: '' };
+const statsValueCache = new WeakMap();
+
 function createStatsUI(scene) {
     statsButton = scene.add.image(264, 8, 'stats-button').setOrigin(0).setScrollFactor(0).setDepth(210);
     const buttonText = createTextLayer(16, { width: '48px', fontSize: '11px', lineHeight: '11px' });
@@ -18,14 +21,26 @@ function createStatsUI(scene) {
 
 function formatPlayTime(milliseconds) {
     const seconds = Math.floor(milliseconds / 1000);
+    if (playTimeFormatCache.seconds === seconds) return playTimeFormatCache.label;
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-    return `${hours}h ${String(minutes % 60).padStart(2, '0')}m ${String(seconds % 60).padStart(2, '0')}s`;
+    playTimeFormatCache.seconds = seconds;
+    return playTimeFormatCache.label = `${hours}h ${String(minutes % 60).padStart(2, '0')}m ${String(seconds % 60).padStart(2, '0')}s`;
 }
 
+function formatStatsValue(index, value) {
+    if (index === 1) return `${value}/${FISH_SPECIES.length}`;
+    if (index === 2) return formatPlayTime(value * 1000);
+    return index === 3 || index === 6 ? `${value}c` : value;
+}
 function refreshStatsUI() {
-    const values = [playerStats.fishCaught, `${catchLog.size}/${FISH_SPECIES.length}`, formatPlayTime(playerStats.playTimeMs), `${playerStats.moneyEarned}c`, playerStats.fishSold, playerStats.casts, `${playerStats.moneySpent}c`, openedChests.size, discoveredChunks.size];
-    for (let index = 0; index < statsValueTexts.length; index++) setUITextContent(statsValueTexts[index], values[index]);
+    const values = [playerStats.fishCaught, catchLog.size, Math.floor(playerStats.playTimeMs / 1000), playerStats.moneyEarned, playerStats.fishSold, playerStats.casts, playerStats.moneySpent, openedChests.size, discoveredChunks.size];
+    for (let index = 0; index < statsValueTexts.length; index++) {
+        const element = statsValueTexts[index];
+        if (statsValueCache.get(element) === values[index]) continue;
+        setUITextContent(element, formatStatsValue(index, values[index]));
+        statsValueCache.set(element, values[index]);
+    }
 }
 
 function updateStatsUI() {
