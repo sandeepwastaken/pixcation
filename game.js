@@ -425,7 +425,11 @@ function readTreePixel(data, pixel) {
 function createTreeCanopyMask(puffs, width, height, edgeSalt) {
     const edgeHash = createLeafHash(edgeSalt);
     const owner = new Int16Array(width * height).fill(-1);
-    const extent = (axis, sign) => Math.floor(Math.max(...puffs.map(puff => sign * puff[axis] + puff.radius + 1)) * sign);
+    const extent = (axis, sign) => {
+        let bound = -Infinity;
+        for (const puff of puffs) bound = Math.max(bound, sign * puff[axis] + puff.radius + 1);
+        return Math.floor(bound * sign);
+    };
     const minY = Math.max(0, extent('y', -1) - 1);
     const maxY = Math.min(height - 1, extent('y', 1));
     const minX = Math.max(0, extent('x', -1) - 1);
