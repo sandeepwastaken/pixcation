@@ -406,14 +406,16 @@ function pickTreePalette(random) {
 }
 
 function writeTreePixel(data, pixel, color) {
-    data[pixel * 4] = color >> 16;
-    data[pixel * 4 + 1] = (color >> 8) & 255;
-    data[pixel * 4 + 2] = color & 255;
-    data[pixel * 4 + 3] = 255;
+    const index = pixel * 4;
+    data[index] = color >> 16;
+    data[index + 1] = (color >> 8) & 255;
+    data[index + 2] = color & 255;
+    data[index + 3] = 255;
 }
 
 function readTreePixel(data, pixel) {
-    return (data[pixel * 4] << 16) | (data[pixel * 4 + 1] << 8) | data[pixel * 4 + 2];
+    const index = pixel * 4;
+    return (data[index] << 16) | (data[index + 1] << 8) | data[index + 2];
 }
 
 function createTreeCanopyMask(puffs, width, height, edgeSalt) {
@@ -425,9 +427,10 @@ function createTreeCanopyMask(puffs, width, height, edgeSalt) {
     const maxX = Math.min(width - 1, extent('x', 1));
 
     for (let y = minY; y <= maxY; y++) {
+        const row = y * width;
         for (let x = minX; x <= maxX; x++) {
             const edge = (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
-            const pixel = y * width + x;
+            const pixel = row + x;
 
             for (let index = puffs.length - 1; index >= 0; index--) {
                 const puff = puffs[index];
@@ -517,11 +520,13 @@ function generateTreeVariant(trunk, seed) {
     const data = new Uint8ClampedArray(width * height * 4);
 
     for (let y = 0; y < trunk.height; y++) {
+        const sourceRow = y * trunk.width;
+        const targetRow = (y + TREE_PAD_TOP) * width + TREE_PAD_X;
         for (let x = 0; x < trunk.width; x++) {
-            const source = (y * trunk.width + (flip ? trunk.width - 1 - x : x)) * 4;
+            const source = (sourceRow + (flip ? trunk.width - 1 - x : x)) * 4;
             if (!trunk.data[source + 3]) continue;
 
-            const pixel = (y + TREE_PAD_TOP) * width + x + TREE_PAD_X;
+            const pixel = targetRow + x;
             writeTreePixel(data, pixel, (trunk.data[source] << 16) | (trunk.data[source + 1] << 8) | trunk.data[source + 2]);
         }
     }
@@ -588,10 +593,13 @@ function generateTreeVariant(trunk, seed) {
         const y = Math.floor(pixel / width);
         let total = 0;
         let count = 0;
+        const lastX = Math.min(width - 1, x + 1);
+        const lastY = Math.min(height - 1, y + 1);
 
-        for (let sampleY = Math.max(0, y - 1); sampleY <= Math.min(height - 1, y + 1); sampleY++) {
-            for (let sampleX = Math.max(0, x - 1); sampleX <= Math.min(width - 1, x + 1); sampleX++) {
-                total += heights[sampleY * width + sampleX];
+        for (let sampleY = Math.max(0, y - 1); sampleY <= lastY; sampleY++) {
+            const row = sampleY * width;
+            for (let sampleX = Math.max(0, x - 1); sampleX <= lastX; sampleX++) {
+                total += heights[row + sampleX];
                 count++;
             }
         }
@@ -631,7 +639,7 @@ function generateTreeVariant(trunk, seed) {
         values[pixel] = value;
     }
 
-    const sorted = filled.map(pixel => values[pixel]).sort((a, b) => a - b);
+    const sorted = Float32Array.from(filled, pixel => values[pixel]).sort();
 
     const quantile = amount => sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(amount * sorted.length)))];
     const bands = TREE_TONE_SHARES.map(share => [quantile(share - TREE_DITHER_SHARE), quantile(share + TREE_DITHER_SHARE)]);
