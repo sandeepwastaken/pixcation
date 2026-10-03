@@ -87,7 +87,9 @@ function createBushSlices(scene) {
 
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            depths[y * width + x] = Math.min(TILE_SIZE - 1, Math.floor(
+            const pixel = y * width + x;
+            if (!source.data[pixel * 4 + 3]) continue;
+            depths[pixel] = Math.min(TILE_SIZE - 1, Math.floor(
                 (worldHash(x, y, 761) * 0.7 + (y / (height - 1)) * 0.3) * TILE_SIZE
             ));
         }

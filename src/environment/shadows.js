@@ -32,7 +32,9 @@ function buildShadowLut(scene) {
 
         for (let index = 0; index < pixels.length; index += 4) {
             if (pixels[index + 3] < 255) continue;
-            colors.set((pixels[index] << 16) | (pixels[index + 1] << 8) | pixels[index + 2], [
+            const color = (pixels[index] << 16) | (pixels[index + 1] << 8) | pixels[index + 2];
+            if (colors.has(color)) continue;
+            colors.set(color, [
                 pixels[index],
                 pixels[index + 1],
                 pixels[index + 2]
