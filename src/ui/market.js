@@ -43,6 +43,9 @@ function createMarketUI(scene) {
         }
     }
 
+    marketOptionTexts[MARKET_SELL_INDEX].textContent = 'Sell fish';
+    marketOptionTexts[MARKET_EXIT_INDEX].textContent = 'Leave';
+
     const detailTextX = MARKET_DETAIL_X + 4;
     const detailTextWidth = MARKET_DETAIL_WIDTH - 8;
 

@@ -81,21 +81,22 @@ function refreshMarketOptions() {
         const owned = item && isMarketItemOwned(item);
         const priceText = marketPriceTexts[index];
 
-        marketOptionTexts[index].textContent = item ? item.label : '';
+        const label = item ? item.label : '';
+        if (marketOptionTexts[index].textContent !== label) marketOptionTexts[index].textContent = label;
         marketOptionTexts[index].style.color = owned && index !== selectedMarketOption ? '#7a6450' : rowColor(index);
-        priceText.textContent = !item ? '' : owned ? 'Owned' : `${item.price}c`;
+        const price = !item ? '' : owned ? 'Owned' : `${item.price}c`;
+        if (priceText.textContent !== price) priceText.textContent = price;
         priceText.style.color = owned ? '#8fbf7a' : item && playerCoins >= item.price ? '#e8c170' : '#9a5a47';
         marketItemImages[index].setVisible(Boolean(item));
         if (item) {
             const image = marketItemImages[index];
             if (image.texture.key !== item.icon) image.setTexture(item.icon);
-            image.setTint(owned ? OWNED_ROD_TINT : 0xffffff);
+            const tint = owned ? OWNED_ROD_TINT : 0xffffff;
+            if (image.tintTopLeft !== tint) image.setTint(tint);
         }
     }
 
-    marketOptionTexts[MARKET_SELL_INDEX].textContent = 'Sell fish';
     marketOptionTexts[MARKET_SELL_INDEX].style.color = rowColor(MARKET_SELL_INDEX);
-    marketOptionTexts[MARKET_EXIT_INDEX].textContent = 'Leave';
     marketOptionTexts[MARKET_EXIT_INDEX].style.color = rowColor(MARKET_EXIT_INDEX);
 
     const item = items[selectedMarketOption];
@@ -114,7 +115,8 @@ function refreshMarketOptions() {
         const held = baitInventory.get(item.id);
 
         if (marketDetailImage.texture.key !== item.texture) marketDetailImage.setTexture(item.texture);
-        marketDetailImage.setTint(owned ? OWNED_ROD_TINT : 0xffffff);
+        const tint = owned ? OWNED_ROD_TINT : 0xffffff;
+        if (marketDetailImage.tintTopLeft !== tint) marketDetailImage.setTint(tint);
         setMarketDetail(
             item.label,
             item.bundle && held ? `Have ${held} · ${status.text}` : status.text,
