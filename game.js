@@ -11,6 +11,7 @@ const MARKET_BAITS = [
 ];
 
 const CHEST_BAIT_WEIGHTS = [6, 3, 1];
+const CHEST_BAIT_WEIGHT_TOTAL = CHEST_BAIT_WEIGHTS.reduce((total, weight) => total + weight, 0);
 
 const FISH_SPECIES = [
     { id: 'bluegill', name: 'Bluegill', size: 'small', minWater: 1800, weight: 7, price: 7 },
@@ -4147,7 +4148,7 @@ function drawHauledChest(amount) {
 }
 
 function pickChestBait() {
-    let roll = Math.random() * CHEST_BAIT_WEIGHTS.reduce((total, weight) => total + weight, 0);
+    let roll = Math.random() * CHEST_BAIT_WEIGHT_TOTAL;
 
     for (let index = 0; index < MARKET_BAITS.length; index++) {
         roll -= CHEST_BAIT_WEIGHTS[index];
