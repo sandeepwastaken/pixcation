@@ -5886,7 +5886,10 @@ window.addEventListener('resize', () => {
     if (resizeFrame) return;
     resizeFrame = requestAnimationFrame(() => {
         resizeFrame = 0;
-        if (game) game.scale.setZoom(getPixelPerfectZoom());
+        if (game) {
+            const zoom = getPixelPerfectZoom();
+            if (game.scale.zoom !== zoom) game.scale.setZoom(zoom);
+        }
     });
 });
 
@@ -5930,6 +5933,7 @@ const config = {
 let game;
 
 document.fonts.load('16px m6x11').finally(() => {
+    config.scale.zoom = getPixelPerfectZoom();
     game = new Phaser.Game(config);
 });
 
