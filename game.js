@@ -2494,9 +2494,16 @@ function spawnGuideAndStore(scene) {
 function rebakeLoadedShadows(scene) {
     for (const chunk of loadedChunks.values()) {
         const mask = getStaticShadowMask(chunk.chunkX, chunk.chunkY);
-        const added = mask && mask.map((value, pixel) => value && !chunk.shadowMask?.[pixel] ? 1 : 0);
+        let added = null;
+        if (mask) {
+            for (let pixel = 0; pixel < mask.length; pixel++) {
+                if (!mask[pixel] || chunk.shadowMask?.[pixel]) continue;
+                added ||= new Uint8Array(mask.length);
+                added[pixel] = 1;
+            }
+        }
 
-        if (!added || !added.includes(1)) continue;
+        if (!added) continue;
 
         bakeGroundShadows(scene, chunk.groundTexture.getContext(), chunk.chunkX, chunk.chunkY, added);
         chunk.groundTexture.refresh();
