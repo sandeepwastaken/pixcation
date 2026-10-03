@@ -2014,7 +2014,10 @@ function updateLoadedChunks(scene, force = false) {
         }
     }
 
-    if (discoveredChunks.size !== discoveredBefore) saveDirty = true;
+    if (discoveredChunks.size !== discoveredBefore) {
+        saveDirty = true;
+        mapDirty = true;
+    }
 
     for (let offsetY = -CHUNK_LOAD_RADIUS; offsetY <= CHUNK_LOAD_RADIUS; offsetY++) {
         for (let offsetX = -CHUNK_LOAD_RADIUS; offsetX <= CHUNK_LOAD_RADIUS; offsetX++) {
@@ -2032,6 +2035,13 @@ function updateLoadedChunks(scene, force = false) {
     for (const [key, chunk] of loadedChunks) {
         if (!isChunkNear(chunk.chunkX, chunk.chunkY, CHUNK_LOAD_RADIUS)) destroyWorldChunk(key);
     }
+
+    // Keep unloaded chunks and their pixel buffers out of the deferred work queue.
+    let pendingCount = 0;
+    for (const chunk of pendingWaterChunks) {
+        if (loadedChunks.get(chunk.key) === chunk && chunk.waterBuild) pendingWaterChunks[pendingCount++] = chunk;
+    }
+    pendingWaterChunks.length = pendingCount;
 }
 
 function buildPendingChunk(scene) {
