@@ -97,7 +97,10 @@ function isFishPathClear(chunk, fish, targetX, targetY) {
     const distance = Math.hypot(dx, dy);
     const steps = Math.ceil(distance / 3);
 
-    for (let step = 1; step <= steps; step++) {
+    // Keep the endpoint arithmetic identical to the intermediate samples.
+    if (steps > 0 && !canFishSwim(chunk, fish, fish.x + dx * steps / steps, fish.y + dy * steps / steps)) return false;
+
+    for (let step = 1; step < steps; step++) {
         if (!canFishSwim(chunk, fish, fish.x + dx * step / steps, fish.y + dy * step / steps)) return false;
     }
 
