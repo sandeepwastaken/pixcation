@@ -1,7 +1,3 @@
-let mapPixels;
-let mapPixelWords;
-const mapColors = createTileCache(() => new Uint32Array(CHUNK_SIZE * CHUNK_SIZE));
-
 function isMenuOpen() {
     return dialogueOpen || marketOpen || mapOpen || inventoryOpen;
 }

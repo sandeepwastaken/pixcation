@@ -34,6 +34,7 @@
     "ui/fishing.js",
     "ui/guide-panel.js",
     "ui/map.js",
+    "ui/map-render.js",
     "ui/panels.js",
     "ui/map-controls.js",
     "ui/inventory.js",

@@ -244,9 +244,10 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         float wave = shape.w * spine * spine * sin(spine * 5.6 - shape.z);
                         float across = dot(local, vec2(-body.w, body.z)) - wave;
                         float head = halfLength - shape.y;
+                        float headOffset = along - head;
 
                         if (
-                            length(vec2(along - head, across)) < shape.y ||
+                            headOffset * headOffset + across * across < shape.y * shape.y ||
                             along < head && along > -halfLength && abs(across) < shape.y * (along + halfLength) / (head + halfLength)
                         ) {
                             fishShaded = 1.0;
@@ -4277,10 +4278,6 @@ function updateChestBubbles(scene, time) {
     }
 }
 
-let mapPixels;
-let mapPixelWords;
-const mapColors = createTileCache(() => new Uint32Array(CHUNK_SIZE * CHUNK_SIZE));
-
 function isMenuOpen() {
     return dialogueOpen || marketOpen || mapOpen || inventoryOpen;
 }
@@ -4504,6 +4501,11 @@ function createMapUI(scene) {
     mapContainer = addPanelContainer(scene, MAP_HIDDEN_Y, 202, [panel, mapImage]);
 }
 
+let mapPixels;
+let mapPixelWords;
+let mapFog;
+const mapColors = createTileCache(() => new Uint32Array(CHUNK_SIZE * CHUNK_SIZE));
+
 function getMapPalette(scene) {
     if (mapPalette) return mapPalette;
 
@@ -4577,39 +4579,23 @@ function generateMapTileColor(tileX, tileY) {
     return toMapPixel(color);
 }
 
-function redrawMap(scene) {
-    const palette = getMapPalette(scene);
-    const context = mapTexture.getContext();
-    const pixels = mapPixelWords;
-    const fog = palette.fog.map(toMapPixel);
-    const outline = toMapPixel(palette.outline);
+function getMapFogPixels(fog) {
+    if (mapFog && mapFog.colors[0] === fog[0] && mapFog.colors[1] === fog[1]) return mapFog.pixels;
 
-    const playerTileX = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE);
-    const playerTileY = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
-    const zoom = mapZoom;
+    const pixels = new Uint32Array(MAP_WIDTH * MAP_HEIGHT);
+
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+        const row = y * MAP_WIDTH;
+        for (let x = 0; x < MAP_WIDTH; x++) pixels[row + x] = fog[(x + y) & 1];
+    }
+
+    mapFog = { colors: fog, pixels };
+    return pixels;
+}
+
+function drawMapTerrain(pixels, originX, originY, zoom) {
     const viewWidth = Math.ceil(MAP_WIDTH / zoom);
     const viewHeight = Math.ceil(MAP_HEIGHT / zoom);
-    const originX = playerTileX - Math.floor(MAP_WIDTH / zoom / 2) + Math.round(mapPan.x);
-    const originY = playerTileY - Math.floor(MAP_HEIGHT / zoom / 2) + Math.round(mapPan.y);
-
-    const marker = (tileX, tileY, width, height, color) => {
-        const x = (tileX - originX) * zoom;
-        const y = (tileY - originY) * zoom;
-        const pixelWidth = width * zoom;
-        const pixelHeight = height * zoom;
-        const fill = toMapPixel(color);
-
-        for (let offsetY = -1; offsetY <= pixelHeight; offsetY++) {
-            for (let offsetX = -1; offsetX <= pixelWidth; offsetX++) {
-                const plotX = x + offsetX;
-                const plotY = y + offsetY;
-                if (plotX < 0 || plotY < 0 || plotX >= MAP_WIDTH || plotY >= MAP_HEIGHT) continue;
-
-                const inside = offsetX >= 0 && offsetY >= 0 && offsetX < pixelWidth && offsetY < pixelHeight;
-                pixels[plotY * MAP_WIDTH + plotX] = inside ? fill : outline;
-            }
-        }
-    };
 
     for (let viewY = 0; viewY < viewHeight; viewY++) {
         const tileY = originY + viewY;
@@ -4618,17 +4604,59 @@ function redrawMap(scene) {
 
         for (let viewX = 0; viewX < viewWidth; viewX++) {
             const tileX = originX + viewX;
-            const color = isTileDiscovered(tileX, tileY) ? mapColors(tileX, tileY, generateMapTileColor) : -1;
+            if (!isTileDiscovered(tileX, tileY)) continue;
+
+            const color = mapColors(tileX, tileY, generateMapTileColor);
             const left = viewX * zoom;
             const right = Math.min(left + zoom, MAP_WIDTH);
 
             for (let y = top; y < bottom; y++) {
-                for (let x = left; x < right; x++) {
-                    pixels[y * MAP_WIDTH + x] = color === -1 ? fog[(x + y) & 1] : color;
-                }
+                const row = y * MAP_WIDTH;
+
+                for (let x = left; x < right; x++) pixels[row + x] = color;
             }
         }
     }
+}
+
+function drawMapMarker(pixels, x, y, width, height, fill, outline) {
+    const left = Math.max(0, x - 1);
+    const right = Math.min(MAP_WIDTH, x + width + 1);
+    const top = Math.max(0, y - 1);
+    const bottom = Math.min(MAP_HEIGHT, y + height + 1);
+    if (left >= right || top >= bottom) return;
+
+    const insideLeft = Math.max(0, x);
+    const insideRight = Math.min(MAP_WIDTH, x + width);
+
+    for (let plotY = top; plotY < bottom; plotY++) {
+        const row = plotY * MAP_WIDTH;
+        pixels.fill(outline, row + left, row + right);
+
+        if (plotY >= y && plotY < y + height && insideLeft < insideRight) {
+            pixels.fill(fill, row + insideLeft, row + insideRight);
+        }
+    }
+}
+
+function redrawMap(scene) {
+    const palette = getMapPalette(scene);
+    const context = mapTexture.getContext();
+    const pixels = mapPixelWords;
+    const fog = palette.fog.map(toMapPixel);
+    const outline = toMapPixel(palette.outline);
+    const playerTileX = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE);
+    const playerTileY = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
+    const zoom = mapZoom;
+    const originX = playerTileX - Math.floor(MAP_WIDTH / zoom / 2) + Math.round(mapPan.x);
+    const originY = playerTileY - Math.floor(MAP_HEIGHT / zoom / 2) + Math.round(mapPan.y);
+    const marker = (tileX, tileY, width, height, color) => drawMapMarker(
+        pixels, (tileX - originX) * zoom, (tileY - originY) * zoom,
+        width * zoom, height * zoom, toMapPixel(color), outline
+    );
+
+    pixels.set(getMapFogPixels(fog));
+    drawMapTerrain(pixels, originX, originY, zoom);
 
     if (store && isTileDiscovered(Math.floor(store.x / TILE_SIZE), Math.floor(store.y / TILE_SIZE))) {
         marker(Math.floor(store.x / TILE_SIZE), Math.floor(store.y / TILE_SIZE), STORE_WIDTH_TILES, STORE_HEIGHT_TILES, palette.store);
@@ -4642,38 +4670,6 @@ function redrawMap(scene) {
 
     context.putImageData(mapPixels, 0, 0);
     mapTexture.refresh();
-}
-
-function openMap(scene) {
-    if (isMenuOpen() || !mapContainer) return;
-
-    mapOpen = true;
-    mapPan.x = 0;
-    mapPan.y = 0;
-    mapDrag = null;
-    mapDirty = false;
-    stopCharacterForMenu();
-    redrawMap(scene);
-    showSlidingPanel(scene, MAP_HIDDEN_Y, mapContainer, mapTextLayer);
-}
-
-function updateMapPan(scene, delta) {
-    const panX = (characterKeys.right.isDown || characterKeys.rightArrow.isDown ? 1 : 0) -
-        (characterKeys.left.isDown || characterKeys.leftArrow.isDown ? 1 : 0);
-    const panY = (characterKeys.down.isDown || characterKeys.downArrow.isDown ? 1 : 0) -
-        (characterKeys.up.isDown || characterKeys.upArrow.isDown ? 1 : 0);
-    const distance = MAP_PAN_SPEED / mapZoom * Math.min(delta, 50) / 1000;
-    const beforeX = Math.round(mapPan.x);
-    const beforeY = Math.round(mapPan.y);
-
-    mapPan.x += panX * distance;
-    mapPan.y += panY * distance;
-    mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
-
-    if (mapDirty) {
-        mapDirty = false;
-        redrawMap(scene);
-    }
 }
 
 function snapTweenTarget(tween, target) {
@@ -4713,6 +4709,19 @@ function hideSlidingPanel(scene, hiddenY, isOpen, ...targets) {
     });
 }
 
+function openMap(scene) {
+    if (isMenuOpen() || !mapContainer) return;
+
+    mapOpen = true;
+    mapPan.x = 0;
+    mapPan.y = 0;
+    mapDrag = null;
+    mapDirty = false;
+    stopCharacterForMenu();
+    redrawMap(scene);
+    showSlidingPanel(scene, MAP_HIDDEN_Y, mapContainer, mapTextLayer);
+}
+
 function closeMap(scene) {
     if (!mapOpen) return;
 
@@ -4722,6 +4731,25 @@ function closeMap(scene) {
 
 function handleMapKey(scene, event) {
     if (event.key.toLowerCase() === 'm' || event.key === 'Escape') closeMap(scene);
+}
+
+function updateMapPan(scene, delta) {
+    const panX = (characterKeys.right.isDown || characterKeys.rightArrow.isDown ? 1 : 0) -
+        (characterKeys.left.isDown || characterKeys.leftArrow.isDown ? 1 : 0);
+    const panY = (characterKeys.down.isDown || characterKeys.downArrow.isDown ? 1 : 0) -
+        (characterKeys.up.isDown || characterKeys.upArrow.isDown ? 1 : 0);
+    const distance = MAP_PAN_SPEED / mapZoom * Math.min(delta, 50) / 1000;
+    const beforeX = Math.round(mapPan.x);
+    const beforeY = Math.round(mapPan.y);
+
+    mapPan.x += panX * distance;
+    mapPan.y += panY * distance;
+    mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
+
+    if (mapDirty) {
+        mapDirty = false;
+        redrawMap(scene);
+    }
 }
 
 function createInventoryUI(scene) {

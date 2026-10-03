@@ -140,9 +140,10 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         float wave = shape.w * spine * spine * sin(spine * 5.6 - shape.z);
                         float across = dot(local, vec2(-body.w, body.z)) - wave;
                         float head = halfLength - shape.y;
+                        float headOffset = along - head;
 
                         if (
-                            length(vec2(along - head, across)) < shape.y ||
+                            headOffset * headOffset + across * across < shape.y * shape.y ||
                             along < head && along > -halfLength && abs(across) < shape.y * (along + halfLength) / (head + halfLength)
                         ) {
                             fishShaded = 1.0;
