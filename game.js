@@ -2915,6 +2915,9 @@ function isFishPathClear(chunk, fish, targetX, targetY) {
     return true;
 }
 
+const fishSpawnPools = new Map();
+const fishSpawnThresholds = [...new Set(FISH_SPECIES.map(species => species.minWater))].sort((a, b) => b - a);
+
 function spawnChunkFish(chunk) {
     const regions = labelFishRegions(chunk);
 
@@ -2929,17 +2932,23 @@ function spawnChunkFish(chunk) {
     }
 }
 
-function chooseFishSpecies(waterArea) {
-    let totalWeight = 0;
+function getFishSpawnPool(waterArea) {
+    const threshold = fishSpawnThresholds.find(minWater => waterArea >= minWater);
+    const cached = fishSpawnPools.get(threshold);
+    if (cached) return cached;
 
-    for (const species of FISH_SPECIES) {
-        if (waterArea >= species.minWater) totalWeight += species.weight;
-    }
+    const species = FISH_SPECIES.filter(species => waterArea >= species.minWater);
+    const pool = { species, totalWeight: 0 };
+    for (const fish of species) pool.totalWeight += fish.weight;
+    fishSpawnPools.set(threshold, pool);
+    return pool;
+}
 
+function chooseFishSpecies(waterArea, pool = getFishSpawnPool(waterArea)) {
+    const { species: candidates, totalWeight } = pool;
     let roll = Math.random() * totalWeight;
 
-    for (const species of FISH_SPECIES) {
-        if (waterArea < species.minWater) continue;
+    for (const species of candidates) {
         roll -= species.weight;
         if (roll <= 0) return species;
     }
@@ -2976,8 +2985,9 @@ function createFish(species, giantScale) {
 }
 
 function spawnRegionFish(chunk, region, label, count, originX, originY) {
+    const pool = getFishSpawnPool(region.length);
     for (let index = 0; index < count; index++) {
-        const species = chooseFishSpecies(region.length);
+        const species = chooseFishSpecies(region.length, pool);
         const fish = createFish(species, 2 + Math.random() * 3);
         fish.region = label;
 
