@@ -3895,19 +3895,21 @@ function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
             const dy = second.y - first.y;
             const distance = Math.max(0.001, Math.hypot(dx, dy));
             const correction = (distance - segmentLength) / distance;
+            const correctionX = dx * correction;
+            const correctionY = dy * correction;
             const firstFixed = index === 0;
             const secondFixed = index + 1 === lastIndex;
 
             if (!firstFixed) {
                 const share = secondFixed ? 1 : 0.5;
-                first.x += dx * correction * share;
-                first.y += dy * correction * share;
+                first.x += correctionX * share;
+                first.y += correctionY * share;
             }
 
             if (!secondFixed) {
                 const share = firstFixed ? 1 : 0.5;
-                second.x -= dx * correction * share;
-                second.y -= dy * correction * share;
+                second.x -= correctionX * share;
+                second.y -= correctionY * share;
             }
         }
     }
