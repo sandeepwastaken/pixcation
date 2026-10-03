@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 function createSession() {
     const context = vm.createContext({});
-    const source = ['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'fishing/rod.js', 'fishing/bobber.js', 'fishing/update.js', 'ui/hotbar.js']
+    const source = ['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'fishing/rod.js', 'fishing/bobber.js', 'fishing/update.js', 'ui/hotbar.js', 'ui/fishing.js']
         .map(file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8')).join('\n');
     vm.runInContext(source + `
         const water = new Uint8Array(TILE_SIZE * TILE_SIZE);
@@ -110,4 +110,38 @@ test('fish approach switches to inspection at the reach boundary', () => {
     assert.equal(run('fish.velocity'), 5);
     run("fishing.targetFish = null; updateWaterFishing(scene, 100, 16)");
     assert.equal(run('fishing.state'), 'floating');
+});
+
+
+test('minigame progress redraws only when its pixel height changes and refreshes on reopen', () => {
+    const run = createSession();
+    run(`
+        function image() {
+            return {
+                crops: [], positions: [],
+                setOrigin() { return this; }, setDepth() { return this; }, setScrollFactor() { return this; },
+                setVisible(value) { this.visible = value; return this; },
+                setDisplaySize() { return this; },
+                setPosition(x, y) { this.positions.push([x, y]); return this; },
+                setCrop(...crop) { this.crops.push(crop); return this; }
+            };
+        }
+        const scene = { textures: { get() { return { add() {} }; } }, add: { image } };
+        createFishingUI(scene);
+        fishing = { state: 'minigame', game: { zoneY: 10, zoneHeight: 24, fishY: 16, progress: 0.25 } };
+        drawFishingMinigame();
+        const firstHeight = fishingProgressFill.crops[0][3];
+        drawFishingMinigame();
+    `);
+    assert.equal(run('fishingProgressFill.crops.length'), 1);
+    assert.equal(run('fishingProgressFill.positions.length'), 1);
+    assert.equal(run('fishingUiParts.every(part => part.visible)'), true);
+    run('fishing.game.progress = 0.75; drawFishingMinigame()');
+    assert.equal(run('fishingProgressFill.crops.length'), 2);
+    assert.equal(run('fishingProgressFill.crops[1][3] > firstHeight'), true);
+    run("fishing.state = 'reeling'; drawFishingMinigame()");
+    assert.equal(run('fishingUiParts.some(part => part.visible)'), false);
+    run("fishing.state = 'minigame'; drawFishingMinigame()");
+    assert.equal(run('fishingProgressFill.crops.length'), 3);
+    assert.equal(run('fishingUiParts.every(part => part.visible)'), true);
 });

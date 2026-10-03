@@ -4304,6 +4304,7 @@ function appendKeyHints(element, hints) {
 }
 
 let fishingMinigameVisible = false;
+let fishingProgressHeight = -1;
 
 function createFishingUI(scene) {
     const catchZoneTexture = scene.textures.get('fishing-catch-zone');
@@ -4318,7 +4319,8 @@ function createFishingUI(scene) {
     fishingCatchZoneMiddle = hudImage('fishing-catch-zone', 'middle', 221);
     fishingCatchZoneBottom = hudImage('fishing-catch-zone', 'bottom', 221);
     fishingFishMarker = hudImage('fishing-fish', undefined, 222, 0.5);
-    fishingProgressFill = hudImage('fishing-progress', undefined, 221);
+    fishingProgressFill = hudImage('fishing-progress', undefined, 221)
+        .setPosition(FISHING_GAME_X + 17, FISHING_GAME_Y + FISHING_GAME_PLAY_TOP);
     fishingUiParts = [fishingUiPanel, fishingCatchZoneTop, fishingCatchZoneMiddle, fishingCatchZoneBottom, fishingFishMarker, fishingProgressFill];
 }
 
@@ -4358,6 +4360,7 @@ function drawFishingMinigame() {
 
     if (!fishingMinigameVisible) {
         fishingMinigameVisible = true;
+        fishingProgressHeight = -1;
         for (const part of fishingUiParts) part.setVisible(true);
     }
 
@@ -4365,9 +4368,10 @@ function drawFishingMinigame() {
     fishingCatchZoneMiddle.setPosition(playX, zoneY + 3).setDisplaySize(8, Math.max(1, zoneHeight - 6));
     fishingCatchZoneBottom.setPosition(playX, zoneY + zoneHeight - 3);
     fishingFishMarker.setPosition(playX + 4, playY + Math.round(gameState.fishY));
-    fishingProgressFill
-        .setCrop(0, FISHING_GAME_PLAY_HEIGHT - progressHeight, FISHING_GAME_PROGRESS_WIDTH, progressHeight)
-        .setPosition(FISHING_GAME_X + 17, playY);
+    if (progressHeight !== fishingProgressHeight) {
+        fishingProgressHeight = progressHeight;
+        fishingProgressFill.setCrop(0, FISHING_GAME_PLAY_HEIGHT - progressHeight, FISHING_GAME_PROGRESS_WIDTH, progressHeight);
+    }
 }
 
 function createGuideDialogueUI(scene) {
