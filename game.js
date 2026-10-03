@@ -885,6 +885,134 @@ function isLandTile(tileX, tileY) {
     return getTerrainType(tileX, tileY) !== 'water';
 }
 
+function getTerrainTileKey(tileX, tileY) {
+    const terrain = getTerrainType(tileX, tileY);
+
+    if (terrain === 'water') {
+        const north = getTerrainType(tileX, tileY - 1);
+        return north === 'dirt' ? 'waterDirt' : north === 'grass' ? 'waterGrass' : 'water';
+    }
+
+    if (getTerrainType(tileX, tileY + 1) === 'water') return terrain === 'dirt' ? 'dirtEdge' : 'grassEdge';
+    if (terrain === 'dirt') return 'dirt1';
+    if (worldHash(tileX, tileY, 670) <= 0.80) return 'grass1';
+    if (valueNoise(tileX, tileY, 8, 671) <= 0.62) return 'grass2';
+
+    return valueNoise(tileX + 149, tileY - 83, 24, 672) > 0.5 ? 'grass4' : 'grass3';
+}
+
+function getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy) {
+    if (terrain === 'dirt' && horizontal === 'grass' && vertical === 'grass') {
+        return 'corner';
+    }
+
+    if (terrain === 'grass' && horizontal === 'dirt' && vertical === 'dirt' && diagonal === 'dirt') {
+        return 'dirtEdgeCorner';
+    }
+
+    if (terrain === 'water' && horizontal !== 'water' && vertical !== 'water' && diagonal !== 'water') {
+        return dy < 0 ? 'dirtCliffCorner' : 'dirtEdgeCorner';
+    }
+
+    return null;
+}
+
+function getTerrainTile(tileX, tileY) {
+    const terrain = getTerrainType(tileX, tileY);
+    const north = getTerrainType(tileX, tileY - 1);
+    const south = getTerrainType(tileX, tileY + 1);
+    const west = getTerrainType(tileX - 1, tileY);
+    const east = getTerrainType(tileX + 1, tileY);
+
+    const tile = {
+        key: getTerrainTileKey(tileX, tileY),
+        rotation: 0
+    };
+
+    if (terrain === 'dirt' && south === 'water') {
+        const left = west === 'water' ? 1
+            : getTerrainType(tileX - 1, tileY + 1) !== 'water' ? 2 : 0;
+        const right = east === 'water' ? 1
+            : getTerrainType(tileX + 1, tileY + 1) !== 'water' ? 2 : 0;
+
+        tile.textureKey = DIRT_CLIFF_TILES[left][right];
+
+        if (left === 1 || right === 1) {
+            tile.baseKey = 'water';
+            tile.textureKey += '-trimmed';
+        }
+    }
+
+    if (terrain === 'dirt' && north === 'water') {
+        const left = west === 'water';
+        const right = east === 'water';
+
+        if (left || right) {
+            const corner = left && right ? 'cornerDirt3'
+                : left ? 'cornerDirt1' : 'cornerDirt2';
+
+            tile.baseKey = 'water';
+            tile.textureKey = south === 'water'
+                ? `${tile.textureKey}-${corner}` : corner;
+        }
+    }
+
+    if (terrain === 'water' && north !== 'water') {
+        const left = west !== 'water' &&
+            getTerrainType(tileX - 1, tileY - 1) !== 'water';
+        const right = east !== 'water' &&
+            getTerrainType(tileX + 1, tileY - 1) !== 'water';
+
+        if (left || right) {
+            const suffix = left && right ? 'InnerBoth'
+                : left ? 'InnerLeft' : 'InnerRight';
+
+            tile.textureKey = `${tile.key}${suffix}`;
+        }
+    }
+
+    for (const [dx, dy] of TERRAIN_CORNER_OFFSETS) {
+        const horizontal = dx < 0 ? west : east;
+        const vertical = dy < 0 ? north : south;
+        const diagonal = getTerrainType(tileX + dx, tileY + dy);
+        const patchKey = getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy);
+
+        if (!patchKey) continue;
+
+        const size = patchKey === 'corner' ? 7 : 5;
+
+        tile.patches ||= [];
+        tile.patches.push({
+            key: patchKey,
+            x: dx < 0 ? 0 : TILE_SIZE - size,
+            y: dy < 0 ? 0 : TILE_SIZE - size,
+            size,
+            flipX: dx > 0,
+            flipY: dy > 0
+        });
+    }
+
+    return tile;
+}
+
+function getWorldTile(tileX, tileY) {
+    return worldTiles(tileX, tileY, generateWorldTile);
+}
+
+function generateWorldTile(tileX, tileY) {
+    const tile = getBridgeTile(tileX, tileY) || getPierTile(tileX, tileY) || getTerrainTile(tileX, tileY);
+    const name = tile.key.toLowerCase();
+
+    tile.blocking = name.includes('water') ? 'full'
+        : name.includes('edge') || name.includes('left') || name.includes('right') ? 'lower'
+        : null;
+
+    return tile;
+}
+
+const bridgeCandidateCache = new Map();
+const pierCandidateCache = new Map();
+
 function isLocalHashPeak(tileX, tileY, stepX, stepY, radius, salt) {
     const score = worldHash(tileX, tileY, salt);
     if (score < 0.82) return false;
@@ -1034,131 +1162,6 @@ function getPierTile(tileX, tileY) {
     }
 
     return null;
-}
-
-function getTerrainTileKey(tileX, tileY) {
-    const terrain = getTerrainType(tileX, tileY);
-
-    if (terrain === 'water') {
-        const north = getTerrainType(tileX, tileY - 1);
-        return north === 'dirt' ? 'waterDirt' : north === 'grass' ? 'waterGrass' : 'water';
-    }
-
-    if (getTerrainType(tileX, tileY + 1) === 'water') return terrain === 'dirt' ? 'dirtEdge' : 'grassEdge';
-    if (terrain === 'dirt') return 'dirt1';
-    if (worldHash(tileX, tileY, 670) <= 0.80) return 'grass1';
-    if (valueNoise(tileX, tileY, 8, 671) <= 0.62) return 'grass2';
-
-    return valueNoise(tileX + 149, tileY - 83, 24, 672) > 0.5 ? 'grass4' : 'grass3';
-}
-
-function getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy) {
-    if (terrain === 'dirt' && horizontal === 'grass' && vertical === 'grass') {
-        return 'corner';
-    }
-
-    if (terrain === 'grass' && horizontal === 'dirt' && vertical === 'dirt' && diagonal === 'dirt') {
-        return 'dirtEdgeCorner';
-    }
-
-    if (terrain === 'water' && horizontal !== 'water' && vertical !== 'water' && diagonal !== 'water') {
-        return dy < 0 ? 'dirtCliffCorner' : 'dirtEdgeCorner';
-    }
-
-    return null;
-}
-
-function getTerrainTile(tileX, tileY) {
-    const terrain = getTerrainType(tileX, tileY);
-    const north = getTerrainType(tileX, tileY - 1);
-    const south = getTerrainType(tileX, tileY + 1);
-    const west = getTerrainType(tileX - 1, tileY);
-    const east = getTerrainType(tileX + 1, tileY);
-
-    const tile = {
-        key: getTerrainTileKey(tileX, tileY),
-        rotation: 0
-    };
-
-    if (terrain === 'dirt' && south === 'water') {
-        const left = west === 'water' ? 1
-            : getTerrainType(tileX - 1, tileY + 1) !== 'water' ? 2 : 0;
-        const right = east === 'water' ? 1
-            : getTerrainType(tileX + 1, tileY + 1) !== 'water' ? 2 : 0;
-
-        tile.textureKey = DIRT_CLIFF_TILES[left][right];
-
-        if (left === 1 || right === 1) {
-            tile.baseKey = 'water';
-            tile.textureKey += '-trimmed';
-        }
-    }
-
-    if (terrain === 'dirt' && north === 'water') {
-        const left = west === 'water';
-        const right = east === 'water';
-
-        if (left || right) {
-            const corner = left && right ? 'cornerDirt3'
-                : left ? 'cornerDirt1' : 'cornerDirt2';
-
-            tile.baseKey = 'water';
-            tile.textureKey = south === 'water'
-                ? `${tile.textureKey}-${corner}` : corner;
-        }
-    }
-
-    if (terrain === 'water' && north !== 'water') {
-        const left = west !== 'water' &&
-            getTerrainType(tileX - 1, tileY - 1) !== 'water';
-        const right = east !== 'water' &&
-            getTerrainType(tileX + 1, tileY - 1) !== 'water';
-
-        if (left || right) {
-            const suffix = left && right ? 'InnerBoth'
-                : left ? 'InnerLeft' : 'InnerRight';
-
-            tile.textureKey = `${tile.key}${suffix}`;
-        }
-    }
-
-    for (const [dx, dy] of TERRAIN_CORNER_OFFSETS) {
-        const horizontal = dx < 0 ? west : east;
-        const vertical = dy < 0 ? north : south;
-        const diagonal = getTerrainType(tileX + dx, tileY + dy);
-        const patchKey = getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy);
-
-        if (!patchKey) continue;
-
-        const size = patchKey === 'corner' ? 7 : 5;
-
-        tile.patches ||= [];
-        tile.patches.push({
-            key: patchKey,
-            x: dx < 0 ? 0 : TILE_SIZE - size,
-            y: dy < 0 ? 0 : TILE_SIZE - size,
-            size,
-            flipX: dx > 0,
-            flipY: dy > 0
-        });
-    }
-
-    return tile;
-}
-
-function getWorldTile(tileX, tileY) {
-    return worldTiles(tileX, tileY, generateWorldTile);
-}
-
-function generateWorldTile(tileX, tileY) {
-    const tile = getBridgeTile(tileX, tileY) || getPierTile(tileX, tileY) || getTerrainTile(tileX, tileY);
-    const name = tile.key.toLowerCase();
-
-    tile.blocking = name.includes('water') ? 'full'
-        : name.includes('edge') || name.includes('left') || name.includes('right') ? 'lower'
-        : null;
-
-    return tile;
 }
 
 function getChunkKey(chunkX, chunkY) {
@@ -6036,8 +6039,6 @@ let worldObjectLayer;
 const loadedChunks = new Map();
 const loadedWaterChunks = new Set();
 const loadedShimmerChunks = new Set();
-const bridgeCandidateCache = new Map();
-const pierCandidateCache = new Map();
 const discoveredChunks = new Set();
 const pendingChunks = [];
 const pendingWaterChunks = [];

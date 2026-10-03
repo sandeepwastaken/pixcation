@@ -5,6 +5,7 @@
     "art/trees.js",
     "art/cliffs.js",
     "world/terrain.js",
+    "world/decks.js",
     "world/surfaces.js",
     "world/shadows.js",
     "world/water.js",

@@ -9,8 +9,6 @@ let worldObjectLayer;
 const loadedChunks = new Map();
 const loadedWaterChunks = new Set();
 const loadedShimmerChunks = new Set();
-const bridgeCandidateCache = new Map();
-const pierCandidateCache = new Map();
 const discoveredChunks = new Set();
 const pendingChunks = [];
 const pendingWaterChunks = [];
