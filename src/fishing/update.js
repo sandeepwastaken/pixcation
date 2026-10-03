@@ -165,7 +165,8 @@ function updateFishing(scene, time, delta, isWalking) {
     const taut = fishing.state === 'reeling' || fishing.state === 'bite' || fishing.state === 'hooked' ||
         fishing.state === 'minigame' || fishing.state === 'snagged';
 
-    fishingLine.setDepth(fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY));
+    const depth = fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY);
+    if (fishingLine.depth !== depth) fishingLine.setDepth(depth);
     plotFishingLine(handX, handY, tipX, tipY, 0, polePalette);
 
     if (fishing.state === 'casting') return;

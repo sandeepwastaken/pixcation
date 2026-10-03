@@ -4113,7 +4113,8 @@ function updateFishing(scene, time, delta, isWalking) {
     const taut = fishing.state === 'reeling' || fishing.state === 'bite' || fishing.state === 'hooked' ||
         fishing.state === 'minigame' || fishing.state === 'snagged';
 
-    fishingLine.setDepth(fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY));
+    const depth = fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY);
+    if (fishingLine.depth !== depth) fishingLine.setDepth(depth);
     plotFishingLine(handX, handY, tipX, tipY, 0, polePalette);
 
     if (fishing.state === 'casting') return;
@@ -4454,8 +4455,10 @@ function drawCastCharge(time) {
     const x = Math.round(character.x + CHARACTER_SIZE / 2 - CAST_METER_WIDTH / 2);
     const y = Math.round(character.y) - 5;
     const filled = Math.round((CAST_METER_WIDTH - 2) * power);
+    const depth = character.depth + 1;
+    if (fishingLine.depth !== depth) fishingLine.setDepth(depth);
 
-    fishingLine.setDepth(character.depth + 1)
+    fishingLine
         .fillStyle(0x230a03, 1)
         .fillRect(x, y, CAST_METER_WIDTH, 4)
         .fillStyle(0x36160d, 1)
