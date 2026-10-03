@@ -51,32 +51,33 @@ function canFishSwim(chunk, fish, x, y) {
 function labelFishRegions(chunk) {
     const size = CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE;
     const labels = new Uint16Array(size);
-    const deep = pixel => !labels[pixel] && chunk.shoreDistances[pixel] >= FISH_MIN_DEPTH;
+    const depths = chunk.shoreDistances;
+    const stack = fishRegionStack ||= new Int32Array(size);
+    const pixels = fishRegionPixels ||= new Uint32Array(size);
+    const deep = pixel => !labels[pixel] && depths[pixel] >= FISH_MIN_DEPTH;
     const regions = [];
     let pixelCount = 0;
+    let label = 0;
+    let top = 0;
 
-    fishRegionStack ||= new Int32Array(size);
-    fishRegionPixels ||= new Uint32Array(size);
+    const visit = pixel => {
+        labels[pixel] = label;
+        stack[top++] = pixel;
+    };
 
     for (let start = 0; start < size; start++) {
         if (!deep(start)) continue;
 
-        const label = regions.length + 1;
+        label++;
         const regionStart = pixelCount;
-        let top = 0;
-
-        const visit = pixel => {
-            labels[pixel] = label;
-            fishRegionStack[top++] = pixel;
-        };
 
         visit(start);
 
         while (top > 0) {
-            const pixel = fishRegionStack[--top];
+            const pixel = stack[--top];
             const x = pixel % CHUNK_PIXEL_SIZE;
 
-            fishRegionPixels[pixelCount++] = pixel;
+            pixels[pixelCount++] = pixel;
             if (x > 0 && deep(pixel - 1)) visit(pixel - 1);
             if (x < CHUNK_PIXEL_SIZE - 1 && deep(pixel + 1)) visit(pixel + 1);
             if (pixel >= CHUNK_PIXEL_SIZE && deep(pixel - CHUNK_PIXEL_SIZE)) visit(pixel - CHUNK_PIXEL_SIZE);
