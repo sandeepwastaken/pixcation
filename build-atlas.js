@@ -8,6 +8,11 @@ const OUTPUT_DATA = path.join(MEDIA, 'atlas.json');
 const PADDING = 1;
 const MAX_WIDTH = 1024;
 const CHANNELS = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 };
+const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, byte) => {
+    let crc = byte;
+    for (let bit = 0; bit < 8; bit++) crc = crc >>> 1 ^ (crc & 1 ? 0xedb88320 : 0);
+    return crc;
+});
 
 function findImages(directory) {
     return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
@@ -15,6 +20,23 @@ function findImages(directory) {
         if (entry.isDirectory()) return findImages(file);
         return entry.name.endsWith('.png') && file !== OUTPUT_IMAGE ? [file] : [];
     });
+}
+
+function getFilterPrediction(filter, left, up, corner) {
+    if (filter === 0) return 0;
+    if (filter === 1) return left;
+    if (filter === 2) return up;
+    if (filter === 3) return (left + up) >> 1;
+    if (filter !== 4) return undefined;
+
+    const estimate = left + up - corner;
+    const leftDistance = Math.abs(estimate - left);
+    const upDistance = Math.abs(estimate - up);
+    const cornerDistance = Math.abs(estimate - corner);
+
+    return leftDistance <= upDistance && leftDistance <= cornerDistance
+        ? left
+        : upDistance <= cornerDistance ? up : corner;
 }
 
 function decodePng(file) {
@@ -61,12 +83,7 @@ function decodePng(file) {
             const left = x >= channels ? pixels[row + x - channels] : 0;
             const up = y ? pixels[row - stride + x] : 0;
             const corner = x >= channels && y ? pixels[row - stride + x - channels] : 0;
-            const estimate = left + up - corner;
-            const paeth = Math.abs(estimate - left) <= Math.abs(estimate - up) && Math.abs(estimate - left) <= Math.abs(estimate - corner)
-                ? left
-                : Math.abs(estimate - up) <= Math.abs(estimate - corner) ? up : corner;
-
-            pixels[row + x] = value + [0, left, up, (left + up) >> 1, paeth][filter];
+            pixels[row + x] = value + getFilterPrediction(filter, left, up, corner);
         }
     }
 
@@ -96,8 +113,7 @@ function crc32(buffer) {
     let crc = -1;
 
     for (const byte of buffer) {
-        crc ^= byte;
-        for (let bit = 0; bit < 8; bit++) crc = crc >>> 1 ^ (crc & 1 ? 0xedb88320 : 0);
+        crc = crc >>> 8 ^ CRC_TABLE[(crc ^ byte) & 255];
     }
 
     return (crc ^ -1) >>> 0;
