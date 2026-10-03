@@ -417,6 +417,8 @@ function migrateFishToChunk(chunk, targetChunk, fish) {
 
 function updateFish(delta) {
     const seconds = Math.min(delta, 50) / 1000;
+    const thrustDrag = Math.exp(-FISH_DRAG * seconds);
+    const coastDrag = Math.exp(-FISH_COAST_DRAG * seconds);
     const playerX = character.x + CHARACTER_SIZE / 2;
     const playerY = character.y + CHARACTER_SIZE - 2;
     const running = characterPace > 1 && characterMoving;
@@ -476,7 +478,7 @@ function updateFish(delta) {
                 }
             }
 
-            fish.velocity *= Math.exp(-(fish.thrusting ? FISH_DRAG : FISH_COAST_DRAG) * seconds);
+            fish.velocity *= fish.thrusting ? thrustDrag : coastDrag;
 
             const beat = fish.thrusting
                 ? FISH_BEAT_THRUST + fish.velocity * 0.12

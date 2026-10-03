@@ -1695,9 +1695,19 @@ function finishShimmer(animation, frame, shimmer) {
 if (shimmer.shimmerChunk) releaseShimmer(shimmer.shimmerChunk, shimmer);
 }
 function spawnShimmer(scene) {
-const visible = [...loadedShimmerChunks].filter(chunk => chunk.visible);
-if (visible.length === 0) return;
-const chunk = visible[Math.floor(Math.random() * visible.length)];
+let visibleCount = 0;
+for (const chunk of loadedShimmerChunks) {
+if (chunk.visible) visibleCount++;
+}
+if (visibleCount === 0) return;
+let selected = Math.floor(Math.random() * visibleCount);
+for (const chunk of loadedShimmerChunks) {
+if (!chunk.visible || selected-- > 0) continue;
+spawnChunkShimmer(scene, chunk);
+return;
+}
+}
+function spawnChunkShimmer(scene, chunk) {
 const cell = Math.floor(Math.random() * (chunk.waterCells.length / 4)) * 4;
 let shimmer = shimmerPool.pop();
 if (!shimmer) {
@@ -2027,15 +2037,17 @@ const chunkX = Math.floor(tileX / CHUNK_SIZE);
 const chunkY = Math.floor(tileY / CHUNK_SIZE);
 const chunk = loadedChunks.get(getChunkKey(chunkX, chunkY));
 const pixel = (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE;
-const flatShade = () => shadeColor(...getDominantColor(scene, tile.key));
 if (!chunk || chunk.shadowMask?.[pixel]) return null;
-if (isFlatShadowTile(tile)) return flatShade();
+if (isFlatShadowTile(tile)) return getTileShadowColor(scene, tile);
 const { upper, ground } = getChunkPixels(chunk);
 const index = pixel * 4;
 if (upper && upper[index + 3]) return shadeColor(upper[index], upper[index + 1], upper[index + 2]);
 if (!ground[index + 3]) return null;
-if (tile.key.startsWith('grass') || tile.key === 'dirt1') return flatShade();
+if (tile.key.startsWith('grass') || tile.key === 'dirt1') return getTileShadowColor(scene, tile);
 return shadeColor(ground[index], ground[index + 1], ground[index + 2]);
+}
+function getTileShadowColor(scene, tile) {
+return shadeColor(...getDominantColor(scene, tile.key));
 }
 function kickUpDust(scene, time, moveX, moveY) {
 const footX = character.x + CHARACTER_SIZE / 2;
@@ -2494,6 +2506,8 @@ return true;
 }
 function updateFish(delta) {
 const seconds = Math.min(delta, 50) / 1000;
+const thrustDrag = Math.exp(-FISH_DRAG * seconds);
+const coastDrag = Math.exp(-FISH_COAST_DRAG * seconds);
 const playerX = character.x + CHARACTER_SIZE / 2;
 const playerY = character.y + CHARACTER_SIZE - 2;
 const running = characterPace > 1 && characterMoving;
@@ -2544,7 +2558,7 @@ fish.velocity = Math.min(fish.topSpeed, fish.velocity + acceleration * seconds);
 }
 }
 }
-fish.velocity *= Math.exp(-(fish.thrusting ? FISH_DRAG : FISH_COAST_DRAG) * seconds);
+fish.velocity *= fish.thrusting ? thrustDrag : coastDrag;
 const beat = fish.thrusting
 ? FISH_BEAT_THRUST + fish.velocity * 0.12
 : fish.state === 'idle' ? FISH_BEAT_IDLE : FISH_BEAT_COAST;

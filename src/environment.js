@@ -21,10 +21,24 @@ function finishShimmer(animation, frame, shimmer) {
 }
 
 function spawnShimmer(scene) {
-    const visible = [...loadedShimmerChunks].filter(chunk => chunk.visible);
-    if (visible.length === 0) return;
+    let visibleCount = 0;
 
-    const chunk = visible[Math.floor(Math.random() * visible.length)];
+    for (const chunk of loadedShimmerChunks) {
+        if (chunk.visible) visibleCount++;
+    }
+
+    if (visibleCount === 0) return;
+
+    let selected = Math.floor(Math.random() * visibleCount);
+
+    for (const chunk of loadedShimmerChunks) {
+        if (!chunk.visible || selected-- > 0) continue;
+        spawnChunkShimmer(scene, chunk);
+        return;
+    }
+}
+
+function spawnChunkShimmer(scene, chunk) {
     const cell = Math.floor(Math.random() * (chunk.waterCells.length / 4)) * 4;
     let shimmer = shimmerPool.pop();
 
@@ -443,19 +457,22 @@ function getGroundShadowColor(scene, worldX, worldY) {
     const chunkY = Math.floor(tileY / CHUNK_SIZE);
     const chunk = loadedChunks.get(getChunkKey(chunkX, chunkY));
     const pixel = (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE;
-    const flatShade = () => shadeColor(...getDominantColor(scene, tile.key));
 
     if (!chunk || chunk.shadowMask?.[pixel]) return null;
-    if (isFlatShadowTile(tile)) return flatShade();
+    if (isFlatShadowTile(tile)) return getTileShadowColor(scene, tile);
 
     const { upper, ground } = getChunkPixels(chunk);
     const index = pixel * 4;
 
     if (upper && upper[index + 3]) return shadeColor(upper[index], upper[index + 1], upper[index + 2]);
     if (!ground[index + 3]) return null;
-    if (tile.key.startsWith('grass') || tile.key === 'dirt1') return flatShade();
+    if (tile.key.startsWith('grass') || tile.key === 'dirt1') return getTileShadowColor(scene, tile);
 
     return shadeColor(ground[index], ground[index + 1], ground[index + 2]);
+}
+
+function getTileShadowColor(scene, tile) {
+    return shadeColor(...getDominantColor(scene, tile.key));
 }
 
 function kickUpDust(scene, time, moveX, moveY) {
