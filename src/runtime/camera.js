@@ -15,5 +15,7 @@ function updateCamera(delta) {
     cameraOffsetX = followCameraAxis(cameraOffsetX, cameraScrollX - targetX);
     cameraOffsetY = followCameraAxis(cameraOffsetY, cameraScrollY - targetY);
 
-    mainCamera.setScroll(baseScrollX + cameraOffsetX, baseScrollY + cameraOffsetY);
+    const scrollX = baseScrollX + cameraOffsetX;
+    const scrollY = baseScrollY + cameraOffsetY;
+    if (mainCamera.scrollX !== scrollX || mainCamera.scrollY !== scrollY) mainCamera.setScroll(scrollX, scrollY);
 }

@@ -27,6 +27,8 @@ function updateMapPan(scene, delta) {
         (characterKeys.left.isDown || characterKeys.leftArrow.isDown ? 1 : 0);
     const panY = (characterKeys.down.isDown || characterKeys.downArrow.isDown ? 1 : 0) -
         (characterKeys.up.isDown || characterKeys.upArrow.isDown ? 1 : 0);
+    if (!panX && !panY && !mapDirty) return;
+
     const distance = MAP_PAN_SPEED / mapZoom * Math.min(delta, 50) / 1000;
     const beforeX = Math.round(mapPan.x);
     const beforeY = Math.round(mapPan.y);
