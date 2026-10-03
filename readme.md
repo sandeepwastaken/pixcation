@@ -38,6 +38,8 @@ Thanks for playing Pixcation. We hope you have fun.
 
 Run `node build-bundle.js` after changing the source. This builds `game.js`, which is what the game loads. Serve this folder with `python3 -m http.server 8000` and open `http://localhost:8000`. Add `?test` to run the game's automated checks.
 
+Run `node --test tests/*.test.js` to check save compatibility and storage behavior without a browser.
+
 The source is split up by what it does:
 
 - `src/art` builds textures, trees, and cliffs.

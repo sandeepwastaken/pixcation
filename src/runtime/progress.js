@@ -1,3 +1,60 @@
+const LEGACY_ROD_IDS = { sturdy: 'intermediate', iron: 'master' };
+const LEGACY_SPECIES_IDS = {
+    minnow: 'common-minnow',
+    carp: 'common-carp',
+    bass: 'largemouth-bass',
+    catfish: 'channel-catfish',
+    koi: 'goldfish'
+};
+
+function getSavedList(value) {
+    return Array.isArray(value) ? value : [];
+}
+
+function getSavedSpeciesId(id) {
+    return LEGACY_SPECIES_IDS[id] || id;
+}
+
+function restoreSavedRods(scene, rods) {
+    for (const savedId of getSavedList(rods)) {
+        const id = LEGACY_ROD_IDS[savedId] || savedId;
+        const rod = MARKET_RODS_BY_ID.get(id);
+
+        if (rod && !ownedRods.has(id)) {
+            ownedRods.add(id);
+            addHotbarItem(scene, rod.icon, rod.label);
+        }
+    }
+}
+
+function restoreSavedFish(fish) {
+    for (const [savedId, count] of getSavedList(fish)) {
+        const id = getSavedSpeciesId(savedId);
+        if (FISH_SPECIES_BY_ID.has(id) && Number.isInteger(count) && count > 0) {
+            fishInventory.set(id, (fishInventory.get(id) || 0) + count);
+        }
+    }
+}
+
+function restoreSavedCatchLog(ids) {
+    for (const savedId of getSavedList(ids)) {
+        const id = getSavedSpeciesId(savedId);
+        if (FISH_SPECIES_BY_ID.has(id)) catchLog.add(id);
+    }
+}
+
+function restoreSavedTileIds(target, ids) {
+    for (const id of getSavedList(ids)) {
+        if (Number.isSafeInteger(id)) target.add(id);
+    }
+}
+
+function restoreSavedBait(bait) {
+    for (const [id, count] of getSavedList(bait)) {
+        if (MARKET_BAITS_BY_ID.has(id) && Number.isInteger(count) && count > 0) baitInventory.set(id, count);
+    }
+}
+
 function loadProgress(scene) {
     let saved;
 
@@ -9,8 +66,6 @@ function loadProgress(scene) {
 
     if (!saved || saved.version !== 1) return;
 
-    const list = value => Array.isArray(value) ? value : [];
-
     if (Number.isFinite(saved.coins) && saved.coins >= 0) {
         playerCoins = Math.floor(saved.coins);
         coinDisplay.value = playerCoins;
@@ -18,52 +73,13 @@ function loadProgress(scene) {
 
     guideHasMetPlayer = saved.guideMet === true;
 
-    const legacyRodIds = { sturdy: 'intermediate', iron: 'master' };
-
-    for (const savedId of list(saved.rods)) {
-        const id = legacyRodIds[savedId] || savedId;
-        const rod = MARKET_RODS_BY_ID.get(id);
-
-        if (rod && !ownedRods.has(id)) {
-            ownedRods.add(id);
-            addHotbarItem(scene, rod.icon, rod.label);
-        }
-    }
-
-    const legacySpecies = {
-        minnow: 'common-minnow',
-        carp: 'common-carp',
-        bass: 'largemouth-bass',
-        catfish: 'channel-catfish',
-        koi: 'goldfish'
-    };
-    const currentSpeciesId = id => legacySpecies[id] || id;
-
-    for (const [savedId, count] of list(saved.fish)) {
-        const id = currentSpeciesId(savedId);
-        if (FISH_SPECIES_BY_ID.has(id) && Number.isInteger(count) && count > 0) {
-            fishInventory.set(id, (fishInventory.get(id) || 0) + count);
-        }
-    }
-
-    for (const savedId of list(saved.catchLog)) {
-        const id = currentSpeciesId(savedId);
-        if (FISH_SPECIES_BY_ID.has(id)) catchLog.add(id);
-    }
-
-    for (const tileId of list(saved.explored)) {
-        if (Number.isSafeInteger(tileId)) discoveredChunks.add(tileId);
-    }
-
-    for (const [id, count] of list(saved.bait)) {
-        if (MARKET_BAITS_BY_ID.has(id) && Number.isInteger(count) && count > 0) baitInventory.set(id, count);
-    }
-
+    restoreSavedRods(scene, saved.rods);
+    restoreSavedFish(saved.fish);
+    restoreSavedCatchLog(saved.catchLog);
+    restoreSavedTileIds(discoveredChunks, saved.explored);
+    restoreSavedBait(saved.bait);
     activeBaitId = baitInventory.has(saved.activeBait) ? saved.activeBait : null;
-
-    for (const chestId of list(saved.chests)) {
-        if (Number.isSafeInteger(chestId)) openedChests.add(chestId);
-    }
+    restoreSavedTileIds(openedChests, saved.chests);
 
     for (const chunk of loadedWaterChunks) {
         if (chunk.chest && openedChests.has(chunk.chest.id)) eraseChestSilhouette(chunk);

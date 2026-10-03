@@ -2998,33 +2998,37 @@ points.push({ x, y, oldX: x, oldY: y });
 return { points, length: lineLength, segmentLength: lineLength / segmentCount };
 }
 function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
+const points = rope.points;
+const lastIndex = points.length - 1;
 const seconds = Math.min(delta, 34) / 1000;
+const gravity = ROPE_GRAVITY * seconds * seconds;
 const targetLength = Math.max(Math.hypot(toX - fromX, toY - fromY) + (1 - tautness) * 7, ROPE_SEGMENT_LENGTH);
 rope.length += (targetLength - rope.length) * Math.min(1, seconds * (tautness ? 14 : 5));
-rope.segmentLength = rope.length / (rope.points.length - 1);
-for (let index = 1; index < rope.points.length - 1; index++) {
-const point = rope.points[index];
+rope.segmentLength = rope.length / lastIndex;
+const segmentLength = rope.segmentLength;
+for (let index = 1; index < lastIndex; index++) {
+const point = points[index];
 const velocityX = (point.x - point.oldX) * 0.985;
 const velocityY = (point.y - point.oldY) * 0.985;
 point.oldX = point.x;
 point.oldY = point.y;
 point.x += velocityX;
-point.y += velocityY + ROPE_GRAVITY * seconds * seconds;
+point.y += velocityY + gravity;
 }
 for (let pass = 0; pass < ROPE_CONSTRAINT_PASSES; pass++) {
-rope.points[0].x = fromX;
-rope.points[0].y = fromY;
-rope.points[rope.points.length - 1].x = toX;
-rope.points[rope.points.length - 1].y = toY;
-for (let index = 0; index < rope.points.length - 1; index++) {
-const first = rope.points[index];
-const second = rope.points[index + 1];
+points[0].x = fromX;
+points[0].y = fromY;
+points[lastIndex].x = toX;
+points[lastIndex].y = toY;
+for (let index = 0; index < lastIndex; index++) {
+const first = points[index];
+const second = points[index + 1];
 const dx = second.x - first.x;
 const dy = second.y - first.y;
 const distance = Math.max(0.001, Math.hypot(dx, dy));
-const correction = (distance - rope.segmentLength) / distance;
+const correction = (distance - segmentLength) / distance;
 const firstFixed = index === 0;
-const secondFixed = index + 1 === rope.points.length - 1;
+const secondFixed = index + 1 === lastIndex;
 if (!firstFixed) {
 const share = secondFixed ? 1 : 0.5;
 first.x += dx * correction * share;
@@ -3039,12 +3043,15 @@ second.y -= dy * correction * share;
 }
 }
 function drawFishingRope(rope, palette) {
+const points = rope.points;
+const lastIndex = points.length - 1;
+const paletteSteps = Math.max(1, lastIndex - 1);
 beginPixelPath();
-for (let index = 0; index < rope.points.length - 1; index++) {
-const first = rope.points[index];
-const second = rope.points[index + 1];
+for (let index = 0; index < lastIndex; index++) {
+const first = points[index];
+const second = points[index + 1];
 const distance = Math.max(1, Math.ceil(Math.hypot(second.x - first.x, second.y - first.y)));
-const amount = index / Math.max(1, rope.points.length - 2);
+const amount = index / paletteSteps;
 const color = samplePalette(palette, 1 - Math.abs(amount * 2 - 1));
 for (let step = 0; step <= distance; step++) {
 const blend = step / distance;
@@ -5211,6 +5218,54 @@ loop: true
 });
 }
 }
+const LEGACY_ROD_IDS = { sturdy: 'intermediate', iron: 'master' };
+const LEGACY_SPECIES_IDS = {
+minnow: 'common-minnow',
+carp: 'common-carp',
+bass: 'largemouth-bass',
+catfish: 'channel-catfish',
+koi: 'goldfish'
+};
+function getSavedList(value) {
+return Array.isArray(value) ? value : [];
+}
+function getSavedSpeciesId(id) {
+return LEGACY_SPECIES_IDS[id] || id;
+}
+function restoreSavedRods(scene, rods) {
+for (const savedId of getSavedList(rods)) {
+const id = LEGACY_ROD_IDS[savedId] || savedId;
+const rod = MARKET_RODS_BY_ID.get(id);
+if (rod && !ownedRods.has(id)) {
+ownedRods.add(id);
+addHotbarItem(scene, rod.icon, rod.label);
+}
+}
+}
+function restoreSavedFish(fish) {
+for (const [savedId, count] of getSavedList(fish)) {
+const id = getSavedSpeciesId(savedId);
+if (FISH_SPECIES_BY_ID.has(id) && Number.isInteger(count) && count > 0) {
+fishInventory.set(id, (fishInventory.get(id) || 0) + count);
+}
+}
+}
+function restoreSavedCatchLog(ids) {
+for (const savedId of getSavedList(ids)) {
+const id = getSavedSpeciesId(savedId);
+if (FISH_SPECIES_BY_ID.has(id)) catchLog.add(id);
+}
+}
+function restoreSavedTileIds(target, ids) {
+for (const id of getSavedList(ids)) {
+if (Number.isSafeInteger(id)) target.add(id);
+}
+}
+function restoreSavedBait(bait) {
+for (const [id, count] of getSavedList(bait)) {
+if (MARKET_BAITS_BY_ID.has(id) && Number.isInteger(count) && count > 0) baitInventory.set(id, count);
+}
+}
 function loadProgress(scene) {
 let saved;
 try {
@@ -5219,49 +5274,18 @@ saved = JSON.parse(localStorage.getItem(SAVE_KEY));
 return;
 }
 if (!saved || saved.version !== 1) return;
-const list = value => Array.isArray(value) ? value : [];
 if (Number.isFinite(saved.coins) && saved.coins >= 0) {
 playerCoins = Math.floor(saved.coins);
 coinDisplay.value = playerCoins;
 }
 guideHasMetPlayer = saved.guideMet === true;
-const legacyRodIds = { sturdy: 'intermediate', iron: 'master' };
-for (const savedId of list(saved.rods)) {
-const id = legacyRodIds[savedId] || savedId;
-const rod = MARKET_RODS_BY_ID.get(id);
-if (rod && !ownedRods.has(id)) {
-ownedRods.add(id);
-addHotbarItem(scene, rod.icon, rod.label);
-}
-}
-const legacySpecies = {
-minnow: 'common-minnow',
-carp: 'common-carp',
-bass: 'largemouth-bass',
-catfish: 'channel-catfish',
-koi: 'goldfish'
-};
-const currentSpeciesId = id => legacySpecies[id] || id;
-for (const [savedId, count] of list(saved.fish)) {
-const id = currentSpeciesId(savedId);
-if (FISH_SPECIES_BY_ID.has(id) && Number.isInteger(count) && count > 0) {
-fishInventory.set(id, (fishInventory.get(id) || 0) + count);
-}
-}
-for (const savedId of list(saved.catchLog)) {
-const id = currentSpeciesId(savedId);
-if (FISH_SPECIES_BY_ID.has(id)) catchLog.add(id);
-}
-for (const tileId of list(saved.explored)) {
-if (Number.isSafeInteger(tileId)) discoveredChunks.add(tileId);
-}
-for (const [id, count] of list(saved.bait)) {
-if (MARKET_BAITS_BY_ID.has(id) && Number.isInteger(count) && count > 0) baitInventory.set(id, count);
-}
+restoreSavedRods(scene, saved.rods);
+restoreSavedFish(saved.fish);
+restoreSavedCatchLog(saved.catchLog);
+restoreSavedTileIds(discoveredChunks, saved.explored);
+restoreSavedBait(saved.bait);
 activeBaitId = baitInventory.has(saved.activeBait) ? saved.activeBait : null;
-for (const chestId of list(saved.chests)) {
-if (Number.isSafeInteger(chestId)) openedChests.add(chestId);
-}
+restoreSavedTileIds(openedChests, saved.chests);
 for (const chunk of loadedWaterChunks) {
 if (chunk.chest && openedChests.has(chunk.chest.id)) eraseChestSilhouette(chunk);
 }

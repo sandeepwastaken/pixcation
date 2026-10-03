@@ -81,38 +81,42 @@ function createFishingRope(fromX, fromY, toX, toY, lineLength) {
 }
 
 function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
+    const points = rope.points;
+    const lastIndex = points.length - 1;
     const seconds = Math.min(delta, 34) / 1000;
+    const gravity = ROPE_GRAVITY * seconds * seconds;
     const targetLength = Math.max(Math.hypot(toX - fromX, toY - fromY) + (1 - tautness) * 7, ROPE_SEGMENT_LENGTH);
 
     rope.length += (targetLength - rope.length) * Math.min(1, seconds * (tautness ? 14 : 5));
-    rope.segmentLength = rope.length / (rope.points.length - 1);
+    rope.segmentLength = rope.length / lastIndex;
+    const segmentLength = rope.segmentLength;
 
-    for (let index = 1; index < rope.points.length - 1; index++) {
-        const point = rope.points[index];
+    for (let index = 1; index < lastIndex; index++) {
+        const point = points[index];
         const velocityX = (point.x - point.oldX) * 0.985;
         const velocityY = (point.y - point.oldY) * 0.985;
 
         point.oldX = point.x;
         point.oldY = point.y;
         point.x += velocityX;
-        point.y += velocityY + ROPE_GRAVITY * seconds * seconds;
+        point.y += velocityY + gravity;
     }
 
     for (let pass = 0; pass < ROPE_CONSTRAINT_PASSES; pass++) {
-        rope.points[0].x = fromX;
-        rope.points[0].y = fromY;
-        rope.points[rope.points.length - 1].x = toX;
-        rope.points[rope.points.length - 1].y = toY;
+        points[0].x = fromX;
+        points[0].y = fromY;
+        points[lastIndex].x = toX;
+        points[lastIndex].y = toY;
 
-        for (let index = 0; index < rope.points.length - 1; index++) {
-            const first = rope.points[index];
-            const second = rope.points[index + 1];
+        for (let index = 0; index < lastIndex; index++) {
+            const first = points[index];
+            const second = points[index + 1];
             const dx = second.x - first.x;
             const dy = second.y - first.y;
             const distance = Math.max(0.001, Math.hypot(dx, dy));
-            const correction = (distance - rope.segmentLength) / distance;
+            const correction = (distance - segmentLength) / distance;
             const firstFixed = index === 0;
-            const secondFixed = index + 1 === rope.points.length - 1;
+            const secondFixed = index + 1 === lastIndex;
 
             if (!firstFixed) {
                 const share = secondFixed ? 1 : 0.5;
@@ -130,13 +134,17 @@ function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
 }
 
 function drawFishingRope(rope, palette) {
+    const points = rope.points;
+    const lastIndex = points.length - 1;
+    const paletteSteps = Math.max(1, lastIndex - 1);
+
     beginPixelPath();
 
-    for (let index = 0; index < rope.points.length - 1; index++) {
-        const first = rope.points[index];
-        const second = rope.points[index + 1];
+    for (let index = 0; index < lastIndex; index++) {
+        const first = points[index];
+        const second = points[index + 1];
         const distance = Math.max(1, Math.ceil(Math.hypot(second.x - first.x, second.y - first.y)));
-        const amount = index / Math.max(1, rope.points.length - 2);
+        const amount = index / paletteSteps;
         const color = samplePalette(palette, 1 - Math.abs(amount * 2 - 1));
 
         for (let step = 0; step <= distance; step++) {
