@@ -9,8 +9,9 @@ function createSeededRandom(seed) {
     };
 }
 
-function leafHash(x, y, salt) {
-    return coordinateHash(x, y, Math.imul(salt, 2246822519));
+function createLeafHash(salt) {
+    const seedHash = Math.imul(salt, 2246822519);
+    return (x, y) => coordinateHash(x, y, seedHash);
 }
 
 function pickTreePalette(random) {
@@ -31,6 +32,7 @@ function readTreePixel(data, pixel) {
 }
 
 function createTreeCanopyMask(puffs, width, height, edgeSalt) {
+    const edgeHash = createLeafHash(edgeSalt);
     const owner = new Int16Array(width * height).fill(-1);
     const extent = (axis, sign) => Math.floor(Math.max(...puffs.map(puff => sign * puff[axis] + puff.radius + 1)) * sign);
     const minY = Math.max(0, extent('y', -1) - 1);
@@ -41,7 +43,7 @@ function createTreeCanopyMask(puffs, width, height, edgeSalt) {
     for (let y = minY; y <= maxY; y++) {
         const row = y * width;
         for (let x = minX; x <= maxX; x++) {
-            const edge = (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
+            const edge = (edgeHash(x, y) - 0.5) * 1.2;
             const pixel = row + x;
 
             for (let index = puffs.length - 1; index >= 0; index--) {
@@ -69,7 +71,7 @@ function createTreeCanopyMask(puffs, width, height, edgeSalt) {
 
         const x = pixel % width;
         const y = Math.floor(pixel / width);
-        const edge = (leafHash(x, y, edgeSalt) - 0.5) * 1.2;
+        const edge = (edgeHash(x, y) - 0.5) * 1.2;
 
         owner[pixel] = puffs.findLastIndex(puff => {
             const reach = puff.radius + edge;
@@ -103,6 +105,7 @@ function createTreeCanopyMask(puffs, width, height, edgeSalt) {
 }
 
 function createTreeShadow(puffs, centerX, centerY, height, edgeSalt) {
+    const shadowHash = createLeafHash(edgeSalt + 1);
     const shadow = new Set();
     const groundY = height - 1;
 
@@ -116,7 +119,7 @@ function createTreeShadow(puffs, centerX, centerY, height, edgeSalt) {
             const dy = (y + 0.5 - shadowY) / reachY;
             for (let x = Math.floor(shadowX - reachX); x <= Math.ceil(shadowX + reachX); x++) {
                 const dx = (x + 0.5 - shadowX) / reachX;
-                if (dx * dx + dy * dy <= 1 + (leafHash(x, y, edgeSalt + 1) - 0.5) * 0.25) shadow.add(y * 1024 + x);
+                if (dx * dx + dy * dy <= 1 + (shadowHash(x, y) - 0.5) * 0.25) shadow.add(y * 1024 + x);
             }
         }
     }
@@ -222,6 +225,7 @@ function generateTreeVariant(trunk, seed) {
     }
 
     const textureSalt = Math.floor(random() * 100000);
+    const textureHash = createLeafHash(textureSalt);
     const levels = new Int8Array(width * height).fill(-1);
     const values = new Float32Array(width * height);
     const span = Math.max(1, bottom - top);
@@ -246,7 +250,7 @@ function generateTreeVariant(trunk, seed) {
         const global = -0.2 * (x + 0.5 - centerX) / radiusX - 0.6 * (depth - 0.45);
         let value = (lit - 0.62) * 1.9 + global;
 
-        const speck = leafHash((x + (y & 1)) >> 1, y >> 1, textureSalt);
+        const speck = textureHash((x + (y & 1)) >> 1, y >> 1);
         if (speck > 0.8) value += 0.28;
         else if (speck < 0.2) value -= 0.28;
 
