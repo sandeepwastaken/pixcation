@@ -63,8 +63,8 @@ function spawnGuideAndStore(scene) {
     worldObjectLayer.add([store, guide]);
 
     staticShadowCasters.push(
-        { x: guide.x + ACTOR_SHADOW_X, y: guide.y + ACTOR_SHADOW_Y, points: getShapePoints(ACTOR_SHADOW_SHAPE) },
-        { x: store.x, y: store.y, points: extractSilhouetteShadow(scene, 'store') }
+        createStaticShadowCaster(guide.x + ACTOR_SHADOW_X, guide.y + ACTOR_SHADOW_Y, getShapePoints(ACTOR_SHADOW_SHAPE)),
+        createStaticShadowCaster(store.x, store.y, extractSilhouetteShadow(scene, 'store'))
     );
     rebakeLoadedShadows(scene);
 }

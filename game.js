@@ -1569,11 +1569,37 @@ function getShoreDistances(scene, chunkX, chunkY) {
     return result;
 }
 
+function createStaticShadowCaster(x, y, points) {
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+
+    for (let point = 0; point < points.length; point += 2) {
+        left = Math.min(left, points[point]);
+        right = Math.max(right, points[point]);
+        top = Math.min(top, points[point + 1]);
+        bottom = Math.max(bottom, points[point + 1]);
+    }
+
+    return {
+        x, y, points,
+        left: x + left,
+        right: x + right + 1,
+        top: y + top,
+        bottom: y + bottom + 1
+    };
+}
+
 function forEachStaticShadowPoint(chunkX, chunkY, callback) {
     const minTileX = chunkX * CHUNK_SIZE - 3;
     const minTileY = chunkY * CHUNK_SIZE - 1;
     const maxTileX = (chunkX + 1) * CHUNK_SIZE;
     const maxTileY = (chunkY + 1) * CHUNK_SIZE + 1;
+    const left = chunkX * CHUNK_PIXEL_SIZE;
+    const top = chunkY * CHUNK_PIXEL_SIZE;
+    const right = left + CHUNK_PIXEL_SIZE;
+    const bottom = top + CHUNK_PIXEL_SIZE;
 
     for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
         for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
@@ -1589,6 +1615,7 @@ function forEachStaticShadowPoint(chunkX, chunkY, callback) {
     }
 
     for (const caster of staticShadowCasters) {
+        if (caster.right <= left || caster.left >= right || caster.bottom <= top || caster.top >= bottom) continue;
         for (let point = 0; point < caster.points.length; point += 2) {
             callback(caster.x + caster.points[point], caster.y + caster.points[point + 1]);
         }
@@ -2494,8 +2521,8 @@ function spawnGuideAndStore(scene) {
     worldObjectLayer.add([store, guide]);
 
     staticShadowCasters.push(
-        { x: guide.x + ACTOR_SHADOW_X, y: guide.y + ACTOR_SHADOW_Y, points: getShapePoints(ACTOR_SHADOW_SHAPE) },
-        { x: store.x, y: store.y, points: extractSilhouetteShadow(scene, 'store') }
+        createStaticShadowCaster(guide.x + ACTOR_SHADOW_X, guide.y + ACTOR_SHADOW_Y, getShapePoints(ACTOR_SHADOW_SHAPE)),
+        createStaticShadowCaster(store.x, store.y, extractSilhouetteShadow(scene, 'store'))
     );
     rebakeLoadedShadows(scene);
 }
