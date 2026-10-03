@@ -67,7 +67,7 @@ function refreshGuideDialogueOptions() {
         optionText.style.display = option ? 'block' : 'none';
         if (!option) return;
 
-        optionText.textContent = option.label;
+        setUITextContent(optionText, option.label);
         optionText.style.color = index === selectedDialogueOption ? '#e0f2fd' : '#c0a887';
     });
 
@@ -102,16 +102,17 @@ function showGuideDialogueNode(scene, nodeKey) {
     dialogueNode = nodeKey;
     selectedDialogueOption = 0;
     dialogueFullText = node.text;
-    dialoguePortrait.setTexture(node.portrait);
-    dialogueText.textContent = '';
+    if (dialoguePortrait.texture.key !== node.portrait) dialoguePortrait.setTexture(node.portrait);
+    const typingText = document.createTextNode('');
+    dialogueText.replaceChildren(typingText);
     refreshGuideDialogueOptions();
 
     dialogueTypingEvent = scene.time.addEvent({
         delay: 24,
         repeat: dialogueFullText.length - 1,
         callback: () => {
+            typingText.appendData(dialogueFullText.charAt(characterIndex));
             characterIndex++;
-            dialogueText.textContent = dialogueFullText.slice(0, characterIndex);
             if (characterIndex === dialogueFullText.length) dialogueTypingEvent = null;
         }
     });
