@@ -36,7 +36,8 @@ function moveFishForward(chunk, fish, seconds) {
 }
 
 function turnFishToward(fish, heading, maxTurn) {
-    const turn = Math.atan2(Math.sin(heading - fish.heading), Math.cos(heading - fish.heading));
+    const offset = heading - fish.heading;
+    const turn = Math.atan2(Math.sin(offset), Math.cos(offset));
     fish.heading += Phaser.Math.Clamp(turn, -maxTurn, maxTurn);
     return turn;
 }

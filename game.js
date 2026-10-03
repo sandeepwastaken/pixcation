@@ -2901,14 +2901,15 @@ function chooseFishSpecies(waterArea) {
 }
 
 function createFish(species, giantScale) {
-    const sizeDefinition = FISH_SIZE_CLASSES[species.size];
     const giant = species.size === 'giant';
+    const scale = giant ? giantScale : 1;
+    const sizeDefinition = FISH_SIZE_CLASSES[giant ? 'large' : species.size];
 
     return {
         x: 0,
         y: 0,
-        length: giant ? FISH_SIZE_CLASSES.large.length * giantScale : sizeDefinition.length,
-        radius: giant ? FISH_SIZE_CLASSES.large.radius * giantScale : sizeDefinition.radius,
+        length: sizeDefinition.length * scale,
+        radius: sizeDefinition.radius * scale,
         heading: Math.random() * Math.PI * 2,
         topSpeed: 0,
         velocity: 0,
@@ -3018,7 +3019,8 @@ function moveFishForward(chunk, fish, seconds) {
 }
 
 function turnFishToward(fish, heading, maxTurn) {
-    const turn = Math.atan2(Math.sin(heading - fish.heading), Math.cos(heading - fish.heading));
+    const offset = heading - fish.heading;
+    const turn = Math.atan2(Math.sin(offset), Math.cos(offset));
     fish.heading += Phaser.Math.Clamp(turn, -maxTurn, maxTurn);
     return turn;
 }
