@@ -1,14 +1,18 @@
+const splashDirections = Array.from({ length: SPLASH_PARTICLES }, (_, index) => {
+    const angle = index / SPLASH_PARTICLES * Math.PI * 2;
+    return [Math.cos(angle), Math.sin(angle)];
+});
 function splash(scene, time, x, y) {
     scatterFishFromSplash(x, y);
     const centerX = Math.round(x);
     const centerY = Math.round(y);
 
     for (let index = 0; index < SPLASH_PARTICLES; index++) {
-        const angle = index / SPLASH_PARTICLES * Math.PI * 2;
+        const [directionX, directionY] = splashDirections[index];
 
         spawnParticle(
             scene, shadowLayer, time, centerX, centerY, 0, 0, SPLASH_LIFETIME,
-            index % 2 ? 0x87bed8 : 0x78afd3, 0, Math.cos(angle), Math.sin(angle), true
+            index % 2 ? 0x87bed8 : 0x78afd3, 0, directionX, directionY, true
         );
     }
 }

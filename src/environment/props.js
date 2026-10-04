@@ -108,8 +108,9 @@ function isTileClearOfProps(tileX, tileY) {
     if (getPropCovering(tileX, tileY)) return false;
 
     for (let offsetY = 1; offsetY <= TREE_CANOPY_TILES; offsetY++) {
+        const treeY = tileY + offsetY;
         for (let treeX = tileX - 2; treeX <= tileX + 1; treeX++) {
-            if (getPropAt(treeX, tileY + offsetY) === 'tree') return false;
+            if (getPropAt(treeX, treeY) === 'tree') return false;
         }
     }
 

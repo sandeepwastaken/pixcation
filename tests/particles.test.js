@@ -41,7 +41,7 @@ test('ring particles expand at birth and pooled particles restart their animatio
     run('spawnParticle(scene, layer, 0, 10, 20, 0, 0, 300, 0, 0, 1, 1, true); const image = activeParticles[0]');
     for (let time = 0; time <= 300; time += 10) run(`updateParticles(${time})`);
     assert.deepEqual(JSON.parse(run('JSON.stringify(image.positions)')), [[10, 20], [12, 21], [14, 22], [16, 23]]);
-    run('spawnParticle(scene, layer, 400, 30, 40, 1, -1, 300, 0); updateParticles(400); updateParticles(500)');
+    run('spawnParticle(scene, layer, 400, 30, 40, 1, -1, 600, 0); updateParticles(400); updateParticles(600)');
     assert.equal(run('particlePool.length'), 1);
     assert.equal(run('activeParticles[0] === image'), true);
     assert.deepEqual(JSON.parse(run('JSON.stringify(image.positions.slice(-2))')), [[30, 40], [30, 39]]);
