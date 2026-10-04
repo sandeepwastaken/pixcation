@@ -115,7 +115,7 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
             for (let y = top; y < bottom; y++) {
                 const row = y * MAP_WIDTH;
 
-                for (let x = left; x < right; x++) pixels[row + x] = color;
+                if (right - left === 1) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
             }
         }
     }

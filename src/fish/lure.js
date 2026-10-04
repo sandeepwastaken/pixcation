@@ -14,8 +14,9 @@ function updateHookedFish(fish, seconds, delta) {
     const pull = progress * HOOKED_REEL_PULL;
     const targetX = fishing.toX + (tipX - fishing.toX) * pull;
     const targetY = fishing.toY + (tipY - fishing.toY) * pull;
-    const nextCenterX = spin.centerX + (targetX - spin.centerX) * Math.min(1, seconds * 2);
-    const nextCenterY = spin.centerY + (targetY - spin.centerY) * Math.min(1, seconds * 2);
+    const centerPull = Math.min(1, seconds * 2);
+    const nextCenterX = spin.centerX + (targetX - spin.centerX) * centerPull;
+    const nextCenterY = spin.centerY + (targetY - spin.centerY) * centerPull;
 
     if (isWaterPixel(scene, Math.round(nextCenterX), Math.round(nextCenterY))) {
         spin.centerX = nextCenterX;

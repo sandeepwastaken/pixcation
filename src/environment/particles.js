@@ -12,8 +12,9 @@ function kickUpDust(scene, time, moveX, moveY) {
         : null;
 
     if (!colors) return;
+    const count = colors === DUST_COLORS ? DUST_PER_STEP : GRASS_FLECKS_PER_STEP;
 
-    for (let index = 0; index < (colors === DUST_COLORS ? DUST_PER_STEP : GRASS_FLECKS_PER_STEP); index++) {
+    for (let index = 0; index < count; index++) {
         const side = index % 2 === 0 ? -1 : 1;
         const spread = Math.floor(Math.random() * 2);
         const offsetX = moveX !== 0 ? -moveX * (5 + spread + index) : side * (5 + spread);

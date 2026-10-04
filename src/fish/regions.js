@@ -50,6 +50,7 @@ function canFishSwim(chunk, fish, x, y) {
 
 function labelFishRegions(chunk) {
     const size = CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE;
+    const lastRowStart = size - CHUNK_PIXEL_SIZE;
     const labels = new Uint16Array(size);
     const depths = chunk.shoreDistances;
     const stack = fishRegionStack ||= new Int32Array(size);
@@ -81,7 +82,7 @@ function labelFishRegions(chunk) {
             if (x > 0 && deep(pixel - 1)) visit(pixel - 1);
             if (x < CHUNK_PIXEL_SIZE - 1 && deep(pixel + 1)) visit(pixel + 1);
             if (pixel >= CHUNK_PIXEL_SIZE && deep(pixel - CHUNK_PIXEL_SIZE)) visit(pixel - CHUNK_PIXEL_SIZE);
-            if (pixel < size - CHUNK_PIXEL_SIZE && deep(pixel + CHUNK_PIXEL_SIZE)) visit(pixel + CHUNK_PIXEL_SIZE);
+            if (pixel < lastRowStart && deep(pixel + CHUNK_PIXEL_SIZE)) visit(pixel + CHUNK_PIXEL_SIZE);
         }
 
         regions.push({ start: regionStart, length: pixelCount - regionStart });

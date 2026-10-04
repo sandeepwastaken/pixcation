@@ -24,13 +24,15 @@ function updateCharacterShadow(scene) {
     image.data.fill(0);
 
     for (let row = 0; row < height; row++) {
+        const shape = ACTOR_SHADOW_SHAPE[row];
+        const pixelRow = row * width;
         for (let column = 0; column < width; column++) {
-            if (ACTOR_SHADOW_SHAPE[row][column] !== '#') continue;
+            if (shape[column] !== '#') continue;
 
             const shaded = getGroundShadowColor(scene, x + column, y + row);
             if (!shaded) continue;
 
-            const index = (row * width + column) * 4;
+            const index = (pixelRow + column) * 4;
             image.data[index] = shaded[0];
             image.data[index + 1] = shaded[1];
             image.data[index + 2] = shaded[2];
@@ -45,9 +47,10 @@ function updateCharacterShadow(scene) {
 function isBlockedByProp(left, top, right, bottom) {
     const bottomTile = Math.floor((bottom - 1) / TILE_SIZE);
     const rightTile = Math.floor((right - 1) / TILE_SIZE);
+    const leftTile = Math.floor(left / TILE_SIZE) - 1;
 
     for (let tileY = Math.floor(top / TILE_SIZE); tileY <= bottomTile; tileY++) {
-        for (let tileX = Math.floor(left / TILE_SIZE) - 1; tileX <= rightTile; tileX++) {
+        for (let tileX = leftTile; tileX <= rightTile; tileX++) {
             const type = getPropAt(tileX, tileY);
             if (!type || !PROP_TYPES[type].solid) continue;
 

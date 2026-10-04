@@ -25,8 +25,9 @@ function getShapePoints(shape) {
     const points = [];
 
     for (let row = 0; row < shape.length; row++) {
-        for (let column = 0; column < shape[row].length; column++) {
-            if (shape[row][column] === '#') points.push(column, row);
+        const cells = shape[row];
+        for (let column = 0; column < cells.length; column++) {
+            if (cells[column] === '#') points.push(column, row);
         }
     }
 

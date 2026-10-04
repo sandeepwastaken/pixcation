@@ -122,20 +122,21 @@ function updateChunkWater(time) {
         for (const fish of chunk.fish) {
             if (count >= FISH_MAX_VISIBLE) break fishChunks;
             if (fish.x < left || fish.x > right || fish.y < top || fish.y > bottom) continue;
+            const offset = count * 4;
 
-            fishUniforms[count * 4] = Math.round(fish.x);
-            fishUniforms[count * 4 + 1] = Math.round(fish.y);
-            fishUniforms[count * 4 + 2] = Math.cos(fish.heading);
-            fishUniforms[count * 4 + 3] = Math.sin(fish.heading);
-            fishShapeUniforms[count * 4] = fish.length;
-            fishShapeUniforms[count * 4 + 1] = fish.radius;
-            fishShapeUniforms[count * 4 + 2] = fish.phase;
-            fishShapeUniforms[count * 4 + 3] = fish.amplitude;
+            fishUniforms[offset] = Math.round(fish.x);
+            fishUniforms[offset + 1] = Math.round(fish.y);
+            fishUniforms[offset + 2] = Math.cos(fish.heading);
+            fishUniforms[offset + 3] = Math.sin(fish.heading);
+            fishShapeUniforms[offset] = fish.length;
+            fishShapeUniforms[offset + 1] = fish.radius;
+            fishShapeUniforms[offset + 2] = fish.phase;
+            fishShapeUniforms[offset + 3] = fish.amplitude;
             count++;
         }
     }
 
-    waterPipeline.set4fv('uFish', fishUniforms);
-    waterPipeline.set4fv('uFishShape', fishShapeUniforms);
+    if (count > 0) waterPipeline.set4fv('uFish', fishUniforms);
+    if (count > 0) waterPipeline.set4fv('uFishShape', fishShapeUniforms);
     waterPipeline.set1f('uFishCount', count);
 }

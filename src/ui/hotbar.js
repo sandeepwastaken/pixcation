@@ -107,7 +107,7 @@ function cycleBait(scene) {
 function showItemLabel(scene, text) {
     if (!itemPrompt) return;
 
-    itemPrompt.label.textContent = text;
+    setUITextContent(itemPrompt.label, text);
     itemLabelUntil = scene.time.now + ITEM_LABEL_DURATION;
 }
 

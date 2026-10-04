@@ -1016,8 +1016,9 @@ function getTerrainTile(tileX, tileY) {
     for (const [dx, dy] of TERRAIN_CORNER_OFFSETS) {
         const horizontal = dx < 0 ? west : east;
         const vertical = dy < 0 ? north : south;
+        const dirtCorner = terrain === 'grass' && horizontal === 'dirt' && vertical === 'dirt';
         // Dirt corners ignore diagonals; other corners need both sides to differ from this tile.
-        const diagonal = terrain !== 'dirt' && horizontal !== terrain && vertical !== terrain
+        const diagonal = dirtCorner || terrain === 'water' && horizontal !== terrain && vertical !== terrain
             ? getTerrainType(tileX + dx, tileY + dy) : null;
         const patchKey = getTerrainCornerPatch(terrain, horizontal, vertical, diagonal, dy);
 
@@ -1673,6 +1674,8 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     const detailed = detailedShadowScratch;
     let detailedCount = 0;
     let activeStyle = null;
+    const tileOriginX = chunkX * CHUNK_SIZE;
+    const tileOriginY = chunkY * CHUNK_SIZE;
 
     const fillRun = (style, x, y, width) => {
         if (style !== activeStyle) {
@@ -1684,7 +1687,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     };
 
     for (let localY = 0; localY < CHUNK_PIXEL_SIZE; localY++) {
-        const tileY = chunkY * CHUNK_SIZE + Math.floor(localY / TILE_SIZE);
+        const tileY = tileOriginY + Math.floor(localY / TILE_SIZE);
         const surfaceRow = (localY % TILE_SIZE) * TILE_SIZE;
         const pixelRow = localY * CHUNK_PIXEL_SIZE;
         let runStart = -1;
@@ -1700,7 +1703,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
             if (mask[pixel]) {
                 if (column !== Math.floor(localX / TILE_SIZE)) {
                     column = Math.floor(localX / TILE_SIZE);
-                    const tile = getWorldTile(chunkX * CHUNK_SIZE + column, tileY);
+                    const tile = getWorldTile(tileOriginX + column, tileY);
                     water = getTerrainSurface(scene, tile).water;
                     flatStyle = isFlatShadowTile(tile) ? getShadowStyle(scene, tile.key) : null;
                 }
@@ -1784,8 +1787,9 @@ function markWaterCells(data, cells, pixelX, pixelY) {
         const localY = cells[cell + 1] - pixelY;
         const width = cells[cell + 2];
         const height = cells[cell + 3];
+        const bottom = localY + height;
 
-        for (let y = localY; y < localY + height; y++) {
+        for (let y = localY; y < bottom; y++) {
             let index = (y * CHUNK_PIXEL_SIZE + localX) * 4;
             for (let x = 0; x < width; x++, index += 4) data[index] = 255;
         }
@@ -2240,21 +2244,22 @@ function updateChunkWater(time) {
         for (const fish of chunk.fish) {
             if (count >= FISH_MAX_VISIBLE) break fishChunks;
             if (fish.x < left || fish.x > right || fish.y < top || fish.y > bottom) continue;
+            const offset = count * 4;
 
-            fishUniforms[count * 4] = Math.round(fish.x);
-            fishUniforms[count * 4 + 1] = Math.round(fish.y);
-            fishUniforms[count * 4 + 2] = Math.cos(fish.heading);
-            fishUniforms[count * 4 + 3] = Math.sin(fish.heading);
-            fishShapeUniforms[count * 4] = fish.length;
-            fishShapeUniforms[count * 4 + 1] = fish.radius;
-            fishShapeUniforms[count * 4 + 2] = fish.phase;
-            fishShapeUniforms[count * 4 + 3] = fish.amplitude;
+            fishUniforms[offset] = Math.round(fish.x);
+            fishUniforms[offset + 1] = Math.round(fish.y);
+            fishUniforms[offset + 2] = Math.cos(fish.heading);
+            fishUniforms[offset + 3] = Math.sin(fish.heading);
+            fishShapeUniforms[offset] = fish.length;
+            fishShapeUniforms[offset + 1] = fish.radius;
+            fishShapeUniforms[offset + 2] = fish.phase;
+            fishShapeUniforms[offset + 3] = fish.amplitude;
             count++;
         }
     }
 
-    waterPipeline.set4fv('uFish', fishUniforms);
-    waterPipeline.set4fv('uFishShape', fishShapeUniforms);
+    if (count > 0) waterPipeline.set4fv('uFish', fishUniforms);
+    if (count > 0) waterPipeline.set4fv('uFishShape', fishShapeUniforms);
     waterPipeline.set1f('uFishCount', count);
 }
 
@@ -2389,17 +2394,18 @@ function placeProp(tileX, tileY) {
 
     const priority = worldHash(tileX, tileY, 765);
     const firstRow = type === 'tree' ? -TREE_CANOPY_TILES : -1;
+    const width = PROP_TYPES[type].width;
 
     for (let offsetY = firstRow; offsetY <= TREE_CANOPY_TILES; offsetY++) {
         // Beyond adjacent rows, only a nearby tree's canopy can overlap a smaller prop.
         const canopyOnly = type !== 'tree' && offsetY > 1;
         const firstColumn = canopyOnly ? -2 : -3;
-        const lastColumn = canopyOnly ? PROP_TYPES[type].width : 3;
+        const lastColumn = canopyOnly ? width : 3;
+        const nearbyY = tileY + offsetY;
         for (let offsetX = firstColumn; offsetX <= lastColumn; offsetX++) {
             if (offsetX === 0 && offsetY === 0) continue;
 
             const nearbyX = tileX + offsetX;
-            const nearbyY = tileY + offsetY;
             const nearby = getPropCandidate(nearbyX, nearbyY);
 
             if (!nearby || !propsConflict(type, tileX, tileY, nearby, nearbyX, nearbyY)) continue;
@@ -2584,8 +2590,9 @@ function getShapePoints(shape) {
     const points = [];
 
     for (let row = 0; row < shape.length; row++) {
-        for (let column = 0; column < shape[row].length; column++) {
-            if (shape[row][column] === '#') points.push(column, row);
+        const cells = shape[row];
+        for (let column = 0; column < cells.length; column++) {
+            if (cells[column] === '#') points.push(column, row);
         }
     }
 
@@ -2763,8 +2770,9 @@ function kickUpDust(scene, time, moveX, moveY) {
         : null;
 
     if (!colors) return;
+    const count = colors === DUST_COLORS ? DUST_PER_STEP : GRASS_FLECKS_PER_STEP;
 
-    for (let index = 0; index < (colors === DUST_COLORS ? DUST_PER_STEP : GRASS_FLECKS_PER_STEP); index++) {
+    for (let index = 0; index < count; index++) {
         const side = index % 2 === 0 ? -1 : 1;
         const spread = Math.floor(Math.random() * 2);
         const offsetX = moveX !== 0 ? -moveX * (5 + spread + index) : side * (5 + spread);
@@ -3068,6 +3076,7 @@ function canFishSwim(chunk, fish, x, y) {
 
 function labelFishRegions(chunk) {
     const size = CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE;
+    const lastRowStart = size - CHUNK_PIXEL_SIZE;
     const labels = new Uint16Array(size);
     const depths = chunk.shoreDistances;
     const stack = fishRegionStack ||= new Int32Array(size);
@@ -3099,7 +3108,7 @@ function labelFishRegions(chunk) {
             if (x > 0 && deep(pixel - 1)) visit(pixel - 1);
             if (x < CHUNK_PIXEL_SIZE - 1 && deep(pixel + 1)) visit(pixel + 1);
             if (pixel >= CHUNK_PIXEL_SIZE && deep(pixel - CHUNK_PIXEL_SIZE)) visit(pixel - CHUNK_PIXEL_SIZE);
-            if (pixel < size - CHUNK_PIXEL_SIZE && deep(pixel + CHUNK_PIXEL_SIZE)) visit(pixel + CHUNK_PIXEL_SIZE);
+            if (pixel < lastRowStart && deep(pixel + CHUNK_PIXEL_SIZE)) visit(pixel + CHUNK_PIXEL_SIZE);
         }
 
         regions.push({ start: regionStart, length: pixelCount - regionStart });
@@ -3348,8 +3357,9 @@ function updateHookedFish(fish, seconds, delta) {
     const pull = progress * HOOKED_REEL_PULL;
     const targetX = fishing.toX + (tipX - fishing.toX) * pull;
     const targetY = fishing.toY + (tipY - fishing.toY) * pull;
-    const nextCenterX = spin.centerX + (targetX - spin.centerX) * Math.min(1, seconds * 2);
-    const nextCenterY = spin.centerY + (targetY - spin.centerY) * Math.min(1, seconds * 2);
+    const centerPull = Math.min(1, seconds * 2);
+    const nextCenterX = spin.centerX + (targetX - spin.centerX) * centerPull;
+    const nextCenterY = spin.centerY + (targetY - spin.centerY) * centerPull;
 
     if (isWaterPixel(scene, Math.round(nextCenterX), Math.round(nextCenterY))) {
         spin.centerX = nextCenterX;
@@ -4647,16 +4657,7 @@ function appendKeyHints(element, hints) {
     return element;
 }
 
-function isPlaceholderArtwork(scene, key) {
-    const { data, width, height } = getTerrainPixels(scene, key);
-    for (let y = 1; y < height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-            const index = (y * width + x) * 4;
-            if (data[index] !== 255 || data[index + 1] !== 255 || data[index + 2] !== 255 || data[index + 3] !== 255) return false;
-        }
-    }
-    return true;
-}
+const STARTUP_DITHER_RANKS = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
 function createStartup(scene) {
     const hud = scene.children.list.filter(child => child.depth >= 100).map(child => [child, child.visible]);
@@ -4664,11 +4665,9 @@ function createStartup(scene) {
     character.setVisible(false);
     characterShadow.image.setVisible(false);
     const logo = scene.add.image(80, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
-    const button = scene.add.image(112, 124, 'start-button').setOrigin(0).setScrollFactor(0).setDepth(800);
+    const button = scene.add.image(112, 124, 'ui-button').setOrigin(0).setScrollFactor(0).setDepth(800);
     const text = createTextLayer(192);
-    const title = createUIText(text, 80, 57, '#000000', 160, 'center', { fontSize: '32px', lineHeight: '24px' });
-    if (isPlaceholderArtwork(scene, 'title-logo')) title.textContent = 'pixcation';
-    createUIText(text, 112, 127, '#000000', 96, 'center').textContent = 'Start';
+    createUIText(text, 112, 127, '#e0f2fd', 96, 'center', { textShadow: '1px 1px #230a03' }).textContent = 'Start';
     createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px #230a03' }).textContent = 'Enter / Space / Click to begin';
     const textLayer = addHudLayer(scene, text, 0, 801).setVisible(true);
     const texture = scene.textures.createCanvas('startup-dither', 320, 192);
@@ -4676,7 +4675,7 @@ function createStartup(scene) {
     pattern.width = 4;
     pattern.height = 4;
     const fade = scene.add.image(0, 0, texture.key).setOrigin(0).setScrollFactor(0).setDepth(1000);
-    startup = { phase: 'title', start: scene.time.now, hud, logo, title, button, textLayer, texture, pattern, fade, level: -1, spawnX: character.x, spawnY: character.y };
+    startup = { phase: 'title', start: scene.time.now, hud, logo, button, textLayer, texture, pattern, fade, level: -1, spawnX: character.x, spawnY: character.y };
 }
 
 function beginStartup(time) {
@@ -4689,7 +4688,7 @@ function beginStartup(time) {
 function drawStartupDither(level) {
     if (startup.level === level) return;
     startup.level = level;
-    const ranks = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    const ranks = STARTUP_DITHER_RANKS;
     const context = startup.texture.getContext();
     const patternContext = startup.pattern.getContext('2d');
     patternContext.clearRect(0, 0, 4, 4);
@@ -4714,8 +4713,6 @@ function updateStartup(scene, time, delta) {
         if (mainCamera.scrollX !== scrollX || mainCamera.scrollY !== scrollY) mainCamera.setScroll(scrollX, scrollY);
         const hover = Math.round(Math.sin(age / 1000) * 2);
         if (startup.logo.y !== 40 + hover) startup.logo.y = 40 + hover;
-        const titleTop = `${57 + hover}px`;
-        if (startup.title.style.top !== titleTop) startup.title.style.top = titleTop;
     } else if (startup.phase === 'closing') {
         drawStartupDither(Math.min(16, Math.floor(age / 45)));
         if (age >= 850) {
@@ -4760,9 +4757,9 @@ const playTimeFormatCache = { seconds: null, label: '' };
 const statsValueCache = new WeakMap();
 
 function createStatsUI(scene) {
-    statsButton = scene.add.image(264, 8, 'stats-button').setOrigin(0).setScrollFactor(0).setDepth(210);
+    statsButton = scene.add.image(264, 8, 'ui-button').setDisplaySize(48, 16).setOrigin(0).setScrollFactor(0).setDepth(210);
     const buttonText = createTextLayer(16, { width: '48px', fontSize: '11px', lineHeight: '11px' });
-    createUIText(buttonText, 0, 2, '#000000', 48, 'center').textContent = 'Stats';
+    createUIText(buttonText, 0, 2, '#e0f2fd', 48, 'center', { textShadow: '1px 1px #230a03' }).textContent = 'Stats';
     statsButtonTextLayer = addHudLayer(scene, buttonText, 8, 211).setX(264).setVisible(true);
     statsContainer = scene.add.image(32, 24, 'stats-panel').setOrigin(0).setScrollFactor(0).setDepth(220).setVisible(false);
     const text = createTextLayer(144, { color: '#000000', fontSize: '11px', lineHeight: '11px' });
@@ -4829,6 +4826,7 @@ function closeStats() {
 
 let fishingMinigameVisible = false;
 let fishingProgressHeight = -1;
+const CAST_METER_FALLBACK_PALETTE = [0x78afd3, 0xd1edf1];
 
 function createFishingUI(scene) {
     const catchZoneTexture = scene.textures.get('fishing-catch-zone');
@@ -4852,7 +4850,7 @@ function drawCastCharge(time) {
     if (!castCharge) return;
 
     const power = getCastPower(time);
-    const palette = castCharge.rod.polePalette || [0x78afd3, 0xd1edf1];
+    const palette = castCharge.rod.polePalette || CAST_METER_FALLBACK_PALETTE;
     const x = Math.round(character.x + CHARACTER_SIZE / 2 - CAST_METER_WIDTH / 2);
     const y = Math.round(character.y) - 5;
     const filled = Math.round((CAST_METER_WIDTH - 2) * power);
@@ -5083,7 +5081,7 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
             for (let y = top; y < bottom; y++) {
                 const row = y * MAP_WIDTH;
 
-                for (let x = left; x < right; x++) pixels[row + x] = color;
+                if (right - left === 1) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
             }
         }
     }
@@ -5650,7 +5648,7 @@ function cycleBait(scene) {
 function showItemLabel(scene, text) {
     if (!itemPrompt) return;
 
-    itemPrompt.label.textContent = text;
+    setUITextContent(itemPrompt.label, text);
     itemLabelUntil = scene.time.now + ITEM_LABEL_DURATION;
 }
 
@@ -6824,8 +6822,7 @@ let lastPlayTime = null;
 function preload() {
     this.load.atlas('atlas', withCacheBuster('media/atlas.png'), withCacheBuster('media/atlas.json'));
     this.load.image('title-logo', withCacheBuster('media/ui/title/logo.png'));
-    this.load.image('start-button', withCacheBuster('media/ui/title/start.png'));
-    this.load.image('stats-button', withCacheBuster('media/ui/stats/button.png'));
+    this.load.image('ui-button', withCacheBuster('media/ui/title/button.png'));
     this.load.image('stats-panel', withCacheBuster('media/ui/stats/panel.png'));
 }
 
@@ -7370,13 +7367,15 @@ function updateCharacterShadow(scene) {
     image.data.fill(0);
 
     for (let row = 0; row < height; row++) {
+        const shape = ACTOR_SHADOW_SHAPE[row];
+        const pixelRow = row * width;
         for (let column = 0; column < width; column++) {
-            if (ACTOR_SHADOW_SHAPE[row][column] !== '#') continue;
+            if (shape[column] !== '#') continue;
 
             const shaded = getGroundShadowColor(scene, x + column, y + row);
             if (!shaded) continue;
 
-            const index = (row * width + column) * 4;
+            const index = (pixelRow + column) * 4;
             image.data[index] = shaded[0];
             image.data[index + 1] = shaded[1];
             image.data[index + 2] = shaded[2];
@@ -7391,9 +7390,10 @@ function updateCharacterShadow(scene) {
 function isBlockedByProp(left, top, right, bottom) {
     const bottomTile = Math.floor((bottom - 1) / TILE_SIZE);
     const rightTile = Math.floor((right - 1) / TILE_SIZE);
+    const leftTile = Math.floor(left / TILE_SIZE) - 1;
 
     for (let tileY = Math.floor(top / TILE_SIZE); tileY <= bottomTile; tileY++) {
-        for (let tileX = Math.floor(left / TILE_SIZE) - 1; tileX <= rightTile; tileX++) {
+        for (let tileX = leftTile; tileX <= rightTile; tileX++) {
             const type = getPropAt(tileX, tileY);
             if (!type || !PROP_TYPES[type].solid) continue;
 

@@ -1,8 +1,7 @@
 function preload() {
     this.load.atlas('atlas', withCacheBuster('media/atlas.png'), withCacheBuster('media/atlas.json'));
     this.load.image('title-logo', withCacheBuster('media/ui/title/logo.png'));
-    this.load.image('start-button', withCacheBuster('media/ui/title/start.png'));
-    this.load.image('stats-button', withCacheBuster('media/ui/stats/button.png'));
+    this.load.image('ui-button', withCacheBuster('media/ui/title/button.png'));
     this.load.image('stats-panel', withCacheBuster('media/ui/stats/panel.png'));
 }
 
