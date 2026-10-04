@@ -13,8 +13,9 @@ test('wind stays on the pixel grid and rustling keeps tree trunks anchored', () 
     vm.runInContext(fs.readFileSync('src/runtime/settings.js', 'utf8') + fs.readFileSync('src/environment/bushes.js', 'utf8'), context);
     context.getWindTexture = (scene, key, offset) => `${offset}`;
     const positions = new Set();
+    const scene = {};
     for (let time = 0; time < 20000; time += 17) {
-        context.updateBushRustle({}, time, true);
+        context.updateBushRustle(scene, time, true);
         assert.ok(Number.isInteger(tree.canopy.x));
         assert.ok(Number.isInteger(bush.slices[0].x));
         assert.equal(tree.x, -40);
@@ -51,12 +52,14 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
     };
     const tree = { x: 255, y: 0, baseY: 0, width: 64, shadow: [0, 0, 1, 0], shadowTop: 0, shadowHeight: 2, offset: 0 };
     const distant = { ...tree, x: 1024 };
-    const left = { key: 'left', pixelX: 0, pixelY: 0, trees: [tree, distant], visible: true };
+    const left = { key: 'left', pixelX: 0, pixelY: 0, trees: [tree, tree, distant], visible: true };
     const right = { key: 'right', pixelX: 256, pixelY: 0, trees: [], visible: true, waterTexture: makeTexture(), waterShadowBase: base };
-    const context = vm.createContext({ ImageData: PixelImage, CHUNK_PIXEL_SIZE: size, loadedChunks: new Map([['left', left], ['right', right]]), acquireChunkCanvas: makeTexture, createChunkLayer: () => ({ setVisible() {} }), isWaterPixel: (scene, x) => x >= 256, getGroundShadowColor: () => [10, 20, 30], writeRGBPixel: (data, pixel, color) => { data.set([color >> 16, color >> 8 & 255, color & 255, 255], pixel * 4); } });
+    let groundReads = 0;
+    const context = vm.createContext({ ImageData: PixelImage, CHUNK_PIXEL_SIZE: size, loadedChunks: new Map([['left', left], ['right', right]]), acquireChunkCanvas: makeTexture, createChunkLayer: () => ({ setVisible() {} }), isWaterPixel: (scene, x) => x >= 256, getGroundShadowColor: () => { groundReads++; return [10, 20, 30]; }, writeRGBPixel: (data, pixel, color) => { data.set([color >> 16, color >> 8 & 255, color & 255, 255], pixel * 4); } });
     vm.runInContext(fs.readFileSync('src/environment/bushes.js', 'utf8'), context);
     const scene = {};
     context.updateTreeShadows(scene, 0);
+    assert.equal(groundReads, 1);
     assert.deepEqual(Array.from(left.treeShadowImage.data.slice(255 * 4, 256 * 4)), [10, 20, 30, 255]);
     assert.equal(right.waterTexture.image.data[0], 128);
     assert.equal(right.waterTexture.image.data[1], 12);

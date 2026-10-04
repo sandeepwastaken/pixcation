@@ -1,5 +1,6 @@
 const playTimeFormatCache = { seconds: null, label: '' };
 const statsValueCache = new WeakMap();
+const statsValues = new Array(9);
 
 function createStatsUI(scene) {
     statsButton = scene.add.image(264, 8, 'ui-button').setDisplaySize(48, 16).setOrigin(0).setScrollFactor(0).setDepth(210);
@@ -34,7 +35,16 @@ function formatStatsValue(index, value) {
     return index === 3 || index === 6 ? `${value}c` : value;
 }
 function refreshStatsUI() {
-    const values = [playerStats.fishCaught, catchLog.size, Math.floor(playerStats.playTimeMs / 1000), playerStats.moneyEarned, playerStats.fishSold, playerStats.casts, playerStats.moneySpent, openedChests.size, discoveredChunks.size];
+    const values = statsValues;
+    values[0] = playerStats.fishCaught;
+    values[1] = catchLog.size;
+    values[2] = Math.floor(playerStats.playTimeMs / 1000);
+    values[3] = playerStats.moneyEarned;
+    values[4] = playerStats.fishSold;
+    values[5] = playerStats.casts;
+    values[6] = playerStats.moneySpent;
+    values[7] = openedChests.size;
+    values[8] = discoveredChunks.size;
     for (let index = 0; index < statsValueTexts.length; index++) {
         const element = statsValueTexts[index];
         if (statsValueCache.get(element) === values[index]) continue;

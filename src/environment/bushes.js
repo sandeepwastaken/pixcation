@@ -34,6 +34,13 @@ function getWindTexture(scene, key, offset) {
     return name;
 }
 
+function getBushWindTextures(scene, offset, count) {
+    const cache = scene.bushWindTextureCache ||= new Map();
+    let textures = cache.get(offset);
+    if (!textures) cache.set(offset, textures = []);
+    for (let index = textures.length; index < count; index++) textures.push(getWindTexture(scene, `bush-slice-${index}`, offset));
+    return textures;
+}
 function updateBushRustle(scene, time, isWalking) {
     const gust = 0.7 + 0.3 * Math.sin(time / 7100);
     const left = character.x + CHARACTER_HITBOX_X;
@@ -57,7 +64,7 @@ function updateBushRustle(scene, time, isWalking) {
             bush.touching = touching;
 
             const age = time - bush.rustleStart;
-            const rustle = age < BUSH_RUSTLE_PATTERN.length * BUSH_RUSTLE_STEP
+            const rustle = age < BUSH_RUSTLE_DURATION
                 ? BUSH_RUSTLE_PATTERN[Math.floor(age / BUSH_RUSTLE_STEP)]
                 : 0;
 
@@ -65,19 +72,22 @@ function updateBushRustle(scene, time, isWalking) {
             if (offset === bush.offset) continue;
 
             bush.offset = offset;
+            const textures = getBushWindTextures(scene, offset, bush.slices.length);
+            const x = bush.x - 3;
 
             for (let index = 0; index < bush.slices.length; index++) {
-                bush.slices[index].setTexture(getWindTexture(scene, `bush-slice-${index}`, offset));
-                bush.slices[index].x = bush.x - 3;
+                bush.slices[index].setTexture(textures[index]);
+                bush.slices[index].x = x;
             }
         }
         for (const tree of chunk.trees) {
-            const touching = left < tree.x + tree.width / 2 + 8 && right > tree.x + tree.width / 2 - 8 &&
+            const centerX = tree.x + tree.width / 2;
+            const touching = left < centerX + 8 && right > centerX - 8 &&
                 top < tree.baseY + 2 && bottom > tree.baseY - 12;
             if (touching && isWalking && !tree.touching) tree.rustleStart = time;
             tree.touching = touching;
             const age = time - tree.rustleStart;
-            const rustle = age < BUSH_RUSTLE_PATTERN.length * BUSH_RUSTLE_STEP
+            const rustle = age < BUSH_RUSTLE_DURATION
                 ? BUSH_RUSTLE_PATTERN[Math.floor(age / BUSH_RUSTLE_STEP)] : 0;
             const offset = getWindOffset(time, tree.x, tree.baseY, 1.6, gust) + rustle;
             if (tree.offset === offset) continue;
@@ -91,7 +101,8 @@ function updateBushRustle(scene, time, isWalking) {
 function updateTreeShadows(scene, time) {
     if (time < (scene.nextTreeShadowAt || 0)) return;
     scene.nextTreeShadowAt = time + 80;
-    const trees = [];
+    const trees = scene.treeShadowTrees ||= [];
+    trees.length = 0;
     let signature = '';
     for (const chunk of loadedChunks.values()) {
         signature += `${chunk.key}:`;
@@ -104,21 +115,25 @@ function updateTreeShadows(scene, time) {
     if (signature === scene.treeShadowSignature) return;
     scene.treeShadowSignature = signature;
     for (const chunk of loadedChunks.values()) {
-        const shadowTrees = trees.filter(tree => !(tree.x + tree.width + 3 < chunk.pixelX || tree.x - 3 > chunk.pixelX + CHUNK_PIXEL_SIZE || tree.baseY + 32 < chunk.pixelY || tree.baseY - 32 > chunk.pixelY + CHUNK_PIXEL_SIZE));
+        const left = chunk.pixelX;
+        const top = chunk.pixelY;
+        const right = left + CHUNK_PIXEL_SIZE;
+        const bottom = top + CHUNK_PIXEL_SIZE;
+        const shadowTrees = trees.filter(tree => !(tree.x + tree.width + 3 < left || tree.x - 3 > right || tree.baseY + 32 < top || tree.baseY - 32 > bottom));
         const nextShadowSignature = (chunk.waterTexture ? 'w:' : 'land:') + shadowTrees.map(tree => `${tree.x},${tree.y},${tree.offset};`).join('');
         if (chunk.treeShadowSignature === nextShadowSignature) continue;
-        const points = [];
+        const points = new Set();
         for (const tree of shadowTrees) {
             const x = tree.x;
             const shifts = getWindRows(tree.offset, tree.shadowHeight);
             for (let point = 0; point < tree.shadow.length; point += 2) {
                 const shift = shifts[tree.shadow[point + 1] - tree.shadowTop];
-                const localX = x + tree.shadow[point] + shift - chunk.pixelX;
-                const localY = tree.y + tree.shadow[point + 1] - chunk.pixelY;
-                if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) points.push(localY * CHUNK_PIXEL_SIZE + localX);
+                const localX = x + tree.shadow[point] + shift - left;
+                const localY = tree.y + tree.shadow[point + 1] - top;
+                if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) points.add(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }
-        if (!points.length && !chunk.treeShadowTexture) continue;
+        if (!points.size && !chunk.treeShadowTexture) continue;
         chunk.treeShadowSignature = nextShadowSignature;
         if (!chunk.treeShadowTexture) {
             chunk.treeShadowTexture = acquireChunkCanvas(scene);
@@ -130,8 +145,8 @@ function updateTreeShadows(scene, time) {
         const water = chunk.waterShadowBase ? (chunk.treeWaterShadowImage ||= new ImageData(new Uint8ClampedArray(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE * 4), CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE)) : null;
         if (water) water.data.set(chunk.waterShadowBase);
         for (const pixel of points) {
-            const worldX = chunk.pixelX + pixel % CHUNK_PIXEL_SIZE;
-            const worldY = chunk.pixelY + Math.floor(pixel / CHUNK_PIXEL_SIZE);
+            const worldX = left + pixel % CHUNK_PIXEL_SIZE;
+            const worldY = top + Math.floor(pixel / CHUNK_PIXEL_SIZE);
             if (water?.data[pixel * 4] && isWaterPixel(scene, worldX, worldY)) {
                 water.data[pixel * 4] = 128;
                 continue;

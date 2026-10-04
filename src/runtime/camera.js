@@ -7,7 +7,7 @@ function updateCamera(delta) {
     const baseScrollY = character.y + CHARACTER_SIZE / 2 - mainCamera.height / 2;
     const targetX = baseScrollX + characterMoveRemainderX;
     const targetY = baseScrollY + characterMoveRemainderY;
-    const followAmount = 1 - Math.exp(-CAMERA_EASE * characterPace * delta / 1000);
+    const followAmount = targetX === cameraScrollX && targetY === cameraScrollY ? 0 : 1 - Math.exp(-CAMERA_EASE * characterPace * delta / 1000);
 
     cameraScrollX += (targetX - cameraScrollX) * followAmount;
     cameraScrollY += (targetY - cameraScrollY) * followAmount;
