@@ -59,13 +59,14 @@ function updateSwimmingFish(chunk, fish, seconds, delta) {
 }
 
 function updateFish(delta) {
+    fishMigrations.length = 0;
+    if (loadedWaterChunks.size === 0) return;
     const seconds = Math.min(delta, 50) / 1000;
     const thrustDrag = Math.exp(-FISH_DRAG * seconds);
     const coastDrag = Math.exp(-FISH_COAST_DRAG * seconds);
     const playerX = character.x + CHARACTER_SIZE / 2;
     const playerY = character.y + CHARACTER_SIZE - 2;
     const running = characterPace > 1 && characterMoving;
-    fishMigrations.length = 0;
 
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {

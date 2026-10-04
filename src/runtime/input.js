@@ -1,10 +1,17 @@
 function bindGameInput(scene) {
     const heldActions = new Set();
+    let cursor = null;
+    const setCursor = nextCursor => {
+        if (nextCursor === cursor) return;
+        scene.input.setDefaultCursor(nextCursor);
+        cursor = nextCursor;
+    };
     scene.input.on('pointermove', pointer => {
         if (startup) {
-            scene.input.setDefaultCursor(startup.phase === 'title' && pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144 ? 'pointer' : 'default');
+            setCursor(startup.phase === 'title' && pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144 ? 'pointer' : 'default');
             return;
         }
+        const menuOpen = isMenuOpen();
         if (marketOpen) {
             const row = getMarketRowAt(pointer.x, pointer.y);
 
@@ -28,9 +35,9 @@ function bindGameInput(scene) {
             mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
         }
 
-        const overStats = (!isMenuOpen() || statsOpen) && isStatsButtonAt(pointer.x, pointer.y);
-        const overActor = !isMenuOpen() && getClickedWorldTarget(pointer);
-        scene.input.setDefaultCursor(overStats || overActor ? 'pointer' : 'default');
+        const overStats = (!menuOpen || statsOpen) && isStatsButtonAt(pointer.x, pointer.y);
+        const overActor = !menuOpen && getClickedWorldTarget(pointer);
+        setCursor(overStats || overActor ? 'pointer' : 'default');
     });
 
     const releaseAction = source => {

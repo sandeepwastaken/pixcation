@@ -8,7 +8,8 @@ const { EventEmitter } = require('node:events');
 function createInput() {
     const input = new EventEmitter();
     input.keyboard = new EventEmitter();
-    input.setDefaultCursor = () => {};
+    const cursorUpdates = [];
+    input.setDefaultCursor = cursor => cursorUpdates.push(cursor);
     const events = new EventEmitter();
     const gameEvents = new EventEmitter();
     const context = vm.createContext({
@@ -31,11 +32,31 @@ function createInput() {
         function isMenuOpen() { return false; }
         bindGameInput(scene);
     `, context);
-    return { input, events, gameEvents, run: code => vm.runInContext(code, context) };
+    return { input, events, gameEvents, cursorUpdates, run: code => vm.runInContext(code, context) };
 }
 
 const space = { key: ' ', code: 'Space', repeat: false };
 const left = { button: 0, x: 0, y: 180 };
+test('cursor updates follow button boundaries and menu visibility without repeated writes', () => {
+    const { input, run, cursorUpdates } = createInput();
+    run("startup = { phase: 'title' }");
+    input.emit('pointermove', { x: 111, y: 127 });
+    input.emit('pointermove', { x: 112, y: 127 });
+    input.emit('pointermove', { x: 207, y: 143 });
+    input.emit('pointermove', { x: 208, y: 143 });
+    assert.deepEqual(cursorUpdates, ['default', 'pointer', 'default']);
+    run('startup = null');
+    input.emit('pointermove', { x: 280, y: 12 });
+    input.emit('pointermove', { x: 281, y: 13 });
+    run('statsOpen = true; isMenuOpen = () => statsOpen');
+    input.emit('pointermove', { x: 280, y: 12 });
+    input.emit('pointermove', { x: 150, y: 80 });
+    run("statsOpen = false; getClickedWorldTarget = () => 'guide'");
+    input.emit('pointermove', { x: 150, y: 80 });
+    run('statsOpen = true');
+    input.emit('pointermove', { x: 150, y: 80 });
+    assert.deepEqual(cursorUpdates, ['default', 'pointer', 'default', 'pointer', 'default', 'pointer', 'default']);
+});
 
 test('mouse and keyboard holds release a cast only when both are released', () => {
     const { input, run } = createInput();

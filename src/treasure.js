@@ -93,14 +93,15 @@ function bakeChestSilhouette(chunk, data) {
 
 function eraseChestSilhouette(chunk) {
     const chest = chunk.chest;
-    const { width, top, bottom, points } = chestSilhouette;
+    const origin = chest.localY * CHUNK_PIXEL_SIZE + chest.localX;
+    const { width, top, bottom, points, offsets } = chestSilhouette;
     const height = bottom - top + 1;
     const context = chunk.waterTexture.getContext();
     const image = context.getImageData(chest.localX, chest.localY + top, width, height);
 
     for (let point = 0; point < points.length; point += 2) {
         image.data[((points[point + 1] - top) * width + points[point]) * 4] = chest.original[point / 2];
-        const pixel = (chest.localY + points[point + 1]) * CHUNK_PIXEL_SIZE + chest.localX + points[point];
+        const pixel = origin + offsets[point / 2];
         if (chunk.waterShadowBase) chunk.waterShadowBase[pixel * 4] = chest.original[point / 2];
     }
 

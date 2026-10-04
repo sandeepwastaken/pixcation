@@ -183,3 +183,26 @@ test('minigame sprites skip unchanged pixels and refresh changed dimensions and 
     assert.equal(run('fishingProgressFill.crops.length'), 3);
     assert.equal(run('fishingUiParts.every(part => part.visible)'), true);
 });
+test('idle fishing skips repeated graphics clears and removes cancelled casts', () => {
+    const run = createSession();
+    run(`
+        function graphics() { return { clears: 0, draws: 0, clear() { this.clears++; this.draws = 0; } }; }
+        fishingLine = graphics(); fishingWaterShadow = graphics();
+        function isMenuOpen() { return false; }
+        function hasRodSelected() { return true; }
+        function drawCastCharge() { if (castCharge) fishingLine.draws++; }
+        function reelIn() { fishing = null; }
+        updateFishing({}, 0, 16, false); updateFishing({}, 16, 16, false);
+    `);
+    assert.equal(run('fishingLine.clears + fishingWaterShadow.clears'), 2);
+    run('castCharge = {}; updateFishing({}, 32, 16, false)');
+    assert.equal(run('fishingLine.draws'), 1);
+    run('updateFishing({}, 48, 16, false)');
+    assert.equal(run('fishingLine.draws'), 1);
+    run('castCharge = null; updateFishing({}, 64, 16, false); updateFishing({}, 80, 16, false)');
+    assert.equal(run('fishingLine.draws'), 0);
+    assert.equal(run('fishingLine.clears + fishingWaterShadow.clears'), 6);
+    run("fishing = { state: 'casting' }; updateFishing({}, 96, 16, true); updateFishing({}, 112, 16, false)");
+    assert.equal(run('fishing'), null);
+    assert.equal(run('fishingLine.clears + fishingWaterShadow.clears'), 8);
+});
