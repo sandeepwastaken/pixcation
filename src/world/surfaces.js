@@ -349,13 +349,14 @@ function getShoreDistances(scene, chunkX, chunkY) {
             for (let column = 0, index = row; column < size; column++, index += direction) {
                 const value = distances[index];
                 if (value === 0) continue;
+                const previousRow = index - back;
 
                 distances[index] = Math.min(
                     value,
                     distances[index - direction] + 3,
-                    distances[index - back] + 3,
-                    distances[index - back - 1] + 4,
-                    distances[index - back + 1] + 4
+                    distances[previousRow] + 3,
+                    distances[previousRow - 1] + 4,
+                    distances[previousRow + 1] + 4
                 );
             }
         }

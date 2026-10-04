@@ -7,6 +7,8 @@ function updateHookedFish(fish, seconds, delta) {
         direction: Math.random() < 0.5 ? -1 : 1,
         centerX: fishing.toX,
         centerY: fishing.toY,
+        radius: HOOKED_RADIUS_BASE + fish.length * HOOKED_RADIUS_PER_LENGTH,
+        speed: Phaser.Math.Clamp(HOOKED_SPIN_BASE - fish.length * HOOKED_SPIN_PER_LENGTH, HOOKED_SPIN_MIN, HOOKED_SPIN_BASE),
         splashTimer: 0
     });
     const progress = fishing.game ? fishing.game.progress : 0;
@@ -25,8 +27,8 @@ function updateHookedFish(fish, seconds, delta) {
 
     if (Math.random() < seconds * HOOKED_THRASH_RATE) spin.direction *= -1;
 
-    const radius = HOOKED_RADIUS_BASE + fish.length * HOOKED_RADIUS_PER_LENGTH;
-    const speed = Phaser.Math.Clamp(HOOKED_SPIN_BASE - fish.length * HOOKED_SPIN_PER_LENGTH, HOOKED_SPIN_MIN, HOOKED_SPIN_BASE);
+    const radius = spin.radius;
+    const speed = spin.speed;
 
     spin.angle += spin.direction * speed * seconds;
 

@@ -17,8 +17,8 @@ function showCatchCard(scene, time, species) {
 }
 
 function showRewardCard(scene, time, title, detail) {
-    catchCardTitle.textContent = title;
-    catchCardDetail.textContent = detail;
+    setUITextContent(catchCardTitle, title);
+    setUITextContent(catchCardDetail, detail);
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 

@@ -1,3 +1,4 @@
+let fishingGraphicsActive = true;
 function setFishingState(state, time) {
     fishing.state = state;
     fishing.start = time;
@@ -89,8 +90,9 @@ function updateWaterFishing(scene, time, delta) {
 function updateFishing(scene, time, delta, isWalking) {
     const interrupted = isWalking || isMenuOpen() || !hasRodSelected();
 
-    fishingLine.clear();
-    fishingWaterShadow.clear();
+    if (fishingGraphicsActive) fishingLine.clear();
+    if (fishingGraphicsActive) fishingWaterShadow.clear();
+    fishingGraphicsActive = Boolean(fishing || castCharge);
     if (castCharge && interrupted) castCharge = null;
     drawCastCharge(time);
 

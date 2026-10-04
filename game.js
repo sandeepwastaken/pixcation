@@ -1562,13 +1562,14 @@ function getShoreDistances(scene, chunkX, chunkY) {
             for (let column = 0, index = row; column < size; column++, index += direction) {
                 const value = distances[index];
                 if (value === 0) continue;
+                const previousRow = index - back;
 
                 distances[index] = Math.min(
                     value,
                     distances[index - direction] + 3,
-                    distances[index - back] + 3,
-                    distances[index - back - 1] + 4,
-                    distances[index - back + 1] + 4
+                    distances[previousRow] + 3,
+                    distances[previousRow - 1] + 4,
+                    distances[previousRow + 1] + 4
                 );
             }
         }
@@ -3350,6 +3351,8 @@ function updateHookedFish(fish, seconds, delta) {
         direction: Math.random() < 0.5 ? -1 : 1,
         centerX: fishing.toX,
         centerY: fishing.toY,
+        radius: HOOKED_RADIUS_BASE + fish.length * HOOKED_RADIUS_PER_LENGTH,
+        speed: Phaser.Math.Clamp(HOOKED_SPIN_BASE - fish.length * HOOKED_SPIN_PER_LENGTH, HOOKED_SPIN_MIN, HOOKED_SPIN_BASE),
         splashTimer: 0
     });
     const progress = fishing.game ? fishing.game.progress : 0;
@@ -3368,8 +3371,8 @@ function updateHookedFish(fish, seconds, delta) {
 
     if (Math.random() < seconds * HOOKED_THRASH_RATE) spin.direction *= -1;
 
-    const radius = HOOKED_RADIUS_BASE + fish.length * HOOKED_RADIUS_PER_LENGTH;
-    const speed = Phaser.Math.Clamp(HOOKED_SPIN_BASE - fish.length * HOOKED_SPIN_PER_LENGTH, HOOKED_SPIN_MIN, HOOKED_SPIN_BASE);
+    const radius = spin.radius;
+    const speed = spin.speed;
 
     spin.angle += spin.direction * speed * seconds;
 
@@ -3518,13 +3521,14 @@ function updateSwimmingFish(chunk, fish, seconds, delta) {
 }
 
 function updateFish(delta) {
+    fishMigrations.length = 0;
+    if (loadedWaterChunks.size === 0) return;
     const seconds = Math.min(delta, 50) / 1000;
     const thrustDrag = Math.exp(-FISH_DRAG * seconds);
     const coastDrag = Math.exp(-FISH_COAST_DRAG * seconds);
     const playerX = character.x + CHARACTER_SIZE / 2;
     const playerY = character.y + CHARACTER_SIZE - 2;
     const running = characterPace > 1 && characterMoving;
-    fishMigrations.length = 0;
 
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {
@@ -3592,8 +3596,8 @@ function getCastDirection() {
     return castDirections[characterDirection] || castDirections.front;
 }
 
-function getRodHand() {
-    const [directionX, directionY] = getCastDirection();
+function getRodHand(direction = getCastDirection()) {
+    const [directionX, directionY] = direction;
     const centerX = Math.round(character.x + CHARACTER_SIZE / 2);
 
     rodHandPosition[0] = centerX + (directionY === 0 ? directionX * 3 : 3);
@@ -3602,8 +3606,9 @@ function getRodHand() {
 }
 
 function getRodTip(time) {
-    const [directionX, directionY] = getCastDirection();
-    const [handX, handY] = getRodHand();
+    const direction = getCastDirection();
+    const [directionX, directionY] = direction;
+    const [handX, handY] = getRodHand(direction);
 
     rodTipPosition[0] = directionY === 0 ? handX + directionX * 6 : handX + 1;
     rodTipPosition[1] = directionY === 0 ? handY - 6 : handY + directionY * 7;
@@ -3649,15 +3654,16 @@ function findFishForBobber() {
 
     for (const chunk of loadedWaterChunks) {
         if (!chunk.fish.length) continue;
-        const chunkDX = Math.max(chunk.pixelX - fishing.bobberX, 0, fishing.bobberX - chunk.pixelX - CHUNK_PIXEL_SIZE);
-        const chunkDY = Math.max(chunk.pixelY - fishing.bobberY, 0, fishing.bobberY - chunk.pixelY - CHUNK_PIXEL_SIZE);
+        const { bobberX, bobberY } = fishing;
+        const chunkDX = Math.max(chunk.pixelX - bobberX, 0, bobberX - chunk.pixelX - CHUNK_PIXEL_SIZE);
+        const chunkDY = Math.max(chunk.pixelY - bobberY, 0, bobberY - chunk.pixelY - CHUNK_PIXEL_SIZE);
         if (chunkDX * chunkDX + chunkDY * chunkDY > noticeMaxDistanceSquared) continue;
 
         for (const fish of chunk.fish) {
             if (fish.state === 'flee' || fish.state === 'lure') continue;
 
-            const dx = fishing.bobberX - fish.x;
-            const dy = fishing.bobberY - fish.y;
+            const dx = bobberX - fish.x;
+            const dy = bobberY - fish.y;
             const distanceSquared = dx * dx + dy * dy;
 
             if (distanceSquared < FISH_NOTICE_MIN_DISTANCE_SQUARED || distanceSquared > noticeMaxDistanceSquared) continue;
@@ -3665,7 +3671,7 @@ function findFishForBobber() {
 
             const facing = (Math.cos(fish.heading) * dx + Math.sin(fish.heading) * dy) / Math.sqrt(distanceSquared);
 
-            if (facing >= noticeDot && isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)) {
+            if (facing >= noticeDot && isFishPathClear(chunk, fish, bobberX, bobberY)) {
                 nearestFish = fish;
                 nearestChunk = chunk;
                 nearestDistanceSquared = distanceSquared;
@@ -4169,6 +4175,7 @@ function drawFishingRope(rope, palette) {
     drawPixelPath();
 }
 
+let fishingGraphicsActive = true;
 function setFishingState(state, time) {
     fishing.state = state;
     fishing.start = time;
@@ -4260,8 +4267,9 @@ function updateWaterFishing(scene, time, delta) {
 function updateFishing(scene, time, delta, isWalking) {
     const interrupted = isWalking || isMenuOpen() || !hasRodSelected();
 
-    fishingLine.clear();
-    fishingWaterShadow.clear();
+    if (fishingGraphicsActive) fishingLine.clear();
+    if (fishingGraphicsActive) fishingWaterShadow.clear();
+    fishingGraphicsActive = Boolean(fishing || castCharge);
     if (castCharge && interrupted) castCharge = null;
     drawCastCharge(time);
 
@@ -4453,14 +4461,15 @@ function bakeChestSilhouette(chunk, data) {
 
 function eraseChestSilhouette(chunk) {
     const chest = chunk.chest;
-    const { width, top, bottom, points } = chestSilhouette;
+    const origin = chest.localY * CHUNK_PIXEL_SIZE + chest.localX;
+    const { width, top, bottom, points, offsets } = chestSilhouette;
     const height = bottom - top + 1;
     const context = chunk.waterTexture.getContext();
     const image = context.getImageData(chest.localX, chest.localY + top, width, height);
 
     for (let point = 0; point < points.length; point += 2) {
         image.data[((points[point + 1] - top) * width + points[point]) * 4] = chest.original[point / 2];
-        const pixel = (chest.localY + points[point + 1]) * CHUNK_PIXEL_SIZE + chest.localX + points[point];
+        const pixel = origin + offsets[point / 2];
         if (chunk.waterShadowBase) chunk.waterShadowBase[pixel * 4] = chest.original[point / 2];
     }
 
@@ -5342,8 +5351,8 @@ function showCatchCard(scene, time, species) {
 }
 
 function showRewardCard(scene, time, title, detail) {
-    catchCardTitle.textContent = title;
-    catchCardDetail.textContent = detail;
+    setUITextContent(catchCardTitle, title);
+    setUITextContent(catchCardDetail, detail);
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 
@@ -6899,11 +6908,18 @@ function unpackAtlas(scene) {
 
 function bindGameInput(scene) {
     const heldActions = new Set();
+    let cursor = null;
+    const setCursor = nextCursor => {
+        if (nextCursor === cursor) return;
+        scene.input.setDefaultCursor(nextCursor);
+        cursor = nextCursor;
+    };
     scene.input.on('pointermove', pointer => {
         if (startup) {
-            scene.input.setDefaultCursor(startup.phase === 'title' && pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144 ? 'pointer' : 'default');
+            setCursor(startup.phase === 'title' && pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144 ? 'pointer' : 'default');
             return;
         }
+        const menuOpen = isMenuOpen();
         if (marketOpen) {
             const row = getMarketRowAt(pointer.x, pointer.y);
 
@@ -6927,9 +6943,9 @@ function bindGameInput(scene) {
             mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
         }
 
-        const overStats = (!isMenuOpen() || statsOpen) && isStatsButtonAt(pointer.x, pointer.y);
-        const overActor = !isMenuOpen() && getClickedWorldTarget(pointer);
-        scene.input.setDefaultCursor(overStats || overActor ? 'pointer' : 'default');
+        const overStats = (!menuOpen || statsOpen) && isStatsButtonAt(pointer.x, pointer.y);
+        const overActor = !menuOpen && getClickedWorldTarget(pointer);
+        setCursor(overStats || overActor ? 'pointer' : 'default');
     });
 
     const releaseAction = source => {

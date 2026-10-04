@@ -17,8 +17,8 @@ function getCastDirection() {
     return castDirections[characterDirection] || castDirections.front;
 }
 
-function getRodHand() {
-    const [directionX, directionY] = getCastDirection();
+function getRodHand(direction = getCastDirection()) {
+    const [directionX, directionY] = direction;
     const centerX = Math.round(character.x + CHARACTER_SIZE / 2);
 
     rodHandPosition[0] = centerX + (directionY === 0 ? directionX * 3 : 3);
@@ -27,8 +27,9 @@ function getRodHand() {
 }
 
 function getRodTip(time) {
-    const [directionX, directionY] = getCastDirection();
-    const [handX, handY] = getRodHand();
+    const direction = getCastDirection();
+    const [directionX, directionY] = direction;
+    const [handX, handY] = getRodHand(direction);
 
     rodTipPosition[0] = directionY === 0 ? handX + directionX * 6 : handX + 1;
     rodTipPosition[1] = directionY === 0 ? handY - 6 : handY + directionY * 7;

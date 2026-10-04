@@ -20,15 +20,16 @@ function findFishForBobber() {
 
     for (const chunk of loadedWaterChunks) {
         if (!chunk.fish.length) continue;
-        const chunkDX = Math.max(chunk.pixelX - fishing.bobberX, 0, fishing.bobberX - chunk.pixelX - CHUNK_PIXEL_SIZE);
-        const chunkDY = Math.max(chunk.pixelY - fishing.bobberY, 0, fishing.bobberY - chunk.pixelY - CHUNK_PIXEL_SIZE);
+        const { bobberX, bobberY } = fishing;
+        const chunkDX = Math.max(chunk.pixelX - bobberX, 0, bobberX - chunk.pixelX - CHUNK_PIXEL_SIZE);
+        const chunkDY = Math.max(chunk.pixelY - bobberY, 0, bobberY - chunk.pixelY - CHUNK_PIXEL_SIZE);
         if (chunkDX * chunkDX + chunkDY * chunkDY > noticeMaxDistanceSquared) continue;
 
         for (const fish of chunk.fish) {
             if (fish.state === 'flee' || fish.state === 'lure') continue;
 
-            const dx = fishing.bobberX - fish.x;
-            const dy = fishing.bobberY - fish.y;
+            const dx = bobberX - fish.x;
+            const dy = bobberY - fish.y;
             const distanceSquared = dx * dx + dy * dy;
 
             if (distanceSquared < FISH_NOTICE_MIN_DISTANCE_SQUARED || distanceSquared > noticeMaxDistanceSquared) continue;
@@ -36,7 +37,7 @@ function findFishForBobber() {
 
             const facing = (Math.cos(fish.heading) * dx + Math.sin(fish.heading) * dy) / Math.sqrt(distanceSquared);
 
-            if (facing >= noticeDot && isFishPathClear(chunk, fish, fishing.bobberX, fishing.bobberY)) {
+            if (facing >= noticeDot && isFishPathClear(chunk, fish, bobberX, bobberY)) {
                 nearestFish = fish;
                 nearestChunk = chunk;
                 nearestDistanceSquared = distanceSquared;
