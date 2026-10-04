@@ -2,9 +2,9 @@ const playTimeFormatCache = { seconds: null, label: '' };
 const statsValueCache = new WeakMap();
 
 function createStatsUI(scene) {
-    statsButton = scene.add.image(264, 8, 'stats-button').setOrigin(0).setScrollFactor(0).setDepth(210);
+    statsButton = scene.add.image(264, 8, 'ui-button').setDisplaySize(48, 16).setOrigin(0).setScrollFactor(0).setDepth(210);
     const buttonText = createTextLayer(16, { width: '48px', fontSize: '11px', lineHeight: '11px' });
-    createUIText(buttonText, 0, 2, '#000000', 48, 'center').textContent = 'Stats';
+    createUIText(buttonText, 0, 2, '#e0f2fd', 48, 'center', { textShadow: '1px 1px #230a03' }).textContent = 'Stats';
     statsButtonTextLayer = addHudLayer(scene, buttonText, 8, 211).setX(264).setVisible(true);
     statsContainer = scene.add.image(32, 24, 'stats-panel').setOrigin(0).setScrollFactor(0).setDepth(220).setVisible(false);
     const text = createTextLayer(144, { color: '#000000', fontSize: '11px', lineHeight: '11px' });

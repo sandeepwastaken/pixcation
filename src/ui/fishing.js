@@ -1,5 +1,6 @@
 let fishingMinigameVisible = false;
 let fishingProgressHeight = -1;
+const CAST_METER_FALLBACK_PALETTE = [0x78afd3, 0xd1edf1];
 
 function createFishingUI(scene) {
     const catchZoneTexture = scene.textures.get('fishing-catch-zone');
@@ -23,7 +24,7 @@ function drawCastCharge(time) {
     if (!castCharge) return;
 
     const power = getCastPower(time);
-    const palette = castCharge.rod.polePalette || [0x78afd3, 0xd1edf1];
+    const palette = castCharge.rod.polePalette || CAST_METER_FALLBACK_PALETTE;
     const x = Math.round(character.x + CHARACTER_SIZE / 2 - CAST_METER_WIDTH / 2);
     const y = Math.round(character.y) - 5;
     const filled = Math.round((CAST_METER_WIDTH - 2) * power);

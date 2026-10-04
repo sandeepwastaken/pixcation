@@ -69,17 +69,18 @@ function placeProp(tileX, tileY) {
 
     const priority = worldHash(tileX, tileY, 765);
     const firstRow = type === 'tree' ? -TREE_CANOPY_TILES : -1;
+    const width = PROP_TYPES[type].width;
 
     for (let offsetY = firstRow; offsetY <= TREE_CANOPY_TILES; offsetY++) {
         // Beyond adjacent rows, only a nearby tree's canopy can overlap a smaller prop.
         const canopyOnly = type !== 'tree' && offsetY > 1;
         const firstColumn = canopyOnly ? -2 : -3;
-        const lastColumn = canopyOnly ? PROP_TYPES[type].width : 3;
+        const lastColumn = canopyOnly ? width : 3;
+        const nearbyY = tileY + offsetY;
         for (let offsetX = firstColumn; offsetX <= lastColumn; offsetX++) {
             if (offsetX === 0 && offsetY === 0) continue;
 
             const nearbyX = tileX + offsetX;
-            const nearbyY = tileY + offsetY;
             const nearby = getPropCandidate(nearbyX, nearbyY);
 
             if (!nearby || !propsConflict(type, tileX, tileY, nearby, nearbyX, nearbyY)) continue;

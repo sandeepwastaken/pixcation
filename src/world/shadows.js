@@ -84,6 +84,8 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     const detailed = detailedShadowScratch;
     let detailedCount = 0;
     let activeStyle = null;
+    const tileOriginX = chunkX * CHUNK_SIZE;
+    const tileOriginY = chunkY * CHUNK_SIZE;
 
     const fillRun = (style, x, y, width) => {
         if (style !== activeStyle) {
@@ -95,7 +97,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     };
 
     for (let localY = 0; localY < CHUNK_PIXEL_SIZE; localY++) {
-        const tileY = chunkY * CHUNK_SIZE + Math.floor(localY / TILE_SIZE);
+        const tileY = tileOriginY + Math.floor(localY / TILE_SIZE);
         const surfaceRow = (localY % TILE_SIZE) * TILE_SIZE;
         const pixelRow = localY * CHUNK_PIXEL_SIZE;
         let runStart = -1;
@@ -111,7 +113,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
             if (mask[pixel]) {
                 if (column !== Math.floor(localX / TILE_SIZE)) {
                     column = Math.floor(localX / TILE_SIZE);
-                    const tile = getWorldTile(chunkX * CHUNK_SIZE + column, tileY);
+                    const tile = getWorldTile(tileOriginX + column, tileY);
                     water = getTerrainSurface(scene, tile).water;
                     flatStyle = isFlatShadowTile(tile) ? getShadowStyle(scene, tile.key) : null;
                 }

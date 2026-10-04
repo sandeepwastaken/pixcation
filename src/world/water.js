@@ -25,8 +25,9 @@ function markWaterCells(data, cells, pixelX, pixelY) {
         const localY = cells[cell + 1] - pixelY;
         const width = cells[cell + 2];
         const height = cells[cell + 3];
+        const bottom = localY + height;
 
-        for (let y = localY; y < localY + height; y++) {
+        for (let y = localY; y < bottom; y++) {
             let index = (y * CHUNK_PIXEL_SIZE + localX) * 4;
             for (let x = 0; x < width; x++, index += 4) data[index] = 255;
         }

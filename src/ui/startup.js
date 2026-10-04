@@ -1,13 +1,4 @@
-function isPlaceholderArtwork(scene, key) {
-    const { data, width, height } = getTerrainPixels(scene, key);
-    for (let y = 1; y < height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-            const index = (y * width + x) * 4;
-            if (data[index] !== 255 || data[index + 1] !== 255 || data[index + 2] !== 255 || data[index + 3] !== 255) return false;
-        }
-    }
-    return true;
-}
+const STARTUP_DITHER_RANKS = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
 function createStartup(scene) {
     const hud = scene.children.list.filter(child => child.depth >= 100).map(child => [child, child.visible]);
@@ -15,11 +6,9 @@ function createStartup(scene) {
     character.setVisible(false);
     characterShadow.image.setVisible(false);
     const logo = scene.add.image(80, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
-    const button = scene.add.image(112, 124, 'start-button').setOrigin(0).setScrollFactor(0).setDepth(800);
+    const button = scene.add.image(112, 124, 'ui-button').setOrigin(0).setScrollFactor(0).setDepth(800);
     const text = createTextLayer(192);
-    const title = createUIText(text, 80, 57, '#000000', 160, 'center', { fontSize: '32px', lineHeight: '24px' });
-    if (isPlaceholderArtwork(scene, 'title-logo')) title.textContent = 'pixcation';
-    createUIText(text, 112, 127, '#000000', 96, 'center').textContent = 'Start';
+    createUIText(text, 112, 127, '#e0f2fd', 96, 'center', { textShadow: '1px 1px #230a03' }).textContent = 'Start';
     createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px #230a03' }).textContent = 'Enter / Space / Click to begin';
     const textLayer = addHudLayer(scene, text, 0, 801).setVisible(true);
     const texture = scene.textures.createCanvas('startup-dither', 320, 192);
@@ -27,7 +16,7 @@ function createStartup(scene) {
     pattern.width = 4;
     pattern.height = 4;
     const fade = scene.add.image(0, 0, texture.key).setOrigin(0).setScrollFactor(0).setDepth(1000);
-    startup = { phase: 'title', start: scene.time.now, hud, logo, title, button, textLayer, texture, pattern, fade, level: -1, spawnX: character.x, spawnY: character.y };
+    startup = { phase: 'title', start: scene.time.now, hud, logo, button, textLayer, texture, pattern, fade, level: -1, spawnX: character.x, spawnY: character.y };
 }
 
 function beginStartup(time) {
@@ -40,7 +29,7 @@ function beginStartup(time) {
 function drawStartupDither(level) {
     if (startup.level === level) return;
     startup.level = level;
-    const ranks = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    const ranks = STARTUP_DITHER_RANKS;
     const context = startup.texture.getContext();
     const patternContext = startup.pattern.getContext('2d');
     patternContext.clearRect(0, 0, 4, 4);
@@ -65,8 +54,6 @@ function updateStartup(scene, time, delta) {
         if (mainCamera.scrollX !== scrollX || mainCamera.scrollY !== scrollY) mainCamera.setScroll(scrollX, scrollY);
         const hover = Math.round(Math.sin(age / 1000) * 2);
         if (startup.logo.y !== 40 + hover) startup.logo.y = 40 + hover;
-        const titleTop = `${57 + hover}px`;
-        if (startup.title.style.top !== titleTop) startup.title.style.top = titleTop;
     } else if (startup.phase === 'closing') {
         drawStartupDither(Math.min(16, Math.floor(age / 45)));
         if (age >= 850) {

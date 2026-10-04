@@ -48,22 +48,22 @@ test('camera scroll updates are skipped when settled and restore external scroll
     assert.equal(run('mainCamera.scrollX'), 0);
 });
 
-test('title animation skips unchanged pixels and restores altered positions', () => {
+test('logo animation skips unchanged pixels and restores altered positions without a text overlay', () => {
     const run = createView();
     run("for (const name of ['updateLoadedChunks', 'buildPendingChunk', 'updateCharacterShadow', 'updateBushRustle', 'updateChunkVisibility', 'updateTreeShadows', 'updateParticles', 'updateFish', 'updateChunkWater']) globalThis[name] = () => {}");
-    run("let titleWrites = 0; let titleTop = '57px'");
-    run("startup = { phase: 'title', start: 0, spawnX: 0, spawnY: 0, logo: { y: 40 }, title: { style: { get top() { return titleTop; }, set top(value) { titleWrites++; titleTop = value; } } } }");
+    run('let logoWrites = 0; let logoY = 40');
+    run("startup = { phase: 'title', start: 0, spawnX: 0, spawnY: 0, logo: { get y() { return logoY; }, set y(value) { logoWrites++; logoY = value; } } }");
     run('updateStartup({}, 0, 16); updateStartup({}, 16, 16)');
     assert.equal(run('scrolls'), 1);
-    assert.equal(run('titleWrites'), 0);
+    assert.equal(run('logoWrites'), 0);
     run('updateStartup({}, 400, 16); updateStartup({}, 401, 16)');
-    assert.equal(run('titleWrites'), 1);
+    assert.equal(run('logoWrites'), 1);
     assert.equal(run('scrolls'), 2);
-    run("titleTop = '0px'; mainCamera.scrollX = 999; startup.logo.y = 0; updateStartup({}, 401, 16)");
-    assert.equal(run('titleWrites'), 2);
+    run('logoY = 0; mainCamera.scrollX = 999; updateStartup({}, 401, 16)');
+    assert.equal(run('logoWrites'), 2);
     assert.equal(run('scrolls'), 3);
     assert.equal(run('startup.logo.y'), 41);
-    assert.equal(run('startup.title.style.top'), '58px');
+    assert.equal(run('startup.title'), undefined);
     assert.equal(run('mainCamera.scrollX'), -60);
     assert.equal(run('mainCamera.scrollY'), -94);
 });
