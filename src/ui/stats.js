@@ -2,8 +2,18 @@ const playTimeFormatCache = { seconds: null, label: '' };
 const statsValueCache = new WeakMap();
 const statsValues = new Array(9);
 
+const STATS_BUTTON_SLICES = [0, 40, 80].flatMap((sx, column) => [[0, 6, 0], [8, 4, 6], [14, 6, 10]].map(([sy, height, dy]) => [sx, sy, 16, height, column * 16, dy]));
+
+function createStatsButtonTexture(scene) {
+    const source = getTextureSource(scene, 'ui-button');
+    createCanvasTexture(scene, 'ui-stats-button', 48, 16, context => {
+        for (const [sx, sy, width, height, dx, dy] of STATS_BUTTON_SLICES) context.drawImage(source, sx, sy, width, height, dx, dy, width, height);
+    });
+}
+
 function createStatsUI(scene) {
-    statsButton = scene.add.image(264, 8, 'ui-button').setDisplaySize(48, 16).setOrigin(0).setScrollFactor(0).setDepth(210);
+    createStatsButtonTexture(scene);
+    statsButton = scene.add.image(264, 8, 'ui-stats-button').setOrigin(0).setScrollFactor(0).setDepth(210);
     const buttonText = createTextLayer(16, { width: '48px', fontSize: '11px', lineHeight: '11px' });
     createUIText(buttonText, 0, 2, '#e0f2fd', 48, 'center', { textShadow: '1px 1px #230a03' }).textContent = 'Stats';
     statsButtonTextLayer = addHudLayer(scene, buttonText, 8, 211).setX(264).setVisible(true);
