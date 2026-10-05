@@ -152,8 +152,8 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     if (index < 3.5) return vec3(0.408, 0.565, 0.792);
                     if (index < 4.5) return vec3(0.420, 0.592, 0.800);
                     if (index < 5.5) return vec3(0.435, 0.624, 0.812);
-                    if (index < 6.5) return vec3(0.451, 0.655, 0.820);
-                    if (index < 7.5) return vec3(0.471, 0.686, 0.827);
+                    if (index < 6.5) return vec3(0.455, 0.662, 0.808);
+                    if (index < 7.5) return vec3(0.490, 0.698, 0.808);
                     return vec3(0.820, 0.929, 0.945);
                 }
 
