@@ -10,7 +10,7 @@ function createStartup(scene) {
     const logo = scene.add.image(logoX, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
     const button = scene.add.image(112, 124, 'ui-button').setOrigin(0).setScrollFactor(0).setDepth(800);
     const text = createTextLayer(192);
-    createUIText(text, 112, 127, '#acccf9', 96, 'center', { textShadow: '1px 1px #4a5059' }).textContent = 'Start';
+    createUIText(text, 112, 127, '#d4d7dd', 96, 'center', { textShadow: '1px 1px #4a5059' }).textContent = 'Start';
     createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(35, 10, 3, 0.45)' }).textContent = 'Enter / Space / Click to begin';
     const textLayer = addHudLayer(scene, text, 0, 801).setVisible(true);
     const texture = scene.textures.createCanvas('startup-dither', 320, 192);

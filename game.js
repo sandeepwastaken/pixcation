@@ -4718,7 +4718,7 @@ function createStartup(scene) {
     const logo = scene.add.image(logoX, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
     const button = scene.add.image(112, 124, 'ui-button').setOrigin(0).setScrollFactor(0).setDepth(800);
     const text = createTextLayer(192);
-    createUIText(text, 112, 127, '#acccf9', 96, 'center', { textShadow: '1px 1px #4a5059' }).textContent = 'Start';
+    createUIText(text, 112, 127, '#d4d7dd', 96, 'center', { textShadow: '1px 1px #4a5059' }).textContent = 'Start';
     createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(35, 10, 3, 0.45)' }).textContent = 'Enter / Space / Click to begin';
     const textLayer = addHudLayer(scene, text, 0, 801).setVisible(true);
     const texture = scene.textures.createCanvas('startup-dither', 320, 192);
@@ -4825,17 +4825,17 @@ function createStatsUI(scene) {
     createSlicedTexture(scene, 'ui-stats-panel', 256, 144);
     statsButton = scene.add.image(264, 8, 'ui-stats-button').setOrigin(0).setScrollFactor(0).setDepth(210);
     const buttonText = createTextLayer(16, { width: '48px', fontSize: '11px', lineHeight: '11px' });
-    createUIText(buttonText, 0, 2, '#acccf9', 48, 'center', { textShadow: '1px 1px #4a5059' }).textContent = 'Stats';
+    createUIText(buttonText, 0, 2, '#d4d7dd', 48, 'center', { textShadow: '1px 1px #4a5059' }).textContent = 'Stats';
     statsButtonTextLayer = addHudLayer(scene, buttonText, 8, 211).setX(264).setVisible(true);
     statsContainer = scene.add.image(32, 24, 'ui-stats-panel').setOrigin(0).setScrollFactor(0).setDepth(220).setVisible(false);
-    const text = createTextLayer(144, { color: '#c0a887', fontSize: '11px', lineHeight: '11px', textShadow: '1px 1px #4a5059' });
-    createUIText(text, 44, 10, '#acccf9', 232, 'center', { fontSize: '16px', textShadow: '1px 1px #4a5059' }).textContent = 'Your stats';
+    const text = createTextLayer(144, { color: '#a8afbd', fontSize: '11px', lineHeight: '11px', textShadow: '1px 1px #4a5059' });
+    createUIText(text, 44, 10, '#e2e4e9', 232, 'center', { fontSize: '16px', textShadow: '1px 1px #4a5059' }).textContent = 'Your stats';
     const labels = ['Fish caught', 'Species discovered', 'Time playing', 'Total money earned', 'Fish sold', 'Casts made', 'Total money spent', 'Chests opened', 'Areas explored'];
     for (let index = 0; index < labels.length; index++) {
-        createUIText(text, 44, 30 + index * 11, '#c0a887', 156, 'left', { textShadow: '1px 1px #4a5059' }).textContent = labels[index];
-        statsValueTexts.push(createUIText(text, 200, 30 + index * 11, '#acccf9', 76, 'right', { textShadow: '1px 1px #4a5059' }));
+        createUIText(text, 44, 30 + index * 11, '#a8afbd', 156, 'left', { textShadow: '1px 1px #4a5059' }).textContent = labels[index];
+        statsValueTexts.push(createUIText(text, 200, 30 + index * 11, '#d4d7dd', 76, 'right', { textShadow: '1px 1px #4a5059' }));
     }
-    createUIText(text, 44, 129, '#c0a887', 232, 'center', { fontSize: '9px', textShadow: '1px 1px #4a5059' }).textContent = 'Tab / Esc / Click outside to close';
+    createUIText(text, 44, 129, '#a8afbd', 232, 'center', { fontSize: '9px', textShadow: '1px 1px #4a5059' }).textContent = 'Tab / Esc / Click outside to close';
     statsTextLayer = addHudLayer(scene, text, 24, 221);
     refreshStatsUI();
 }
