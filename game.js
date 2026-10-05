@@ -210,6 +210,8 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         index = 2.0;
                     }
 
+                    vec2 dashCell = vec2(floor((p.x - t * 4.0) / 7.0), p.y);
+                    if (reach > 12.0 && light > 0.45 && mod(p.x - t * 4.0, 7.0) < 4.0 && hash(dashCell + floor(t * 0.4 + hash(dashCell) * 7.0)) > 0.96) index = min(index + 2.0, 6.0);
                     float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
                     float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
                     float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08 - max(0.0, shore - 10.0) * 0.012;
