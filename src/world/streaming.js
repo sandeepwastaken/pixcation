@@ -16,8 +16,9 @@ function updateLoadedChunks(scene, force = false) {
     pendingChunks.length = 0;
 
     for (let offsetY = -CHUNK_DISCOVERY_RADIUS; !startup && offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
+        const chunkY = centerChunkY + offsetY;
         for (let offsetX = -CHUNK_DISCOVERY_RADIUS; offsetX <= CHUNK_DISCOVERY_RADIUS; offsetX++) {
-            discoveredChunks.add(getTileId(centerChunkX + offsetX, centerChunkY + offsetY));
+            discoveredChunks.add(getTileId(centerChunkX + offsetX, chunkY));
         }
     }
 
@@ -27,9 +28,10 @@ function updateLoadedChunks(scene, force = false) {
     }
 
     for (let offsetY = -CHUNK_LOAD_RADIUS; offsetY <= CHUNK_LOAD_RADIUS; offsetY++) {
+        const chunkY = centerChunkY + offsetY;
         for (let offsetX = -CHUNK_LOAD_RADIUS; offsetX <= CHUNK_LOAD_RADIUS; offsetX++) {
             const chunkX = centerChunkX + offsetX;
-            const chunkY = centerChunkY + offsetY;
+
 
             if (force || offsetX === 0 && offsetY === 0) {
                 createWorldChunk(scene, chunkX, chunkY);

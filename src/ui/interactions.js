@@ -62,16 +62,16 @@ function refreshGuideDialogueOptions() {
     const options = GUIDE_DIALOGUE[dialogueNode].options;
 
     dialogueOptionTexts.forEach((optionText, index) => {
-        const option = options[index];
+        const option = options[index], display = option ? 'block' : 'none';
 
-        optionText.style.display = option ? 'block' : 'none';
+        if (optionText.style.display !== display) optionText.style.display = display;
         if (!option) return;
 
         setUITextContent(optionText, option.label);
         optionText.style.color = index === selectedDialogueOption ? '#e0f2fd' : '#c0a887';
     });
 
-    dialogueHighlight.setY(DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP);
+    const highlightY = DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP; if (dialogueHighlight.y !== highlightY) dialogueHighlight.setY(highlightY);
 }
 
 function finishGuideDialogueText() {

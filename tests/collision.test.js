@@ -52,3 +52,25 @@ test('solid tiles block and patched tiles use their remaining water pixels', () 
     assert.equal(createWorld([], { blocking: 'full', patches: [{}] })('canCharacterOccupy(null, 0, 0)'), true);
     assert.equal(createWorld([[4,12]], { blocking: 'full', patches: [{}] })('canCharacterOccupy(null, 0, 0)'), false);
 });
+
+test('diagonal input slides up and around a one pixel corner', () => {
+    const waterPixels = [];
+    for (let y = -64; y < 64; y++) for (let x = -64; x < (y < 0 ? 1 : 0); x++) waterPixels.push([x, y]);
+    const run = createWorld(waterPixels);
+    run('character = { x: -4, y: -12 }; characterMoveRemainderX = 0; characterMoveRemainderY = 0;');
+    assert.equal(run('canCharacterOccupy(null, character.x, character.y)'), true);
+    assert.equal(run('canCharacterOccupy(null, character.x, character.y - 1)'), false);
+    assert.equal(run('canCharacterOccupy(null, character.x - 1, character.y)'), false);
+    for (let frame = 0; frame < 30; frame++) run('moveCharacterBy(null, -1, -1, -1, -1)');
+    assert.ok(run('character.y') <= -12 - 20, `stuck at ${run('character.y')}`);
+});
+
+test('diagonal input against a forty five degree shore does not slide', () => {
+    const waterPixels = [];
+    for (let y = -64; y < 64; y++) for (let x = -64; x < 64; x++) if (x + y < 0) waterPixels.push([x, y]);
+    const run = createWorld(waterPixels);
+    run('character = { x: -8, y: -8 }; characterMoveRemainderX = 0; characterMoveRemainderY = 0;');
+    assert.equal(run('canCharacterOccupy(null, character.x, character.y)'), true);
+    for (let frame = 0; frame < 30; frame++) run('moveCharacterBy(null, -1, -1, -1, -1)');
+    assert.deepEqual([run('character.x'), run('character.y')], [-8, -8]);
+});

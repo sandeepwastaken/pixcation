@@ -1,3 +1,4 @@
+const SPLASH_PARTICLES = 8;
 const MARKET_RODS = [
     { id: 'basic', label: 'Basic Rod', texture: 'rod-basic', icon: 'rod-basic-icon', price: 10, castDistance: 72, chargeTime: 1000, lineStrength: 1, catchZone: 24 },
     { id: 'intermediate', label: 'Intermediate Rod', texture: 'rod-intermediate', icon: 'rod-intermediate-icon', price: 25, castDistance: 88, chargeTime: 850, lineStrength: 1.35, catchZone: 29 },
@@ -2141,8 +2142,9 @@ function updateLoadedChunks(scene, force = false) {
     pendingChunks.length = 0;
 
     for (let offsetY = -CHUNK_DISCOVERY_RADIUS; !startup && offsetY <= CHUNK_DISCOVERY_RADIUS; offsetY++) {
+        const chunkY = centerChunkY + offsetY;
         for (let offsetX = -CHUNK_DISCOVERY_RADIUS; offsetX <= CHUNK_DISCOVERY_RADIUS; offsetX++) {
-            discoveredChunks.add(getTileId(centerChunkX + offsetX, centerChunkY + offsetY));
+            discoveredChunks.add(getTileId(centerChunkX + offsetX, chunkY));
         }
     }
 
@@ -2152,9 +2154,10 @@ function updateLoadedChunks(scene, force = false) {
     }
 
     for (let offsetY = -CHUNK_LOAD_RADIUS; offsetY <= CHUNK_LOAD_RADIUS; offsetY++) {
+        const chunkY = centerChunkY + offsetY;
         for (let offsetX = -CHUNK_LOAD_RADIUS; offsetX <= CHUNK_LOAD_RADIUS; offsetX++) {
             const chunkX = centerChunkX + offsetX;
-            const chunkY = centerChunkY + offsetY;
+
 
             if (force || offsetX === 0 && offsetY === 0) {
                 createWorldChunk(scene, chunkX, chunkY);
@@ -2306,7 +2309,8 @@ function spawnShimmer(scene) {
 }
 
 function spawnChunkShimmer(scene, chunk) {
-    const cell = Math.floor(Math.random() * (chunk.waterCells.length / 4)) * 4;
+    const cells = chunk.waterCells;
+    const cell = Math.floor(Math.random() * (cells.length / 4)) * 4;
     let shimmer = shimmerPool.pop();
 
     if (!shimmer) {
@@ -2317,8 +2321,8 @@ function spawnChunkShimmer(scene, chunk) {
     shimmer.shimmerChunk = chunk;
     shimmer
         .setPosition(
-            chunk.waterCells[cell] + Phaser.Math.Between(0, chunk.waterCells[cell + 2] - 12),
-            chunk.waterCells[cell + 1] + Phaser.Math.Between(0, chunk.waterCells[cell + 3] - 1)
+            cells[cell] + Phaser.Math.Between(0, cells[cell + 2] - 12),
+            cells[cell + 1] + Phaser.Math.Between(0, cells[cell + 3] - 1)
         )
         .setVisible(true)
         .setActive(true);
@@ -3008,12 +3012,12 @@ function updateTreeShadows(scene, time) {
         if (chunk.treeShadowSignature === nextShadowSignature) continue;
         const points = new Set();
         for (const tree of shadowTrees) {
-            const x = tree.x;
+            const x = tree.x, y = tree.y;
             const shifts = getWindRows(tree.offset, tree.shadowHeight);
             for (let point = 0; point < tree.shadow.length; point += 2) {
-                const shift = shifts[tree.shadow[point + 1] - tree.shadowTop];
+                const shadowY = tree.shadow[point + 1], shift = shifts[shadowY - tree.shadowTop];
                 const localX = x + tree.shadow[point] + shift - left;
-                const localY = tree.y + tree.shadow[point + 1] - top;
+                const localY = y + shadowY - top;
                 if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) points.add(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }
@@ -3100,7 +3104,7 @@ function canFishSwim(chunk, fish, x, y) {
 
 function labelFishRegions(chunk) {
     const size = CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE;
-    const lastRowStart = size - CHUNK_PIXEL_SIZE;
+    const lastRowStart = size - CHUNK_PIXEL_SIZE, lastColumn = CHUNK_PIXEL_SIZE - 1;
     const labels = new Uint16Array(size);
     const depths = chunk.shoreDistances;
     const stack = fishRegionStack ||= new Int32Array(size);
@@ -3130,7 +3134,7 @@ function labelFishRegions(chunk) {
 
             pixels[pixelCount++] = pixel;
             if (x > 0 && deep(pixel - 1)) visit(pixel - 1);
-            if (x < CHUNK_PIXEL_SIZE - 1 && deep(pixel + 1)) visit(pixel + 1);
+            if (x < lastColumn && deep(pixel + 1)) visit(pixel + 1);
             if (pixel >= CHUNK_PIXEL_SIZE && deep(pixel - CHUNK_PIXEL_SIZE)) visit(pixel - CHUNK_PIXEL_SIZE);
             if (pixel < lastRowStart && deep(pixel + CHUNK_PIXEL_SIZE)) visit(pixel + CHUNK_PIXEL_SIZE);
         }
@@ -3143,16 +3147,17 @@ function labelFishRegions(chunk) {
 }
 
 function isFishPathClear(chunk, fish, targetX, targetY) {
-    const dx = targetX - fish.x;
-    const dy = targetY - fish.y;
+    const fromX = fish.x, fromY = fish.y;
+    const dx = targetX - fromX;
+    const dy = targetY - fromY;
     const distance = Math.hypot(dx, dy);
     const steps = Math.ceil(distance / 3);
 
     // Keep the endpoint arithmetic identical to the intermediate samples.
-    if (steps > 0 && !canFishSwim(chunk, fish, fish.x + dx * steps / steps, fish.y + dy * steps / steps)) return false;
+    if (steps > 0 && !canFishSwim(chunk, fish, fromX + dx * steps / steps, fromY + dy * steps / steps)) return false;
 
     for (let step = 1; step < steps; step++) {
-        if (!canFishSwim(chunk, fish, fish.x + dx * step / steps, fish.y + dy * step / steps)) return false;
+        if (!canFishSwim(chunk, fish, fromX + dx * step / steps, fromY + dy * step / steps)) return false;
     }
 
     return true;
@@ -3176,7 +3181,8 @@ function spawnChunkFish(chunk) {
 }
 
 function getFishSpawnPool(waterArea) {
-    const threshold = fishSpawnThresholds.find(minWater => waterArea >= minWater);
+    let threshold;
+    for (const minWater of fishSpawnThresholds) if (waterArea >= minWater) { threshold = minWater; break; }
     const cached = fishSpawnPools.get(threshold);
     if (cached) return cached;
 
@@ -3283,13 +3289,13 @@ function spawnSturgeonAtCursor(scene) {
 
 function chooseFishTarget(chunk, fish, awayX, awayY) {
     const fleeing = awayX !== undefined;
-    const heading = fleeing ? Math.atan2(awayY, awayX) : 0;
+    const heading = fleeing ? Math.atan2(awayY, awayX) : 0, fromX = fish.x, fromY = fish.y;
 
     for (let attempt = 0; attempt < 8; attempt++) {
         const angle = fleeing ? heading + (Math.random() - 0.5) * 1.2 : Math.random() * Math.PI * 2;
         const distance = fleeing ? 28 + Math.random() * 20 : 12 + Math.random() * 34;
-        const targetX = fish.x + Math.cos(angle) * distance;
-        const targetY = fish.y + Math.sin(angle) * distance;
+        const targetX = fromX + Math.cos(angle) * distance;
+        const targetY = fromY + Math.sin(angle) * distance;
 
         if (isFishPathClear(chunk, fish, targetX, targetY)) {
             fish.targetX = targetX;
@@ -3380,9 +3386,9 @@ function updateHookedFish(fish, seconds, delta) {
     });
     const progress = fishing.game ? fishing.game.progress : 0;
     const [tipX, tipY] = getRodTip();
-    const pull = progress * HOOKED_REEL_PULL;
-    const targetX = fishing.toX + (tipX - fishing.toX) * pull;
-    const targetY = fishing.toY + (tipY - fishing.toY) * pull;
+    const pull = progress * HOOKED_REEL_PULL, castX = fishing.toX, castY = fishing.toY;
+    const targetX = castX + (tipX - castX) * pull;
+    const targetY = castY + (tipY - castY) * pull;
     const centerPull = Math.min(1, seconds * 2);
     const nextCenterX = spin.centerX + (targetX - spin.centerX) * centerPull;
     const nextCenterY = spin.centerY + (targetY - spin.centerY) * centerPull;
@@ -3953,7 +3959,7 @@ function addCaughtFish(species, caught = true) {
 function updateFishingMinigame(scene, time, delta) {
     const game = fishing.game;
     const seconds = Math.min(delta, 34) / 1000;
-    const tuning = game.tuning;
+    const tuning = game.tuning, zoneHeight = game.zoneHeight;
     const fishHalfHeight = fishingFishMarker.height / 2;
 
     game.zoneVelocity += (fishingActionHeld ? -185 : 150) * seconds;
@@ -3963,8 +3969,8 @@ function updateFishingMinigame(scene, time, delta) {
     if (game.zoneY < 0) {
         game.zoneY = 0;
         game.zoneVelocity = Math.max(0, game.zoneVelocity * -0.25);
-    } else if (game.zoneY + game.zoneHeight > FISHING_GAME_PLAY_HEIGHT) {
-        game.zoneY = FISHING_GAME_PLAY_HEIGHT - game.zoneHeight;
+    } else if (game.zoneY + zoneHeight > FISHING_GAME_PLAY_HEIGHT) {
+        game.zoneY = FISHING_GAME_PLAY_HEIGHT - zoneHeight;
         game.zoneVelocity = Math.min(0, game.zoneVelocity * -0.3);
     }
 
@@ -3980,7 +3986,7 @@ function updateFishingMinigame(scene, time, delta) {
     game.fishVelocity = Phaser.Math.Clamp(game.fishVelocity, -tuning.maxSpeed, tuning.maxSpeed);
     game.fishY = Phaser.Math.Clamp(game.fishY + game.fishVelocity * seconds, fishHalfHeight, FISHING_GAME_PLAY_HEIGHT - fishHalfHeight);
 
-    const inside = game.fishY >= game.zoneY && game.fishY <= game.zoneY + game.zoneHeight;
+    const inside = game.fishY >= game.zoneY && game.fishY <= game.zoneY + zoneHeight;
     const rate = inside
         ? tuning.gainRate
         : -tuning.lossRate / fishing.rod.lineStrength;
@@ -4837,10 +4843,10 @@ function refreshStatsUI() {
     values[7] = openedChests.size;
     values[8] = discoveredChunks.size;
     for (let index = 0; index < statsValueTexts.length; index++) {
-        const element = statsValueTexts[index];
-        if (statsValueCache.get(element) === values[index]) continue;
-        setUITextContent(element, formatStatsValue(index, values[index]));
-        statsValueCache.set(element, values[index]);
+        const element = statsValueTexts[index], value = values[index];
+        if (statsValueCache.get(element) === value) continue;
+        setUITextContent(element, formatStatsValue(index, value));
+        statsValueCache.set(element, value);
     }
 }
 
@@ -5393,14 +5399,14 @@ function showRewardCard(scene, time, title, detail) {
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 
-    const card = [catchCardContainer, catchCardTextLayer];
+    const card = [catchCardContainer, catchCardTextLayer], hiddenY = CATCH_CARD_Y + 8;
 
     if (catchCardHideEvent) catchCardHideEvent.remove(false);
-    for (const target of card) target.setVisible(true).setY(CATCH_CARD_Y + 8);
+    for (const target of card) target.setVisible(true).setY(hiddenY);
     slidePanel(scene, CATCH_CARD_Y, 180, 'Cubic.Out', card);
 
     catchCardHideEvent = scene.time.delayedCall(CATCH_CARD_DURATION - 180, () => {
-        slidePanel(scene, CATCH_CARD_Y + 8, 180, 'Cubic.In', card, () => {
+        slidePanel(scene, hiddenY, 180, 'Cubic.In', card, () => {
             for (const target of card) target.setVisible(false);
         });
     });
@@ -6013,16 +6019,16 @@ function refreshGuideDialogueOptions() {
     const options = GUIDE_DIALOGUE[dialogueNode].options;
 
     dialogueOptionTexts.forEach((optionText, index) => {
-        const option = options[index];
+        const option = options[index], display = option ? 'block' : 'none';
 
-        optionText.style.display = option ? 'block' : 'none';
+        if (optionText.style.display !== display) optionText.style.display = display;
         if (!option) return;
 
         setUITextContent(optionText, option.label);
         optionText.style.color = index === selectedDialogueOption ? '#e0f2fd' : '#c0a887';
     });
 
-    dialogueHighlight.setY(DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP);
+    const highlightY = DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP; if (dialogueHighlight.y !== highlightY) dialogueHighlight.setY(highlightY);
 }
 
 function finishGuideDialogueText() {
@@ -6637,7 +6643,6 @@ const ROPE_CONSTRAINT_PASSES = 5;
 const BOBBER_LAND_TIME = 180;
 const BOBBER_BOB_TIME = 450;
 
-const SPLASH_PARTICLES = 8;
 const SPLASH_LIFETIME = 300;
 
 const FISHING_LINE_COLOR = 0xf6f5e5;
@@ -7558,6 +7563,74 @@ function moveCharacterAxis(scene, amountX, amountY, allowNudge) {
     return true;
 }
 
+let characterSlide = null;
+
+function canCharacterRun(scene, x, y, stepX, stepY) {
+    for (let step = 1; step <= CHARACTER_CORNER_NUDGE * 2; step++) {
+        if (!canCharacterOccupy(scene, x + stepX * step, y + stepY * step)) return false;
+    }
+
+    return true;
+}
+
+function findCharacterSlide(scene, moveX, moveY) {
+    for (let offset = 1; offset <= CHARACTER_CORNER_NUDGE; offset++) {
+        for (let side = -1; side <= 1; side += 2) {
+            for (let axis = 0; axis < 2; axis++) {
+                const dx = axis === 0 ? side : 0;
+                const dy = axis === 1 ? side : 0;
+                const fx = axis === 1 ? moveX : 0;
+                const fy = axis === 0 ? moveY : 0;
+                const x = character.x + dx * offset;
+                const y = character.y + dy * offset;
+                let clear = true;
+
+                for (let step = 1; step < offset; step++) {
+                    clear = clear && canCharacterOccupy(scene, character.x + dx * step, character.y + dy * step);
+                }
+
+                if (clear && canCharacterOccupy(scene, x, y) && canCharacterRun(scene, x, y, fx, fy)) {
+                    return { dx, dy, fx, fy, moveX, moveY, steps: offset };
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+function advanceCharacterSlide(scene) {
+    const slide = characterSlide;
+    const last = --slide.steps === 0;
+    const x = character.x + slide.dx + (last ? slide.fx : 0);
+    const y = character.y + slide.dy + (last ? slide.fy : 0);
+
+    const free = canCharacterOccupy(scene, x, y);
+
+    if (free) {
+        character.x = x;
+        character.y = y;
+    }
+
+    if (last || !free) characterSlide = null;
+}
+
+function moveCharacterBy(scene, wholeMoveX, wholeMoveY, moveX, moveY) {
+    if (characterSlide && (characterSlide.moveX !== moveX || characterSlide.moveY !== moveY)) characterSlide = null;
+    if (characterSlide) return advanceCharacterSlide(scene);
+
+    const blockedX = !moveCharacterAxis(scene, wholeMoveX, 0, moveY === 0);
+    const blockedY = !moveCharacterAxis(scene, 0, wholeMoveY, moveX === 0);
+
+    if (blockedX && blockedY && moveX !== 0 && moveY !== 0) {
+        characterSlide = findCharacterSlide(scene, moveX, moveY);
+        if (characterSlide) return advanceCharacterSlide(scene);
+    }
+
+    if (blockedX) characterMoveRemainderX = 0;
+    if (blockedY) characterMoveRemainderY = 0;
+}
+
 function setCharacterTexture(key) {
     if (key === characterTextureKey) return false;
 
@@ -7603,8 +7676,7 @@ function updateCharacter(scene, time, delta) {
 
         characterMoveRemainderX -= wholeMoveX;
         characterMoveRemainderY -= wholeMoveY;
-        if (!moveCharacterAxis(scene, wholeMoveX, 0, moveY === 0)) characterMoveRemainderX = 0;
-        if (!moveCharacterAxis(scene, 0, wholeMoveY, moveX === 0)) characterMoveRemainderY = 0;
+        moveCharacterBy(scene, wholeMoveX, wholeMoveY, moveX, moveY);
 
         const walkFrame = CHARACTER_WALK_FRAMES[Math.floor(characterWalkPhase) % 4];
 

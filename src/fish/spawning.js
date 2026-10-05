@@ -16,7 +16,8 @@ function spawnChunkFish(chunk) {
 }
 
 function getFishSpawnPool(waterArea) {
-    const threshold = fishSpawnThresholds.find(minWater => waterArea >= minWater);
+    let threshold;
+    for (const minWater of fishSpawnThresholds) if (waterArea >= minWater) { threshold = minWater; break; }
     const cached = fishSpawnPools.get(threshold);
     if (cached) return cached;
 

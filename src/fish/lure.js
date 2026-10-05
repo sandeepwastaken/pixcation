@@ -13,9 +13,9 @@ function updateHookedFish(fish, seconds, delta) {
     });
     const progress = fishing.game ? fishing.game.progress : 0;
     const [tipX, tipY] = getRodTip();
-    const pull = progress * HOOKED_REEL_PULL;
-    const targetX = fishing.toX + (tipX - fishing.toX) * pull;
-    const targetY = fishing.toY + (tipY - fishing.toY) * pull;
+    const pull = progress * HOOKED_REEL_PULL, castX = fishing.toX, castY = fishing.toY;
+    const targetX = castX + (tipX - castX) * pull;
+    const targetY = castY + (tipY - castY) * pull;
     const centerPull = Math.min(1, seconds * 2);
     const nextCenterX = spin.centerX + (targetX - spin.centerX) * centerPull;
     const nextCenterY = spin.centerY + (targetY - spin.centerY) * centerPull;

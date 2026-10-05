@@ -161,6 +161,74 @@ function moveCharacterAxis(scene, amountX, amountY, allowNudge) {
     return true;
 }
 
+let characterSlide = null;
+
+function canCharacterRun(scene, x, y, stepX, stepY) {
+    for (let step = 1; step <= CHARACTER_CORNER_NUDGE * 2; step++) {
+        if (!canCharacterOccupy(scene, x + stepX * step, y + stepY * step)) return false;
+    }
+
+    return true;
+}
+
+function findCharacterSlide(scene, moveX, moveY) {
+    for (let offset = 1; offset <= CHARACTER_CORNER_NUDGE; offset++) {
+        for (let side = -1; side <= 1; side += 2) {
+            for (let axis = 0; axis < 2; axis++) {
+                const dx = axis === 0 ? side : 0;
+                const dy = axis === 1 ? side : 0;
+                const fx = axis === 1 ? moveX : 0;
+                const fy = axis === 0 ? moveY : 0;
+                const x = character.x + dx * offset;
+                const y = character.y + dy * offset;
+                let clear = true;
+
+                for (let step = 1; step < offset; step++) {
+                    clear = clear && canCharacterOccupy(scene, character.x + dx * step, character.y + dy * step);
+                }
+
+                if (clear && canCharacterOccupy(scene, x, y) && canCharacterRun(scene, x, y, fx, fy)) {
+                    return { dx, dy, fx, fy, moveX, moveY, steps: offset };
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+function advanceCharacterSlide(scene) {
+    const slide = characterSlide;
+    const last = --slide.steps === 0;
+    const x = character.x + slide.dx + (last ? slide.fx : 0);
+    const y = character.y + slide.dy + (last ? slide.fy : 0);
+
+    const free = canCharacterOccupy(scene, x, y);
+
+    if (free) {
+        character.x = x;
+        character.y = y;
+    }
+
+    if (last || !free) characterSlide = null;
+}
+
+function moveCharacterBy(scene, wholeMoveX, wholeMoveY, moveX, moveY) {
+    if (characterSlide && (characterSlide.moveX !== moveX || characterSlide.moveY !== moveY)) characterSlide = null;
+    if (characterSlide) return advanceCharacterSlide(scene);
+
+    const blockedX = !moveCharacterAxis(scene, wholeMoveX, 0, moveY === 0);
+    const blockedY = !moveCharacterAxis(scene, 0, wholeMoveY, moveX === 0);
+
+    if (blockedX && blockedY && moveX !== 0 && moveY !== 0) {
+        characterSlide = findCharacterSlide(scene, moveX, moveY);
+        if (characterSlide) return advanceCharacterSlide(scene);
+    }
+
+    if (blockedX) characterMoveRemainderX = 0;
+    if (blockedY) characterMoveRemainderY = 0;
+}
+
 function setCharacterTexture(key) {
     if (key === characterTextureKey) return false;
 
@@ -206,8 +274,7 @@ function updateCharacter(scene, time, delta) {
 
         characterMoveRemainderX -= wholeMoveX;
         characterMoveRemainderY -= wholeMoveY;
-        if (!moveCharacterAxis(scene, wholeMoveX, 0, moveY === 0)) characterMoveRemainderX = 0;
-        if (!moveCharacterAxis(scene, 0, wholeMoveY, moveX === 0)) characterMoveRemainderY = 0;
+        moveCharacterBy(scene, wholeMoveX, wholeMoveY, moveX, moveY);
 
         const walkFrame = CHARACTER_WALK_FRAMES[Math.floor(characterWalkPhase) % 4];
 
