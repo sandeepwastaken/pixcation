@@ -59,7 +59,7 @@ function shadeWaterShorelines(scene, data, shorelineTiles) {
                 const baseWater = art[source] === waterRed && art[source + 1] === waterGreen &&
                     art[source + 2] === waterBlue;
 
-                if (!baseWater) data[target] = 128;
+                if (!baseWater) data[target] = 128, data[target + 2] = 1 + (art[source + 2] & 3);
             }
         }
     }

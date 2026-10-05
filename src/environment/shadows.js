@@ -182,7 +182,7 @@ function getGroundShadowColor(scene, worldX, worldY) {
 
     if (upper && upper[index + 3]) return shadeColor(upper[index], upper[index + 1], upper[index + 2]);
     if (!ground[index + 3]) return null;
-    if (tile.key.startsWith('grass') || tile.key === 'dirt1') return getTileShadowColor(scene, tile);
+    if (tile.key.startsWith('grass')) return getTileShadowColor(scene, tile);
 
     return shadeColor(ground[index], ground[index + 1], ground[index + 2]);
 }

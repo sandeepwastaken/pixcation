@@ -259,7 +259,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     if (fishShaded > 0.5) {
                         index = max(index - 2.0, 0.0);
                     } else if (shaded > 0.5) {
-                        index = max(index - 1.0, 0.0);
+                        index = max(index - (edgeCode > 3.5 && edgeCode < 4.5 ? 0.0 : 1.0 + (edgeCode > 1.5 && edgeCode < 2.5 || edgeCode > 2.5 && edgeCode < 3.5 && checker > 0.0 ? 1.0 : 0.0)), 0.0);
                     }
 
                     if (edgeCode > 250.0) {
@@ -1662,7 +1662,7 @@ function getStaticShadowMask(chunkX, chunkY) {
 }
 
 function isFlatShadowTile(tile) {
-    return !tile.patches && (tile.key.startsWith('grass') || tile.key === 'dirt1');
+    return !tile.patches && tile.key.startsWith('grass');
 }
 
 let detailedShadowScratch;
@@ -1823,7 +1823,7 @@ function shadeWaterShorelines(scene, data, shorelineTiles) {
                 const baseWater = art[source] === waterRed && art[source + 1] === waterGreen &&
                     art[source + 2] === waterBlue;
 
-                if (!baseWater) data[target] = 128;
+                if (!baseWater) data[target] = 128, data[target + 2] = 1 + (art[source + 2] & 3);
             }
         }
     }
@@ -2758,7 +2758,7 @@ function getGroundShadowColor(scene, worldX, worldY) {
 
     if (upper && upper[index + 3]) return shadeColor(upper[index], upper[index + 1], upper[index + 2]);
     if (!ground[index + 3]) return null;
-    if (tile.key.startsWith('grass') || tile.key === 'dirt1') return getTileShadowColor(scene, tile);
+    if (tile.key.startsWith('grass')) return getTileShadowColor(scene, tile);
 
     return shadeColor(ground[index], ground[index + 1], ground[index + 2]);
 }

@@ -70,7 +70,7 @@ function getStaticShadowMask(chunkX, chunkY) {
 }
 
 function isFlatShadowTile(tile) {
-    return !tile.patches && (tile.key.startsWith('grass') || tile.key === 'dirt1');
+    return !tile.patches && tile.key.startsWith('grass');
 }
 
 let detailedShadowScratch;
