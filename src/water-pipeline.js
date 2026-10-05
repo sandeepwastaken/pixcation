@@ -49,6 +49,8 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     if (index < 5.5) return vec3(0.435, 0.624, 0.812);
                     if (index < 6.5) return vec3(0.455, 0.662, 0.808);
                     if (index < 7.5) return vec3(0.490, 0.698, 0.808);
+                    if (index < 8.5) return vec3(0.560, 0.776, 0.843);
+                    if (index < 9.5) return vec3(0.675, 0.867, 0.898);
                     return vec3(0.820, 0.929, 0.945);
                 }
 
@@ -114,11 +116,11 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08 - max(0.0, shore - 10.0) * 0.02;
 
                     if (first > 0.9 && second > 0.9 && gate > 0.75) {
-                        index = min(index + 3.0, 7.0);
+                        index = 10.0;
                     } else if (first > 0.9 && second > 0.9 && gate > 0.6) {
-                        index = min(index + 2.0, 7.0);
+                        index = 9.0;
                     } else if (first > 0.9 && gate > 0.56) {
-                        index = min(index + (gate > 0.63 ? 2.0 : 1.0), 7.0);
+                        index = min(index + (gate > 0.63 ? 3.0 : 2.0), 8.0);
                     } else if (first > 0.4 && gate > 0.64) {
                         index = min(index + 1.0, 7.0);
                     }
@@ -166,9 +168,9 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         float edge = noise(vec2(p.x - frame, p.y + frame * 0.25) / 24.0 + vec2(41.0, 17.0));
 
                         if (edge >= 0.58 || edge >= 0.39 && edge < 0.42) {
-                            index = 8.0;
+                            index = 10.0;
                         } else if (edge >= 0.46) {
-                            index = 7.0;
+                            index = 8.0;
                         }
                     }
 
