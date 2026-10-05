@@ -6,7 +6,7 @@ function createStartup(scene) {
     character.setVisible(false);
     characterShadow.image.setVisible(false);
     const logoX = Math.round((320 - scene.textures.get('title-logo').getSourceImage().width) / 2);
-    const logoShadow = scene.add.image(logoX + 2, 42, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(799).setTintFill(0x230a03).setAlpha(0.55);
+    const logoShadow = scene.add.image(logoX + 2, 42, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(799).setTintFill(0xc4c4c4).setBlendMode(Phaser.BlendModes.MULTIPLY);
     const logo = scene.add.image(logoX, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
     const button = scene.add.image(112, 124, 'ui-button').setOrigin(0).setScrollFactor(0).setDepth(800);
     const text = createTextLayer(192);
