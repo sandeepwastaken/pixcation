@@ -52,7 +52,7 @@ test('logo animation skips unchanged pixels and restores altered positions witho
     const run = createView();
     run("for (const name of ['updateLoadedChunks', 'buildPendingChunk', 'updateCharacterShadow', 'updateBushRustle', 'updateChunkVisibility', 'updateTreeShadows', 'updateParticles', 'updateFish', 'updateChunkWater']) globalThis[name] = () => {}");
     run('let logoWrites = 0; let logoY = 40');
-    run("startup = { phase: 'title', start: 0, spawnX: 0, spawnY: 0, logo: { get y() { return logoY; }, set y(value) { logoWrites++; logoY = value; } } }");
+    run("startup = { phase: 'title', start: 0, spawnX: 0, spawnY: 0, logoShadow: { y: 0 }, logo: { get y() { return logoY; }, set y(value) { logoWrites++; logoY = value; } } }");
     run('updateStartup({}, 0, 16); updateStartup({}, 16, 16)');
     assert.equal(run('scrolls'), 1);
     assert.equal(run('logoWrites'), 0);

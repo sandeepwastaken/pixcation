@@ -5,7 +5,9 @@ function createStartup(scene) {
     for (const [child] of hud) child.setVisible(false);
     character.setVisible(false);
     characterShadow.image.setVisible(false);
-    const logo = scene.add.image(80, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
+    const logoX = Math.round((320 - scene.textures.get('title-logo').getSourceImage().width) / 2);
+    const logoShadow = scene.add.image(logoX + 2, 42, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(799).setTintFill(0x230a03).setAlpha(0.55);
+    const logo = scene.add.image(logoX, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
     const button = scene.add.image(112, 124, 'ui-button').setOrigin(0).setScrollFactor(0).setDepth(800);
     const text = createTextLayer(192);
     createUIText(text, 112, 127, '#e0f2fd', 96, 'center', { textShadow: '1px 1px #230a03' }).textContent = 'Start';
@@ -16,7 +18,7 @@ function createStartup(scene) {
     pattern.width = 4;
     pattern.height = 4;
     const fade = scene.add.image(0, 0, texture.key).setOrigin(0).setScrollFactor(0).setDepth(1000);
-    startup = { phase: 'title', start: scene.time.now, hud, logo, button, textLayer, texture, pattern, fade, level: -1, spawnX: character.x, spawnY: character.y };
+    startup = { phase: 'title', start: scene.time.now, hud, logo, logoShadow, button, textLayer, texture, pattern, fade, level: -1, spawnX: character.x, spawnY: character.y };
 }
 
 function beginStartup(time) {
@@ -53,7 +55,7 @@ function updateStartup(scene, time, delta) {
         const scrollY = Math.round(startup.spawnY + Math.sin(angle) * 72 - 96);
         if (mainCamera.scrollX !== scrollX || mainCamera.scrollY !== scrollY) mainCamera.setScroll(scrollX, scrollY);
         const hover = Math.round(Math.sin(age / 1000) * 2);
-        if (startup.logo.y !== 40 + hover) startup.logo.y = 40 + hover;
+        if (startup.logo.y !== 40 + hover) startup.logoShadow.y = (startup.logo.y = 40 + hover) + 2;
     } else if (startup.phase === 'closing') {
         drawStartupDither(Math.min(16, Math.floor(age / 45)));
         if (age >= 850) {
@@ -64,7 +66,7 @@ function updateStartup(scene, time, delta) {
             cameraScrollY = mainCamera.scrollY;
             cameraOffsetX = 0;
             cameraOffsetY = 0;
-            startup.logo.setVisible(false);
+            startup.logo.setVisible(false); startup.logoShadow.setVisible(false);
             startup.button.setVisible(false);
             for (const [child, visible] of startup.hud) {
                 if (child.type !== 'DOMElement') child.setVisible(visible);
@@ -77,7 +79,7 @@ function updateStartup(scene, time, delta) {
         drawStartupDither(Math.max(0, 16 - Math.floor(age / 45)));
         if (age >= 760) {
             for (const [child, visible] of startup.hud) child.setVisible(visible);
-            for (const child of [startup.logo, startup.button, startup.textLayer, startup.fade]) child.destroy();
+            for (const child of [startup.logo, startup.logoShadow, startup.button, startup.textLayer, startup.fade]) child.destroy();
             scene.textures.remove('startup-dither');
             startup = null;
             return;
