@@ -216,14 +216,14 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     if (reach > 12.0 && cluster > 0.42) index = clamp(index + (crestA + bayer * 0.03 > 0.66 ? 1.0 : 0.0) + (crestB + bayer * 0.03 > 0.7 ? 1.0 : 0.0), 0.0, 6.0);
                     float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
                     float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
-                    float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08 - max(0.0, shore - 10.0) * 0.012;
+                    float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08 - max(0.0, shore - 10.0) * 0.02;
 
                     if (first > 0.9 && second > 0.9 && gate > 0.75) {
-                        index = 8.0;
+                        index = min(index + 3.0, 7.0);
                     } else if (first > 0.9 && second > 0.9 && gate > 0.6) {
-                        index = 7.0;
+                        index = min(index + 2.0, 7.0);
                     } else if (first > 0.9 && gate > 0.56) {
-                        index = min(index + (gate > 0.63 ? 3.0 : 2.0), 7.0);
+                        index = min(index + (gate > 0.63 ? 2.0 : 1.0), 7.0);
                     } else if (first > 0.4 && gate > 0.64) {
                         index = min(index + 1.0, 7.0);
                     }
