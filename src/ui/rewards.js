@@ -22,14 +22,14 @@ function showRewardCard(scene, time, title, detail) {
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 
-    const card = [catchCardContainer, catchCardTextLayer];
+    const card = [catchCardContainer, catchCardTextLayer], hiddenY = CATCH_CARD_Y + 8;
 
     if (catchCardHideEvent) catchCardHideEvent.remove(false);
-    for (const target of card) target.setVisible(true).setY(CATCH_CARD_Y + 8);
+    for (const target of card) target.setVisible(true).setY(hiddenY);
     slidePanel(scene, CATCH_CARD_Y, 180, 'Cubic.Out', card);
 
     catchCardHideEvent = scene.time.delayedCall(CATCH_CARD_DURATION - 180, () => {
-        slidePanel(scene, CATCH_CARD_Y + 8, 180, 'Cubic.In', card, () => {
+        slidePanel(scene, hiddenY, 180, 'Cubic.In', card, () => {
             for (const target of card) target.setVisible(false);
         });
     });

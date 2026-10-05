@@ -1,12 +1,12 @@
 function chooseFishTarget(chunk, fish, awayX, awayY) {
     const fleeing = awayX !== undefined;
-    const heading = fleeing ? Math.atan2(awayY, awayX) : 0;
+    const heading = fleeing ? Math.atan2(awayY, awayX) : 0, fromX = fish.x, fromY = fish.y;
 
     for (let attempt = 0; attempt < 8; attempt++) {
         const angle = fleeing ? heading + (Math.random() - 0.5) * 1.2 : Math.random() * Math.PI * 2;
         const distance = fleeing ? 28 + Math.random() * 20 : 12 + Math.random() * 34;
-        const targetX = fish.x + Math.cos(angle) * distance;
-        const targetY = fish.y + Math.sin(angle) * distance;
+        const targetX = fromX + Math.cos(angle) * distance;
+        const targetY = fromY + Math.sin(angle) * distance;
 
         if (isFishPathClear(chunk, fish, targetX, targetY)) {
             fish.targetX = targetX;

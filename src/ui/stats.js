@@ -46,10 +46,10 @@ function refreshStatsUI() {
     values[7] = openedChests.size;
     values[8] = discoveredChunks.size;
     for (let index = 0; index < statsValueTexts.length; index++) {
-        const element = statsValueTexts[index];
-        if (statsValueCache.get(element) === values[index]) continue;
-        setUITextContent(element, formatStatsValue(index, values[index]));
-        statsValueCache.set(element, values[index]);
+        const element = statsValueTexts[index], value = values[index];
+        if (statsValueCache.get(element) === value) continue;
+        setUITextContent(element, formatStatsValue(index, value));
+        statsValueCache.set(element, value);
     }
 }
 

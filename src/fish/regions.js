@@ -50,7 +50,7 @@ function canFishSwim(chunk, fish, x, y) {
 
 function labelFishRegions(chunk) {
     const size = CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE;
-    const lastRowStart = size - CHUNK_PIXEL_SIZE;
+    const lastRowStart = size - CHUNK_PIXEL_SIZE, lastColumn = CHUNK_PIXEL_SIZE - 1;
     const labels = new Uint16Array(size);
     const depths = chunk.shoreDistances;
     const stack = fishRegionStack ||= new Int32Array(size);
@@ -80,7 +80,7 @@ function labelFishRegions(chunk) {
 
             pixels[pixelCount++] = pixel;
             if (x > 0 && deep(pixel - 1)) visit(pixel - 1);
-            if (x < CHUNK_PIXEL_SIZE - 1 && deep(pixel + 1)) visit(pixel + 1);
+            if (x < lastColumn && deep(pixel + 1)) visit(pixel + 1);
             if (pixel >= CHUNK_PIXEL_SIZE && deep(pixel - CHUNK_PIXEL_SIZE)) visit(pixel - CHUNK_PIXEL_SIZE);
             if (pixel < lastRowStart && deep(pixel + CHUNK_PIXEL_SIZE)) visit(pixel + CHUNK_PIXEL_SIZE);
         }
@@ -93,16 +93,17 @@ function labelFishRegions(chunk) {
 }
 
 function isFishPathClear(chunk, fish, targetX, targetY) {
-    const dx = targetX - fish.x;
-    const dy = targetY - fish.y;
+    const fromX = fish.x, fromY = fish.y;
+    const dx = targetX - fromX;
+    const dy = targetY - fromY;
     const distance = Math.hypot(dx, dy);
     const steps = Math.ceil(distance / 3);
 
     // Keep the endpoint arithmetic identical to the intermediate samples.
-    if (steps > 0 && !canFishSwim(chunk, fish, fish.x + dx * steps / steps, fish.y + dy * steps / steps)) return false;
+    if (steps > 0 && !canFishSwim(chunk, fish, fromX + dx * steps / steps, fromY + dy * steps / steps)) return false;
 
     for (let step = 1; step < steps; step++) {
-        if (!canFishSwim(chunk, fish, fish.x + dx * step / steps, fish.y + dy * step / steps)) return false;
+        if (!canFishSwim(chunk, fish, fromX + dx * step / steps, fromY + dy * step / steps)) return false;
     }
 
     return true;

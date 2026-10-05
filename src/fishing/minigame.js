@@ -62,7 +62,7 @@ function addCaughtFish(species, caught = true) {
 function updateFishingMinigame(scene, time, delta) {
     const game = fishing.game;
     const seconds = Math.min(delta, 34) / 1000;
-    const tuning = game.tuning;
+    const tuning = game.tuning, zoneHeight = game.zoneHeight;
     const fishHalfHeight = fishingFishMarker.height / 2;
 
     game.zoneVelocity += (fishingActionHeld ? -185 : 150) * seconds;
@@ -72,8 +72,8 @@ function updateFishingMinigame(scene, time, delta) {
     if (game.zoneY < 0) {
         game.zoneY = 0;
         game.zoneVelocity = Math.max(0, game.zoneVelocity * -0.25);
-    } else if (game.zoneY + game.zoneHeight > FISHING_GAME_PLAY_HEIGHT) {
-        game.zoneY = FISHING_GAME_PLAY_HEIGHT - game.zoneHeight;
+    } else if (game.zoneY + zoneHeight > FISHING_GAME_PLAY_HEIGHT) {
+        game.zoneY = FISHING_GAME_PLAY_HEIGHT - zoneHeight;
         game.zoneVelocity = Math.min(0, game.zoneVelocity * -0.3);
     }
 
@@ -89,7 +89,7 @@ function updateFishingMinigame(scene, time, delta) {
     game.fishVelocity = Phaser.Math.Clamp(game.fishVelocity, -tuning.maxSpeed, tuning.maxSpeed);
     game.fishY = Phaser.Math.Clamp(game.fishY + game.fishVelocity * seconds, fishHalfHeight, FISHING_GAME_PLAY_HEIGHT - fishHalfHeight);
 
-    const inside = game.fishY >= game.zoneY && game.fishY <= game.zoneY + game.zoneHeight;
+    const inside = game.fishY >= game.zoneY && game.fishY <= game.zoneY + zoneHeight;
     const rate = inside
         ? tuning.gainRate
         : -tuning.lossRate / fishing.rod.lineStrength;

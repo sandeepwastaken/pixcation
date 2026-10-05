@@ -124,12 +124,12 @@ function updateTreeShadows(scene, time) {
         if (chunk.treeShadowSignature === nextShadowSignature) continue;
         const points = new Set();
         for (const tree of shadowTrees) {
-            const x = tree.x;
+            const x = tree.x, y = tree.y;
             const shifts = getWindRows(tree.offset, tree.shadowHeight);
             for (let point = 0; point < tree.shadow.length; point += 2) {
-                const shift = shifts[tree.shadow[point + 1] - tree.shadowTop];
+                const shadowY = tree.shadow[point + 1], shift = shifts[shadowY - tree.shadowTop];
                 const localX = x + tree.shadow[point] + shift - left;
-                const localY = tree.y + tree.shadow[point + 1] - top;
+                const localY = y + shadowY - top;
                 if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) points.add(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }

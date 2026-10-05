@@ -37,7 +37,8 @@ function spawnShimmer(scene) {
 }
 
 function spawnChunkShimmer(scene, chunk) {
-    const cell = Math.floor(Math.random() * (chunk.waterCells.length / 4)) * 4;
+    const cells = chunk.waterCells;
+    const cell = Math.floor(Math.random() * (cells.length / 4)) * 4;
     let shimmer = shimmerPool.pop();
 
     if (!shimmer) {
@@ -48,8 +49,8 @@ function spawnChunkShimmer(scene, chunk) {
     shimmer.shimmerChunk = chunk;
     shimmer
         .setPosition(
-            chunk.waterCells[cell] + Phaser.Math.Between(0, chunk.waterCells[cell + 2] - 12),
-            chunk.waterCells[cell + 1] + Phaser.Math.Between(0, chunk.waterCells[cell + 3] - 1)
+            cells[cell] + Phaser.Math.Between(0, cells[cell + 2] - 12),
+            cells[cell + 1] + Phaser.Math.Between(0, cells[cell + 3] - 1)
         )
         .setVisible(true)
         .setActive(true);
