@@ -10,8 +10,8 @@ function createStartup(scene) {
     const logo = scene.add.image(logoX, 40, 'title-logo').setOrigin(0).setScrollFactor(0).setDepth(800);
     const button = scene.add.image(112, 124, 'ui-button').setOrigin(0).setScrollFactor(0).setDepth(800);
     const text = createTextLayer(192);
-    createUIText(text, 112, 127, '#e0f2fd', 96, 'center', { textShadow: '1px 1px #230a03' }).textContent = 'Start';
-    createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px #230a03' }).textContent = 'Enter / Space / Click to begin';
+    createUIText(text, 112, 127, '#acccf9', 96, 'center', { textShadow: '1px 1px #4a5059' }).textContent = 'Start';
+    createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(35, 10, 3, 0.45)' }).textContent = 'Enter / Space / Click to begin';
     const textLayer = addHudLayer(scene, text, 0, 801).setVisible(true);
     const texture = scene.textures.createCanvas('startup-dither', 320, 192);
     const pattern = document.createElement('canvas');
@@ -25,7 +25,6 @@ function beginStartup(time) {
     if (!startup || startup.phase !== 'title') return;
     startup.phase = 'closing';
     startup.start = time;
-    startup.textLayer.setVisible(false);
 }
 
 function drawStartupDither(level) {
@@ -58,6 +57,7 @@ function updateStartup(scene, time, delta) {
         if (startup.logo.y !== 40 + hover) startup.logoShadow.y = (startup.logo.y = 40 + hover) + 2;
     } else if (startup.phase === 'closing') {
         drawStartupDither(Math.min(16, Math.floor(age / 45)));
+        if (age >= 360) startup.textLayer.setVisible(false);
         if (age >= 850) {
             character.setPosition(startup.spawnX, startup.spawnY).setVisible(true);
             characterShadow.image.setVisible(true);
@@ -77,6 +77,7 @@ function updateStartup(scene, time, delta) {
         }
     } else {
         drawStartupDither(Math.max(0, 16 - Math.floor(age / 45)));
+        if (age >= 360 && !startup.interfaceShown && (startup.interfaceShown = true)) for (const [child, visible] of startup.hud) child.setVisible(visible);
         if (age >= 760) {
             for (const [child, visible] of startup.hud) child.setVisible(visible);
             for (const child of [startup.logo, startup.logoShadow, startup.button, startup.textLayer, startup.fade]) child.destroy();
