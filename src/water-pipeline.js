@@ -89,6 +89,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         max(0.0, shore - 15.0) * 0.012;
                     float light = fbm(p * 0.021 - warp * 0.9 + vec2(-t * 0.06, t * 0.04)) + checker * 0.016;
 
+                    float slope = fbm((p + vec2(0.0, 1.0)) * vec2(0.03, 0.2) + warp * 2.0 + vec2(t * 0.06, -t * 0.35)) - fbm(p * vec2(0.03, 0.2) + warp * 2.0 + vec2(t * 0.06, -t * 0.35));
                     float index = 3.0;
 
                     if (reach < 1.5) {
@@ -105,9 +106,11 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         index = 2.0;
                     }
 
+                    if (reach > 15.0) index = clamp(index + (slope < -0.045 ? 1.0 : slope > 0.045 ? -1.0 : 0.0), 0.0, 6.0);
+                    if (reach > 15.0 && slope < -0.11 && hash(p + floor(t * 3.0)) > 0.9) index = 7.0;
                     float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
                     float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
-                    float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08 - max(0.0, shore - 10.0) * 0.012;
+                    float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08 - max(0.0, shore - 10.0) * 0.02;
 
                     if (first > 0.9 && second > 0.9 && gate > 0.75) {
                         index = 8.0;
