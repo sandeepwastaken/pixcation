@@ -53,7 +53,7 @@ function refreshBaitSlot() {
 
     const bait = getActiveBait();
 
-    baitSlotImage.setVisible(Boolean(bait));
+    if (baitSlotImage.visible !== Boolean(bait)) baitSlotImage.setVisible(Boolean(bait));
     setUITextContent(baitCountText, bait ? baitInventory.get(bait.id) : '');
 
     if (bait && baitSlotImage.texture.key !== bait.icon) {

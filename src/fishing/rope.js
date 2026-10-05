@@ -65,7 +65,7 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
     let previousY;
     let water;
     let tileX;
-    let tileY;
+    let tileY, tileOriginX, tileOriginY;
     fishingWaterShadow.fillStyle(0x5a7eb6, 1);
     for (let index = 0; index < pixelPathLength; index++) {
         const amount = index / lastIndex;
@@ -80,10 +80,10 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
         const nextTileY = Math.floor(y / TILE_SIZE);
         if (nextTileX !== tileX || nextTileY !== tileY) {
             water = getTerrainSurface(scene, getWorldTile(nextTileX, nextTileY)).water;
-            tileX = nextTileX;
-            tileY = nextTileY;
+            tileX = nextTileX; tileOriginX = tileX * TILE_SIZE;
+            tileY = nextTileY; tileOriginY = tileY * TILE_SIZE;
         }
-        if (water[(y - tileY * TILE_SIZE) * TILE_SIZE + x - tileX * TILE_SIZE] !== 1) continue;
+        if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] !== 1) continue;
         fishingWaterShadow.fillRect(x, y, 1, 1);
     }
 }
@@ -113,12 +113,12 @@ function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
 
 function createFishingRope(fromX, fromY, toX, toY, lineLength) {
     const segmentCount = Math.max(2, Math.ceil(lineLength / ROPE_SEGMENT_LENGTH));
-    const points = [];
+    const points = [], spanX = toX - fromX, spanY = toY - fromY;
 
     for (let index = 0; index <= segmentCount; index++) {
         const amount = index / segmentCount;
-        const x = fromX + (toX - fromX) * amount;
-        const y = fromY + (toY - fromY) * amount;
+        const x = fromX + spanX * amount;
+        const y = fromY + spanY * amount;
 
         points.push({ x, y, oldX: x, oldY: y });
     }
@@ -135,7 +135,7 @@ function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
 
     rope.length += (targetLength - rope.length) * Math.min(1, seconds * (tautness ? 14 : 5));
     rope.segmentLength = rope.length / lastIndex;
-    const segmentLength = rope.segmentLength;
+    const segmentLength = rope.segmentLength, firstPoint = points[0], lastPoint = points[lastIndex];
 
     for (let index = 1; index < lastIndex; index++) {
         const point = points[index];
@@ -149,10 +149,10 @@ function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
     }
 
     for (let pass = 0; pass < ROPE_CONSTRAINT_PASSES; pass++) {
-        points[0].x = fromX;
-        points[0].y = fromY;
-        points[lastIndex].x = toX;
-        points[lastIndex].y = toY;
+        firstPoint.x = fromX;
+        firstPoint.y = fromY;
+        lastPoint.x = toX;
+        lastPoint.y = toY;
 
         for (let index = 0; index < lastIndex; index++) {
             const first = points[index];

@@ -11,7 +11,7 @@ function update(time, delta) {
 
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
-    if (character.depth !== character.y + CHARACTER_SIZE) character.setDepth(character.y + CHARACTER_SIZE);
+    const characterDepth = character.y + CHARACTER_SIZE; if (character.depth !== characterDepth) character.setDepth(characterDepth);
     updateCharacterShadow(this);
     updateParticles(time);
     updateFishing(this, time, delta, isWalking);

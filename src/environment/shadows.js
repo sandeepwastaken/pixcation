@@ -75,7 +75,7 @@ function buildShadowLut(scene) {
             if (other.luma >= color.luma || best && other.luma <= best.luma) continue;
             if (Math.abs(color.saturation - other.saturation) >= 0.14) continue;
 
-            const hueGap = Math.min(Math.abs(color.hue - other.hue), 360 - Math.abs(color.hue - other.hue));
+            const hueDifference = Math.abs(color.hue - other.hue), hueGap = Math.min(hueDifference, 360 - hueDifference);
             if (hueGap >= 24) continue;
 
             const dr = color.rgb[0] - other.rgb[0];
@@ -172,7 +172,7 @@ function getGroundShadowColor(scene, worldX, worldY) {
     const chunkX = Math.floor(tileX / CHUNK_SIZE);
     const chunkY = Math.floor(tileY / CHUNK_SIZE);
     const chunk = loadedChunks.get(getChunkKey(chunkX, chunkY));
-    const pixel = (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE;
+    const pixel = chunk ? (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE : 0;
 
     if (!chunk || chunk.shadowMask?.[pixel]) return null;
     if (isFlatShadowTile(tile)) return getTileShadowColor(scene, tile);

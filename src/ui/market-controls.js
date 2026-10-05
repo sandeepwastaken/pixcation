@@ -73,24 +73,24 @@ function refreshMarketOptions() {
     const rowColor = index => index === selectedMarketOption ? '#e0f2fd' : '#c0a887';
 
     setUITextContent(marketMessageText, `${Math.round(coinDisplay.value)}c`);
-    marketHighlight.setY(MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT);
+    const highlightY = MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT; if (marketHighlight.y !== highlightY) marketHighlight.setY(highlightY);
     marketTabTexts.forEach((tab, index) => tab.style.color = index === marketPage ? '#acccf9' : '#6f5b49');
 
     for (let index = 0; index < MARKET_ITEM_ROWS; index++) {
         const item = items[index];
         const owned = item && isMarketItemOwned(item);
-        const priceText = marketPriceTexts[index];
+        const priceText = marketPriceTexts[index], optionText = marketOptionTexts[index], image = marketItemImages[index];
 
         const label = item ? item.label : '';
-        setUITextContent(marketOptionTexts[index], label);
-        marketOptionTexts[index].style.color = owned && index !== selectedMarketOption ? '#7a6450' : rowColor(index);
+        setUITextContent(optionText, label);
+        optionText.style.color = owned && index !== selectedMarketOption ? '#7a6450' : rowColor(index);
         const price = !item ? '' : owned ? 'Owned' : `${item.price}c`;
         setUITextContent(priceText, price);
         priceText.style.color = owned ? '#8fbf7a' : item && playerCoins >= item.price ? '#e8c170' : '#9a5a47';
-        marketItemImages[index].setVisible(Boolean(item));
+        if (image.visible !== Boolean(item)) image.setVisible(Boolean(item));
         if (item) {
-            const image = marketItemImages[index];
-            if (image.texture.key !== item.icon) image.setTexture(item.icon);
+            const icon = item.icon;
+            if (image.texture.key !== icon) image.setTexture(icon);
             const tint = owned ? OWNED_ROD_TINT : 0xffffff;
             if (image.tintTopLeft !== tint) image.setTint(tint);
         }
@@ -100,7 +100,7 @@ function refreshMarketOptions() {
     marketOptionTexts[MARKET_EXIT_INDEX].style.color = rowColor(MARKET_EXIT_INDEX);
 
     const item = items[selectedMarketOption];
-    marketDetailImage.setVisible(Boolean(item));
+    if (marketDetailImage.visible !== Boolean(item)) marketDetailImage.setVisible(Boolean(item));
 
     if (selectedMarketOption === MARKET_SELL_INDEX) {
         const { count, value } = getFishInventorySummary();
@@ -202,7 +202,7 @@ function closeMarket(scene) {
 
 function handleMarketKey(scene, event) {
     const key = event.key.toLowerCase();
-    const step = getVerticalMenuStep(event);
+    const step = getVerticalMenuStep(event, key);
     const page = key === 'a' || event.key === 'ArrowLeft' ? -1 : key === 'd' || event.key === 'ArrowRight' ? 1 : 0;
 
     if (step) {

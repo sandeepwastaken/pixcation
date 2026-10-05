@@ -44,6 +44,7 @@ function shadeWaterDepth(data, shoreDistances, shadowMask) {
 }
 
 function shadeWaterShorelines(scene, data, shorelineTiles) {
+    const [waterRed, waterGreen, waterBlue] = WATER_BASE_COLOR;
     for (let tile = 0; tile < shorelineTiles.length; tile += 3) {
         const art = getTerrainPixels(scene, shorelineTiles[tile + 2]).data;
         const originX = shorelineTiles[tile] * TILE_SIZE;
@@ -55,8 +56,8 @@ function shadeWaterShorelines(scene, data, shorelineTiles) {
 
             for (let x = 0; x < TILE_SIZE; x++, source += 4, target += 4) {
                 if (!data[target] || !art[source + 3]) continue;
-                const baseWater = art[source] === WATER_BASE_COLOR[0] && art[source + 1] === WATER_BASE_COLOR[1] &&
-                    art[source + 2] === WATER_BASE_COLOR[2];
+                const baseWater = art[source] === waterRed && art[source + 1] === waterGreen &&
+                    art[source + 2] === waterBlue;
 
                 if (!baseWater) data[target] = 128;
             }
@@ -65,8 +66,9 @@ function shadeWaterShorelines(scene, data, shorelineTiles) {
 }
 
 function shadeWaterWood(data, woodMask) {
+    const maskOffset = WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
     for (let y = 0; woodMask && y < CHUNK_PIXEL_SIZE; y++) {
-        const maskRow = (y + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET) * WOOD_MASK_SIZE + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
+        const maskRow = (y + maskOffset) * WOOD_MASK_SIZE + maskOffset;
         let index = y * CHUNK_PIXEL_SIZE * 4;
 
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {

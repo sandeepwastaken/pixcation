@@ -1,11 +1,12 @@
 function canHoldProp(type, tileX, tileY) {
     const definition = PROP_TYPES[type];
     for (let offsetX = 0; offsetX < definition.width; offsetX++) {
-        const terrain = getTerrainType(tileX + offsetX, tileY);
+        const nearbyX = tileX + offsetX;
+        const terrain = getTerrainType(nearbyX, tileY);
         if (terrain !== 'grass' && (terrain !== 'dirt' || !definition.onDirt)) return false;
         if (type === 'bush') continue;
 
-        const tile = getWorldTile(tileX + offsetX, tileY);
+        const tile = getWorldTile(nearbyX, tileY);
         if (tile.blocking || tile.bridge || tile.key.startsWith('wood')) return false;
     }
 
@@ -105,11 +106,12 @@ function getPropCovering(tileX, tileY) {
 }
 
 function isTileClearOfProps(tileX, tileY) {
+    const firstTreeX = tileX - 2, lastTreeX = tileX + 1;
     if (getPropCovering(tileX, tileY)) return false;
 
     for (let offsetY = 1; offsetY <= TREE_CANOPY_TILES; offsetY++) {
         const treeY = tileY + offsetY;
-        for (let treeX = tileX - 2; treeX <= tileX + 1; treeX++) {
+        for (let treeX = firstTreeX; treeX <= lastTreeX; treeX++) {
             if (getPropAt(treeX, treeY) === 'tree') return false;
         }
     }

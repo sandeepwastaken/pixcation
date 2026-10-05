@@ -39,16 +39,16 @@ function valueNoise(worldX, worldY, scale, salt) {
     const scaledY = worldY / scale;
 
     const left = Math.floor(scaledX);
-    const top = Math.floor(scaledY);
+    const top = Math.floor(scaledY), right = left + 1, bottom = top + 1;
 
     const horizontalAmount = smoothNoiseAmount(scaledX - left);
     const verticalAmount = smoothNoiseAmount(scaledY - top);
 
     const seedHash = Math.imul(WORLD_SEED + salt, WORLD_HASH_MULTIPLIER);
     const topLeft = coordinateHash(left, top, seedHash);
-    const topRight = coordinateHash(left + 1, top, seedHash);
-    const bottomLeft = coordinateHash(left, top + 1, seedHash);
-    const bottomRight = coordinateHash(left + 1, top + 1, seedHash);
+    const topRight = coordinateHash(right, top, seedHash);
+    const bottomLeft = coordinateHash(left, bottom, seedHash);
+    const bottomRight = coordinateHash(right, bottom, seedHash);
 
     const topValue = topLeft + (topRight - topLeft) * horizontalAmount;
     const bottomValue = bottomLeft + (bottomRight - bottomLeft) * horizontalAmount;

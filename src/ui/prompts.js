@@ -64,11 +64,11 @@ function createInteractionPromptUI(scene) {
 function updateInteractionPrompt(scene, guideReach, marketReach) {
     if (!interactionPromptLayer) return;
 
-    const available = !isMenuOpen() && scene.time.now >= catchCardUntil;
+    const time = scene.time.now, available = !isMenuOpen() && time >= catchCardUntil;
     const target = available && (guideReach < 1 || marketReach < 1)
         ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
         : null;
-    const showItem = available && !target && scene.time.now < itemLabelUntil;
+    const showItem = available && !target && time < itemLabelUntil;
     const state = (target === 'market' ? 1 : 0) | (target === 'guide' ? 2 : 0) | (showItem ? 4 : 0);
 
     if (state === promptState) return;
