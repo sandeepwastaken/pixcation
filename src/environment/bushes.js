@@ -6,7 +6,7 @@ function getWindOffset(time, x, y, strength = 1, gust = 0.7 + 0.3 * Math.sin(tim
 }
 
 function getWindRowOffset(offset, y, height) {
-    return Math.round(offset * (height - 1 - y) / Math.max(1, height - 1));
+    return Math.round(offset * ((height - 1 - y) / Math.max(1, height - 1)) ** 2);
 }
 
 function getWindRows(offset, height) {

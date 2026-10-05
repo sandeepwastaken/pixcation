@@ -114,22 +114,22 @@ function createTreeShadow(puffs, centerX, centerY, height, edgeSalt) {
     const groundY = height - 1;
 
     for (const puff of puffs) {
-        const shadowX = centerX + (puff.x - centerX) * 0.8 + 3;
-        const shadowY = groundY + (puff.y - centerY) * 0.35;
-        const reachX = puff.radius * 0.85;
+        const shadowX = centerX + (puff.x - centerX) * 0.85 + 8;
+        const shadowY = groundY + 3 + (puff.y - centerY) * 0.4;
+        const reachX = puff.radius * 1.0;
         const reachY = puff.radius * 0.55;
 
         for (let y = Math.floor(shadowY - reachY); y <= Math.ceil(shadowY + reachY); y++) {
             const dy = (y + 0.5 - shadowY) / reachY;
             for (let x = Math.floor(shadowX - reachX); x <= Math.ceil(shadowX + reachX); x++) {
                 const dx = (x + 0.5 - shadowX) / reachX;
-                if (dx * dx + dy * dy <= 1 + (shadowHash(x, y) - 0.5) * 0.25) shadow.add(y * 1024 + x);
-            }
+                if (dx * dx + dy * dy <= 1 + (shadowHash(x, y) - 0.5) * 0.25) shadow.add(y * 1024 + x);            }
         }
     }
 
     const points = [];
-    for (const point of shadow) points.push(point % 1024, Math.floor(point / 1024));
+    const open = point => 4 - shadow.has(point - 1) - shadow.has(point + 1) - shadow.has(point - 1024) - shadow.has(point + 1024);
+    for (const point of shadow) if (shadowHash((point % 1024) >> 1, (point >> 10) >> 1) >= 0.22 * open(point) + 0.16) points.push(point % 1024, point >> 10);
     return points;
 }
 
