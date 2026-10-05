@@ -4808,30 +4808,33 @@ const playTimeFormatCache = { seconds: null, label: '' };
 const statsValueCache = new WeakMap();
 const statsValues = new Array(9);
 
-const STATS_BUTTON_SLICES = [0, 40, 80].flatMap((sx, column) => [[0, 6, 0], [8, 4, 6], [14, 6, 10]].map(([sy, height, dy]) => [sx, sy, 16, height, column * 16, dy]));
-
-function createStatsButtonTexture(scene) {
+function createSlicedTexture(scene, key, width, height) {
     const source = getTextureSource(scene, 'ui-button');
-    createCanvasTexture(scene, 'ui-stats-button', 48, 16, context => {
-        for (const [sx, sy, width, height, dx, dy] of STATS_BUTTON_SLICES) context.drawImage(source, sx, sy, width, height, dx, dy, width, height);
+    createCanvasTexture(scene, key, width, height, context => {
+        for (const [sx, sw, dx, dw] of [[0, 16, 0, 16], [40, 16, 16, width - 32], [80, 16, width - 16, 16]]) {
+            for (const [sy, sh, dy, dh] of [[0, 6, 0, 6], [8, 4, 6, height - 12], [14, 6, height - 6, 6]]) {
+                for (let y = 0; y < dh; y += sh) for (let x = 0; x < dw; x += sw) context.drawImage(source, sx, sy, Math.min(sw, dw - x), Math.min(sh, dh - y), dx + x, dy + y, Math.min(sw, dw - x), Math.min(sh, dh - y));
+            }
+        }
     });
 }
 
 function createStatsUI(scene) {
-    createStatsButtonTexture(scene);
+    createSlicedTexture(scene, 'ui-stats-button', 48, 16);
+    createSlicedTexture(scene, 'ui-stats-panel', 256, 144);
     statsButton = scene.add.image(264, 8, 'ui-stats-button').setOrigin(0).setScrollFactor(0).setDepth(210);
     const buttonText = createTextLayer(16, { width: '48px', fontSize: '11px', lineHeight: '11px' });
     createUIText(buttonText, 0, 2, '#e0f2fd', 48, 'center', { textShadow: '1px 1px #230a03' }).textContent = 'Stats';
     statsButtonTextLayer = addHudLayer(scene, buttonText, 8, 211).setX(264).setVisible(true);
-    statsContainer = scene.add.image(32, 24, 'stats-panel').setOrigin(0).setScrollFactor(0).setDepth(220).setVisible(false);
-    const text = createTextLayer(144, { color: '#000000', fontSize: '11px', lineHeight: '11px' });
-    createUIText(text, 44, 10, '#000000', 232, 'center', { fontSize: '16px' }).textContent = 'Your stats';
+    statsContainer = scene.add.image(32, 24, 'ui-stats-panel').setOrigin(0).setScrollFactor(0).setDepth(220).setVisible(false);
+    const text = createTextLayer(144, { color: '#e0f2fd', fontSize: '11px', lineHeight: '11px', textShadow: '1px 1px #230a03' });
+    createUIText(text, 44, 10, '#e0f2fd', 232, 'center', { fontSize: '16px', textShadow: '1px 1px #230a03' }).textContent = 'Your stats';
     const labels = ['Fish caught', 'Species discovered', 'Time playing', 'Total money earned', 'Fish sold', 'Casts made', 'Total money spent', 'Chests opened', 'Areas explored'];
     for (let index = 0; index < labels.length; index++) {
-        createUIText(text, 44, 30 + index * 11, '#000000', 156).textContent = labels[index];
-        statsValueTexts.push(createUIText(text, 200, 30 + index * 11, '#000000', 76, 'right'));
+        createUIText(text, 44, 30 + index * 11, '#e0f2fd', 156, 'left', { textShadow: '1px 1px #230a03' }).textContent = labels[index];
+        statsValueTexts.push(createUIText(text, 200, 30 + index * 11, '#e0f2fd', 76, 'right', { textShadow: '1px 1px #230a03' }));
     }
-    createUIText(text, 44, 129, '#000000', 232, 'center', { fontSize: '9px' }).textContent = 'Tab / Esc / Click outside to close';
+    createUIText(text, 44, 129, '#e0f2fd', 232, 'center', { fontSize: '9px', textShadow: '1px 1px #230a03' }).textContent = 'Tab / Esc / Click outside to close';
     statsTextLayer = addHudLayer(scene, text, 24, 221);
     refreshStatsUI();
 }
