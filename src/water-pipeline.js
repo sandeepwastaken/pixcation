@@ -154,7 +154,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     if (fishShaded > 0.5) {
                         index = max(index - 2.0, 0.0);
                     } else if (shaded > 0.5) {
-                        index = max(index - 1.0, 0.0);
+                        index = max(index - (edgeCode > 3.5 && edgeCode < 4.5 ? 0.0 : 1.0 + (edgeCode > 1.5 && edgeCode < 2.5 || edgeCode > 2.5 && edgeCode < 3.5 && checker > 0.0 ? 1.0 : 0.0)), 0.0);
                     }
 
                     if (edgeCode > 250.0) {
