@@ -4708,6 +4708,31 @@ function appendKeyHints(element, hints) {
 
 const STARTUP_DITHER_RANKS = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 
+const startupMaskCache = new Map();
+
+function getStartupMask(level) {
+    let url = startupMaskCache.get(level);
+    if (url) return url;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 4;
+    const context = canvas.getContext('2d');
+    for (let index = 0; index < 16; index++) if (STARTUP_DITHER_RANKS[index] >= level) context.fillRect(index % 4, index >> 2, 1, 1);
+    startupMaskCache.set(level, url = `url(${canvas.toDataURL()})`);
+    return url;
+}
+
+function maskStartupText(layer, level) {
+    const style = layer.node.style;
+    style.maskImage = style.webkitMaskImage = getStartupMask(level);
+    style.maskSize = style.webkitMaskSize = '4px 4px';
+    style.maskPosition = style.webkitMaskPosition = `${(4 - layer.x % 4) % 4}px ${(4 - layer.y % 4) % 4}px`;
+    style.imageRendering = 'pixelated';
+}
+
+function clearStartupMask(layer) {
+    layer.node.style.maskImage = layer.node.style.webkitMaskImage = '';
+}
+
 function createStartup(scene) {
     const hud = scene.children.list.filter(child => child.depth >= 100).map(child => [child, child.visible]);
     for (const [child] of hud) child.setVisible(false);
@@ -4738,6 +4763,8 @@ function beginStartup(time) {
 function drawStartupDither(level) {
     if (startup.level === level) return;
     startup.level = level;
+    if (startup.phase === 'closing') maskStartupText(startup.textLayer, level);
+    if (startup.phase === 'opening') for (const [child] of startup.hud) if (child.type === 'DOMElement') maskStartupText(child, level);
     const ranks = STARTUP_DITHER_RANKS;
     const context = startup.texture.getContext();
     const patternContext = startup.pattern.getContext('2d');
@@ -4765,7 +4792,6 @@ function updateStartup(scene, time, delta) {
         if (startup.logo.y !== 40 + hover) startup.logoShadow.y = (startup.logo.y = 40 + hover) + 2;
     } else if (startup.phase === 'closing') {
         drawStartupDither(Math.min(16, Math.floor(age / 45)));
-        if (age >= 360) startup.textLayer.setVisible(false);
         if (age >= 850) {
             character.setPosition(startup.spawnX, startup.spawnY).setVisible(true);
             characterShadow.image.setVisible(true);
@@ -4777,7 +4803,8 @@ function updateStartup(scene, time, delta) {
             startup.logo.setVisible(false); startup.logoShadow.setVisible(false);
             startup.button.setVisible(false);
             for (const [child, visible] of startup.hud) {
-                if (child.type !== 'DOMElement') child.setVisible(visible);
+                if (child.type === 'DOMElement') maskStartupText(child, 16);
+                child.setVisible(visible);
             }
             startup.phase = 'opening';
             startup.start = time;
@@ -4785,9 +4812,11 @@ function updateStartup(scene, time, delta) {
         }
     } else {
         drawStartupDither(Math.max(0, 16 - Math.floor(age / 45)));
-        if (age >= 360 && !startup.interfaceShown && (startup.interfaceShown = true)) for (const [child, visible] of startup.hud) child.setVisible(visible);
         if (age >= 760) {
-            for (const [child, visible] of startup.hud) child.setVisible(visible);
+            for (const [child, visible] of startup.hud) {
+                if (child.type === 'DOMElement') clearStartupMask(child);
+                child.setVisible(visible);
+            }
             for (const child of [startup.logo, startup.logoShadow, startup.button, startup.textLayer, startup.fade]) child.destroy();
             scene.textures.remove('startup-dither');
             startup = null;
