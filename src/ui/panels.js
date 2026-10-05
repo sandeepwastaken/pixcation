@@ -8,8 +8,8 @@ function stopCharacterForMenu() {
     setCharacterTexture(`character-${characterDirection}`);
 }
 
-function getVerticalMenuStep(event) {
-    const key = event.key.toLowerCase();
+function getVerticalMenuStep(event, normalizedKey) {
+    const key = normalizedKey ?? event.key.toLowerCase();
     return key === 'w' || event.key === 'ArrowUp' ? -1 : key === 's' || event.key === 'ArrowDown' ? 1 : 0;
 }
 

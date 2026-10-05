@@ -33,9 +33,9 @@ function getMapPalette(scene) {
 function getMapWaterDepth(tileX, tileY) {
     for (let radius = 1; radius <= 2; radius++) {
         for (let offsetY = -radius; offsetY <= radius; offsetY++) {
-            const edgeRow = offsetY === -radius || offsetY === radius;
-            for (let offsetX = -radius; offsetX <= radius; offsetX += edgeRow ? 1 : radius * 2) {
-                if (getTerrainType(tileX + offsetX, tileY + offsetY) !== 'water') {
+            const edgeRow = offsetY === -radius || offsetY === radius, nearbyY = tileY + offsetY, stride = edgeRow ? 1 : radius * 2;
+            for (let offsetX = -radius; offsetX <= radius; offsetX += stride) {
+                if (getTerrainType(tileX + offsetX, nearbyY) !== 'water') {
                     return radius - 1;
                 }
             }
@@ -110,12 +110,12 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
 
             const color = mapColors(tileX, tileY, generateMapTileColor);
             const left = viewX * zoom;
-            const right = Math.min(left + zoom, MAP_WIDTH);
+            const right = Math.min(left + zoom, MAP_WIDTH), singlePixel = right - left === 1;
 
             for (let y = top; y < bottom; y++) {
                 const row = y * MAP_WIDTH;
 
-                if (right - left === 1) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
+                if (singlePixel) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
             }
         }
     }
@@ -129,13 +129,13 @@ function drawMapMarker(pixels, x, y, width, height, fill, outline) {
     if (left >= right || top >= bottom) return;
 
     const insideLeft = Math.max(0, x);
-    const insideRight = Math.min(MAP_WIDTH, x + width);
+    const insideRight = Math.min(MAP_WIDTH, x + width), insideBottom = y + height;
 
     for (let plotY = top; plotY < bottom; plotY++) {
         const row = plotY * MAP_WIDTH;
         pixels.fill(outline, row + left, row + right);
 
-        if (plotY >= y && plotY < y + height && insideLeft < insideRight) {
+        if (plotY >= y && plotY < insideBottom && insideLeft < insideRight) {
             pixels.fill(fill, row + insideLeft, row + insideRight);
         }
     }

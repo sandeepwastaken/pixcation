@@ -41,15 +41,15 @@ function refreshInventoryUI(time) {
     setUITextContent(inventorySummaryText, `${catchLog.size}/${FISH_SPECIES.length} caught · ${summary.count} fish · ${summary.value}c`);
     inventorySummaryText.style.color = summary.count ? '#e8c170' : '#8c7358';
 
-    FISH_SPECIES.forEach((species, index) => {
-        const caught = catchLog.has(species.id);
-        const count = fishInventory.get(species.id) || 0;
+    for (let index = 0; index < FISH_SPECIES.length; index++) {
+        const species = FISH_SPECIES[index], caught = catchLog.has(species.id);
+        const count = fishInventory.get(species.id) || 0, rowText = inventoryRowTexts[index], countText = inventoryCountTexts[index];
 
-        setUITextContent(inventoryRowTexts[index], caught ? species.name : '???');
-        inventoryRowTexts[index].style.color = caught ? '#e0f2fd' : '#6f5b49';
-        setUITextContent(inventoryCountTexts[index], caught ? `x${count} ${species.price}c` : '—');
-        inventoryCountTexts[index].style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
-    });
+        setUITextContent(rowText, caught ? species.name : '???');
+        rowText.style.color = caught ? '#e0f2fd' : '#6f5b49';
+        setUITextContent(countText, caught ? `x${count} ${species.price}c` : '—');
+        countText.style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
+    }
 
     const confirming = time < newGameConfirmUntil;
 

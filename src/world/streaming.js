@@ -121,11 +121,12 @@ function updateChunkWater(time) {
 
         for (const fish of chunk.fish) {
             if (count >= FISH_MAX_VISIBLE) break fishChunks;
-            if (fish.x < left || fish.x > right || fish.y < top || fish.y > bottom) continue;
+            const x = fish.x, y = fish.y;
+            if (x < left || x > right || y < top || y > bottom) continue;
             const offset = count * 4;
 
-            fishUniforms[offset] = Math.round(fish.x);
-            fishUniforms[offset + 1] = Math.round(fish.y);
+            fishUniforms[offset] = Math.round(x);
+            fishUniforms[offset + 1] = Math.round(y);
             fishUniforms[offset + 2] = Math.cos(fish.heading);
             fishUniforms[offset + 3] = Math.sin(fish.heading);
             fishShapeUniforms[offset] = fish.length;

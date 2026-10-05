@@ -839,16 +839,16 @@ function valueNoise(worldX, worldY, scale, salt) {
     const scaledY = worldY / scale;
 
     const left = Math.floor(scaledX);
-    const top = Math.floor(scaledY);
+    const top = Math.floor(scaledY), right = left + 1, bottom = top + 1;
 
     const horizontalAmount = smoothNoiseAmount(scaledX - left);
     const verticalAmount = smoothNoiseAmount(scaledY - top);
 
     const seedHash = Math.imul(WORLD_SEED + salt, WORLD_HASH_MULTIPLIER);
     const topLeft = coordinateHash(left, top, seedHash);
-    const topRight = coordinateHash(left + 1, top, seedHash);
-    const bottomLeft = coordinateHash(left, top + 1, seedHash);
-    const bottomRight = coordinateHash(left + 1, top + 1, seedHash);
+    const topRight = coordinateHash(right, top, seedHash);
+    const bottomLeft = coordinateHash(left, bottom, seedHash);
+    const bottomRight = coordinateHash(right, bottom, seedHash);
 
     const topValue = topLeft + (topRight - topLeft) * horizontalAmount;
     const bottomValue = bottomLeft + (bottomRight - bottomLeft) * horizontalAmount;
@@ -1807,6 +1807,7 @@ function shadeWaterDepth(data, shoreDistances, shadowMask) {
 }
 
 function shadeWaterShorelines(scene, data, shorelineTiles) {
+    const [waterRed, waterGreen, waterBlue] = WATER_BASE_COLOR;
     for (let tile = 0; tile < shorelineTiles.length; tile += 3) {
         const art = getTerrainPixels(scene, shorelineTiles[tile + 2]).data;
         const originX = shorelineTiles[tile] * TILE_SIZE;
@@ -1818,8 +1819,8 @@ function shadeWaterShorelines(scene, data, shorelineTiles) {
 
             for (let x = 0; x < TILE_SIZE; x++, source += 4, target += 4) {
                 if (!data[target] || !art[source + 3]) continue;
-                const baseWater = art[source] === WATER_BASE_COLOR[0] && art[source + 1] === WATER_BASE_COLOR[1] &&
-                    art[source + 2] === WATER_BASE_COLOR[2];
+                const baseWater = art[source] === waterRed && art[source + 1] === waterGreen &&
+                    art[source + 2] === waterBlue;
 
                 if (!baseWater) data[target] = 128;
             }
@@ -1828,8 +1829,9 @@ function shadeWaterShorelines(scene, data, shorelineTiles) {
 }
 
 function shadeWaterWood(data, woodMask) {
+    const maskOffset = WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
     for (let y = 0; woodMask && y < CHUNK_PIXEL_SIZE; y++) {
-        const maskRow = (y + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET) * WOOD_MASK_SIZE + WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
+        const maskRow = (y + maskOffset) * WOOD_MASK_SIZE + maskOffset;
         let index = y * CHUNK_PIXEL_SIZE * 4;
 
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
@@ -2244,11 +2246,12 @@ function updateChunkWater(time) {
 
         for (const fish of chunk.fish) {
             if (count >= FISH_MAX_VISIBLE) break fishChunks;
-            if (fish.x < left || fish.x > right || fish.y < top || fish.y > bottom) continue;
+            const x = fish.x, y = fish.y;
+            if (x < left || x > right || y < top || y > bottom) continue;
             const offset = count * 4;
 
-            fishUniforms[offset] = Math.round(fish.x);
-            fishUniforms[offset + 1] = Math.round(fish.y);
+            fishUniforms[offset] = Math.round(x);
+            fishUniforms[offset + 1] = Math.round(y);
             fishUniforms[offset + 2] = Math.cos(fish.heading);
             fishUniforms[offset + 3] = Math.sin(fish.heading);
             fishShapeUniforms[offset] = fish.length;
@@ -2327,11 +2330,12 @@ function spawnChunkShimmer(scene, chunk) {
 function canHoldProp(type, tileX, tileY) {
     const definition = PROP_TYPES[type];
     for (let offsetX = 0; offsetX < definition.width; offsetX++) {
-        const terrain = getTerrainType(tileX + offsetX, tileY);
+        const nearbyX = tileX + offsetX;
+        const terrain = getTerrainType(nearbyX, tileY);
         if (terrain !== 'grass' && (terrain !== 'dirt' || !definition.onDirt)) return false;
         if (type === 'bush') continue;
 
-        const tile = getWorldTile(tileX + offsetX, tileY);
+        const tile = getWorldTile(nearbyX, tileY);
         if (tile.blocking || tile.bridge || tile.key.startsWith('wood')) return false;
     }
 
@@ -2431,11 +2435,12 @@ function getPropCovering(tileX, tileY) {
 }
 
 function isTileClearOfProps(tileX, tileY) {
+    const firstTreeX = tileX - 2, lastTreeX = tileX + 1;
     if (getPropCovering(tileX, tileY)) return false;
 
     for (let offsetY = 1; offsetY <= TREE_CANOPY_TILES; offsetY++) {
         const treeY = tileY + offsetY;
-        for (let treeX = tileX - 2; treeX <= tileX + 1; treeX++) {
+        for (let treeX = firstTreeX; treeX <= lastTreeX; treeX++) {
             if (getPropAt(treeX, treeY) === 'tree') return false;
         }
     }
@@ -2642,7 +2647,7 @@ function buildShadowLut(scene) {
             if (other.luma >= color.luma || best && other.luma <= best.luma) continue;
             if (Math.abs(color.saturation - other.saturation) >= 0.14) continue;
 
-            const hueGap = Math.min(Math.abs(color.hue - other.hue), 360 - Math.abs(color.hue - other.hue));
+            const hueDifference = Math.abs(color.hue - other.hue), hueGap = Math.min(hueDifference, 360 - hueDifference);
             if (hueGap >= 24) continue;
 
             const dr = color.rgb[0] - other.rgb[0];
@@ -2739,7 +2744,7 @@ function getGroundShadowColor(scene, worldX, worldY) {
     const chunkX = Math.floor(tileX / CHUNK_SIZE);
     const chunkY = Math.floor(tileY / CHUNK_SIZE);
     const chunk = loadedChunks.get(getChunkKey(chunkX, chunkY));
-    const pixel = (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE;
+    const pixel = chunk ? (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE : 0;
 
     if (!chunk || chunk.shadowMask?.[pixel]) return null;
     if (isFlatShadowTile(tile)) return getTileShadowColor(scene, tile);
@@ -2788,13 +2793,14 @@ function kickUpDust(scene, time, moveX, moveY) {
 }
 
 function dropLeaves(scene, time, bush) {
+    const originX = bush.x + BUSH_FOOTPRINT_LEFT, originY = bush.y - BUSH_FOOTPRINT_HEIGHT, depth = bush.y + 1;
     for (let index = 0; index < LEAVES_PER_RUSTLE; index++) {
         spawnParticle(
             scene, worldObjectLayer, time,
-            bush.x + BUSH_FOOTPRINT_LEFT + Math.floor(Math.random() * (BUSH_FOOTPRINT_RIGHT - BUSH_FOOTPRINT_LEFT)),
-            bush.y - BUSH_FOOTPRINT_HEIGHT + Math.floor(Math.random() * 4),
+            originX + Math.floor(Math.random() * (BUSH_FOOTPRINT_RIGHT - BUSH_FOOTPRINT_LEFT)),
+            originY + Math.floor(Math.random() * 4),
             Math.random() < 0.5 ? -1 : 1, 1, LEAF_LIFETIME,
-            LEAF_COLORS[index % LEAF_COLORS.length], bush.y + 1
+            LEAF_COLORS[index % LEAF_COLORS.length], depth
         );
     }
 }
@@ -3622,8 +3628,8 @@ function getRodHand(direction = getCastDirection()) {
     return rodHandPosition;
 }
 
-function getRodTip(time) {
-    const direction = getCastDirection();
+function getRodTip(time, castDirection) {
+    const direction = castDirection || getCastDirection();
     const [directionX, directionY] = direction;
     const [handX, handY] = getRodHand(direction);
 
@@ -3796,7 +3802,7 @@ function spawnLineSnap(scene, time, rope) {
     const points = rope.points;
     const lastIndex = Math.max(1, points.length - 1);
     const stride = Math.max(1, Math.floor(points.length / 9));
-    const palette = fishing?.rod?.linePalette;
+    const palette = fishing?.rod?.linePalette, minimumDepth = character.depth + 0.2;
 
     for (let index = stride; index < points.length; index += stride) {
         const point = points[index];
@@ -3805,7 +3811,7 @@ function spawnLineSnap(scene, time, rope) {
 
         spawnParticle(
             scene, worldObjectLayer, time, Math.round(point.x), Math.round(point.y),
-            index % 2 ? -1 : 1, 1, 300, color, Math.max(character.depth + 0.2, point.y)
+            index % 2 ? -1 : 1, 1, 300, color, Math.max(minimumDepth, point.y)
         );
     }
 }
@@ -3838,8 +3844,8 @@ function releaseCast(time) {
     if (!hasRodSelected() || isMenuOpen()) return;
 
     const rod = getSelectedRod();
-    const [directionX, directionY] = getCastDirection();
-    const [tipX, tipY] = getRodTip();
+    const direction = getCastDirection(), [directionX, directionY] = direction;
+    const [tipX, tipY] = getRodTip(undefined, direction);
     const distance = CAST_MIN_DISTANCE + (rod.castDistance - CAST_MIN_DISTANCE) * power;
 
     fishing = {
@@ -4051,7 +4057,7 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
     let previousY;
     let water;
     let tileX;
-    let tileY;
+    let tileY, tileOriginX, tileOriginY;
     fishingWaterShadow.fillStyle(0x5a7eb6, 1);
     for (let index = 0; index < pixelPathLength; index++) {
         const amount = index / lastIndex;
@@ -4066,10 +4072,10 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
         const nextTileY = Math.floor(y / TILE_SIZE);
         if (nextTileX !== tileX || nextTileY !== tileY) {
             water = getTerrainSurface(scene, getWorldTile(nextTileX, nextTileY)).water;
-            tileX = nextTileX;
-            tileY = nextTileY;
+            tileX = nextTileX; tileOriginX = tileX * TILE_SIZE;
+            tileY = nextTileY; tileOriginY = tileY * TILE_SIZE;
         }
-        if (water[(y - tileY * TILE_SIZE) * TILE_SIZE + x - tileX * TILE_SIZE] !== 1) continue;
+        if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] !== 1) continue;
         fishingWaterShadow.fillRect(x, y, 1, 1);
     }
 }
@@ -4099,12 +4105,12 @@ function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
 
 function createFishingRope(fromX, fromY, toX, toY, lineLength) {
     const segmentCount = Math.max(2, Math.ceil(lineLength / ROPE_SEGMENT_LENGTH));
-    const points = [];
+    const points = [], spanX = toX - fromX, spanY = toY - fromY;
 
     for (let index = 0; index <= segmentCount; index++) {
         const amount = index / segmentCount;
-        const x = fromX + (toX - fromX) * amount;
-        const y = fromY + (toY - fromY) * amount;
+        const x = fromX + spanX * amount;
+        const y = fromY + spanY * amount;
 
         points.push({ x, y, oldX: x, oldY: y });
     }
@@ -4121,7 +4127,7 @@ function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
 
     rope.length += (targetLength - rope.length) * Math.min(1, seconds * (tautness ? 14 : 5));
     rope.segmentLength = rope.length / lastIndex;
-    const segmentLength = rope.segmentLength;
+    const segmentLength = rope.segmentLength, firstPoint = points[0], lastPoint = points[lastIndex];
 
     for (let index = 1; index < lastIndex; index++) {
         const point = points[index];
@@ -4135,10 +4141,10 @@ function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
     }
 
     for (let pass = 0; pass < ROPE_CONSTRAINT_PASSES; pass++) {
-        points[0].x = fromX;
-        points[0].y = fromY;
-        points[lastIndex].x = toX;
-        points[lastIndex].y = toY;
+        firstPoint.x = fromX;
+        firstPoint.y = fromY;
+        lastPoint.x = toX;
+        lastPoint.y = toY;
 
         for (let index = 0; index < lastIndex; index++) {
             const first = points[index];
@@ -4920,8 +4926,8 @@ function drawFishingMinigame() {
     const playY = FISHING_GAME_Y + FISHING_GAME_PLAY_TOP;
     const progressHeight = Math.max(1, Math.round(FISHING_GAME_PLAY_HEIGHT * gameState.progress));
     const zoneY = playY + Math.round(gameState.zoneY);
-    const fishY = playY + Math.round(gameState.fishY);
-    const zoneHeight = Math.round(gameState.zoneHeight);
+    const fishY = playY + Math.round(gameState.fishY), fishX = playX + 4;
+    const zoneHeight = Math.round(gameState.zoneHeight), zoneBottomY = zoneY + zoneHeight - 3;
     const middleHeight = Math.max(1, zoneHeight - 6);
 
     if (!fishingMinigameVisible) {
@@ -4931,16 +4937,16 @@ function drawFishingMinigame() {
     }
 
     if (fishingCatchZoneTop.x !== playX || fishingCatchZoneTop.y !== zoneY ||
-        fishingCatchZoneBottom.y !== zoneY + zoneHeight - 3) {
+        fishingCatchZoneBottom.y !== zoneBottomY) {
         fishingCatchZoneTop.setPosition(playX, zoneY);
         fishingCatchZoneMiddle.setPosition(playX, zoneY + 3);
-        fishingCatchZoneBottom.setPosition(playX, zoneY + zoneHeight - 3);
+        fishingCatchZoneBottom.setPosition(playX, zoneBottomY);
     }
     if (fishingCatchZoneMiddle.displayWidth !== 8 || fishingCatchZoneMiddle.displayHeight !== middleHeight) {
         fishingCatchZoneMiddle.setDisplaySize(8, middleHeight);
     }
-    if (fishingFishMarker.x !== playX + 4 || fishingFishMarker.y !== fishY) {
-        fishingFishMarker.setPosition(playX + 4, fishY);
+    if (fishingFishMarker.x !== fishX || fishingFishMarker.y !== fishY) {
+        fishingFishMarker.setPosition(fishX, fishY);
     }
     if (progressHeight !== fishingProgressHeight) {
         fishingProgressHeight = progressHeight;
@@ -5039,9 +5045,9 @@ function getMapPalette(scene) {
 function getMapWaterDepth(tileX, tileY) {
     for (let radius = 1; radius <= 2; radius++) {
         for (let offsetY = -radius; offsetY <= radius; offsetY++) {
-            const edgeRow = offsetY === -radius || offsetY === radius;
-            for (let offsetX = -radius; offsetX <= radius; offsetX += edgeRow ? 1 : radius * 2) {
-                if (getTerrainType(tileX + offsetX, tileY + offsetY) !== 'water') {
+            const edgeRow = offsetY === -radius || offsetY === radius, nearbyY = tileY + offsetY, stride = edgeRow ? 1 : radius * 2;
+            for (let offsetX = -radius; offsetX <= radius; offsetX += stride) {
+                if (getTerrainType(tileX + offsetX, nearbyY) !== 'water') {
                     return radius - 1;
                 }
             }
@@ -5116,12 +5122,12 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
 
             const color = mapColors(tileX, tileY, generateMapTileColor);
             const left = viewX * zoom;
-            const right = Math.min(left + zoom, MAP_WIDTH);
+            const right = Math.min(left + zoom, MAP_WIDTH), singlePixel = right - left === 1;
 
             for (let y = top; y < bottom; y++) {
                 const row = y * MAP_WIDTH;
 
-                if (right - left === 1) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
+                if (singlePixel) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
             }
         }
     }
@@ -5135,13 +5141,13 @@ function drawMapMarker(pixels, x, y, width, height, fill, outline) {
     if (left >= right || top >= bottom) return;
 
     const insideLeft = Math.max(0, x);
-    const insideRight = Math.min(MAP_WIDTH, x + width);
+    const insideRight = Math.min(MAP_WIDTH, x + width), insideBottom = y + height;
 
     for (let plotY = top; plotY < bottom; plotY++) {
         const row = plotY * MAP_WIDTH;
         pixels.fill(outline, row + left, row + right);
 
-        if (plotY >= y && plotY < y + height && insideLeft < insideRight) {
+        if (plotY >= y && plotY < insideBottom && insideLeft < insideRight) {
             pixels.fill(fill, row + insideLeft, row + insideRight);
         }
     }
@@ -5190,8 +5196,8 @@ function stopCharacterForMenu() {
     setCharacterTexture(`character-${characterDirection}`);
 }
 
-function getVerticalMenuStep(event) {
-    const key = event.key.toLowerCase();
+function getVerticalMenuStep(event, normalizedKey) {
+    const key = normalizedKey ?? event.key.toLowerCase();
     return key === 'w' || event.key === 'ArrowUp' ? -1 : key === 's' || event.key === 'ArrowDown' ? 1 : 0;
 }
 
@@ -5305,15 +5311,15 @@ function refreshInventoryUI(time) {
     setUITextContent(inventorySummaryText, `${catchLog.size}/${FISH_SPECIES.length} caught · ${summary.count} fish · ${summary.value}c`);
     inventorySummaryText.style.color = summary.count ? '#e8c170' : '#8c7358';
 
-    FISH_SPECIES.forEach((species, index) => {
-        const caught = catchLog.has(species.id);
-        const count = fishInventory.get(species.id) || 0;
+    for (let index = 0; index < FISH_SPECIES.length; index++) {
+        const species = FISH_SPECIES[index], caught = catchLog.has(species.id);
+        const count = fishInventory.get(species.id) || 0, rowText = inventoryRowTexts[index], countText = inventoryCountTexts[index];
 
-        setUITextContent(inventoryRowTexts[index], caught ? species.name : '???');
-        inventoryRowTexts[index].style.color = caught ? '#e0f2fd' : '#6f5b49';
-        setUITextContent(inventoryCountTexts[index], caught ? `x${count} ${species.price}c` : '—');
-        inventoryCountTexts[index].style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
-    });
+        setUITextContent(rowText, caught ? species.name : '???');
+        rowText.style.color = caught ? '#e0f2fd' : '#6f5b49';
+        setUITextContent(countText, caught ? `x${count} ${species.price}c` : '—');
+        countText.style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
+    }
 
     const confirming = time < newGameConfirmUntil;
 
@@ -5466,11 +5472,11 @@ function createInteractionPromptUI(scene) {
 function updateInteractionPrompt(scene, guideReach, marketReach) {
     if (!interactionPromptLayer) return;
 
-    const available = !isMenuOpen() && scene.time.now >= catchCardUntil;
+    const time = scene.time.now, available = !isMenuOpen() && time >= catchCardUntil;
     const target = available && (guideReach < 1 || marketReach < 1)
         ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
         : null;
-    const showItem = available && !target && scene.time.now < itemLabelUntil;
+    const showItem = available && !target && time < itemLabelUntil;
     const state = (target === 'market' ? 1 : 0) | (target === 'guide' ? 2 : 0) | (showItem ? 4 : 0);
 
     if (state === promptState) return;
@@ -5634,7 +5640,7 @@ function refreshBaitSlot() {
 
     const bait = getActiveBait();
 
-    baitSlotImage.setVisible(Boolean(bait));
+    if (baitSlotImage.visible !== Boolean(bait)) baitSlotImage.setVisible(Boolean(bait));
     setUITextContent(baitCountText, bait ? baitInventory.get(bait.id) : '');
 
     if (bait && baitSlotImage.texture.key !== bait.icon) {
@@ -5800,24 +5806,24 @@ function refreshMarketOptions() {
     const rowColor = index => index === selectedMarketOption ? '#e0f2fd' : '#c0a887';
 
     setUITextContent(marketMessageText, `${Math.round(coinDisplay.value)}c`);
-    marketHighlight.setY(MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT);
+    const highlightY = MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT; if (marketHighlight.y !== highlightY) marketHighlight.setY(highlightY);
     marketTabTexts.forEach((tab, index) => tab.style.color = index === marketPage ? '#acccf9' : '#6f5b49');
 
     for (let index = 0; index < MARKET_ITEM_ROWS; index++) {
         const item = items[index];
         const owned = item && isMarketItemOwned(item);
-        const priceText = marketPriceTexts[index];
+        const priceText = marketPriceTexts[index], optionText = marketOptionTexts[index], image = marketItemImages[index];
 
         const label = item ? item.label : '';
-        setUITextContent(marketOptionTexts[index], label);
-        marketOptionTexts[index].style.color = owned && index !== selectedMarketOption ? '#7a6450' : rowColor(index);
+        setUITextContent(optionText, label);
+        optionText.style.color = owned && index !== selectedMarketOption ? '#7a6450' : rowColor(index);
         const price = !item ? '' : owned ? 'Owned' : `${item.price}c`;
         setUITextContent(priceText, price);
         priceText.style.color = owned ? '#8fbf7a' : item && playerCoins >= item.price ? '#e8c170' : '#9a5a47';
-        marketItemImages[index].setVisible(Boolean(item));
+        if (image.visible !== Boolean(item)) image.setVisible(Boolean(item));
         if (item) {
-            const image = marketItemImages[index];
-            if (image.texture.key !== item.icon) image.setTexture(item.icon);
+            const icon = item.icon;
+            if (image.texture.key !== icon) image.setTexture(icon);
             const tint = owned ? OWNED_ROD_TINT : 0xffffff;
             if (image.tintTopLeft !== tint) image.setTint(tint);
         }
@@ -5827,7 +5833,7 @@ function refreshMarketOptions() {
     marketOptionTexts[MARKET_EXIT_INDEX].style.color = rowColor(MARKET_EXIT_INDEX);
 
     const item = items[selectedMarketOption];
-    marketDetailImage.setVisible(Boolean(item));
+    if (marketDetailImage.visible !== Boolean(item)) marketDetailImage.setVisible(Boolean(item));
 
     if (selectedMarketOption === MARKET_SELL_INDEX) {
         const { count, value } = getFishInventorySummary();
@@ -5929,7 +5935,7 @@ function closeMarket(scene) {
 
 function handleMarketKey(scene, event) {
     const key = event.key.toLowerCase();
-    const step = getVerticalMenuStep(event);
+    const step = getVerticalMenuStep(event, key);
     const page = key === 'a' || event.key === 'ArrowLeft' ? -1 : key === 'd' || event.key === 'ArrowRight' ? 1 : 0;
 
     if (step) {
@@ -7645,7 +7651,7 @@ function update(time, delta) {
 
     character.x = Math.round(character.x);
     character.y = Math.round(character.y);
-    if (character.depth !== character.y + CHARACTER_SIZE) character.setDepth(character.y + CHARACTER_SIZE);
+    const characterDepth = character.y + CHARACTER_SIZE; if (character.depth !== characterDepth) character.setDepth(characterDepth);
     updateCharacterShadow(this);
     updateParticles(time);
     updateFishing(this, time, delta, isWalking);

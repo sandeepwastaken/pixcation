@@ -54,8 +54,8 @@ function drawFishingMinigame() {
     const playY = FISHING_GAME_Y + FISHING_GAME_PLAY_TOP;
     const progressHeight = Math.max(1, Math.round(FISHING_GAME_PLAY_HEIGHT * gameState.progress));
     const zoneY = playY + Math.round(gameState.zoneY);
-    const fishY = playY + Math.round(gameState.fishY);
-    const zoneHeight = Math.round(gameState.zoneHeight);
+    const fishY = playY + Math.round(gameState.fishY), fishX = playX + 4;
+    const zoneHeight = Math.round(gameState.zoneHeight), zoneBottomY = zoneY + zoneHeight - 3;
     const middleHeight = Math.max(1, zoneHeight - 6);
 
     if (!fishingMinigameVisible) {
@@ -65,16 +65,16 @@ function drawFishingMinigame() {
     }
 
     if (fishingCatchZoneTop.x !== playX || fishingCatchZoneTop.y !== zoneY ||
-        fishingCatchZoneBottom.y !== zoneY + zoneHeight - 3) {
+        fishingCatchZoneBottom.y !== zoneBottomY) {
         fishingCatchZoneTop.setPosition(playX, zoneY);
         fishingCatchZoneMiddle.setPosition(playX, zoneY + 3);
-        fishingCatchZoneBottom.setPosition(playX, zoneY + zoneHeight - 3);
+        fishingCatchZoneBottom.setPosition(playX, zoneBottomY);
     }
     if (fishingCatchZoneMiddle.displayWidth !== 8 || fishingCatchZoneMiddle.displayHeight !== middleHeight) {
         fishingCatchZoneMiddle.setDisplaySize(8, middleHeight);
     }
-    if (fishingFishMarker.x !== playX + 4 || fishingFishMarker.y !== fishY) {
-        fishingFishMarker.setPosition(playX + 4, fishY);
+    if (fishingFishMarker.x !== fishX || fishingFishMarker.y !== fishY) {
+        fishingFishMarker.setPosition(fishX, fishY);
     }
     if (progressHeight !== fishingProgressHeight) {
         fishingProgressHeight = progressHeight;

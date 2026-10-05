@@ -42,7 +42,7 @@ function spawnLineSnap(scene, time, rope) {
     const points = rope.points;
     const lastIndex = Math.max(1, points.length - 1);
     const stride = Math.max(1, Math.floor(points.length / 9));
-    const palette = fishing?.rod?.linePalette;
+    const palette = fishing?.rod?.linePalette, minimumDepth = character.depth + 0.2;
 
     for (let index = stride; index < points.length; index += stride) {
         const point = points[index];
@@ -51,7 +51,7 @@ function spawnLineSnap(scene, time, rope) {
 
         spawnParticle(
             scene, worldObjectLayer, time, Math.round(point.x), Math.round(point.y),
-            index % 2 ? -1 : 1, 1, 300, color, Math.max(character.depth + 0.2, point.y)
+            index % 2 ? -1 : 1, 1, 300, color, Math.max(minimumDepth, point.y)
         );
     }
 }

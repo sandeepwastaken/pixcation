@@ -28,13 +28,14 @@ function kickUpDust(scene, time, moveX, moveY) {
 }
 
 function dropLeaves(scene, time, bush) {
+    const originX = bush.x + BUSH_FOOTPRINT_LEFT, originY = bush.y - BUSH_FOOTPRINT_HEIGHT, depth = bush.y + 1;
     for (let index = 0; index < LEAVES_PER_RUSTLE; index++) {
         spawnParticle(
             scene, worldObjectLayer, time,
-            bush.x + BUSH_FOOTPRINT_LEFT + Math.floor(Math.random() * (BUSH_FOOTPRINT_RIGHT - BUSH_FOOTPRINT_LEFT)),
-            bush.y - BUSH_FOOTPRINT_HEIGHT + Math.floor(Math.random() * 4),
+            originX + Math.floor(Math.random() * (BUSH_FOOTPRINT_RIGHT - BUSH_FOOTPRINT_LEFT)),
+            originY + Math.floor(Math.random() * 4),
             Math.random() < 0.5 ? -1 : 1, 1, LEAF_LIFETIME,
-            LEAF_COLORS[index % LEAF_COLORS.length], bush.y + 1
+            LEAF_COLORS[index % LEAF_COLORS.length], depth
         );
     }
 }

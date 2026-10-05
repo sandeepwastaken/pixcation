@@ -26,8 +26,8 @@ function getRodHand(direction = getCastDirection()) {
     return rodHandPosition;
 }
 
-function getRodTip(time) {
-    const direction = getCastDirection();
+function getRodTip(time, castDirection) {
+    const direction = castDirection || getCastDirection();
     const [directionX, directionY] = direction;
     const [handX, handY] = getRodHand(direction);
 

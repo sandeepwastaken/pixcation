@@ -26,8 +26,8 @@ function releaseCast(time) {
     if (!hasRodSelected() || isMenuOpen()) return;
 
     const rod = getSelectedRod();
-    const [directionX, directionY] = getCastDirection();
-    const [tipX, tipY] = getRodTip();
+    const direction = getCastDirection(), [directionX, directionY] = direction;
+    const [tipX, tipY] = getRodTip(undefined, direction);
     const distance = CAST_MIN_DISTANCE + (rod.castDistance - CAST_MIN_DISTANCE) * power;
 
     fishing = {
