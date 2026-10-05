@@ -9,6 +9,7 @@ function splash(scene, time, x, y) {
 
     for (let index = 0; index < SPLASH_PARTICLES; index++) {
         const [directionX, directionY] = splashDirections[index];
+        if (index % 3 === 0) spawnParticle(scene, shadowLayer, time, centerX + Math.round(directionX * 2), centerY - 1, Math.sign(directionX), -1, 260, 0xd2edf1);
 
         spawnParticle(
             scene, shadowLayer, time, centerX, centerY, 0, 0, SPLASH_LIFETIME,
