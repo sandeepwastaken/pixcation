@@ -82,7 +82,7 @@ function bindGameInput(scene) {
     scene.input.on('pointerdown', pointer => {
         if (pointer.button !== 0) return;
         if (startup) {
-            if (pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144) beginStartup(scene.time.now);
+            if (pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144) { setCursor('default'); beginStartup(scene.time.now); }
             return;
         }
         if (statsOpen) {
@@ -159,15 +159,15 @@ function bindGameInput(scene) {
 
     scene.input.keyboard.on('keydown', event => {
         if (event.repeat) return;
+        if (event.code === 'Tab' || event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
         if (startup) {
-            if (event.code === 'Enter' || event.code === 'Space') beginStartup(scene.time.now);
+            if (event.code === 'Enter' || event.code === 'Space') { setCursor('default'); beginStartup(scene.time.now); }
             return;
         }
 
         const code = event.code;
         const key = event.key.toLowerCase();
         const slot = Number(event.key) - 1;
-        if (code === 'Tab') event.preventDefault();
 
         if (code === 'KeyA' || code === 'ArrowLeft') horizontalPriority = -1;
         if (code === 'KeyD' || code === 'ArrowRight') horizontalPriority = 1;

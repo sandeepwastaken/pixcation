@@ -35,7 +35,7 @@ function createInput() {
     return { input, events, gameEvents, cursorUpdates, run: code => vm.runInContext(code, context) };
 }
 
-const space = { key: ' ', code: 'Space', repeat: false };
+const space = { key: ' ', code: 'Space', repeat: false, preventDefault() {} };
 const left = { button: 0, x: 0, y: 180 };
 test('cursor updates follow button boundaries and menu visibility without repeated writes', () => {
     const { input, run, cursorUpdates } = createInput();
@@ -56,6 +56,23 @@ test('cursor updates follow button boundaries and menu visibility without repeat
     run('statsOpen = true');
     input.emit('pointermove', { x: 150, y: 80 });
     assert.deepEqual(cursorUpdates, ['default', 'pointer', 'default', 'pointer', 'default', 'pointer', 'default']);
+    run("startup = { phase: 'title' }; beginStartup = () => {};");
+    input.emit('pointermove', { x: 160, y: 130 });
+    input.emit('pointerdown', { button: 0, x: 160, y: 130 });
+    assert.deepEqual(cursorUpdates.slice(-2), ['pointer', 'default']);
+});
+
+test('gameplay navigation keys prevent browser scrolling', () => {
+    const { input, run, cursorUpdates } = createInput();
+    const prevented = [];
+    for (const code of ['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) {
+        input.keyboard.emit('keydown', { key: code === 'Space' ? ' ' : code, code, repeat: false, preventDefault: () => prevented.push(code) });
+    }
+    assert.deepEqual(prevented, ['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+    run("startup = { phase: 'title' }; beginStartup = () => {};");
+    input.keyboard.emit('keydown', { key: ' ', code: 'Space', repeat: false, preventDefault: () => prevented.push('StartupSpace') });
+    assert.equal(prevented.at(-1), 'StartupSpace');
+    assert.equal(cursorUpdates.at(-1), 'default');
 });
 
 test('mouse and keyboard holds release a cast only when both are released', () => {
