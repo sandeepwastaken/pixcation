@@ -7369,7 +7369,6 @@ function restoreSavedStats(stats) {
     for (const key of Object.keys(playerStats)) {
         if (Number.isSafeInteger(stats[key]) && stats[key] >= 0) playerStats[key] = stats[key];
     }
-    playerStats.fishCaught = Math.max(playerStats.fishCaught, knownFish, catchLog.size);
 }
 
 function recordPlayerStat(key, amount = 1) {
@@ -7404,8 +7403,8 @@ function loadProgress(scene) {
 
     restoreSavedRods(scene, saved.rods);
     restoreSavedFish(saved.fish);
-    restoreSavedCatchLog(saved.catchLog);
     restoreSavedStats(saved.stats);
+    restoreSavedCatchLog(saved.catchLog);
     restoreSavedTileIds(discoveredChunks, saved.explored);
     restoreSavedBait(saved.bait);
     activeBaitId = baitInventory.has(saved.activeBait) ? saved.activeBait : null;

@@ -27,7 +27,7 @@ test('lifetime catches survive selling inventory and treasure fish do not count 
 test('stats migration keeps known fish and rejects invalid or unsafe amounts', () => {
     const { context, run } = createStats();
     run("fishInventory.set('bluegill', 3)");
-    context.restoreSavedStats({ fishCaught: 1, playTimeMs: 3600000, casts: -2, moneyEarned: Infinity, moneySpent: 1.5, fishSold: Number.MAX_SAFE_INTEGER + 1 });
+    context.restoreSavedStats({ playTimeMs: 3600000, casts: -2, moneyEarned: Infinity, moneySpent: 1.5, fishSold: Number.MAX_SAFE_INTEGER + 1 });
     assert.deepEqual(JSON.parse(run('JSON.stringify(playerStats)')), { fishCaught: 3, playTimeMs: 3600000, moneyEarned: 0, fishSold: 0, casts: 0, moneySpent: 0 });
     context.recordPlayerStat('casts', Number.MAX_SAFE_INTEGER);
     context.recordPlayerStat('casts');
