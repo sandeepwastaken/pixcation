@@ -6,6 +6,7 @@ const vm = require('node:vm');
 
 function createWindow(fontLoad) {
     const listeners = new Map();
+    const documentListeners = new Map();
     const frames = [];
     let start;
     let zoomWrites = 0;
@@ -16,11 +17,14 @@ function createWindow(fontLoad) {
         addEventListener(name, callback) { listeners.set(name, callback); }
     };
     const document = {
+        visibilityState: 'visible',
+        addEventListener(name, callback) { documentListeners.set(name, callback); },
         documentElement: { clientWidth: 1280, clientHeight: 768 },
         fonts: { load() { return fontLoad || { then(callback) { start = callback; } }; } }
     };
     const context = vm.createContext({
         window, document, URLSearchParams,
+        lastPlayTime: 123,
         requestAnimationFrame(callback) { frames.push(callback); return frames.length; },
         saveProgress() { saves++; }, preload() {}, create() {}, update() {},
         Phaser: { AUTO: 0, Scale: { NONE: 0, NO_CENTER: 0 }, Game: class {
@@ -34,6 +38,7 @@ function createWindow(fontLoad) {
     return {
         start: () => start(),
         hide: () => listeners.get('pagehide')(),
+        visibility: state => { document.visibilityState = state; documentListeners.get('visibilitychange')(); },
         resize(width, height, ratio = window.devicePixelRatio) {
             document.documentElement.clientWidth = width;
             document.documentElement.clientHeight = height;
@@ -45,6 +50,7 @@ function createWindow(fontLoad) {
         writes: () => zoomWrites,
         starts: () => starts,
         saves: () => saves,
+        clock: () => vm.runInContext('lastPlayTime', context),
         zoom: () => vm.runInContext('game.scale.zoom', context)
     };
 }
@@ -95,5 +101,12 @@ test('fractional pixel ratios and small viewports keep whole physical pixels', (
 test('page hiding saves progress before the browser discards the game', () => {
     const screen = createWindow();
     screen.hide();
+    assert.equal(screen.saves(), 1);
+});
+
+test('tab visibility pauses play time and saves hidden progress', () => {
+    const screen = createWindow();
+    screen.visibility('hidden');
+    assert.equal(screen.clock(), null);
     assert.equal(screen.saves(), 1);
 });

@@ -29,6 +29,7 @@ window.addEventListener('resize', () => {
 
 window.addEventListener('beforeunload', saveProgress);
 window.addEventListener('pagehide', saveProgress);
+document.addEventListener('visibilitychange', () => { lastPlayTime = null; if (document.visibilityState === 'hidden') saveProgress(); });
 
 const config = {
     type: Phaser.AUTO,
