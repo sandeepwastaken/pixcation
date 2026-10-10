@@ -10,6 +10,7 @@ function createWindow(fontLoad) {
     let start;
     let zoomWrites = 0;
     let starts = 0;
+    let saves = 0;
     const window = {
         APP_CACHE_BUSTER: 'test', location: { search: '' }, devicePixelRatio: 1,
         addEventListener(name, callback) { listeners.set(name, callback); }
@@ -21,7 +22,7 @@ function createWindow(fontLoad) {
     const context = vm.createContext({
         window, document, URLSearchParams,
         requestAnimationFrame(callback) { frames.push(callback); return frames.length; },
-        saveProgress() {}, preload() {}, create() {}, update() {},
+        saveProgress() { saves++; }, preload() {}, create() {}, update() {},
         Phaser: { AUTO: 0, Scale: { NONE: 0, NO_CENTER: 0 }, Game: class {
             constructor(config) {
                 starts++;
@@ -32,6 +33,7 @@ function createWindow(fontLoad) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../src/runtime/bootstrap.js'), 'utf8'), context);
     return {
         start: () => start(),
+        hide: () => listeners.get('pagehide')(),
         resize(width, height, ratio = window.devicePixelRatio) {
             document.documentElement.clientWidth = width;
             document.documentElement.clientHeight = height;
@@ -42,6 +44,7 @@ function createWindow(fontLoad) {
         queued: () => frames.length,
         writes: () => zoomWrites,
         starts: () => starts,
+        saves: () => saves,
         zoom: () => vm.runInContext('game.scale.zoom', context)
     };
 }
@@ -87,4 +90,10 @@ test('fractional pixel ratios and small viewports keep whole physical pixels', (
     screen.resize(100, 100, 2);
     screen.flush();
     assert.equal(screen.zoom(), 0.5);
+});
+
+test('page hiding saves progress before the browser discards the game', () => {
+    const screen = createWindow();
+    screen.hide();
+    assert.equal(screen.saves(), 1);
 });

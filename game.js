@@ -6440,6 +6440,7 @@ window.addEventListener('resize', () => {
 });
 
 window.addEventListener('beforeunload', saveProgress);
+window.addEventListener('pagehide', saveProgress);
 
 const config = {
     type: Phaser.AUTO,
