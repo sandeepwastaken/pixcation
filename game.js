@@ -7368,6 +7368,7 @@ function restoreSavedStats(stats) {
     for (const key of Object.keys(playerStats)) {
         if (Number.isSafeInteger(stats[key]) && stats[key] >= 0) playerStats[key] = stats[key];
     }
+    playerStats.fishCaught = Math.max(playerStats.fishCaught, knownFish);
 }
 
 function recordPlayerStat(key, amount = 1) {
