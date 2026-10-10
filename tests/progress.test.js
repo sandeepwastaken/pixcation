@@ -210,3 +210,9 @@ test('failed new game reset leaves progress saveable and can be retried', () => 
     session.save();
     assert.equal(session.writes.length, 1);
 });
+
+test('discovered species repair a stale lifetime catch total', () => {
+    const session = createSession({ version: 1, catchLog: ['roach', 'bluegill'], stats: { fishCaught: 0 } });
+    session.load();
+    assert.equal(session.run('playerStats.fishCaught'), 2);
+});
