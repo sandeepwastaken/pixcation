@@ -280,6 +280,8 @@ const MAP_PAN_SPEED = 90;
 const MAP_MAX_ZOOM = 3;
 const MAP_FOG_EDGE = 3;
 const MAP_FOG_SALT = 9137;
+const MAP_FLECK_SALT = 4421;
+const MAP_FLECK_CHANCE = 0.35;
 const MAP_TREE_SHAPE = [
     [3, 0, 1, 'canopy'],
     [2, -1, 2, 'canopy'],

@@ -28,6 +28,11 @@ function getMapPalette(scene) {
         outline: 0x230a03
     };
 
+    mapPalette.flecks = new Map([
+        [toMapPixel(mapPalette.grass), toMapPixel(mapPalette.grassEdge)],
+        [toMapPixel(mapPalette.dirt), toMapPixel(mapPalette.dirtEdge)],
+        [toMapPixel(mapPalette.water[2]), toMapPixel(mapPalette.water[1])]
+    ]);
     return mapPalette;
 }
 
@@ -139,6 +144,14 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
                 const row = y * MAP_WIDTH;
 
                 if (singlePixel) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
+            }
+
+            const fleck = zoom > 1 && mapPalette.flecks.get(color);
+            const fleckRoll = fleck ? coordinateHash(tileX, tileY, MAP_FLECK_SALT) : 1;
+            if (fleckRoll < MAP_FLECK_CHANCE) {
+                const fleckX = left + Math.floor(fleckRoll / MAP_FLECK_CHANCE * zoom);
+                const fleckY = top + Math.floor(coordinateHash(tileY, tileX, MAP_FLECK_SALT) * zoom);
+                if (fleckX < right && fleckY < bottom) pixels[fleckY * MAP_WIDTH + fleckX] = fleck;
             }
         }
     }
