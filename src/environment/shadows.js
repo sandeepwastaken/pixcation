@@ -34,6 +34,27 @@ function getShapePoints(shape) {
     return points;
 }
 
+const shadowPaletteColors = [];
+const tintedShadowCache = new Map();
+
+function shadeGroundPixel(scene, red, green, blue, tileX, tileY) {
+    if (red <= green + 6 || green < blue || getWoodColors(scene).has((red << 16) | (green << 8) | blue)) return shadeColor(red, green, blue);
+    const tint = getDirtTint(tileX, tileY);
+    const raw = [red / tint[0], green / tint[1], blue / tint[2]];
+    const key = (Math.round(raw[0]) << 16) | (Math.round(raw[1]) << 8) | Math.round(raw[2]);
+    let shaded = tintedShadowCache.get(key);
+    if (!shaded) {
+        let best = raw, bestDistance = Infinity;
+        for (const color of shadowPaletteColors) {
+            const distance = (color[0] - raw[0]) ** 2 + (color[1] - raw[1]) ** 2 + (color[2] - raw[2]) ** 2;
+            if (distance < bestDistance) [best, bestDistance] = [color, distance];
+        }
+        shaded = shadeColor(...best.map(Math.round));
+        tintedShadowCache.set(key, shaded);
+    }
+    return shaded.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
+}
+
 function buildShadowLut(scene) {
     const colors = new Map();
 
@@ -86,6 +107,7 @@ function buildShadowLut(scene) {
         }
 
         shadowLut.set(color.key, best ? best.rgb : color.rgb.map(value => Math.round(value * 0.86)));
+        shadowPaletteColors.push(color.rgb);
     }
 }
 
@@ -180,11 +202,11 @@ function getGroundShadowColor(scene, worldX, worldY) {
     const { upper, ground } = getChunkPixels(chunk);
     const index = pixel * 4;
 
-    if (upper && upper[index + 3]) return tintWaterShadow(shadeColor(upper[index], upper[index + 1], upper[index + 2]), worldX, worldY);
+    if (upper && upper[index + 3]) return tintWaterShadow(shadeGroundPixel(scene, upper[index], upper[index + 1], upper[index + 2], tileX, tileY), worldX, worldY);
     if (!ground[index + 3]) return null;
     if (tile.key.startsWith('grass')) return tintGrassColor(getTileShadowColor(scene, tile), tileX, tileY);
 
-    return tintWaterShadow(shadeColor(ground[index], ground[index + 1], ground[index + 2]), worldX, worldY);
+    return tintWaterShadow(shadeGroundPixel(scene, ground[index], ground[index + 1], ground[index + 2], tileX, tileY), worldX, worldY);
 }
 
 function tintWaterShadow(color, worldX, worldY) {
