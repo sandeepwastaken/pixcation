@@ -214,11 +214,6 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     float waveLine = 2.0 + (1.0 - wave) * 5.0;
                     if (abs(shore + wobble * 0.35 - waveLine) < 0.5 && wave < 0.85) index = max(index, 7.0 + (wave > 0.5 ? 1.0 : 0.0));
 
-                    float glintStep = floor(t * 3.0);
-                    float glintShape = noise(p * vec2(0.19, 0.75) + vec2(t * 0.04, 0.0));
-                    float glintOn = hash(floor(p / vec2(8.0, 4.0)) + vec2(glintStep * 1.7, glintStep * 0.3));
-                    if (reach > 6.0 && glintOn > 0.55 && glintShape > 0.9) index = 8.0;
-                    else if (reach > 6.0 && glintOn > 0.55 && glintShape > 0.82) index = 6.0;
 
                     float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
                     float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
