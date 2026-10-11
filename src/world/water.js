@@ -119,6 +119,19 @@ function markWaterFoam(scene, data, pixelX, pixelY) {
     }
 }
 
+function shadeWaterUndersides(scene, data, pixelX, pixelY) {
+    for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
+        for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
+            const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
+            if (!data[index]) continue;
+            const land = y + 1 < CHUNK_PIXEL_SIZE ? !data[index + CHUNK_PIXEL_SIZE * 4] : !isWaterPixel(scene, pixelX + x, pixelY + y + 1);
+            if (!land || getWorldTile(Math.floor((pixelX + x) / TILE_SIZE), Math.floor((pixelY + y + 1) / TILE_SIZE)).key.startsWith('wood')) continue;
+            data[index] = 128;
+            data[index + 2] = 0;
+        }
+    }
+}
+
 function buildChunkWater(scene, chunk) {
     const { chunkX, chunkY, shadowMask } = chunk;
     const { waterMaskCells, edgeCells, woodTiles, shorelineTiles } = chunk.waterBuild;
@@ -149,6 +162,7 @@ function buildChunkWater(scene, chunk) {
     bakeChestSilhouette(chunk, data);
     markWaterEdges(data, edgeCells, pixelX, pixelY);
     markWaterFoam(scene, data, pixelX, pixelY);
+    shadeWaterUndersides(scene, data, pixelX, pixelY);
 
     context.putImageData(image, 0, 0);
     chunk.waterShadowBase = new Uint8ClampedArray(data);
