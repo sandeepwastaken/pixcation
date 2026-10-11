@@ -66,7 +66,7 @@ function actorBlocksRect(actor, hitX, hitY, width, height, left, top, right, bot
         top < actor.y + hitY + height && bottom > actor.y + hitY;
 }
 
-function canCharacterOccupy(scene, x, y) {
+function canCharacterOccupy(scene, x, y, ignoreNpc) {
     const left = x + CHARACTER_HITBOX_X;
     const top = y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH;
@@ -76,7 +76,7 @@ function canCharacterOccupy(scene, x, y) {
         actorBlocksRect(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT, left, top, right, bottom) ||
         actorBlocksRect(store, STORE_HITBOX_X, STORE_HITBOX_Y, STORE_HITBOX_WIDTH, STORE_HITBOX_HEIGHT, left, top, right, bottom) ||
         isBlockedByProp(left, top, right, bottom) ||
-        isBlockedByNpc(left, top, right, bottom)
+        isBlockedByNpc(left, top, right, bottom, ignoreNpc)
     ) {
         return false;
     }

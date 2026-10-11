@@ -366,16 +366,14 @@ const NPC_ACCESSORIES = 4;
 const NPC_HAIRSTYLES = 5;
 const NPC_SHIRTS = 5;
 const NPC_ACCESSORY_CHANCE = 0.35;
-const NPC_SHORE_CHANCE = 0.012;
-const NPC_INLAND_CHANCE = 0.0025;
+const NPC_CELL_SIZE = 10;
+const NPC_CELL_MARGIN = 2;
+const NPC_CELL_CHANCE = 0.45;
+const NPC_FISHER_CHANCE = 0.5;
 const NPC_TRADER_CHANCE = 0.4;
 const NPC_SPAWN_CLEARANCE = 10;
 const NPC_TALK_DISTANCE_SQUARED = 24 * 24;
-const NPC_TURN_MIN = 2500;
-const NPC_TURN_RANGE = 5000;
-const NPC_BOB_TIME = 450;
 const NPC_TRADE_PERIOD = 60 * 60 * 1000;
-const NPC_ROD_COLOR = 0x7e4332;
 const NPC_SKIN_TONES = [
     [0x83645a, 0x9d856f, 0xb5a58b, 0x443c38],
     [0xb07a62, 0xd3a383, 0xe8c4a0, 0x4a3530],
@@ -441,3 +439,25 @@ const NPC_FISHER_LINES = [
     'Shh, they are nibbling.', 'Caught a beauty this morning.', 'Patience is the whole trick.',
     'Deeper water, bigger fish.', 'Wait for the bobber to dip twice.', 'Nothing yet, but I have time.'
 ];
+const NPC_CAST_REACH = 2;
+const NPC_LINE_SAG = 5;
+const NPC_SPEED_MIN = 0.65;
+const NPC_SPEED_RANGE = 0.5;
+const NPC_SPRINT_CHANCE = 0.35;
+const NPC_ROAM_RADIUS = 6;
+const NPC_TRADER_ROAM = 2;
+const NPC_FISH_CHANCE = 0.55;
+const NPC_PLAN_ATTEMPTS = 12;
+const NPC_IDLE_MIN = 1500;
+const NPC_IDLE_RANGE = 3500;
+const NPC_STUCK_TIME = 600;
+const NPC_AIM_MIN = 300;
+const NPC_AIM_RANGE = 700;
+const NPC_CAST_ERROR = 14;
+const NPC_LURE_RADIUS = 48;
+const NPC_LURE_TIME = 2500;
+const NPC_LURE_DELAY = 1500;
+const NPC_SCARE_RADIUS = 7;
+const NPC_DISAPPOINT_TIME = 900;
+const NPC_FISH_MIN = 5000;
+const NPC_FISH_RANGE = 7000;

@@ -32,13 +32,13 @@ function addPixelPathPoint(x, y, color) {
     pixelPathLength++;
 }
 
-function drawPixelPath() {
+function drawPixelPath(graphics = fishingLine) {
     let activeColor = -1;
 
     for (let index = 0; index < pixelPathLength; index++) {
         if (pixelPathColor[index] !== activeColor) {
             activeColor = pixelPathColor[index];
-            fishingLine.fillStyle(activeColor, 1);
+            graphics.fillStyle(activeColor, 1);
         }
 
         const y = pixelPathY[index];
@@ -53,7 +53,7 @@ function drawPixelPath() {
             index++;
         }
 
-        fishingLine.fillRect(left, y, right - left + 1, 1);
+        graphics.fillRect(left, y, right - left + 1, 1);
     }
 }
 
@@ -90,7 +90,7 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
     }
 }
 
-function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
+function plotFishingLine(fromX, fromY, toX, toY, sag, palette, graphics = fishingLine) {
     const controlX = (fromX + toX) / 2;
     const controlY = (fromY + toY) / 2 + sag;
     const steps = Math.max(2, Math.ceil(Math.hypot(toX - fromX, toY - fromY) * 1.5));
@@ -110,7 +110,7 @@ function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
         addPixelPathPoint(x, y, palette ? samplePalette(palette, amount) : color);
     }
 
-    drawPixelPath();
+    drawPixelPath(graphics);
 }
 
 function createFishingRope(fromX, fromY, toX, toY, lineLength) {

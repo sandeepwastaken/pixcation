@@ -1994,7 +1994,6 @@ function forEachStaticShadowPoint(chunkX, chunkY, callback) {
 
     for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
         for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
-            forEachNpcShadowPoint(tileX, tileY, callback);
             const type = getPropAt(tileX, tileY);
             if (!type || type === 'tree') continue;
 
@@ -3607,6 +3606,7 @@ function updateTreeShadows(scene, time) {
 const npcCache = new Map();
 const npcTradesDone = new Set();
 const NPC_DIRECTIONS = [['left', -1, 0], ['right', 1, 0], ['front', 0, 1], ['back', 0, -1]];
+const NPC_DIRECTION_STEPS = new Map(NPC_DIRECTIONS.map(([direction, stepX, stepY]) => [direction, [stepX, stepY]]));
 let npcShadowPoints = null;
 let nearestNpc = null;
 
@@ -3615,27 +3615,56 @@ function npcHash(tileX, tileY, salt) {
 }
 
 function getNpcAt(tileX, tileY) {
-    const key = getTileId(tileX, tileY);
-    const cached = npcCache.get(key);
-    return cached !== undefined ? cached : cacheWorldValue(npcCache, key, findNpc(tileX, tileY));
+    const cellX = Math.floor(tileX / NPC_CELL_SIZE), cellY = Math.floor(tileY / NPC_CELL_SIZE);
+    const key = getTileId(cellX, cellY);
+    let npc = npcCache.get(key);
+    if (npc === undefined) npc = cacheWorldValue(npcCache, key, findCellNpc(cellX, cellY));
+    return npc && npc.tileX === tileX && npc.tileY === tileY ? npc : null;
+}
+
+function isOpenWaterTile(tileX, tileY) {
+    return getTerrainType(tileX, tileY) === 'water' && !getWorldTile(tileX, tileY).key.startsWith('wood');
 }
 
 function findNpcWater(tileX, tileY) {
     for (const [direction, stepX, stepY] of NPC_DIRECTIONS) {
-        if (getTerrainType(tileX + stepX, tileY + stepY) !== 'water' && getTerrainType(tileX + stepX * 2, tileY + stepY * 2) !== 'water') continue;
-        const distance = getTerrainType(tileX + stepX * 2, tileY + stepY * 2) === 'water' ? 2 : 1;
-        return { direction, x: tileX + stepX * distance, y: tileY + stepY * distance };
+        for (let distance = 1; distance <= NPC_CAST_REACH; distance++) {
+            const x = tileX + stepX * distance, y = tileY + stepY * distance;
+            if (getWorldTile(x, y).key.startsWith('wood')) break;
+            if (!isOpenWaterTile(x, y)) continue;
+            if (isOpenWaterTile(x + stepX, y + stepY)) return { direction, x: x + stepX, y: y + stepY };
+            break;
+        }
     }
     return null;
 }
 
-function findNpc(tileX, tileY) {
-    if (Math.abs(tileX) < NPC_SPAWN_CLEARANCE && Math.abs(tileY) < NPC_SPAWN_CLEARANCE) return null;
-    const roll = npcHash(tileX, tileY, 1301);
-    if (roll >= NPC_SHORE_CHANCE || !isGuideSpawnTile(tileX, tileY)) return null;
-    const water = findNpcWater(tileX, tileY);
-    if (!water && roll >= NPC_INLAND_CHANCE) return null;
+function isNpcStandingTile(tileX, tileY) {
+    return getTerrainType(tileX, tileY) !== 'water' && isGuideSpawnTile(tileX, tileY);
+}
 
+function findCellNpc(cellX, cellY) {
+    if (npcHash(cellX, cellY, 1300) >= NPC_CELL_CHANCE) return null;
+    const wantsWater = npcHash(cellX, cellY, 1302) < NPC_FISHER_CHANCE;
+    const tiles = [];
+    for (let localY = NPC_CELL_MARGIN; localY < NPC_CELL_SIZE - NPC_CELL_MARGIN; localY++) {
+        for (let localX = NPC_CELL_MARGIN; localX < NPC_CELL_SIZE - NPC_CELL_MARGIN; localX++) {
+            const tileX = cellX * NPC_CELL_SIZE + localX, tileY = cellY * NPC_CELL_SIZE + localY;
+            if (Math.abs(tileX) >= NPC_SPAWN_CLEARANCE || Math.abs(tileY) >= NPC_SPAWN_CLEARANCE) tiles.push([npcHash(tileX, tileY, 1301), tileX, tileY]);
+        }
+    }
+    tiles.sort((a, b) => a[0] - b[0]);
+    let fallback = null;
+    for (const [, tileX, tileY] of tiles) {
+        if (!isNpcStandingTile(tileX, tileY)) continue;
+        const water = wantsWater ? findNpcWater(tileX, tileY) : null;
+        if (!wantsWater || water) return createNpc(tileX, tileY, water);
+        fallback ||= [tileX, tileY];
+    }
+    return fallback ? createNpc(fallback[0], fallback[1], null) : null;
+}
+
+function createNpc(tileX, tileY, water) {
     const pick = (count, salt) => Math.floor(npcHash(tileX, tileY, salt) * count);
     const accessory = npcHash(tileX, tileY, 1310) < NPC_ACCESSORY_CHANCE ? 1 : 0;
     return {
@@ -3643,112 +3672,367 @@ function findNpc(tileX, tileY) {
         tileX,
         tileY,
         water,
-        role: water ? 'fisher' : npcHash(tileX, tileY, 1302) < NPC_TRADER_CHANCE ? 'trader' : 'idle',
+        role: !water && npcHash(tileX, tileY, 1316) < NPC_TRADER_CHANCE ? 'trader' : 'villager',
+        speed: NPC_SPEED_MIN + npcHash(tileX, tileY, 1317) * NPC_SPEED_RANGE,
+        rodIndex: pick(MARKET_RODS.length, 1315),
         name: `${NPC_FIRST_NAMES[pick(NPC_FIRST_NAMES.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
         look: [
             pick(NPC_SKIN_TONES.length, 1305), pick(NPC_FACES, 1306), pick(NPC_SHIRTS, 1307), pick(NPC_SHIRT_COLORS.length, 1308),
             pick(NPC_PANTS_COLORS.length, 1309), accessory,
             accessory ? pick(NPC_ACCESSORIES, 1311) : pick(NPC_HAIRSTYLES, 1312),
             accessory ? pick(NPC_ACCESSORY_COLORS.length, 1313) : pick(NPC_HAIR_COLORS.length, 1314)
-        ],
-        direction: water ? water.direction : 'front'
+        ]
     };
 }
 
-function getNpcTexture(scene, look, direction) {
-    return getPersonTexture(scene, `npc-${look.join('-')}-${direction}`, look, direction);
-}
-
-function plotNpcLine(graphics, fromX, fromY, toX, toY, color) {
-    const steps = Math.max(Math.abs(toX - fromX), Math.abs(toY - fromY), 1);
-    graphics.fillStyle(color, 1);
-    for (let step = 0; step <= steps; step++) {
-        graphics.fillRect(Math.round(fromX + (toX - fromX) * step / steps), Math.round(fromY + (toY - fromY) * step / steps), 1, 1);
-    }
-}
-
-function drawNpcFishingLine(scene, npc, sprites) {
-    const [handX, handY] = { left: [5, 11], right: [10, 11], front: [12, 11], back: [3, 11] }[npc.direction];
-    const [reachX, reachY] = { left: [-5, -6], right: [5, -6], front: [3, -4], back: [-3, -8] }[npc.direction];
-    const fromX = npc.x + handX, fromY = npc.y + handY, tipX = fromX + reachX, tipY = fromY + reachY;
-    const bobberX = npc.water.x * TILE_SIZE + TILE_SIZE / 2, bobberY = npc.water.y * TILE_SIZE + TILE_SIZE / 2;
-    const line = scene.add.graphics().setDepth(npc.y + NPC_PART_SIZE + (npc.direction === 'back' ? -0.1 : 0.1));
-    const bobber = scene.add.graphics().setDepth(bobberY);
-
-    plotNpcLine(line, fromX, fromY, tipX, tipY, NPC_ROD_COLOR);
-    plotNpcLine(line, tipX, tipY, bobberX, bobberY - 2, FISHING_LINE_COLOR);
-    bobber.fillStyle(BOBBER_TOP_COLOR, 1).fillRect(bobberX - 1, bobberY - 2, 2, 1).fillStyle(BOBBER_BOTTOM_COLOR, 1).fillRect(bobberX - 1, bobberY - 1, 2, 1);
-    worldObjectLayer.add([line, bobber]);
-    sprites.push(line, bobber);
-    return bobber;
+function getNpcTexture(scene, look, direction, frame = 0) {
+    return getPersonTexture(scene, `npc-${look.join('-')}-${direction}-${frame}`, look, direction, frame);
 }
 
 function spawnChunkNpcs(scene, chunkX, chunkY, sprites) {
     const npcs = [];
     for (let localY = 0; localY < CHUNK_SIZE; localY++) {
         for (let localX = 0; localX < CHUNK_SIZE; localX++) {
-            const found = getNpcAt(chunkX * CHUNK_SIZE + localX, chunkY * CHUNK_SIZE + localY);
-            if (!found) continue;
+            const home = getNpcAt(chunkX * CHUNK_SIZE + localX, chunkY * CHUNK_SIZE + localY);
+            if (!home) continue;
 
-            const npc = { ...found, x: found.tileX * TILE_SIZE, y: found.tileY * TILE_SIZE, nextTurnAt: 0 };
+            const npc = {
+                ...home,
+                x: home.tileX * TILE_SIZE,
+                y: home.tileY * TILE_SIZE,
+                direction: home.water ? home.water.direction : 'front',
+                state: 'idle',
+                until: 0,
+                walkPhase: 1,
+                frame: 0,
+                remainderX: 0,
+                remainderY: 0,
+                failedSpots: new Set(),
+                fishing: null,
+                rod: MARKET_RODS[home.rodIndex]
+            };
             npc.sprite = scene.add.image(npc.x, npc.y, getNpcTexture(scene, npc.look, npc.direction)).setOrigin(0).setDepth(npc.y + NPC_PART_SIZE);
-            worldObjectLayer.add(npc.sprite);
-            sprites.push(npc.sprite);
-            if (npc.water) npc.bobber = drawNpcFishingLine(scene, npc, sprites);
+            npc.shadow = scene.add.graphics();
+            npc.line = scene.add.graphics();
+            worldObjectLayer.add([npc.sprite, npc.line]);
+            shadowLayer.add(npc.shadow);
+            sprites.push(npc.sprite, npc.shadow, npc.line);
             npcs.push(npc);
         }
     }
     return npcs;
 }
 
-function forEachNpcShadowPoint(tileX, tileY, callback) {
-    if (!getNpcAt(tileX, tileY)) return;
-    npcShadowPoints ||= getShapePoints(ACTOR_SHADOW_SHAPE);
-    for (let point = 0; point < npcShadowPoints.length; point += 2) {
-        callback(tileX * TILE_SIZE + ACTOR_SHADOW_X + npcShadowPoints[point], tileY * TILE_SIZE + ACTOR_SHADOW_Y + npcShadowPoints[point + 1]);
-    }
-}
-
-function isBlockedByNpc(left, top, right, bottom) {
+function isBlockedByNpc(left, top, right, bottom, ignore) {
     for (const chunk of loadedChunks.values()) {
         for (const npc of chunk.npcs || []) {
-            if (actorBlocksRect(npc, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT, left, top, right, bottom)) return true;
+            if (npc !== ignore && actorBlocksRect(npc, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) return true;
         }
     }
     return false;
 }
 
-function turnNpc(scene, npc, direction) {
-    if (npc.direction === direction) return;
-    npc.direction = direction;
-    npc.sprite.setTexture(getNpcTexture(scene, npc.look, direction));
+function canNpcOccupy(scene, npc, x, y) {
+    const left = x + CHARACTER_HITBOX_X, top = y + CHARACTER_HITBOX_Y;
+    const right = left + CHARACTER_HITBOX_WIDTH, bottom = top + CHARACTER_HITBOX_HEIGHT;
+    if (actorBlocksRect(character, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) return false;
+    return canCharacterOccupy(scene, x, y, npc);
 }
 
-function getDirectionToward(npc) {
-    const x = character.x - npc.x, y = character.y - npc.y;
+function drawNpcShadow(scene, npc) {
+    const x = npc.x + ACTOR_SHADOW_X, y = npc.y + ACTOR_SHADOW_Y;
+    if (npc.shadowX === x && npc.shadowY === y) return;
+    npc.shadowX = x;
+    npc.shadowY = y;
+    npcShadowPoints ||= getShapePoints(ACTOR_SHADOW_SHAPE);
+    npc.shadow.clear();
+    for (let point = 0; point < npcShadowPoints.length; point += 2) {
+        const color = getGroundShadowColor(scene, x + npcShadowPoints[point], y + npcShadowPoints[point + 1]);
+        if (color) npc.shadow.fillStyle((color[0] << 16) | (color[1] << 8) | color[2], 1).fillRect(x + npcShadowPoints[point], y + npcShadowPoints[point + 1], 1, 1);
+    }
+}
+
+function setNpcPose(scene, npc, direction, frame) {
+    if (npc.direction === direction && npc.frame === frame) return;
+    npc.direction = direction;
+    npc.frame = frame;
+    npc.sprite.setTexture(getNpcTexture(scene, npc.look, direction, frame));
+}
+
+function getDirectionToward(npc, targetX, targetY) {
+    const x = targetX - npc.x, y = targetY - npc.y;
     return Math.abs(x) > Math.abs(y) ? (x < 0 ? 'left' : 'right') : (y < 0 ? 'back' : 'front');
 }
 
-function updateNpcs(scene, time) {
+function startNpcWalk(npc, tileX, tileY, goal, time) {
+    npc.state = 'walk';
+    npc.goal = goal;
+    npc.targetX = tileX * TILE_SIZE;
+    npc.targetY = tileY * TILE_SIZE;
+    npc.sprinting = goal === 'fish' && Math.random() < NPC_SPRINT_CHANCE;
+    npc.stuckSince = time;
+}
+
+function rollNpcTile(npc, radius) {
+    return [npc.tileX + Math.round((Math.random() * 2 - 1) * radius), npc.tileY + Math.round((Math.random() * 2 - 1) * radius)];
+}
+
+function chooseNpcPlan(npc, time) {
+    const radius = npc.role === 'trader' ? NPC_TRADER_ROAM : NPC_ROAM_RADIUS;
+    if (npc.role !== 'trader' && Math.random() < NPC_FISH_CHANCE) {
+        for (let attempt = 0; attempt < NPC_PLAN_ATTEMPTS; attempt++) {
+            const [tileX, tileY] = rollNpcTile(npc, radius);
+            if (npc.failedSpots.has(getTileId(tileX, tileY)) || !isNpcStandingTile(tileX, tileY)) continue;
+            const water = findNpcWater(tileX, tileY);
+            if (!water) continue;
+            npc.spot = { tileX, tileY, water };
+            startNpcWalk(npc, tileX, tileY, 'fish', time);
+            return;
+        }
+    }
+    for (let attempt = 0; attempt < NPC_PLAN_ATTEMPTS; attempt++) {
+        const [tileX, tileY] = rollNpcTile(npc, radius);
+        if (!isNpcStandingTile(tileX, tileY)) continue;
+        startNpcWalk(npc, tileX, tileY, 'wander', time);
+        return;
+    }
+    npc.until = time + NPC_IDLE_MIN;
+}
+
+function stepNpc(scene, npc, time, delta) {
+    const distanceX = npc.targetX - npc.x, distanceY = npc.targetY - npc.y;
+    if (!distanceX && !distanceY) return true;
+
+    const moveX = Math.sign(distanceX), moveY = Math.sign(distanceY);
+    const pace = npc.speed * (npc.sprinting ? CHARACTER_SPRINT_MULTIPLIER : 1);
+    const frameDelta = Math.min(delta, 50);
+    const distance = CHARACTER_SPEED * pace * frameDelta / 1000 * (moveX && moveY ? Math.SQRT1_2 : 1);
+    npc.remainderX += moveX * Math.min(distance, Math.abs(distanceX));
+    npc.remainderY += moveY * Math.min(distance, Math.abs(distanceY));
+    const wholeX = Math.trunc(npc.remainderX), wholeY = Math.trunc(npc.remainderY);
+    npc.remainderX -= wholeX;
+    npc.remainderY -= wholeY;
+
+    let moved = false;
+    for (let step = 0; step < Math.abs(wholeX); step++) {
+        if (!canNpcOccupy(scene, npc, npc.x + moveX, npc.y)) break;
+        npc.x += moveX;
+        moved = true;
+    }
+    for (let step = 0; step < Math.abs(wholeY); step++) {
+        if (!canNpcOccupy(scene, npc, npc.x, npc.y + moveY)) break;
+        npc.y += moveY;
+        moved = true;
+    }
+    if (moved || (!wholeX && !wholeY)) npc.stuckSince = time;
+
+    npc.walkPhase += frameDelta * CHARACTER_ANIMATION_SPEED * pace / 1000;
+    const direction = Math.abs(distanceX) > Math.abs(distanceY) ? (moveX < 0 ? 'left' : 'right') : (moveY < 0 ? 'back' : 'front');
+    setNpcPose(scene, npc, direction, CHARACTER_WALK_FRAMES[Math.floor(npc.walkPhase) % 4]);
+    npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE);
+    return false;
+}
+
+function getNpcRodHand(npc) {
+    const [stepX, stepY] = NPC_DIRECTION_STEPS.get(npc.direction);
+    return [Math.round(npc.x + NPC_PART_SIZE / 2) + (stepY === 0 ? stepX * 3 : 3), npc.y + 11];
+}
+
+function getNpcRodTip(npc, time) {
+    const [stepX, stepY] = NPC_DIRECTION_STEPS.get(npc.direction);
+    const [handX, handY] = getNpcRodHand(npc);
+    let tipX = stepY === 0 ? handX + stepX * 6 : handX + 1;
+    let tipY = stepY === 0 ? handY - 6 : handY + stepY * 7;
+    if (npc.fishing?.state === 'casting') {
+        const phase = Phaser.Math.Clamp((time - npc.fishing.start) / CAST_SWING_DURATION, 0, 1);
+        const reach = phase < 0.35 ? -3 * phase / 0.35 : -3 + 6 * (phase - 0.35) / 0.65;
+        const lift = Math.round(Math.sin(phase * Math.PI) * 3);
+        tipX += Math.round(stepX * reach + (stepY === 0 ? 0 : lift));
+        tipY += Math.round(stepY * reach - (stepY === 0 ? lift : 0));
+    }
+    return [tipX, tipY];
+}
+
+function startNpcCast(npc, time) {
+    const [stepX, stepY] = NPC_DIRECTION_STEPS.get(npc.direction);
+    const [tipX, tipY] = getNpcRodTip(npc, time);
+    const centerX = npc.x + NPC_PART_SIZE / 2, footY = npc.y + NPC_PART_SIZE - 2;
+    const targetX = npc.spot.water.x * TILE_SIZE + TILE_SIZE / 2, targetY = npc.spot.water.y * TILE_SIZE + TILE_SIZE / 2;
+    const aim = Math.abs(stepX ? targetX - centerX : targetY - footY) + (Math.random() * 2 - 1) * NPC_CAST_ERROR;
+    const power = Math.random();
+    npc.fishing = {
+        state: 'casting',
+        start: time,
+        releaseAt: time + CAST_SWING_DURATION + CAST_HANG_TIME,
+        duration: CAST_DURATION * (0.6 + power * 0.6),
+        arc: CAST_ARC * (0.5 + power * 0.7),
+        fromX: tipX,
+        fromY: tipY,
+        toX: Math.round(centerX + stepX * aim),
+        toY: Math.round(footY + stepY * aim),
+        bobberX: tipX,
+        bobberY: tipY,
+        lure: null
+    };
+    npc.state = 'fishing';
+}
+
+function findNpcLureFish(npc) {
+    const { bobberX, bobberY } = npc.fishing;
+    for (const chunk of loadedWaterChunks) {
+        for (const fish of chunk.fish) {
+            if (fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee' || fish.npcLured) continue;
+            const x = fish.x - bobberX, y = fish.y - bobberY;
+            if (x * x + y * y > NPC_LURE_RADIUS * NPC_LURE_RADIUS || !isFishPathClear(chunk, fish, bobberX, bobberY)) continue;
+            fish.npcLured = true;
+            fish.targetX = bobberX;
+            fish.targetY = bobberY;
+            fish.state = 'swim';
+            fish.topSpeed = FISH_LURE_SPEED;
+            fish.thrusting = true;
+            fish.burstTimer = NPC_LURE_TIME;
+            return { fish, chunk };
+        }
+    }
+    return null;
+}
+
+function scareNpcFish(scene, npc, time) {
+    const { fish, chunk } = npc.fishing.lure;
+    const { bobberX, bobberY } = npc.fishing;
+    fish.npcLured = false;
+    nibbleRipple(scene, time, bobberX, bobberY);
+    if (chooseFishTarget(chunk, fish, fish.x - bobberX, fish.y - bobberY)) startFishFlee(fish, 700);
+    npc.fishing.lure = null;
+    npc.fishing.reelAt = Math.min(npc.fishing.reelAt, time + NPC_DISAPPOINT_TIME);
+}
+
+function startNpcReel(npc, time) {
+    const fishing = npc.fishing;
+    if (fishing.lure) fishing.lure.fish.npcLured = false;
+    fishing.lure = null;
+    fishing.state = 'reeling';
+    fishing.start = time;
+    fishing.fromX = fishing.bobberX;
+    fishing.fromY = fishing.bobberY;
+}
+
+function updateNpcFishing(scene, npc, time) {
+    const fishing = npc.fishing;
+    const age = time - fishing.start;
+    const [tipX, tipY] = getNpcRodTip(npc, time);
+
+    if (fishing.state === 'casting') {
+        fishing.bobberX = tipX;
+        fishing.bobberY = tipY;
+        if (time >= fishing.releaseAt) Object.assign(fishing, { state: 'flying', start: time, fromX: tipX, fromY: tipY });
+    } else if (fishing.state === 'flying') {
+        const amount = Math.min(1, age / fishing.duration);
+        fishing.bobberX = Math.round(fishing.fromX + (fishing.toX - fishing.fromX) * amount);
+        fishing.bobberY = Math.round(fishing.fromY + (fishing.toY - fishing.fromY) * amount - Math.sin(amount * Math.PI) * fishing.arc);
+        if (amount >= 1 && !isWaterPixel(scene, fishing.toX, fishing.toY)) {
+            groundLandingPuff(scene, time, fishing.toX, fishing.toY);
+            npc.failedSpots.add(getTileId(npc.spot.tileX, npc.spot.tileY));
+            startNpcReel(npc, time);
+        } else if (amount >= 1) {
+            splash(scene, time, fishing.toX, fishing.toY);
+            Object.assign(fishing, { state: 'floating', start: time, lureAt: time + NPC_LURE_DELAY, reelAt: time + NPC_FISH_MIN + Math.random() * NPC_FISH_RANGE });
+        }
+    } else if (fishing.state === 'floating') {
+        fishing.bobberX = fishing.toX;
+        fishing.bobberY = fishing.toY + (Math.floor(age / BOBBER_BOB_TIME) % 2);
+        if (!fishing.lure && time >= fishing.lureAt) {
+            fishing.lure = findNpcLureFish(npc);
+            fishing.lureAt = time + NPC_LURE_DELAY;
+        }
+        const fish = fishing.lure?.fish;
+        if (fish) {
+            const x = fish.x - fishing.bobberX, y = fish.y - fishing.bobberY;
+            if (x * x + y * y < NPC_SCARE_RADIUS * NPC_SCARE_RADIUS) scareNpcFish(scene, npc, time);
+            else if (fish.state === 'flee' || fish.state === 'lure' || fish.state === 'idle') {
+                fish.npcLured = false;
+                fishing.lure = null;
+            }
+        }
+        if (time >= fishing.reelAt) startNpcReel(npc, time);
+    } else {
+        const amount = Math.min(1, age / REEL_DURATION);
+        fishing.bobberX = Math.round(fishing.fromX + (tipX - fishing.fromX) * amount);
+        fishing.bobberY = Math.round(fishing.fromY + (tipY - fishing.fromY) * amount);
+        if (amount >= 1) {
+            npc.fishing = null;
+            npc.state = 'idle';
+            npc.until = time + NPC_IDLE_MIN + Math.random() * NPC_IDLE_RANGE;
+        }
+    }
+}
+
+function drawNpcRod(npc, time) {
+    const graphics = npc.line;
+    if (!npc.fishing && !npc.lineDrawn) return;
+    graphics.clear();
+    npc.lineDrawn = Boolean(npc.fishing);
+    if (!npc.fishing) return;
+
+    const fishing = npc.fishing;
+    const { polePalette, linePalette, bobberPalette } = npc.rod;
+    const [handX, handY] = getNpcRodHand(npc);
+    const [tipX, tipY] = getNpcRodTip(npc, time);
+    graphics.setDepth(Math.max(npc.y + NPC_PART_SIZE + 0.2, fishing.bobberY));
+    plotFishingLine(handX, handY, tipX, tipY, 0, polePalette, graphics);
+    if (fishing.state === 'casting') return;
+
+    plotFishingLine(tipX, tipY, fishing.bobberX, fishing.bobberY - 2, fishing.state === 'floating' ? NPC_LINE_SAG : 1, linePalette, graphics);
+    graphics
+        .fillStyle(bobberPalette?.[2] || BOBBER_BOTTOM_COLOR, 1).fillRect(fishing.bobberX - 1, fishing.bobberY - 2, 2, 1)
+        .fillStyle(bobberPalette?.[1] || BOBBER_TOP_COLOR, 1).fillRect(fishing.bobberX - 1, fishing.bobberY - 1, 1, 1)
+        .fillStyle(bobberPalette?.[0] || BOBBER_TOP_COLOR, 1).fillRect(fishing.bobberX, fishing.bobberY - 1, 1, 1);
+}
+
+function settleNpc(scene, npc, time, delay) {
+    npc.walkPhase = 1;
+    setNpcPose(scene, npc, npc.direction, 0);
+    npc.state = 'idle';
+    npc.until = time + delay;
+}
+
+function updateNpc(scene, npc, time, delta) {
+    if (npc.state === 'talk') {
+        setNpcPose(scene, npc, getDirectionToward(npc, character.x, character.y), 0);
+    } else if (npc.state === 'idle') {
+        if (time >= npc.until) chooseNpcPlan(npc, time);
+    } else if (npc.state === 'walk') {
+        if (stepNpc(scene, npc, time, delta)) {
+            settleNpc(scene, npc, time, NPC_IDLE_MIN + Math.random() * NPC_IDLE_RANGE);
+            if (npc.goal === 'fish') {
+                setNpcPose(scene, npc, npc.spot.water.direction, 0);
+                npc.state = 'aim';
+                npc.until = time + NPC_AIM_MIN + Math.random() * NPC_AIM_RANGE;
+            }
+        } else if (time - npc.stuckSince > NPC_STUCK_TIME) {
+            settleNpc(scene, npc, time, NPC_IDLE_MIN);
+        }
+    } else if (npc.state === 'aim') {
+        if (time >= npc.until) startNpcCast(npc, time);
+    } else if (npc.state === 'fishing') {
+        updateNpcFishing(scene, npc, time);
+    }
+    drawNpcRod(npc, time);
+    drawNpcShadow(scene, npc);
+}
+
+function updateNpcs(scene, time, delta) {
     let nearest = null;
     let nearestDistance = NPC_TALK_DISTANCE_SQUARED;
 
     for (const chunk of loadedChunks.values()) {
-        if (!chunk.visible || !chunk.npcs) continue;
-        for (const npc of chunk.npcs) {
+        for (const npc of chunk.npcs || []) {
+            updateNpc(scene, npc, time, delta);
             const x = npc.x - character.x, y = npc.y - character.y, distance = x * x + y * y;
             if (distance < nearestDistance) [nearest, nearestDistance] = [npc, distance];
-            if (npc.bobber) {
-                const bob = Math.floor(time / NPC_BOB_TIME + npc.tileX) % 2;
-                if (npc.bobber.y !== bob) npc.bobber.y = bob;
-            } else if (time >= npc.nextTurnAt) {
-                npc.nextTurnAt = time + NPC_TURN_MIN + Math.random() * NPC_TURN_RANGE;
-                turnNpc(scene, npc, ['front', 'left', 'right', 'front'][Math.floor(Math.random() * 4)]);
-            }
         }
     }
 
-    if (nearest && !nearest.bobber) turnNpc(scene, nearest, getDirectionToward(nearest));
     if (nearest === nearestNpc) return;
     nearestNpc = nearest;
     if (nearest && !isMenuOpen()) showItemLabel(scene, `E  Talk to ${nearest.name}`);
@@ -3769,7 +4053,7 @@ function talkToNearestNpc(scene) {
     const time = scene.time.now;
 
     if (npc.role !== 'trader') {
-        const lines = npc.role === 'fisher' ? NPC_FISHER_LINES : NPC_IDLE_LINES;
+        const lines = npc.fishing ? NPC_FISHER_LINES : NPC_IDLE_LINES;
         showRewardCard(scene, time, npc.name, lines[Math.floor(Math.random() * lines.length)]);
         return;
     }
@@ -4815,13 +5099,13 @@ function addPixelPathPoint(x, y, color) {
     pixelPathLength++;
 }
 
-function drawPixelPath() {
+function drawPixelPath(graphics = fishingLine) {
     let activeColor = -1;
 
     for (let index = 0; index < pixelPathLength; index++) {
         if (pixelPathColor[index] !== activeColor) {
             activeColor = pixelPathColor[index];
-            fishingLine.fillStyle(activeColor, 1);
+            graphics.fillStyle(activeColor, 1);
         }
 
         const y = pixelPathY[index];
@@ -4836,7 +5120,7 @@ function drawPixelPath() {
             index++;
         }
 
-        fishingLine.fillRect(left, y, right - left + 1, 1);
+        graphics.fillRect(left, y, right - left + 1, 1);
     }
 }
 
@@ -4873,7 +5157,7 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
     }
 }
 
-function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
+function plotFishingLine(fromX, fromY, toX, toY, sag, palette, graphics = fishingLine) {
     const controlX = (fromX + toX) / 2;
     const controlY = (fromY + toY) / 2 + sag;
     const steps = Math.max(2, Math.ceil(Math.hypot(toX - fromX, toY - fromY) * 1.5));
@@ -4893,7 +5177,7 @@ function plotFishingLine(fromX, fromY, toX, toY, sag, palette) {
         addPixelPathPoint(x, y, palette ? samplePalette(palette, amount) : color);
     }
 
-    drawPixelPath();
+    drawPixelPath(graphics);
 }
 
 function createFishingRope(fromX, fromY, toX, toY, lineLength) {
@@ -7720,16 +8004,14 @@ const NPC_ACCESSORIES = 4;
 const NPC_HAIRSTYLES = 5;
 const NPC_SHIRTS = 5;
 const NPC_ACCESSORY_CHANCE = 0.35;
-const NPC_SHORE_CHANCE = 0.012;
-const NPC_INLAND_CHANCE = 0.0025;
+const NPC_CELL_SIZE = 10;
+const NPC_CELL_MARGIN = 2;
+const NPC_CELL_CHANCE = 0.45;
+const NPC_FISHER_CHANCE = 0.5;
 const NPC_TRADER_CHANCE = 0.4;
 const NPC_SPAWN_CLEARANCE = 10;
 const NPC_TALK_DISTANCE_SQUARED = 24 * 24;
-const NPC_TURN_MIN = 2500;
-const NPC_TURN_RANGE = 5000;
-const NPC_BOB_TIME = 450;
 const NPC_TRADE_PERIOD = 60 * 60 * 1000;
-const NPC_ROD_COLOR = 0x7e4332;
 const NPC_SKIN_TONES = [
     [0x83645a, 0x9d856f, 0xb5a58b, 0x443c38],
     [0xb07a62, 0xd3a383, 0xe8c4a0, 0x4a3530],
@@ -7795,6 +8077,28 @@ const NPC_FISHER_LINES = [
     'Shh, they are nibbling.', 'Caught a beauty this morning.', 'Patience is the whole trick.',
     'Deeper water, bigger fish.', 'Wait for the bobber to dip twice.', 'Nothing yet, but I have time.'
 ];
+const NPC_CAST_REACH = 2;
+const NPC_LINE_SAG = 5;
+const NPC_SPEED_MIN = 0.65;
+const NPC_SPEED_RANGE = 0.5;
+const NPC_SPRINT_CHANCE = 0.35;
+const NPC_ROAM_RADIUS = 6;
+const NPC_TRADER_ROAM = 2;
+const NPC_FISH_CHANCE = 0.55;
+const NPC_PLAN_ATTEMPTS = 12;
+const NPC_IDLE_MIN = 1500;
+const NPC_IDLE_RANGE = 3500;
+const NPC_STUCK_TIME = 600;
+const NPC_AIM_MIN = 300;
+const NPC_AIM_RANGE = 700;
+const NPC_CAST_ERROR = 14;
+const NPC_LURE_RADIUS = 48;
+const NPC_LURE_TIME = 2500;
+const NPC_LURE_DELAY = 1500;
+const NPC_SCARE_RADIUS = 7;
+const NPC_DISAPPOINT_TIME = 900;
+const NPC_FISH_MIN = 5000;
+const NPC_FISH_RANGE = 7000;
 
 let hotbarSelector;
 const hotbarItemImages = [];
@@ -8561,7 +8865,7 @@ function actorBlocksRect(actor, hitX, hitY, width, height, left, top, right, bot
         top < actor.y + hitY + height && bottom > actor.y + hitY;
 }
 
-function canCharacterOccupy(scene, x, y) {
+function canCharacterOccupy(scene, x, y, ignoreNpc) {
     const left = x + CHARACTER_HITBOX_X;
     const top = y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH;
@@ -8571,7 +8875,7 @@ function canCharacterOccupy(scene, x, y) {
         actorBlocksRect(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT, left, top, right, bottom) ||
         actorBlocksRect(store, STORE_HITBOX_X, STORE_HITBOX_Y, STORE_HITBOX_WIDTH, STORE_HITBOX_HEIGHT, left, top, right, bottom) ||
         isBlockedByProp(left, top, right, bottom) ||
-        isBlockedByNpc(left, top, right, bottom)
+        isBlockedByNpc(left, top, right, bottom, ignoreNpc)
     ) {
         return false;
     }
@@ -8845,7 +9149,7 @@ function update(time, delta) {
     updateFish(delta);
     spawnFishRise(this, time);
     spawnMeadowMote(this, time);
-    updateNpcs(this, time);
+    updateNpcs(this, time, delta);
     updateChunkWater(time);
 }
 

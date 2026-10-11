@@ -39,6 +39,6 @@ function update(time, delta) {
     updateFish(delta);
     spawnFishRise(this, time);
     spawnMeadowMote(this, time);
-    updateNpcs(this, time);
+    updateNpcs(this, time, delta);
     updateChunkWater(time);
 }
