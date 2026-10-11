@@ -3,6 +3,129 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('restoring an outdoor routine makes a previously indoor resident visible again', () => {
+    const run = createNpcs();
+    run("first.house = { doorX: 4, doorY: 3 }; canNpcOccupy = () => true; enterNpcHouse(first); npcMemory.set(first.id, { ...serializeNpc(first, 100), home: false, x: 56, y: 48, goal: [4, 3, 'leaveHome'] }); restoreNpc(scene, first)");
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.goal'), 'leaveHome');
+    assert.equal(run('first.sprite.visible'), true);
+});
+
+test('restoring a walk finishes a partial tile instead of considering the rounded destination reached', () => {
+    const run = createNpcs();
+    run("first.x = 56; first.walkPhase = 1; canNpcOccupy = () => true; startNpcPath(first, [[4, 3]], 'wander', 100); npcMemory.set(first.id, serializeNpc(first, 100)); restoreNpc(scene, first)");
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.path[0]?.[0]'), 4);
+    run('for (let time = 116; time < 5000 && first.state === "walk"; time += 16) updateNpc(scene, first, time, 16)');
+    assert.equal(run('first.x'), 64);
+    assert.equal(run('first.y'), 48);
+});
+
+test('restored positions stay on the pixel grid and never start an inaccessible route', () => {
+    const run = createNpcs();
+    run("canNpcOccupy = () => false; npcMemory.set(first.id, { ...serializeNpc(first, 100), x: 55.8, y: 47.9, goal: [4, 3, 'wander'] }); restoreNpc(scene, first)");
+    assert.equal(run('first.x'), 56);
+    assert.equal(run('first.y'), 48);
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.path.length'), 0);
+});
+
+test('a conversation does not pull a housemate away from bedtime or rain shelter', () => {
+    const run = createNpcs();
+    run("findNearestRumor = getMysteryShopRumor = () => null; findNpcMeetingPath = () => [[4, 3]]; dialogueContainer = {}; isMenuOpen = () => false; beginDialogue = () => {}; nearestNpc = first; second.house = { doorX: 5, doorY: 3 }; second.dailyPlan = 'home'; startNpcPath(second, [[5, 3]], 'home', 100); talkToNearestNpc(scene)");
+    assert.equal(run('second.goal'), 'home');
+    assert.equal(run('second.joining'), undefined);
+    run("second.state = 'idle'; second.goal = null; second.dailyPlan = 'day'; second.needsShelter = true; talkToNearestNpc(scene)");
+    assert.equal(run('second.state'), 'idle');
+    assert.equal(run('second.joining'), undefined);
+});
+
+test('residents describe their housemate actual routine without inventing an unseen location', () => {
+    const run = createNpcs();
+    run("first.house = { residents: [1, 2] }; const connection = { companion: second, kind: 'close' }; second.state = 'home'");
+    assert.equal(run('describeNpcConnection(first, connection)'), "I'm close to Eli. We share a home nearby. Eli is at home for now.");
+    run("second.state = 'walk'; second.goal = 'home'");
+    assert.ok(run('describeNpcConnection(first, connection).endsWith("Eli is on the way home.")'));
+    run("second.fishing = { state: 'floating' }");
+    assert.ok(run('describeNpcConnection(first, connection).endsWith("Eli is fishing at the moment.")'));
+    run('activeNpcs.splice(1, 1)');
+    assert.equal(run('describeNpcConnection(first, connection)'), "I'm close to Eli. We share a home nearby.");
+});
+
+test('asking about company refreshes the answer after a companion changes plans', () => {
+    const run = createNpcs();
+    run("findNearestRumor = getMysteryShopRumor = () => null; second.state = 'walk'; second.goal = 'join'; second.joining = first.id; const nodes = buildNpcDialogue(scene, first)");
+    assert.ok(run('nodes.company.text.endsWith("Eli is coming over to say hello.")'));
+    run("second.state = 'talk'; second.talking = true; second.joinedConversation = first.id");
+    assert.equal(run('nodes.chat.options.find(option => option.label === "Your company?").action()'), 'company');
+    assert.ok(run('nodes.company.text.endsWith("Eli is here with us.")'));
+});
+
+test('a resident waits outside a blocked doorway and retries when it clears', () => {
+    const run = createNpcs();
+    run('first.x = 32; second.x = 160; first.house = { doorX: 3, doorY: 3 }; getWorldClock = () => ({ hour: 23, day: 1 }); canCharacterOccupy = () => true');
+    assert.equal(run('updateNpcHome(scene, first, 100)'), false);
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.x'), 32);
+    run('character.x = character.y = -100; updateNpcHome(scene, first, 1000)');
+    assert.equal(run('first.state'), 'idle');
+    run('updateNpcHome(scene, first, 4101)');
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.goal'), 'home');
+    assert.equal(run('first.path.at(-1)[0]'), 3);
+});
+
+test('winding down still finishes the final partial step toward home', () => {
+    const run = createNpcs();
+    run("first.x = 56; first.house = { doorX: 4, doorY: 3 }; first.dailyPlan = 'evening'; canNpcOccupy = () => true; npcRandom = () => 0; chooseNpcPlan(scene, first, 100)");
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.goal'), 'windDown');
+    assert.equal(run('first.path[0][0]'), 4);
+});
+
+test('a night routine reaches the doorway before hiding a resident indoors', () => {
+    const run = createNpcs();
+    run("first.x = 56; first.walkPhase = 1; first.house = { doorX: 4, doorY: 3 }; canNpcOccupy = () => true; getWorldClock = () => ({ hour: 23, day: 1 }); npcRandom = () => 0.75");
+    assert.equal(run('updateNpcHome(scene, first, 100)'), false);
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.path[0][0]'), 4);
+    run('for (let time = 116; time < 5000 && first.state !== "home"; time += 16) updateNpc(scene, first, time, 16)');
+    assert.equal(run('first.x'), 64);
+    assert.equal(run('first.state'), 'home');
+    assert.equal(run('first.sprite.visible'), false);
+});
+
+test('resuming between tiles uses a clear anchor when a neighbor blocks the rounded tile', () => {
+    const run = createNpcs();
+    run("first.x = 56; second.x = 64; character.x = character.y = -100; first.pausedActivity = { x: 5, y: 3, goal: 'wander' }; isNpcWalkableTile = (x, y) => x >= 2 && x <= 7 && (y === 3 || y === 4)");
+    run('canCharacterOccupy = (scene, x, y, ignore) => !isBlockedByNpc(x + CHARACTER_HITBOX_X, y + CHARACTER_HITBOX_Y, x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, ignore)');
+    assert.equal(run('canNpcOccupy(scene, first, 64, 48)'), false);
+    assert.equal(run('resumeNpcActivity(scene, first, 100)'), true);
+    assert.equal(run('first.path[0][0]'), 3);
+    assert.ok(run('first.path.some(([x, y]) => y === 4)'));
+    assert.equal(run('first.path.at(-1)[0]'), 5);
+});
+
+test('resuming a blocked partial step never snaps to an inaccessible tile', () => {
+    const run = createNpcs();
+    run("first.x = 56; first.pausedActivity = { x: 4, y: 3, goal: 'wander' }; canNpcOccupy = (scene, npc, x, y) => x === 56 && y === 48");
+    assert.equal(run('resumeNpcActivity(scene, first, 100)'), false);
+    assert.equal(run('first.x'), 56);
+    assert.equal(run('first.y'), 48);
+    assert.equal(run('first.state'), 'idle');
+});
+
+test('an interrupted walk finishes its last partial tile without backing up or stopping early', () => {
+    const run = createNpcs();
+    run("first.x = 56; first.walkPhase = 1; second.x = 160; character.x = character.y = -100; canNpcOccupy = () => true; first.pausedActivity = { x: 4, y: 3, goal: 'wander' }; npcRandom = () => 0.75");
+    assert.equal(run('resumeNpcActivity(scene, first, 100)'), true);
+    assert.equal(run('first.path[0]?.[0]'), 4);
+    run('for (let time = 116; time < 5000 && first.state === "walk"; time += 16) updateNpc(scene, first, time, 16)');
+    assert.equal(run('first.x'), 64);
+    assert.equal(run('first.y'), 48);
+    assert.equal(run('first.state'), 'idle');
+});
+
 test('dynamic routes check the whole segment even when its endpoint is clear', () => {
     const run = createNpcs();
     run('first.x = 64; second.x = 72; character.x = character.y = -100; isNpcWalkableTile = (x, y) => x >= 2 && x <= 7 && (y === 3 || y === 4)');
@@ -126,7 +249,7 @@ test('housemates leave in sequence without overlapping or choosing the same exit
 
 test('night fishers tolerate light rain but take shelter in a heavy shower', () => {
     const run = createNpcs();
-    run('first.water = {}; first.house = { doorX: 5, doorY: 3 }; npcHash = () => 0.1; getWorldClock = () => ({ hour: 23, day: 1 }); getRainIntensity = () => 0.4; updateNpcHome(scene, first, 100)');
+    run('first.water = {}; first.house = { doorX: 5, doorY: 3 }; canNpcOccupy = () => true; npcHash = () => 0.1; getWorldClock = () => ({ hour: 23, day: 1 }); getRainIntensity = () => 0.4; updateNpcHome(scene, first, 100)');
     assert.equal(run('first.dailyPlan'), 'late');
     assert.equal(run('first.needsShelter'), false);
     assert.equal(run('first.state'), 'idle');
@@ -211,7 +334,7 @@ test('bedtime route retries do not start new wandering, socializing, or casts', 
 
 test('saved journeys home resume at night but expire when loaded during the day', () => {
     const run = createNpcs();
-    run("first.house = { doorX: 5, doorY: 3 }; startNpcPath(first, [[4, 3], [5, 3]], 'home', 100); pauseNpcActivity(first); const journeyHome = serializeNpc(first, 100); npcMemory.set(first.id, journeyHome); getWorldClock = () => ({ hour: 23, day: 1 }); restoreNpc(scene, first)");
+    run("first.house = { doorX: 5, doorY: 3 }; canNpcOccupy = () => true; startNpcPath(first, [[4, 3], [5, 3]], 'home', 100); pauseNpcActivity(first); const journeyHome = serializeNpc(first, 100); npcMemory.set(first.id, journeyHome); getWorldClock = () => ({ hour: 23, day: 1 }); restoreNpc(scene, first)");
     assert.equal(run('first.state'), 'walk');
     assert.equal(run('first.goal'), 'home');
     run('npcMemory.set(first.id, journeyHome); getWorldClock = () => ({ hour: 12, day: 2 }); restoreNpc(scene, first)');
@@ -251,7 +374,7 @@ test('both friends resume their shared walk after group dialogue closes', () => 
 
 test('saving during a conversation restores the remembered destination without reopening dialogue', () => {
     const run = createNpcs();
-    run("startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100); pauseNpcActivity(first); settleNpc(scene, first, 100, 0); first.state = 'talk'; npcMemory.set(first.id, serializeNpc(first, 100)); restoreNpc(scene, first)");
+    run("canNpcOccupy = () => true; startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100); pauseNpcActivity(first); settleNpc(scene, first, 100, 0); first.state = 'talk'; npcMemory.set(first.id, serializeNpc(first, 100)); restoreNpc(scene, first)");
     assert.equal(run('first.pausedActivity'), null);
     assert.equal(run('first.state'), 'walk');
     assert.equal(run('first.goal'), 'wander');
@@ -544,7 +667,7 @@ test('night routines send residents home and allow some fishers to stay out over
 
 test('residents enter at night, restore indoors, and wait for a clear doorway in the morning', () => {
     const run = createNpcs();
-    run('first.house = { id: 1, x: 2, y: 1, doorX: 3, doorY: 3, residents: [1] }; first.x = 32; getWorldClock = () => ({ hour: 23, day: 4 }); updateNpcHome(scene, first, 100)');
+    run('first.house = { id: 1, x: 2, y: 1, doorX: 3, doorY: 3, residents: [1] }; first.x = 32; canNpcOccupy = () => true; getWorldClock = () => ({ hour: 23, day: 4 }); updateNpcHome(scene, first, 100)');
     assert.equal(run('first.goal'), 'home');
     assert.ok(run('first.path.every(([x, y]) => isNpcInHomeArea(first, x, y))'));
     run('first.x = 48; first.path = []; updateNpc(scene, first, 116, 16)');
