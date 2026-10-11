@@ -1,4 +1,3 @@
-const PROMPT_DITHER_RANKS = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 const promptDitherMasks = [];
 
 function createInteractionPromptUI(scene) {
@@ -109,8 +108,10 @@ function applyPromptMotion() {
     const level = Math.round(promptMotion.value * 16);
     const style = interactionPromptLayer.node.style;
     const mask = level >= 16 ? '' : getPromptDitherMask(level);
-    if (style.maskImage === mask) return;
+    const position = `0px ${((-interactionPromptLayer.y % 4) + 4) % 4}px`;
+    if (style.maskImage === mask && style.maskPosition === position) return;
     style.maskImage = style.webkitMaskImage = mask;
+    style.maskPosition = style.webkitMaskPosition = position;
     style.maskSize = style.webkitMaskSize = '4px 4px';
 }
 
@@ -119,7 +120,7 @@ function getPromptDitherMask(level) {
     const canvas = document.createElement('canvas');
     canvas.width = canvas.height = 64;
     const context = canvas.getContext('2d');
-    for (let index = 0; index < 16; index++) if (PROMPT_DITHER_RANKS[index] < level) context.fillRect(index % 4 * 16, (index >> 2) * 16, 16, 16);
+    for (let index = 0; index < 16; index++) if (SEE_THROUGH_RANKS[index] < level) context.fillRect(index % 4 * 16, (index >> 2) * 16, 16, 16);
     return promptDitherMasks[level] = `url(${canvas.toDataURL()})`;
 }
 
