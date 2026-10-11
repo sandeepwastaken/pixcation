@@ -460,3 +460,54 @@ const NPC_MAX_NIBBLES = 3;
 const NPC_LOOK_MIN = 1400;
 const NPC_LOOK_RANGE = 2600;
 const NPC_POWER_ERROR = 0.3;
+const DAY_LENGTH_MINUTES = 24;
+const RAIN_DEPTH = 40;
+const SKY_DEPTH = 50;
+const SKY_LIGHT_STOPS = [
+    [0, 0.42, 0.47, 0.72],
+    [5, 0.42, 0.47, 0.72],
+    [6.5, 0.96, 0.8, 0.76],
+    [8, 1, 1, 1],
+    [17.5, 1, 1, 1],
+    [19, 1, 0.82, 0.66],
+    [20.5, 0.42, 0.47, 0.72],
+    [24, 0.42, 0.47, 0.72]
+];
+const RAIN_CHANCE = 0.35;
+const RAIN_EARLIEST_HOUR = 8;
+const RAIN_LATEST_START_HOUR = 14;
+const RAIN_LATEST_END_HOUR = 18;
+const RAIN_MIN_HOURS = 1.5;
+const RAIN_HOUR_RANGE = 2.5;
+const RAIN_FADE_HOURS = 0.35;
+const RAIN_DIM = 0.16;
+const RAIN_DROPS_PER_SECOND = 140;
+const RAIN_SPEED = 230;
+const RAIN_DRIFT = 40;
+const RAIN_FALL_MIN = 40;
+const RAIN_FALL_RANGE = 70;
+const RAIN_STREAK = 3;
+const RAIN_ALPHA = 0.7;
+const RAIN_COLOR = 0xc8dcf0;
+const RAIN_RIPPLE_COLOR = 0x9bd2e1;
+const RAIN_RIPPLE_LIFETIME = 240;
+const RAIN_FLECK_LIFETIME = 150;
+const RUMOR_CELL_CHUNKS = 5;
+const RUMOR_ATTEMPTS = 4;
+const RUMOR_NEAR_TILES = 40;
+const RUMOR_FAR_TILES = 100;
+const RUMOR_SPAWN_CHANCE = 0.35;
+const RUMOR_MAP_COLOR = 0xe8c170;
+const FISH_JUMP_MIN = 5000;
+const FISH_JUMP_RANGE = 9000;
+const FISH_JUMP_DISTANCE = 10;
+const FISH_JUMP_HEIGHT = 7;
+const FISH_JUMP_TIME = 620;
+const FISH_JUMP_TILT = 0.45;
+const FISH_JUMP_DEPTH = 6;
+const FISH_JUMP_BIG_WEIGHT = 3;
+const FISH_JUMP_RUMOR_WEIGHT = 3;
+const FISH_JUMP_DROPLETS = 3;
+const FISH_JUMP_DROPLET_LIFETIME = 260;
+const FISH_JUMP_DROPLET_COLOR = 0xbce6eb;
+const FISH_JUMP_TINT = 0x52707e;

@@ -70,6 +70,7 @@ function updateFish(delta) {
 
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {
+            if (fish.jumping) continue;
             if (fish.state === 'lure' && updateLuredFish(chunk, fish, delta)) {
                 queueFishMigration(chunk, fish);
                 continue;

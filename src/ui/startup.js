@@ -112,4 +112,5 @@ function updateStartup(scene, time, delta) {
     updateParticles(time);
     updateFish(delta);
     updateChunkWater(time);
+    updateSky(scene, time, delta);
 }

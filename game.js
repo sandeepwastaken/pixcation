@@ -191,6 +191,18 @@ const NPC_FISHING_TIPS = [
     "Hold Shift to run. Your feet will thank you on the long walks."
 ];
 
+const NPC_RUMOR_LINES = [
+    "Word is a {species} is circling the water {distance} to the {direction}. Check your map!",
+    "My cousin saw a huge {species} jump {distance} to the {direction}. Check your map!",
+    "Try fishing {distance} to the {direction}. Folks keep seeing a {species}. Check your map!",
+    "Psst. There's a {species} lurking {distance} to the {direction}. Check your map!"
+];
+
+const NPC_NO_RUMOR_LINES = [
+    "Rumors? Not today. The water's been quiet around here.",
+    "I haven't heard a thing. Ask me again tomorrow!"
+];
+
 window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
     constructor(game) {
         super({
@@ -2731,7 +2743,7 @@ function updateChunkWater(time) {
         for (const fish of chunk.fish) {
             if (count >= FISH_MAX_VISIBLE) break fishChunks;
             const x = fish.x, y = fish.y;
-            if (x < left || x > right || y < top || y > bottom) continue;
+            if (fish.jumping || x < left || x > right || y < top || y > bottom) continue;
             const offset = count * 4;
 
             fishUniforms[offset] = Math.round(x);
@@ -4314,9 +4326,11 @@ function buildNpcDialogue(scene, npc) {
     const portrait = getNpcTexture(scene, npc.look, 'front', 0);
     const node = (text, options) => ({ portrait, portraitScale: NPC_PORTRAIT_SCALE, text: text.replaceAll('{first}', first), options });
     const back = { label: 'Back', next: 'intro' };
+    const rumor = findNearestRumor(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE));
     const bye = { label: 'Bye', close: true };
     const nodes = {
-        chat: node(pick(personality.chatter), [back, bye]),
+        chat: node(pick(personality.chatter), [{ label: 'Any rumors?', action: () => (rumor && hearRumor(rumor), 'rumor') }, back, bye]),
+        rumor: node(rumor ? describeRumor(rumor, pick(NPC_RUMOR_LINES)) : pick(NPC_NO_RUMOR_LINES), [back, bye]),
         tips: node(pick(npc.fishing ? personality.fishing : NPC_FISHING_TIPS), [back, bye])
     };
 
@@ -4357,6 +4371,243 @@ function releaseDialogueNpc(scene) {
     dialogueNpc.talking = false;
     if (dialogueNpc.state === 'talk') settleNpc(scene, dialogueNpc, scene.time.now, NPC_IDLE_MIN);
     dialogueNpc = null;
+}
+
+const rainDrops = [];
+let skyOverlay = null;
+let skyColor = -1;
+let rainGraphics = null;
+let rainRandom = null;
+let rainSpawnCarry = 0;
+
+function getWorldClock(now = Date.now()) {
+    const days = now / (DAY_LENGTH_MINUTES * 60000) + (WORLD_SEED % 997) / 997;
+    const day = Math.floor(days);
+    return { day, hour: (days - day) * 24 };
+}
+
+function getWeatherHash(day, index, salt) {
+    return coordinateHash(day, index, Math.imul(WORLD_SEED + salt, WORLD_HASH_MULTIPLIER));
+}
+
+function getRainWindow(day) {
+    if (getWeatherHash(day, 0, 1401) >= RAIN_CHANCE) return null;
+    const start = RAIN_EARLIEST_HOUR + getWeatherHash(day, 1, 1401) * (RAIN_LATEST_START_HOUR - RAIN_EARLIEST_HOUR);
+    return [start, Math.min(RAIN_LATEST_END_HOUR, start + RAIN_MIN_HOURS + getWeatherHash(day, 2, 1401) * RAIN_HOUR_RANGE)];
+}
+
+function getRainIntensity(clock) {
+    const window = getRainWindow(clock.day);
+    if (!window) return 0;
+    return Phaser.Math.Clamp(Math.min(clock.hour - window[0], window[1] - clock.hour) / RAIN_FADE_HOURS, 0, 1);
+}
+
+function createSky(scene) {
+    skyOverlay = scene.add.rectangle(0, 0, mainCamera.width, mainCamera.height, 0xffffff)
+        .setOrigin(0)
+        .setScrollFactor(0)
+        .setDepth(SKY_DEPTH)
+        .setBlendMode(Phaser.BlendModes.MULTIPLY);
+    rainGraphics = scene.add.graphics().setDepth(RAIN_DEPTH);
+    rainRandom = createSeededRandom(Math.imul(WORLD_SEED + 1402, WORLD_HASH_MULTIPLIER));
+}
+
+function landRainDrop(scene, time, x, y) {
+    if (isWaterPixel(scene, x, y)) {
+        spawnParticle(scene, shadowLayer, time, x - 1, y, -1, 0, RAIN_RIPPLE_LIFETIME, RAIN_RIPPLE_COLOR);
+        spawnParticle(scene, shadowLayer, time, x + 1, y, 1, 0, RAIN_RIPPLE_LIFETIME, RAIN_RIPPLE_COLOR);
+    } else {
+        spawnParticle(scene, shadowLayer, time, x, y, 0, -1, RAIN_FLECK_LIFETIME, RAIN_COLOR);
+    }
+}
+
+function updateRain(scene, time, delta, intensity) {
+    rainSpawnCarry += intensity * RAIN_DROPS_PER_SECOND * Math.min(delta, 50) / 1000;
+    while (rainSpawnCarry >= 1) {
+        rainSpawnCarry--;
+        const landX = Math.round(mainCamera.scrollX + rainRandom() * (mainCamera.width + RAIN_DRIFT));
+        const landY = Math.round(mainCamera.scrollY + rainRandom() * mainCamera.height);
+        const duration = (RAIN_FALL_MIN + rainRandom() * RAIN_FALL_RANGE) / RAIN_SPEED * 1000;
+        rainDrops.push({ landX, landY, born: time, duration });
+    }
+
+    rainGraphics.clear();
+    if (!rainDrops.length) return;
+    rainGraphics.fillStyle(RAIN_COLOR, RAIN_ALPHA);
+    for (let index = rainDrops.length - 1; index >= 0; index--) {
+        const drop = rainDrops[index];
+        const remaining = 1 - (time - drop.born) / drop.duration;
+        if (remaining <= 0) {
+            landRainDrop(scene, time, drop.landX, drop.landY);
+            rainDrops[index] = rainDrops[rainDrops.length - 1];
+            rainDrops.pop();
+            continue;
+        }
+        const seconds = remaining * drop.duration / 1000;
+        rainGraphics.fillRect(Math.round(drop.landX - RAIN_DRIFT * seconds), Math.round(drop.landY - RAIN_SPEED * seconds) - RAIN_STREAK, 1, RAIN_STREAK);
+    }
+}
+
+function updateSky(scene, time, delta) {
+    if (!skyOverlay) return;
+    const clock = getWorldClock();
+    const rain = getRainIntensity(clock);
+    const light = blendBiomeStops(SKY_LIGHT_STOPS, clock.hour);
+    const dim = 1 - rain * RAIN_DIM;
+    const color = light.reduce((total, value, channel) => total | Math.round(255 * Phaser.Math.Clamp(value * dim, 0, 1)) << (16 - channel * 8), 0);
+
+    if (color !== skyColor) {
+        skyColor = color;
+        skyOverlay.setFillStyle(color);
+    }
+    if (skyOverlay.width !== mainCamera.width || skyOverlay.height !== mainCamera.height) skyOverlay.setSize(mainCamera.width, mainCamera.height);
+    updateRain(scene, time, delta, rain);
+}
+
+const rumorCache = new Map();
+const heardRumors = new Map();
+const RUMOR_SPECIES = FISH_SPECIES.filter(species => species.size === 'large' || species.size === 'giant');
+const RUMOR_DIRECTIONS = ['east', 'southeast', 'south', 'southwest', 'west', 'northwest', 'north', 'northeast'];
+
+function getRumorHotspot(cellX, cellY, day) {
+    const key = getTileId(cellX, cellY) * 31 + day;
+    const cached = rumorCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const salt = Math.imul(WORLD_SEED + 1601 + day * 7919, WORLD_HASH_MULTIPLIER);
+    let hotspot = null;
+    for (let attempt = 0; attempt < RUMOR_ATTEMPTS && !hotspot; attempt++) {
+        const chunkX = cellX * RUMOR_CELL_CHUNKS + Math.floor(coordinateHash(cellX * 31 + attempt, cellY, salt) * RUMOR_CELL_CHUNKS);
+        const chunkY = cellY * RUMOR_CELL_CHUNKS + Math.floor(coordinateHash(cellX, cellY * 31 + attempt, salt) * RUMOR_CELL_CHUNKS);
+        let waterTiles = 0;
+        for (let y = 0; y < CHUNK_SIZE; y += 2) {
+            for (let x = 0; x < CHUNK_SIZE; x += 2) {
+                if (getTerrainType(chunkX * CHUNK_SIZE + x, chunkY * CHUNK_SIZE + y) === 'water') waterTiles += 4;
+            }
+        }
+        const area = waterTiles * TILE_SIZE * TILE_SIZE;
+        const options = RUMOR_SPECIES.filter(species => area >= species.minWater);
+        if (!options.length) continue;
+        hotspot = { key, day, chunkX, chunkY, species: options[Math.floor(coordinateHash(chunkX, chunkY, salt) * options.length)] };
+    }
+    return cacheWorldValue(rumorCache, key, hotspot);
+}
+
+function getChunkRumor(chunkX, chunkY) {
+    const day = getWorldClock().day;
+    const hotspot = getRumorHotspot(Math.floor(chunkX / RUMOR_CELL_CHUNKS), Math.floor(chunkY / RUMOR_CELL_CHUNKS), day);
+    return hotspot && Math.abs(hotspot.chunkX - chunkX) <= 1 && Math.abs(hotspot.chunkY - chunkY) <= 1 ? hotspot : null;
+}
+
+function findNearestRumor(tileX, tileY) {
+    const day = getWorldClock().day;
+    const chunkX = Math.floor(tileX / CHUNK_SIZE), chunkY = Math.floor(tileY / CHUNK_SIZE);
+    const cellX = Math.floor(chunkX / RUMOR_CELL_CHUNKS), cellY = Math.floor(chunkY / RUMOR_CELL_CHUNKS);
+    let nearest = null;
+    let nearestDistance = Infinity;
+    for (let offsetY = -1; offsetY <= 1; offsetY++) {
+        for (let offsetX = -1; offsetX <= 1; offsetX++) {
+            const hotspot = getRumorHotspot(cellX + offsetX, cellY + offsetY, day);
+            if (!hotspot) continue;
+            const x = (hotspot.chunkX + 0.5) * CHUNK_SIZE - tileX, y = (hotspot.chunkY + 0.5) * CHUNK_SIZE - tileY;
+            const distance = Math.hypot(x, y);
+            if (distance < nearestDistance) [nearest, nearestDistance] = [{ hotspot, x, y, distance }, distance];
+        }
+    }
+    return nearest;
+}
+
+function describeRumor(rumor, line) {
+    const direction = RUMOR_DIRECTIONS[(Math.round(Math.atan2(rumor.y, rumor.x) / (Math.PI / 4)) + 8) % 8];
+    const distance = rumor.distance < RUMOR_NEAR_TILES ? 'close by' : rumor.distance < RUMOR_FAR_TILES ? 'a short walk' : 'a long walk';
+    return line.replaceAll('{species}', rumor.hotspot.species.name).replaceAll('{direction}', direction).replaceAll('{distance}', distance);
+}
+
+function hearRumor(rumor) {
+    heardRumors.set(rumor.hotspot.key, rumor.hotspot);
+    mapDirty = true;
+}
+
+const fishJumps = [];
+const fishJumpSprites = [];
+let fishJumpRandom = null;
+let nextFishJumpAt = 0;
+
+function splashFishJump(scene, time, x, y) {
+    idleRipple(scene, time, x, y);
+    for (let index = 0; index < FISH_JUMP_DROPLETS; index++) {
+        spawnParticle(scene, shadowLayer, time, x - 1 + index, y - 1, index - 1, -1, FISH_JUMP_DROPLET_LIFETIME, FISH_JUMP_DROPLET_COLOR);
+    }
+}
+
+function pickJumpingFish() {
+    const left = mainCamera.scrollX, top = mainCamera.scrollY;
+    let total = 0;
+    const candidates = [];
+    for (const chunk of loadedWaterChunks) {
+        if (!chunk.visible) continue;
+        for (const fish of chunk.fish) {
+            if (fish.jumping || fish.npcLured || fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee') continue;
+            if (fish.x < left || fish.y < top || fish.x > left + mainCamera.width || fish.y > top + mainCamera.height) continue;
+            const weight = (fish.size === 'large' || fish.size === 'giant' ? FISH_JUMP_BIG_WEIGHT : 1) * (fish.rumor ? FISH_JUMP_RUMOR_WEIGHT : 1);
+            total += weight;
+            candidates.push([fish, chunk, weight]);
+        }
+    }
+    let roll = fishJumpRandom() * total;
+    for (const candidate of candidates) {
+        roll -= candidate[2];
+        if (roll <= 0) return candidate;
+    }
+    return null;
+}
+
+function startFishJump(scene, time) {
+    const picked = pickJumpingFish();
+    if (!picked) return;
+    const [fish, chunk] = picked;
+    const distance = FISH_JUMP_DISTANCE + fish.length * 0.5;
+    let heading = fish.heading;
+    let toX = fish.x + Math.cos(heading) * distance, toY = fish.y + Math.sin(heading) * distance;
+    if (!canFishSwim(chunk, fish, toX, toY)) {
+        heading += Math.PI;
+        toX = fish.x + Math.cos(heading) * distance;
+        toY = fish.y + Math.sin(heading) * distance;
+        if (!canFishSwim(chunk, fish, toX, toY)) return;
+    }
+
+    const sprite = fishJumpSprites.pop() || scene.add.image(0, 0, 'fishing-fish').setTint(FISH_JUMP_TINT);
+    worldObjectLayer.add(sprite);
+    sprite.setVisible(true).setFlipX(Math.cos(heading) < 0).setDepth(Math.max(fish.y, toY) + FISH_JUMP_DEPTH);
+    fish.jumping = true;
+    fishJumps.push({ fish, sprite, fromX: fish.x, fromY: fish.y, toX, toY, start: time, height: FISH_JUMP_HEIGHT + fish.length * 0.4, side: Math.cos(heading) < 0 ? -1 : 1 });
+    splashFishJump(scene, time, Math.round(fish.x), Math.round(fish.y));
+}
+
+function updateFishJumps(scene, time) {
+    fishJumpRandom ||= createSeededRandom(Math.imul(WORLD_SEED + 1501, WORLD_HASH_MULTIPLIER));
+    if (time >= nextFishJumpAt) {
+        nextFishJumpAt = time + FISH_JUMP_MIN + fishJumpRandom() * FISH_JUMP_RANGE;
+        startFishJump(scene, time);
+    }
+
+    for (let index = fishJumps.length - 1; index >= 0; index--) {
+        const jump = fishJumps[index];
+        const amount = Math.min(1, (time - jump.start) / FISH_JUMP_TIME);
+        const x = jump.fromX + (jump.toX - jump.fromX) * amount;
+        const y = jump.fromY + (jump.toY - jump.fromY) * amount - Math.sin(amount * Math.PI) * jump.height;
+        jump.sprite.setPosition(Math.round(x), Math.round(y)).setRotation((amount < 0.35 ? -FISH_JUMP_TILT : amount > 0.65 ? FISH_JUMP_TILT : 0) * jump.side);
+        if (amount < 1) continue;
+
+        jump.fish.x = jump.toX;
+        jump.fish.y = jump.toY;
+        jump.fish.jumping = false;
+        splashFishJump(scene, time, Math.round(jump.toX), Math.round(jump.toY));
+        jump.sprite.setVisible(false);
+        fishJumpSprites.push(jump.sprite);
+        fishJumps[index] = fishJumps[fishJumps.length - 1];
+        fishJumps.pop();
+    }
 }
 
 const fishMigrations = [];
@@ -4549,9 +4800,12 @@ function createFish(species, giantScale) {
 
 function spawnRegionFish(chunk, region, label, count, originX, originY) {
     const pool = getFishSpawnPool(region.length);
+    const rumor = getChunkRumor(Math.floor(originX / CHUNK_PIXEL_SIZE), Math.floor(originY / CHUNK_PIXEL_SIZE));
     for (let index = 0; index < count; index++) {
-        const species = chooseFishSpecies(region.length, pool);
+        const rumored = rumor && region.length >= rumor.species.minWater && fishRandom() < RUMOR_SPAWN_CHANCE;
+        const species = rumored ? rumor.species : chooseFishSpecies(region.length, pool);
         const fish = createFish(species, 2 + fishRandom() * 3);
+        fish.rumor = rumored;
         fish.region = label;
 
         for (let attempt = 0; attempt < 40; attempt++) {
@@ -4878,6 +5132,7 @@ function updateFish(delta) {
 
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {
+            if (fish.jumping) continue;
             if (fish.state === 'lure' && updateLuredFish(chunk, fish, delta)) {
                 queueFishMigration(chunk, fish);
                 continue;
@@ -6173,6 +6428,7 @@ function updateStartup(scene, time, delta) {
     updateParticles(time);
     updateFish(delta);
     updateChunkWater(time);
+    updateSky(scene, time, delta);
 }
 
 const playTimeFormatCache = { seconds: null, label: '' };
@@ -6610,6 +6866,10 @@ function redrawMap(scene) {
 
     if (guide && isTileDiscovered(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE))) {
         marker(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE), 1, 1, palette.guide);
+    }
+
+    for (const rumor of heardRumors.values()) {
+        if (rumor.day === getWorldClock().day) marker((rumor.chunkX + 0.5) * CHUNK_SIZE, (rumor.chunkY + 0.5) * CHUNK_SIZE, 1, 1, RUMOR_MAP_COLOR);
     }
 
     marker(playerTileX, playerTileY, 1, 1, palette.player);
@@ -8403,6 +8663,57 @@ const NPC_MAX_NIBBLES = 3;
 const NPC_LOOK_MIN = 1400;
 const NPC_LOOK_RANGE = 2600;
 const NPC_POWER_ERROR = 0.3;
+const DAY_LENGTH_MINUTES = 24;
+const RAIN_DEPTH = 40;
+const SKY_DEPTH = 50;
+const SKY_LIGHT_STOPS = [
+    [0, 0.42, 0.47, 0.72],
+    [5, 0.42, 0.47, 0.72],
+    [6.5, 0.96, 0.8, 0.76],
+    [8, 1, 1, 1],
+    [17.5, 1, 1, 1],
+    [19, 1, 0.82, 0.66],
+    [20.5, 0.42, 0.47, 0.72],
+    [24, 0.42, 0.47, 0.72]
+];
+const RAIN_CHANCE = 0.35;
+const RAIN_EARLIEST_HOUR = 8;
+const RAIN_LATEST_START_HOUR = 14;
+const RAIN_LATEST_END_HOUR = 18;
+const RAIN_MIN_HOURS = 1.5;
+const RAIN_HOUR_RANGE = 2.5;
+const RAIN_FADE_HOURS = 0.35;
+const RAIN_DIM = 0.16;
+const RAIN_DROPS_PER_SECOND = 140;
+const RAIN_SPEED = 230;
+const RAIN_DRIFT = 40;
+const RAIN_FALL_MIN = 40;
+const RAIN_FALL_RANGE = 70;
+const RAIN_STREAK = 3;
+const RAIN_ALPHA = 0.7;
+const RAIN_COLOR = 0xc8dcf0;
+const RAIN_RIPPLE_COLOR = 0x9bd2e1;
+const RAIN_RIPPLE_LIFETIME = 240;
+const RAIN_FLECK_LIFETIME = 150;
+const RUMOR_CELL_CHUNKS = 5;
+const RUMOR_ATTEMPTS = 4;
+const RUMOR_NEAR_TILES = 40;
+const RUMOR_FAR_TILES = 100;
+const RUMOR_SPAWN_CHANCE = 0.35;
+const RUMOR_MAP_COLOR = 0xe8c170;
+const FISH_JUMP_MIN = 5000;
+const FISH_JUMP_RANGE = 9000;
+const FISH_JUMP_DISTANCE = 10;
+const FISH_JUMP_HEIGHT = 7;
+const FISH_JUMP_TIME = 620;
+const FISH_JUMP_TILT = 0.45;
+const FISH_JUMP_DEPTH = 6;
+const FISH_JUMP_BIG_WEIGHT = 3;
+const FISH_JUMP_RUMOR_WEIGHT = 3;
+const FISH_JUMP_DROPLETS = 3;
+const FISH_JUMP_DROPLET_LIFETIME = 260;
+const FISH_JUMP_DROPLET_COLOR = 0xbce6eb;
+const FISH_JUMP_TINT = 0x52707e;
 
 let hotbarSelector;
 const hotbarItemImages = [];
@@ -8901,6 +9212,7 @@ function create() {
 
     cameraScrollX = mainCamera.scrollX;
     cameraScrollY = mainCamera.scrollY;
+    createSky(this);
 
     spawnGuideAndStore(this);
     updateLoadedChunks(this, true);
@@ -9460,6 +9772,8 @@ function update(time, delta) {
     spawnFishRise(this, time);
     spawnMeadowMote(this, time);
     updateNpcs(this, time, delta);
+    updateFishJumps(this, time);
+    updateSky(this, time, delta);
     updateChunkWater(time);
 }
 

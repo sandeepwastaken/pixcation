@@ -40,5 +40,7 @@ function update(time, delta) {
     spawnFishRise(this, time);
     spawnMeadowMote(this, time);
     updateNpcs(this, time, delta);
+    updateFishJumps(this, time);
+    updateSky(this, time, delta);
     updateChunkWater(time);
 }

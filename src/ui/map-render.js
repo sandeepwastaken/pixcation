@@ -193,6 +193,10 @@ function redrawMap(scene) {
         marker(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE), 1, 1, palette.guide);
     }
 
+    for (const rumor of heardRumors.values()) {
+        if (rumor.day === getWorldClock().day) marker((rumor.chunkX + 0.5) * CHUNK_SIZE, (rumor.chunkY + 0.5) * CHUNK_SIZE, 1, 1, RUMOR_MAP_COLOR);
+    }
+
     marker(playerTileX, playerTileY, 1, 1, palette.player);
 
     context.putImageData(mapPixels, 0, 0);

@@ -655,9 +655,11 @@ function buildNpcDialogue(scene, npc) {
     const portrait = getNpcTexture(scene, npc.look, 'front', 0);
     const node = (text, options) => ({ portrait, portraitScale: NPC_PORTRAIT_SCALE, text: text.replaceAll('{first}', first), options });
     const back = { label: 'Back', next: 'intro' };
+    const rumor = findNearestRumor(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE));
     const bye = { label: 'Bye', close: true };
     const nodes = {
-        chat: node(pick(personality.chatter), [back, bye]),
+        chat: node(pick(personality.chatter), [{ label: 'Any rumors?', action: () => (rumor && hearRumor(rumor), 'rumor') }, back, bye]),
+        rumor: node(rumor ? describeRumor(rumor, pick(NPC_RUMOR_LINES)) : pick(NPC_NO_RUMOR_LINES), [back, bye]),
         tips: node(pick(npc.fishing ? personality.fishing : NPC_FISHING_TIPS), [back, bye])
     };
 

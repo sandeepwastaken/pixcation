@@ -50,3 +50,15 @@ const NPC_FISHING_TIPS = [
     "If you see a chest shadow under the water, cast right on top of it.",
     "Hold Shift to run. Your feet will thank you on the long walks."
 ];
+
+const NPC_RUMOR_LINES = [
+    "Word is a {species} is circling the water {distance} to the {direction}. Check your map!",
+    "My cousin saw a huge {species} jump {distance} to the {direction}. Check your map!",
+    "Try fishing {distance} to the {direction}. Folks keep seeing a {species}. Check your map!",
+    "Psst. There's a {species} lurking {distance} to the {direction}. Check your map!"
+];
+
+const NPC_NO_RUMOR_LINES = [
+    "Rumors? Not today. The water's been quiet around here.",
+    "I haven't heard a thing. Ask me again tomorrow!"
+];

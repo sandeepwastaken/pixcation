@@ -60,6 +60,7 @@ function create() {
 
     cameraScrollX = mainCamera.scrollX;
     cameraScrollY = mainCamera.scrollY;
+    createSky(this);
 
     spawnGuideAndStore(this);
     updateLoadedChunks(this, true);
