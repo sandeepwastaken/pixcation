@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
 const { buildBundle } = require('../build-bundle');
+const ORDER = require('../bundle-order.json');
 
 function fixture(t, files) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pixcation-bundle-'));
@@ -21,6 +22,7 @@ function fixture(t, files) {
     return { source, output };
 }
 
+test('the committed game bundle matches its ordered sources', () => assert.equal(fs.readFileSync(path.join(__dirname, '../game.js'), 'utf8'), ORDER.map(file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8')).join('\n') + '\n'));
 test('bundling preserves multiline strings, comments, and dependency order', t => {
     const files = {
         'first.js': 'function getText() {\n    return `first\n  indented\n\nlast`; // trailing comment\n}',
