@@ -11,6 +11,7 @@ function create() {
     createPropArt(this);
     createBushSlices(this);
     createRoundedCliffTextures(this);
+    createBridgeEdgeTexture(this);
     createShimmerSheet(this);
     extractRodArtStyles(this);
     createChestSilhouette(this);

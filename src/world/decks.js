@@ -99,6 +99,7 @@ function getBridgeTile(tileX, tileY) {
             const bridge = getBridgeCandidate(tileX + widthX * offset, tileY + widthY * offset, stepX, stepY, widthX, widthY, salt);
 
             if (bridge && isTileInBridge(tileX, tileY, bridge)) {
+                if (bridge.widthY && tileY - bridge.startY === 1) return { key: 'woodEdge', rotation: 0, bridge: true, ...(onWater && { baseKey: 'water' }) };
                 return { key: 'wood', rotation, bridge: true };
             }
         }

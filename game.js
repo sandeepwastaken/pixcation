@@ -339,6 +339,28 @@ function createShimmerSheet(scene) {
     }
 }
 
+function createBridgeEdgeTexture(scene) {
+    const deck = getTerrainPixels(scene, 'wood').data;
+    const end = getTerrainPixels(scene, 'woodLeft').data;
+    const rowMatches = y => deck.subarray(y * TILE_SIZE * 4, (y + 1) * TILE_SIZE * 4).every((value, index) => value === end[y * TILE_SIZE * 4 + index]);
+    const rowOpaque = y => Array.from({ length: TILE_SIZE }, (_, x) => end[(y * TILE_SIZE + x) * 4 + 3]).every(Boolean);
+    let beamRow = 0;
+    while (beamRow < TILE_SIZE && rowMatches(beamRow)) beamRow++;
+    let legRow = beamRow;
+    while (legRow < TILE_SIZE && rowOpaque(legRow)) legRow++;
+
+    createCanvasTexture(scene, 'woodEdge', TILE_SIZE, TILE_SIZE, context => {
+        const image = context.createImageData(TILE_SIZE, TILE_SIZE);
+        for (let y = 0; y < legRow; y++) {
+            for (let x = 0; x < TILE_SIZE; x++) {
+                const source = y < beamRow ? ((TILE_SIZE - 1 - x) * TILE_SIZE + y) * 4 : (y * TILE_SIZE + x) * 4;
+                image.data.set((y < beamRow ? deck : end).subarray(source, source + 4), (y * TILE_SIZE + x) * 4);
+            }
+        }
+        context.putImageData(image, 0, 0);
+    });
+}
+
 function createCanvasTexture(scene, key, width, height, draw) {
     if (scene.textures.exists(key)) return;
 
@@ -1351,6 +1373,7 @@ function getBridgeTile(tileX, tileY) {
             const bridge = getBridgeCandidate(tileX + widthX * offset, tileY + widthY * offset, stepX, stepY, widthX, widthY, salt);
 
             if (bridge && isTileInBridge(tileX, tileY, bridge)) {
+                if (bridge.widthY && tileY - bridge.startY === 1) return { key: 'woodEdge', rotation: 0, bridge: true, ...(onWater && { baseKey: 'water' }) };
                 return { key: 'wood', rotation, bridge: true };
             }
         }
@@ -7701,6 +7724,7 @@ function create() {
     createPropArt(this);
     createBushSlices(this);
     createRoundedCliffTextures(this);
+    createBridgeEdgeTexture(this);
     createShimmerSheet(this);
     extractRodArtStyles(this);
     createChestSilhouette(this);
