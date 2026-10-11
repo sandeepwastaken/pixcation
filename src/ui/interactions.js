@@ -71,7 +71,10 @@ function refreshGuideDialogueOptions() {
         optionText.style.color = index === selectedDialogueOption ? '#e0f2fd' : '#c0a887';
     });
 
-    const highlightY = DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP; if (dialogueHighlight.y !== highlightY) dialogueHighlight.setY(highlightY);
+    const highlightY = DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP;
+    if (dialogueHighlight.y === highlightY) return;
+    dialogueHighlight.scene.tweens.killTweensOf(dialogueHighlight);
+    dialogueHighlight.scene.tweens.add({ targets: dialogueHighlight, y: highlightY, duration: 90, ease: 'Quad.Out', onUpdate: snapTweenTarget });
 }
 
 function finishGuideDialogueText() {
@@ -91,7 +94,19 @@ function stopDialogueTyping() {
 
     dialogueTypingEvent.remove(false);
     dialogueTypingEvent = null;
+    settleGuideTalking();
     return true;
+}
+
+function settleGuideTalking() {
+    dialoguePortrait.y = DIALOGUE_PORTRAIT_Y;
+    if (guide && guide.restY !== undefined) guide.y = guide.restY;
+    showDialogueOptions(true);
+}
+
+function showDialogueOptions(visible) {
+    for (const optionText of dialogueOptionTexts) optionText.style.visibility = visible ? '' : 'hidden';
+    dialogueHighlight.setVisible(visible);
 }
 
 function showGuideDialogueNode(scene, nodeKey) {
@@ -106,16 +121,26 @@ function showGuideDialogueNode(scene, nodeKey) {
     const typingText = document.createTextNode('');
     dialogueText.replaceChildren(typingText);
     refreshGuideDialogueOptions();
+    showDialogueOptions(false);
 
-    dialogueTypingEvent = scene.time.addEvent({
-        delay: 24,
-        repeat: dialogueFullText.length - 1,
-        callback: () => {
-            typingText.appendData(dialogueFullText.charAt(characterIndex));
-            characterIndex++;
-            if (characterIndex === dialogueFullText.length) dialogueTypingEvent = null;
+    if (guide) guide.restY ??= guide.y;
+
+    const typeNext = () => {
+        const letter = dialogueFullText.charAt(characterIndex);
+        typingText.appendData(letter);
+        characterIndex++;
+        const bob = Math.floor(characterIndex / 3) % 2;
+        dialoguePortrait.y = DIALOGUE_PORTRAIT_Y - bob;
+        if (guide) guide.y = guide.restY - bob;
+        if (characterIndex >= dialogueFullText.length) {
+            dialogueTypingEvent = null;
+            settleGuideTalking();
+            return;
         }
-    });
+        dialogueTypingEvent = scene.time.delayedCall(DIALOGUE_TYPE_DELAY * (/[.!?]/.test(letter) ? 8 : letter === ',' ? 4 : 1), typeNext);
+    };
+
+    dialogueTypingEvent = scene.time.delayedCall(DIALOGUE_TYPE_DELAY, typeNext);
 }
 
 function openGuideDialogue(scene) {

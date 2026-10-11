@@ -26,7 +26,7 @@ function slidePanel(scene, y, duration, ease, targets, onComplete) {
 
 function showSlidingPanel(scene, hiddenY, ...targets) {
     for (const target of targets) target.setVisible(true).setY(hiddenY);
-    slidePanel(scene, DIALOGUE_VISIBLE_Y, 180, 'Cubic.Out', targets);
+    slidePanel(scene, DIALOGUE_VISIBLE_Y, 260, 'Back.Out', targets);
 }
 
 function hideSlidingPanel(scene, hiddenY, isOpen, ...targets) {
