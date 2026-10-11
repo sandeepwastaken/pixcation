@@ -34,17 +34,23 @@ function getWindTexture(scene, key, offset) {
     return name;
 }
 
+function getSeeThroughPattern(context, level) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 4;
+    const pattern = canvas.getContext('2d');
+    for (let index = 0; index < 16; index++) if (SEE_THROUGH_RANKS[index] < level) pattern.fillRect(index & 3, index >> 2, 1, 1);
+    return context.createPattern(canvas, 'repeat');
+}
+
 function getSeeThroughTexture(scene, key, level) {
     const name = `${key}-see${level}`;
     if (scene.textures.exists(name)) return name;
     const source = getTextureSource(scene, key);
     createCanvasTexture(scene, name, source.width, source.height, context => {
         context.drawImage(source, 0, 0);
-        const image = context.getImageData(0, 0, source.width, source.height);
-        for (let y = 0; y < source.height; y++) {
-            for (let x = 0; x < source.width; x++) if (SEE_THROUGH_RANKS[(y & 3) * 4 + (x & 3)] < level) image.data[(y * source.width + x) * 4 + 3] = 0;
-        }
-        context.putImageData(image, 0, 0);
+        context.globalCompositeOperation = 'destination-out';
+        context.fillStyle = getSeeThroughPattern(context, level);
+        context.fillRect(0, 0, source.width, source.height);
     });
     return name;
 }
