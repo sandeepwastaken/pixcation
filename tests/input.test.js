@@ -70,7 +70,8 @@ test('gameplay navigation keys prevent browser scrolling', () => {
     for (const code of ['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) {
         input.keyboard.emit('keydown', { key: code === 'Space' ? ' ' : code, code, repeat: false, preventDefault: () => prevented.push(code) });
     }
-    assert.deepEqual(prevented, ['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+    input.keyboard.emit('keydown', { key: ' ', code: 'Space', repeat: true, preventDefault: () => prevented.push('RepeatedSpace') });
+    assert.deepEqual(prevented, ['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'RepeatedSpace']);
     run("startup = { phase: 'title' }; beginStartup = () => {};");
     input.keyboard.emit('keydown', { key: ' ', code: 'Space', repeat: false, preventDefault: () => prevented.push('StartupSpace') });
     assert.equal(prevented.at(-1), 'StartupSpace');

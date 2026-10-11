@@ -7167,8 +7167,8 @@ function bindGameInput(scene) {
     });
 
     scene.input.keyboard.on('keydown', event => {
-        if (event.repeat) return;
         if (event.code === 'Tab' || event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
+        if (event.repeat) return;
         if (startup) {
             if (event.code === 'Enter' || event.code === 'Space') { setCursor('default'); beginStartup(scene.time.now); }
             return;
