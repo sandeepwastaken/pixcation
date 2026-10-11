@@ -59,7 +59,7 @@ function getInteractionTarget(guideAvailable, guideReach, marketReach) {
 }
 
 function refreshGuideDialogueOptions() {
-    const options = GUIDE_DIALOGUE[dialogueNode].options;
+    const options = dialogueNodes[dialogueNode].options;
 
     dialogueOptionTexts.forEach((optionText, index) => {
         const option = options[index], display = option ? 'block' : 'none';
@@ -101,7 +101,7 @@ function stopDialogueTyping() {
 
 function settleGuideTalking() {
     dialoguePortrait.y = DIALOGUE_PORTRAIT_Y;
-    if (guide && guide.restY !== undefined) guide.y = guide.restY;
+    if (dialogueActor && dialogueActor.restY !== undefined) dialogueActor.y = dialogueActor.restY;
     showDialogueOptions(true);
 }
 
@@ -111,7 +111,7 @@ function showDialogueOptions(visible) {
 }
 
 function showGuideDialogueNode(scene, nodeKey) {
-    const node = GUIDE_DIALOGUE[nodeKey];
+    const node = dialogueNodes[nodeKey];
     let characterIndex = 0;
 
     stopDialogueTyping();
@@ -119,12 +119,13 @@ function showGuideDialogueNode(scene, nodeKey) {
     selectedDialogueOption = 0;
     dialogueFullText = node.text;
     if (dialoguePortrait.texture.key !== node.portrait) dialoguePortrait.setTexture(node.portrait);
+    dialoguePortrait.setScale(node.portraitScale || 1);
     const typingText = document.createTextNode('');
     dialogueText.replaceChildren(typingText);
     refreshGuideDialogueOptions();
     showDialogueOptions(false);
 
-    if (guide) guide.restY ??= guide.y;
+    if (dialogueActor) dialogueActor.restY ??= dialogueActor.y;
 
     const typeNext = () => {
         const letter = dialogueFullText.charAt(characterIndex);
@@ -132,7 +133,7 @@ function showGuideDialogueNode(scene, nodeKey) {
         characterIndex++;
         const bob = Math.floor(characterIndex / 3) % 2;
         dialoguePortrait.y = DIALOGUE_PORTRAIT_Y - bob;
-        if (guide) guide.y = guide.restY - bob;
+        if (dialogueActor) dialogueActor.y = dialogueActor.restY - bob;
         if (characterIndex >= dialogueFullText.length) {
             dialogueTypingEvent = null;
             settleGuideTalking();
@@ -144,20 +145,30 @@ function showGuideDialogueNode(scene, nodeKey) {
     dialogueTypingEvent = scene.time.delayedCall(DIALOGUE_TYPE_DELAY, typeNext);
 }
 
-function openGuideDialogue(scene) {
-    if (isMenuOpen() || !guide || !dialogueContainer) return;
-
+function beginDialogue(scene, nodes, actor, name, npc) {
+    dialogueNodes = nodes;
+    dialogueActor = actor;
+    dialogueNpc = npc;
+    if (actor) actor.restY = actor.y;
+    setUITextContent(dialogueName, name);
     dialogueOpen = true;
     stopCharacterForMenu();
     showSlidingPanel(scene, DIALOGUE_HIDDEN_Y, dialogueContainer, dialogueTextLayer);
     showGuideDialogueNode(scene, 'intro');
 }
 
+function openGuideDialogue(scene) {
+    if (isMenuOpen() || !guide || !dialogueContainer) return;
+
+    beginDialogue(scene, GUIDE_DIALOGUE, guide, 'Guide', null);
+}
+
 function closeGuideDialogue(scene) {
     if (!dialogueOpen) return;
 
     dialogueOpen = false;
-    guideHasMetPlayer = true;
+    if (dialogueNpc) releaseDialogueNpc(scene);
+    else guideHasMetPlayer = true;
     saveDirty = true;
     stopDialogueTyping();
     hideSlidingPanel(scene, DIALOGUE_HIDDEN_Y, () => dialogueOpen, dialogueContainer, dialogueTextLayer);
@@ -166,17 +177,21 @@ function closeGuideDialogue(scene) {
 function selectGuideDialogueOption(scene) {
     if (finishGuideDialogueText()) return;
 
-    const option = GUIDE_DIALOGUE[dialogueNode].options[selectedDialogueOption];
+    const option = dialogueNodes[dialogueNode].options[selectedDialogueOption];
 
     if (option.close) {
         closeGuideDialogue(scene);
+    } else if (option.action) {
+        const next = option.action(scene);
+        if (next) showGuideDialogueNode(scene, next);
+        else closeGuideDialogue(scene);
     } else {
         showGuideDialogueNode(scene, option.next);
     }
 }
 
 function moveGuideDialogueSelection(amount) {
-    selectedDialogueOption = Phaser.Math.Wrap(selectedDialogueOption + amount, 0, GUIDE_DIALOGUE[dialogueNode].options.length);
+    selectedDialogueOption = Phaser.Math.Wrap(selectedDialogueOption + amount, 0, dialogueNodes[dialogueNode].options.length);
     refreshGuideDialogueOptions();
 }
 

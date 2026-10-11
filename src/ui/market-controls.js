@@ -23,7 +23,7 @@ function getMarketRowAt(x, y) {
 function getDialogueOptionAt(x, y) {
     const option = Math.floor((y - DIALOGUE_VISIBLE_Y - DIALOGUE_OPTION_TOP) / DIALOGUE_OPTION_STEP);
     const inside = x >= DIALOGUE_OPTION_X - 3 && x < DIALOGUE_OPTION_X - 3 + DIALOGUE_OPTION_WIDTH &&
-        option >= 0 && option < GUIDE_DIALOGUE[dialogueNode].options.length;
+        option >= 0 && option < dialogueNodes[dialogueNode].options.length;
 
     return inside ? option : -1;
 }

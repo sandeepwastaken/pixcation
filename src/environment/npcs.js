@@ -356,7 +356,7 @@ function updateNpcFishing(scene, npc, time) {
         fishing.bobberY = Math.round(fishing.fromY + (tipY - fishing.fromY) * amount);
         if (amount >= 1) {
             npc.fishing = null;
-            npc.state = 'idle';
+            npc.state = npc.talking ? 'talk' : 'idle';
             npc.until = time + NPC_IDLE_MIN + Math.random() * NPC_IDLE_RANGE;
         }
     }
@@ -394,6 +394,8 @@ function settleNpc(scene, npc, time, delay) {
 function updateNpc(scene, npc, time, delta) {
     if (npc.state === 'talk') {
         setNpcPose(scene, npc, getDirectionToward(npc, character.x, character.y), 0);
+    } else if (npc.talking) {
+        if (npc.state === 'fishing') updateNpcFishing(scene, npc, time);
     } else if (npc.state === 'idle') {
         if (time >= npc.until) chooseNpcPlan(npc, time);
     } else if (npc.state === 'walk') {
@@ -442,33 +444,66 @@ function getNpcTrade(npc) {
     return { period, species, count, coins };
 }
 
-function talkToNearestNpc(scene) {
-    const npc = nearestNpc;
-    if (!npc || isMenuOpen()) return;
-    const time = scene.time.now;
+function completeNpcTrade(scene, npc, trade) {
+    const owned = fishInventory.get(trade.species.id) || 0;
+    if (owned > trade.count) fishInventory.set(trade.species.id, owned - trade.count);
+    else fishInventory.delete(trade.species.id);
+    playerCoins = Math.min(Number.MAX_SAFE_INTEGER, playerCoins + trade.coins);
+    recordPlayerStat('moneyEarned', trade.coins);
+    recordPlayerStat('fishSold', trade.count);
+    npcTradesDone.add(`${npc.id}:${trade.period}`);
+    saveDirty = true;
+    sparkleOverPlayer(scene);
+}
+
+function buildNpcDialogue(scene, npc) {
+    const personality = NPC_PERSONALITIES[Math.floor(npcHash(npc.tileX, npc.tileY, 1320) * NPC_PERSONALITIES.length)];
+    const pick = lines => lines[Math.floor(Math.random() * lines.length)];
+    const first = npc.name.split(' ')[0];
+    const portrait = getNpcTexture(scene, npc.look, 'front', 0);
+    const node = (text, options) => ({ portrait, portraitScale: NPC_PORTRAIT_SCALE, text: text.replaceAll('{first}', first), options });
+    const back = { label: 'Back', next: 'intro' };
+    const bye = { label: 'Bye', close: true };
+    const nodes = {
+        chat: node(pick(personality.chatter), [back, bye]),
+        tips: node(pick(npc.fishing ? personality.fishing : NPC_FISHING_TIPS), [back, bye])
+    };
 
     if (npc.role !== 'trader') {
-        const lines = npc.fishing ? NPC_FISHER_LINES : NPC_IDLE_LINES;
-        showRewardCard(scene, time, npc.name, lines[Math.floor(Math.random() * lines.length)]);
-        return;
+        nodes.intro = node(pick(personality.greetings), [{ label: 'Chat', next: 'chat' }, { label: npc.fishing ? 'Any bites?' : 'Tips', next: 'tips' }, bye]);
+        return nodes;
     }
 
     const trade = getNpcTrade(npc);
-    const tradeKey = `${npc.id}:${trade.period}`;
-    const owned = fishInventory.get(trade.species.id) || 0;
-    if (npcTradesDone.has(tradeKey)) {
-        showRewardCard(scene, time, npc.name, 'All set for now. Come back in an hour!');
-    } else if (owned < trade.count) {
-        showRewardCard(scene, time, npc.name, `I'd pay ${trade.coins}c for ${trade.count} ${trade.species.name}`);
+    const { count, coins, species } = trade;
+    const owned = fishInventory.get(species.id) || 0;
+    nodes.intro = node(pick(personality.greetings), [{ label: 'Trade', next: 'trade' }, { label: 'Chat', next: 'chat' }, bye]);
+    nodes.traded = node(personality.thanks.replace('{coins}', coins), [bye]);
+    if (npcTradesDone.has(`${npc.id}:${trade.period}`)) {
+        nodes.trade = node(personality.tradeDone, [back, bye]);
+    } else if (owned >= count) {
+        nodes.trade = node(`You have ${count} ${species.name}! I'll give you ${coins}c for ${count === 1 ? 'it' : 'them'}. Deal?`, [
+            { label: 'Deal', action: () => (completeNpcTrade(scene, npc, trade), 'traded') },
+            { label: 'No thanks', next: 'intro' }
+        ]);
     } else {
-        if (owned > trade.count) fishInventory.set(trade.species.id, owned - trade.count);
-        else fishInventory.delete(trade.species.id);
-        playerCoins = Math.min(Number.MAX_SAFE_INTEGER, playerCoins + trade.coins);
-        recordPlayerStat('moneyEarned', trade.coins);
-        recordPlayerStat('fishSold', trade.count);
-        npcTradesDone.add(tradeKey);
-        saveDirty = true;
-        sparkleOverPlayer(scene);
-        showRewardCard(scene, time, `Traded with ${npc.name}!`, `${trade.count} ${trade.species.name} for ${trade.coins}c`);
+        nodes.trade = node(`I'm looking for ${count} ${species.name}. Bring ${count === 1 ? 'one' : 'them'} by and I'll pay ${coins}c.`, [back, bye]);
     }
+    return nodes;
+}
+
+function talkToNearestNpc(scene) {
+    const npc = nearestNpc;
+    if (!npc || isMenuOpen() || !dialogueContainer) return;
+    if (npc.state === 'walk') settleNpc(scene, npc, scene.time.now, 0);
+    if (npc.state === 'aim') npc.state = 'idle';
+    npc.state = npc.fishing ? 'fishing' : 'talk';
+    npc.talking = true;
+    beginDialogue(scene, buildNpcDialogue(scene, npc), npc.sprite, npc.name, npc);
+}
+
+function releaseDialogueNpc(scene) {
+    dialogueNpc.talking = false;
+    if (dialogueNpc.state === 'talk') settleNpc(scene, dialogueNpc, scene.time.now, NPC_IDLE_MIN);
+    dialogueNpc = null;
 }

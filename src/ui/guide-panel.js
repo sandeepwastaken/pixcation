@@ -16,7 +16,8 @@ function createGuideDialogueUI(scene) {
 
     const textLayer = createTextLayer(78, CRISP_TEXT_STYLE);
 
-    createUIText(textLayer, 64, 5, '#acccf9').textContent = 'Guide';
+    dialogueName = createUIText(textLayer, 64, 5, '#acccf9');
+    dialogueName.textContent = 'Guide';
     dialogueText = createUIText(textLayer, 64, 21, '#e0f2fd', 146, null, { whiteSpace: 'normal' });
     dialogueOptionTexts = [0, 1, 2].map(index => {
         return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 4 + index * DIALOGUE_OPTION_STEP, '#c0a887');

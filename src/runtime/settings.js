@@ -430,15 +430,6 @@ const NPC_PART_COLORS = {
     hair: [0xd07d00, 0xff9900, 0xffdeab],
     shirt: [0x00129e, 0x001eff]
 };
-const NPC_IDLE_LINES = [
-    'Lovely day for a walk.', 'Have you met the guide yet?', 'I heard chests wash up in the deep.',
-    'The flowers here change color by the patch.', 'Watch your step near the cliffs.', 'I could stay out here all day.',
-    'The shop has better rods if you save up.', 'Fish bite more with good bait.', 'Bridges make the long way short.'
-];
-const NPC_FISHER_LINES = [
-    'Shh, they are nibbling.', 'Caught a beauty this morning.', 'Patience is the whole trick.',
-    'Deeper water, bigger fish.', 'Wait for the bobber to dip twice.', 'Nothing yet, but I have time.'
-];
 const NPC_CAST_REACH = 2;
 const NPC_LINE_SAG = 5;
 const NPC_SPEED_MIN = 0.65;
@@ -461,3 +452,4 @@ const NPC_SCARE_RADIUS = 7;
 const NPC_DISAPPOINT_TIME = 900;
 const NPC_FISH_MIN = 5000;
 const NPC_FISH_RANGE = 7000;
+const NPC_PORTRAIT_SCALE = 3;

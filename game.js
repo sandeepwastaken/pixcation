@@ -138,6 +138,59 @@ const NPC_LAST_NAMES = [
     'Quintero', 'Rossi', 'Sato', 'Tanaka', 'Ueda', 'Varga', 'Weiss', 'Xu', 'Yilmaz', 'Zhou'
 ];
 
+const NPC_PERSONALITIES = [
+    {
+        greetings: ["Oh, hello! I'm {first}. Isn't it a gorgeous day?", "Hi there! {first}, nice to meet you. You picked a great day to be out!"],
+        chatter: ["I counted three kinds of flowers on my walk this morning. I'm going for four tomorrow.", "The guide by the shop knows everything. Well, almost everything!", "Have you seen the blue flower patches? They make me so happy."],
+        fishing: ["Not a nibble yet, but the sun's warm, so who's complaining?", "One almost bit! It changed its mind at the last second, the rascal."],
+        tradeDone: "We already traded this hour! Come back a little later, okay?",
+        thanks: "Wonderful! Here's {coins}c. You're a natural!"
+    },
+    {
+        greetings: ["Hm? Oh. {first}. What do you want?", "{first}. If you're here to chat, make it quick."],
+        chatter: ["Everyone thinks fishing is relaxing. It is not. It is war.", "The fish around here are smarter than they look. Don't let them fool you.", "Shop prices keep going up. Mark my words."],
+        fishing: ["Shh. You'll scare them off. Again.", "They keep nibbling and running. I swear they're laughing at me."],
+        tradeDone: "We're done for this hour. Shoo.",
+        thanks: "Fine. {coins}c. Don't spend it all at once."
+    },
+    {
+        greetings: ["Oh... hello. I'm {first}. I was just watching the water ripple.", "Mm, hi. {first}. Did you know clouds look like fish if you squint?"],
+        chatter: ["Sometimes I think the island hums when it's quiet. Can you hear it?", "I like the way the water changes color out in the deep. Teal, then blue, then darker blue.", "I dreamt about a fish as big as a bridge. I'm still looking for it."],
+        fishing: ["I'm not really trying to catch anything. The bobber is good company.", "Something swam right up and then... left. Like a thought you almost had."],
+        tradeDone: "We traded already, didn't we? Time is so slippery. Maybe in an hour.",
+        thanks: "Oh, how lovely. Here, {coins}c. Thank you, truly."
+    },
+    {
+        greetings: ["Ah! Oh, sorry, you startled me. I'm {first}.", "H-hi! I'm {first}. Please don't step on my line!"],
+        chatter: ["Do you think the cliffs ever crumble? I try not to stand too close.", "I keep a spare bobber in every pocket. Just in case. You never know.", "The chests in the deep water make me nervous. What if something's guarding them?"],
+        fishing: ["I had one! Then I panicked and it swam off. Again.", "The splash always scares me more than it scares the fish."],
+        tradeDone: "W-we already traded this hour. Sorry! Come back later?",
+        thanks: "Th-thank you! Here's {coins}c. I counted it twice."
+    },
+    {
+        greetings: ["Well, well. The name's {first}. Best angler on the island.", "{first}, at your service. You've probably heard of me."],
+        chatter: ["I once caught a bass so big the scale broke. Nobody believes me.", "A good cast is all in the wrist. And the confidence. Mostly the confidence.", "I've fished every pond on this island. Twice."],
+        fishing: ["They're just warming up. Champions are patient.", "That fish was too small for me anyway. I let it go. On purpose."],
+        tradeDone: "One deal an hour, friend. Even legends have rules.",
+        thanks: "A fine haul. {coins}c, as promised. Tell your friends who paid you."
+    },
+    {
+        greetings: ["Hey, hey! I'm {first}! Oh, I love meeting people. Where are you from?", "Hi! {first} here! Have you been fishing? What did you catch? Tell me everything!"],
+        chatter: ["My cousin says the shop gets new rods sometimes. Or was it new bait? Something new, anyway!", "If you walk far enough, the grass goes from gold to green. I tested it. Twice!", "I tried to name every tree on the island. I got to forty and forgot the first one."],
+        fishing: ["Nothing yet, but I've been talking the whole time, so that might be why.", "A fish came right up to my bobber and stared at me! Then it left. Rude!"],
+        tradeDone: "We already traded! But I'll take more next hour, promise!",
+        thanks: "Yes! Perfect! Here's {coins}c! Pleasure doing business!"
+    }
+];
+
+const NPC_FISHING_TIPS = [
+    "Small taps are just fish testing your bait. Wait for the big splash, then reel.",
+    "Deep water past the shore holds the bigger fish. Cast long if your rod can.",
+    "Bait makes your catch bar bigger. Press B to swap between the kinds you own.",
+    "If you see a chest shadow under the water, cast right on top of it.",
+    "Hold Shift to run. Your feet will thank you on the long walks."
+];
+
 window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
     constructor(game) {
         super({
@@ -3961,7 +4014,7 @@ function updateNpcFishing(scene, npc, time) {
         fishing.bobberY = Math.round(fishing.fromY + (tipY - fishing.fromY) * amount);
         if (amount >= 1) {
             npc.fishing = null;
-            npc.state = 'idle';
+            npc.state = npc.talking ? 'talk' : 'idle';
             npc.until = time + NPC_IDLE_MIN + Math.random() * NPC_IDLE_RANGE;
         }
     }
@@ -3999,6 +4052,8 @@ function settleNpc(scene, npc, time, delay) {
 function updateNpc(scene, npc, time, delta) {
     if (npc.state === 'talk') {
         setNpcPose(scene, npc, getDirectionToward(npc, character.x, character.y), 0);
+    } else if (npc.talking) {
+        if (npc.state === 'fishing') updateNpcFishing(scene, npc, time);
     } else if (npc.state === 'idle') {
         if (time >= npc.until) chooseNpcPlan(npc, time);
     } else if (npc.state === 'walk') {
@@ -4047,35 +4102,68 @@ function getNpcTrade(npc) {
     return { period, species, count, coins };
 }
 
-function talkToNearestNpc(scene) {
-    const npc = nearestNpc;
-    if (!npc || isMenuOpen()) return;
-    const time = scene.time.now;
+function completeNpcTrade(scene, npc, trade) {
+    const owned = fishInventory.get(trade.species.id) || 0;
+    if (owned > trade.count) fishInventory.set(trade.species.id, owned - trade.count);
+    else fishInventory.delete(trade.species.id);
+    playerCoins = Math.min(Number.MAX_SAFE_INTEGER, playerCoins + trade.coins);
+    recordPlayerStat('moneyEarned', trade.coins);
+    recordPlayerStat('fishSold', trade.count);
+    npcTradesDone.add(`${npc.id}:${trade.period}`);
+    saveDirty = true;
+    sparkleOverPlayer(scene);
+}
+
+function buildNpcDialogue(scene, npc) {
+    const personality = NPC_PERSONALITIES[Math.floor(npcHash(npc.tileX, npc.tileY, 1320) * NPC_PERSONALITIES.length)];
+    const pick = lines => lines[Math.floor(Math.random() * lines.length)];
+    const first = npc.name.split(' ')[0];
+    const portrait = getNpcTexture(scene, npc.look, 'front', 0);
+    const node = (text, options) => ({ portrait, portraitScale: NPC_PORTRAIT_SCALE, text: text.replaceAll('{first}', first), options });
+    const back = { label: 'Back', next: 'intro' };
+    const bye = { label: 'Bye', close: true };
+    const nodes = {
+        chat: node(pick(personality.chatter), [back, bye]),
+        tips: node(pick(npc.fishing ? personality.fishing : NPC_FISHING_TIPS), [back, bye])
+    };
 
     if (npc.role !== 'trader') {
-        const lines = npc.fishing ? NPC_FISHER_LINES : NPC_IDLE_LINES;
-        showRewardCard(scene, time, npc.name, lines[Math.floor(Math.random() * lines.length)]);
-        return;
+        nodes.intro = node(pick(personality.greetings), [{ label: 'Chat', next: 'chat' }, { label: npc.fishing ? 'Any bites?' : 'Tips', next: 'tips' }, bye]);
+        return nodes;
     }
 
     const trade = getNpcTrade(npc);
-    const tradeKey = `${npc.id}:${trade.period}`;
-    const owned = fishInventory.get(trade.species.id) || 0;
-    if (npcTradesDone.has(tradeKey)) {
-        showRewardCard(scene, time, npc.name, 'All set for now. Come back in an hour!');
-    } else if (owned < trade.count) {
-        showRewardCard(scene, time, npc.name, `I'd pay ${trade.coins}c for ${trade.count} ${trade.species.name}`);
+    const { count, coins, species } = trade;
+    const owned = fishInventory.get(species.id) || 0;
+    nodes.intro = node(pick(personality.greetings), [{ label: 'Trade', next: 'trade' }, { label: 'Chat', next: 'chat' }, bye]);
+    nodes.traded = node(personality.thanks.replace('{coins}', coins), [bye]);
+    if (npcTradesDone.has(`${npc.id}:${trade.period}`)) {
+        nodes.trade = node(personality.tradeDone, [back, bye]);
+    } else if (owned >= count) {
+        nodes.trade = node(`You have ${count} ${species.name}! I'll give you ${coins}c for ${count === 1 ? 'it' : 'them'}. Deal?`, [
+            { label: 'Deal', action: () => (completeNpcTrade(scene, npc, trade), 'traded') },
+            { label: 'No thanks', next: 'intro' }
+        ]);
     } else {
-        if (owned > trade.count) fishInventory.set(trade.species.id, owned - trade.count);
-        else fishInventory.delete(trade.species.id);
-        playerCoins = Math.min(Number.MAX_SAFE_INTEGER, playerCoins + trade.coins);
-        recordPlayerStat('moneyEarned', trade.coins);
-        recordPlayerStat('fishSold', trade.count);
-        npcTradesDone.add(tradeKey);
-        saveDirty = true;
-        sparkleOverPlayer(scene);
-        showRewardCard(scene, time, `Traded with ${npc.name}!`, `${trade.count} ${trade.species.name} for ${trade.coins}c`);
+        nodes.trade = node(`I'm looking for ${count} ${species.name}. Bring ${count === 1 ? 'one' : 'them'} by and I'll pay ${coins}c.`, [back, bye]);
     }
+    return nodes;
+}
+
+function talkToNearestNpc(scene) {
+    const npc = nearestNpc;
+    if (!npc || isMenuOpen() || !dialogueContainer) return;
+    if (npc.state === 'walk') settleNpc(scene, npc, scene.time.now, 0);
+    if (npc.state === 'aim') npc.state = 'idle';
+    npc.state = npc.fishing ? 'fishing' : 'talk';
+    npc.talking = true;
+    beginDialogue(scene, buildNpcDialogue(scene, npc), npc.sprite, npc.name, npc);
+}
+
+function releaseDialogueNpc(scene) {
+    dialogueNpc.talking = false;
+    if (dialogueNpc.state === 'talk') settleNpc(scene, dialogueNpc, scene.time.now, NPC_IDLE_MIN);
+    dialogueNpc = null;
 }
 
 const fishMigrations = [];
@@ -6089,7 +6177,8 @@ function createGuideDialogueUI(scene) {
 
     const textLayer = createTextLayer(78, CRISP_TEXT_STYLE);
 
-    createUIText(textLayer, 64, 5, '#acccf9').textContent = 'Guide';
+    dialogueName = createUIText(textLayer, 64, 5, '#acccf9');
+    dialogueName.textContent = 'Guide';
     dialogueText = createUIText(textLayer, 64, 21, '#e0f2fd', 146, null, { whiteSpace: 'normal' });
     dialogueOptionTexts = [0, 1, 2].map(index => {
         return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 4 + index * DIALOGUE_OPTION_STEP, '#c0a887');
@@ -6929,7 +7018,7 @@ function getMarketRowAt(x, y) {
 function getDialogueOptionAt(x, y) {
     const option = Math.floor((y - DIALOGUE_VISIBLE_Y - DIALOGUE_OPTION_TOP) / DIALOGUE_OPTION_STEP);
     const inside = x >= DIALOGUE_OPTION_X - 3 && x < DIALOGUE_OPTION_X - 3 + DIALOGUE_OPTION_WIDTH &&
-        option >= 0 && option < GUIDE_DIALOGUE[dialogueNode].options.length;
+        option >= 0 && option < dialogueNodes[dialogueNode].options.length;
 
     return inside ? option : -1;
 }
@@ -7188,7 +7277,7 @@ function getInteractionTarget(guideAvailable, guideReach, marketReach) {
 }
 
 function refreshGuideDialogueOptions() {
-    const options = GUIDE_DIALOGUE[dialogueNode].options;
+    const options = dialogueNodes[dialogueNode].options;
 
     dialogueOptionTexts.forEach((optionText, index) => {
         const option = options[index], display = option ? 'block' : 'none';
@@ -7230,7 +7319,7 @@ function stopDialogueTyping() {
 
 function settleGuideTalking() {
     dialoguePortrait.y = DIALOGUE_PORTRAIT_Y;
-    if (guide && guide.restY !== undefined) guide.y = guide.restY;
+    if (dialogueActor && dialogueActor.restY !== undefined) dialogueActor.y = dialogueActor.restY;
     showDialogueOptions(true);
 }
 
@@ -7240,7 +7329,7 @@ function showDialogueOptions(visible) {
 }
 
 function showGuideDialogueNode(scene, nodeKey) {
-    const node = GUIDE_DIALOGUE[nodeKey];
+    const node = dialogueNodes[nodeKey];
     let characterIndex = 0;
 
     stopDialogueTyping();
@@ -7248,12 +7337,13 @@ function showGuideDialogueNode(scene, nodeKey) {
     selectedDialogueOption = 0;
     dialogueFullText = node.text;
     if (dialoguePortrait.texture.key !== node.portrait) dialoguePortrait.setTexture(node.portrait);
+    dialoguePortrait.setScale(node.portraitScale || 1);
     const typingText = document.createTextNode('');
     dialogueText.replaceChildren(typingText);
     refreshGuideDialogueOptions();
     showDialogueOptions(false);
 
-    if (guide) guide.restY ??= guide.y;
+    if (dialogueActor) dialogueActor.restY ??= dialogueActor.y;
 
     const typeNext = () => {
         const letter = dialogueFullText.charAt(characterIndex);
@@ -7261,7 +7351,7 @@ function showGuideDialogueNode(scene, nodeKey) {
         characterIndex++;
         const bob = Math.floor(characterIndex / 3) % 2;
         dialoguePortrait.y = DIALOGUE_PORTRAIT_Y - bob;
-        if (guide) guide.y = guide.restY - bob;
+        if (dialogueActor) dialogueActor.y = dialogueActor.restY - bob;
         if (characterIndex >= dialogueFullText.length) {
             dialogueTypingEvent = null;
             settleGuideTalking();
@@ -7273,20 +7363,30 @@ function showGuideDialogueNode(scene, nodeKey) {
     dialogueTypingEvent = scene.time.delayedCall(DIALOGUE_TYPE_DELAY, typeNext);
 }
 
-function openGuideDialogue(scene) {
-    if (isMenuOpen() || !guide || !dialogueContainer) return;
-
+function beginDialogue(scene, nodes, actor, name, npc) {
+    dialogueNodes = nodes;
+    dialogueActor = actor;
+    dialogueNpc = npc;
+    if (actor) actor.restY = actor.y;
+    setUITextContent(dialogueName, name);
     dialogueOpen = true;
     stopCharacterForMenu();
     showSlidingPanel(scene, DIALOGUE_HIDDEN_Y, dialogueContainer, dialogueTextLayer);
     showGuideDialogueNode(scene, 'intro');
 }
 
+function openGuideDialogue(scene) {
+    if (isMenuOpen() || !guide || !dialogueContainer) return;
+
+    beginDialogue(scene, GUIDE_DIALOGUE, guide, 'Guide', null);
+}
+
 function closeGuideDialogue(scene) {
     if (!dialogueOpen) return;
 
     dialogueOpen = false;
-    guideHasMetPlayer = true;
+    if (dialogueNpc) releaseDialogueNpc(scene);
+    else guideHasMetPlayer = true;
     saveDirty = true;
     stopDialogueTyping();
     hideSlidingPanel(scene, DIALOGUE_HIDDEN_Y, () => dialogueOpen, dialogueContainer, dialogueTextLayer);
@@ -7295,17 +7395,21 @@ function closeGuideDialogue(scene) {
 function selectGuideDialogueOption(scene) {
     if (finishGuideDialogueText()) return;
 
-    const option = GUIDE_DIALOGUE[dialogueNode].options[selectedDialogueOption];
+    const option = dialogueNodes[dialogueNode].options[selectedDialogueOption];
 
     if (option.close) {
         closeGuideDialogue(scene);
+    } else if (option.action) {
+        const next = option.action(scene);
+        if (next) showGuideDialogueNode(scene, next);
+        else closeGuideDialogue(scene);
     } else {
         showGuideDialogueNode(scene, option.next);
     }
 }
 
 function moveGuideDialogueSelection(amount) {
-    selectedDialogueOption = Phaser.Math.Wrap(selectedDialogueOption + amount, 0, GUIDE_DIALOGUE[dialogueNode].options.length);
+    selectedDialogueOption = Phaser.Math.Wrap(selectedDialogueOption + amount, 0, dialogueNodes[dialogueNode].options.length);
     refreshGuideDialogueOptions();
 }
 
@@ -8068,15 +8172,6 @@ const NPC_PART_COLORS = {
     hair: [0xd07d00, 0xff9900, 0xffdeab],
     shirt: [0x00129e, 0x001eff]
 };
-const NPC_IDLE_LINES = [
-    'Lovely day for a walk.', 'Have you met the guide yet?', 'I heard chests wash up in the deep.',
-    'The flowers here change color by the patch.', 'Watch your step near the cliffs.', 'I could stay out here all day.',
-    'The shop has better rods if you save up.', 'Fish bite more with good bait.', 'Bridges make the long way short.'
-];
-const NPC_FISHER_LINES = [
-    'Shh, they are nibbling.', 'Caught a beauty this morning.', 'Patience is the whole trick.',
-    'Deeper water, bigger fish.', 'Wait for the bobber to dip twice.', 'Nothing yet, but I have time.'
-];
 const NPC_CAST_REACH = 2;
 const NPC_LINE_SAG = 5;
 const NPC_SPEED_MIN = 0.65;
@@ -8099,6 +8194,7 @@ const NPC_SCARE_RADIUS = 7;
 const NPC_DISAPPOINT_TIME = 900;
 const NPC_FISH_MIN = 5000;
 const NPC_FISH_RANGE = 7000;
+const NPC_PORTRAIT_SCALE = 3;
 
 let hotbarSelector;
 const hotbarItemImages = [];
@@ -8237,6 +8333,10 @@ let marketPrompt;
 let guidePrompt;
 
 let dialogueNode = 'intro';
+let dialogueNodes = null;
+let dialogueActor = null;
+let dialogueNpc = null;
+let dialogueName;
 let selectedDialogueOption = 0;
 let dialogueTypingEvent = null;
 let dialogueFullText = '';

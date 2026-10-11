@@ -135,6 +135,10 @@ let marketPrompt;
 let guidePrompt;
 
 let dialogueNode = 'intro';
+let dialogueNodes = null;
+let dialogueActor = null;
+let dialogueNpc = null;
+let dialogueName;
 let selectedDialogueOption = 0;
 let dialogueTypingEvent = null;
 let dialogueFullText = '';
