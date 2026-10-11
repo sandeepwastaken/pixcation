@@ -98,8 +98,24 @@ function getTerrainType(tileX, tileY) {
 
 function generateTerrainCode(tileX, tileY) {
     const terrain = generateTerrainType(tileX, tileY);
+    if (terrain === 'water' && isSmallPond(tileX, tileY)) return TERRAIN_TYPES.indexOf('dirt');
     const surround = terrain === 'dirt' ? 'grass' : terrain === 'grass' ? 'dirt' : null;
     return TERRAIN_TYPES.indexOf(surround && isThinTerrain(tileX, tileY, surround) ? surround : terrain);
+}
+
+function isSmallPond(tileX, tileY) {
+    const seen = new Set([getTileId(tileX, tileY)]);
+    const queue = [tileX, tileY];
+    for (let index = 0; index < queue.length; index += 2) {
+        for (const [offsetX, offsetY] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const x = queue[index] + offsetX, y = queue[index + 1] + offsetY, id = getTileId(x, y);
+            if (seen.has(id) || generateTerrainType(x, y) !== 'water') continue;
+            seen.add(id);
+            if (seen.size >= MIN_POND_TILES) return false;
+            queue.push(x, y);
+        }
+    }
+    return true;
 }
 
 function isThinTerrain(tileX, tileY, surround) {

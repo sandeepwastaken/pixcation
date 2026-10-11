@@ -967,8 +967,24 @@ function getTerrainType(tileX, tileY) {
 
 function generateTerrainCode(tileX, tileY) {
     const terrain = generateTerrainType(tileX, tileY);
+    if (terrain === 'water' && isSmallPond(tileX, tileY)) return TERRAIN_TYPES.indexOf('dirt');
     const surround = terrain === 'dirt' ? 'grass' : terrain === 'grass' ? 'dirt' : null;
     return TERRAIN_TYPES.indexOf(surround && isThinTerrain(tileX, tileY, surround) ? surround : terrain);
+}
+
+function isSmallPond(tileX, tileY) {
+    const seen = new Set([getTileId(tileX, tileY)]);
+    const queue = [tileX, tileY];
+    for (let index = 0; index < queue.length; index += 2) {
+        for (const [offsetX, offsetY] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const x = queue[index] + offsetX, y = queue[index + 1] + offsetY, id = getTileId(x, y);
+            if (seen.has(id) || generateTerrainType(x, y) !== 'water') continue;
+            seen.add(id);
+            if (seen.size >= MIN_POND_TILES) return false;
+            queue.push(x, y);
+        }
+    }
+    return true;
 }
 
 function isThinTerrain(tileX, tileY, surround) {
@@ -6987,6 +7003,7 @@ const WATER_BASE_COLOR = [0x68, 0x90, 0xca];
 const WATER_FOAM_OFFSETS = [[0, -1], [-1, 0], [1, 0]];
 const WATER_BANK_OFFSETS = [[0, -1], [0, -2], [0, -3], [-1, -1], [-1, 0]];
 const CHUNK_LOAD_RADIUS = 1;
+const MIN_POND_TILES = 4;
 const CHUNK_DISCOVERY_RADIUS = 2;
 const DEFAULT_WORLD_SEED = 6767676767676;
 const WORLD_SEED_KEY = 'pixcation-seed';

@@ -27,6 +27,7 @@ const WATER_BASE_COLOR = [0x68, 0x90, 0xca];
 const WATER_FOAM_OFFSETS = [[0, -1], [-1, 0], [1, 0]];
 const WATER_BANK_OFFSETS = [[0, -1], [0, -2], [0, -3], [-1, -1], [-1, 0]];
 const CHUNK_LOAD_RADIUS = 1;
+const MIN_POND_TILES = 4;
 const CHUNK_DISCOVERY_RADIUS = 2;
 const DEFAULT_WORLD_SEED = 6767676767676;
 const WORLD_SEED_KEY = 'pixcation-seed';
