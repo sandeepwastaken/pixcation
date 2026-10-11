@@ -51,8 +51,8 @@ function getFishInventorySummary() {
     for (const [id, amount] of fishInventory) {
         const species = FISH_SPECIES_BY_ID.get(id);
         if (!species) continue;
-        count += amount;
-        value += amount * species.price;
+        count = Math.min(Number.MAX_SAFE_INTEGER, count + amount);
+        value = Math.min(Number.MAX_SAFE_INTEGER, value + amount * species.price);
     }
 
     return { count, value };
@@ -149,7 +149,7 @@ function buySelectedMarketItem(scene) {
         const summary = getFishInventorySummary();
         if (!summary.count) return;
 
-        playerCoins += summary.value;
+        playerCoins = Math.min(Number.MAX_SAFE_INTEGER, playerCoins + summary.value);
         recordPlayerStat('moneyEarned', summary.value);
         recordPlayerStat('fishSold', summary.count);
         fishInventory.clear();

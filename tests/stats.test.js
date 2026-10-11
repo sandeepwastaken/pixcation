@@ -5,7 +5,7 @@ const vm = require('node:vm');
 
 function createStats() {
     const context = vm.createContext({ TEST_MODE: false });
-    const source = ['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'runtime/progress.js', 'ui/stats.js', 'fishing/minigame.js'].map(file => fs.readFileSync(`src/${file}`, 'utf8')).join('\n');
+    const source = ['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'runtime/progress.js', 'ui/stats.js', 'ui/market-controls.js', 'fishing/minigame.js'].map(file => fs.readFileSync(`src/${file}`, 'utf8')).join('\n');
     vm.runInContext(source, context);
     return { context, run: source => vm.runInContext(source, context) };
 }
@@ -35,6 +35,8 @@ test('stats migration keeps known fish and rejects invalid or unsafe amounts', (
     assert.equal(context.formatPlayTime(3720000), '1h 02m 00s');
 });
 
+test('fish sale summaries stay within safe integer limits', () => { const { run } = createStats(); run("fishInventory.set('bluegill', Number.MAX_SAFE_INTEGER); fishInventory.set('roach', Number.MAX_SAFE_INTEGER)"); assert.deepEqual(JSON.parse(run('JSON.stringify(getFishInventorySummary())')), { count: Number.MAX_SAFE_INTEGER, value: Number.MAX_SAFE_INTEGER }); });
+test('fish sales cannot overflow the coin balance', () => { const { context, run } = createStats(); context.animateCoinTotal = () => {}; context.refreshMarketOptions = () => {}; run("playerCoins = Number.MAX_SAFE_INTEGER; fishInventory.set('bluegill', 1); selectedMarketOption = MARKET_SELL_INDEX; buySelectedMarketItem({})"); assert.equal(run('playerCoins'), Number.MAX_SAFE_INTEGER); });
 test('play time includes slow frames and excludes hidden or unfocused time', () => {
     const { context, run } = createStats();
     let focused = true;
