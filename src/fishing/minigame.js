@@ -43,7 +43,7 @@ function finishFishingMinigame(scene, time, caught) {
         if (index !== -1) chunk.fish.splice(index, 1);
     }
 
-    const species = fish.species || FISH_SPECIES[0];
+    const species = getMysteryCatchSpecies(fishing.bait, fish.species || FISH_SPECIES[0], playerStats.fishCaught || 0);
     addCaughtFish(species);
 
     fishing.targetFish = null;

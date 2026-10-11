@@ -43,6 +43,19 @@ const FISH_SPECIES = [
     { id: 'sturgeon', name: 'Sturgeon', size: 'giant', minWater: 12000, weight: 0.12, price: 250 }
 ];
 
+const MYSTERY_BAITS = FISH_SPECIES.map(species => ({
+    id: `mystery-${species.id}`,
+    label: 'Mystery Bait',
+    texture: `bait-mystery-${species.id}`,
+    icon: `bait-mystery-${species.id}-icon`,
+    price: Math.round(8 + species.price * 0.5),
+    bundle: 3,
+    zoneBonus: 6,
+    lure: 1.4,
+    attracts: species
+}));
+const ALL_BAITS = [...MARKET_BAITS, ...MYSTERY_BAITS];
+
 const GUIDE_DIALOGUE = {
     intro: {
         portrait: 'guide-portrait-friendly',
@@ -92,12 +105,13 @@ const GUIDE_DIALOGUE = {
 const MARKET_RODS_BY_ID = new Map(MARKET_RODS.map(rod => [rod.id, rod]));
 const MARKET_RODS_BY_LABEL = new Map(MARKET_RODS.map(rod => [rod.label, rod]));
 const FISH_SPECIES_BY_ID = new Map(FISH_SPECIES.map(species => [species.id, species]));
-const MARKET_BAITS_BY_ID = new Map(MARKET_BAITS.map(bait => [bait.id, bait]));
+const MARKET_BAITS_BY_ID = new Map(ALL_BAITS.map(bait => [bait.id, bait]));
 const MARKET_PAGES = [
     { title: 'Rods', items: MARKET_RODS },
-    { title: 'Bait', items: MARKET_BAITS }
+    { title: 'Bait', items: MARKET_BAITS },
+    { title: 'Rare', get items() { return [getCurrentMysteryBait()]; } }
 ];
-const MARKET_ITEM_ROWS = Math.max(...MARKET_PAGES.map(page => page.items.length));
+const MARKET_ITEM_ROWS = Math.max(MARKET_RODS.length, MARKET_BAITS.length);
 const MARKET_SELL_INDEX = MARKET_ITEM_ROWS;
 const MARKET_EXIT_INDEX = MARKET_SELL_INDEX + 1;
 const MARKET_ROW_COUNT = MARKET_ITEM_ROWS + 2;
@@ -201,6 +215,16 @@ const NPC_RUMOR_LINES = [
 const NPC_NO_RUMOR_LINES = [
     "Rumors? Not today. The water's been quiet around here.",
     "I haven't heard a thing. Ask me again tomorrow!"
+];
+
+const NPC_RARE_BAIT_NOW_LINES = [
+    "I saw something really rare in the shop just now... You should check it out!",
+    "The shop has a strange can in the Rare tab today. I've never seen one like it. Go look!"
+];
+
+const NPC_RARE_BAIT_SOON_LINES = [
+    "The shopkeeper hinted something really rare is coming in soon. Keep an eye on the shop!",
+    "Word is a very special bait will turn up at the shop before long. Don't miss it!"
 ];
 
 window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
@@ -4341,10 +4365,11 @@ function buildNpcDialogue(scene, npc) {
     const node = (text, options) => ({ portrait, portraitScale: NPC_PORTRAIT_SCALE, text: text.replaceAll('{first}', first), options });
     const back = { label: 'Back', next: 'intro' };
     const rumor = findNearestRumor(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE));
+    const shopRumor = getMysteryShopRumor();
     const bye = { label: 'Bye', close: true };
     const nodes = {
-        chat: node(pick(personality.chatter), [{ label: 'Any rumors?', action: () => (rumor && hearRumor(rumor), 'rumor') }, back, bye]),
-        rumor: node(rumor ? describeRumor(rumor, pick(NPC_RUMOR_LINES)) : pick(NPC_NO_RUMOR_LINES), [back, bye]),
+        chat: node(pick(personality.chatter), [{ label: 'Any rumors?', action: () => (!shopRumor && rumor && hearRumor(rumor), 'rumor') }, back, bye]),
+        rumor: node(shopRumor ? pick(shopRumor === 'now' ? NPC_RARE_BAIT_NOW_LINES : NPC_RARE_BAIT_SOON_LINES) : rumor ? describeRumor(rumor, pick(NPC_RUMOR_LINES)) : pick(NPC_NO_RUMOR_LINES), [back, bye]),
         tips: node(pick(npc.fishing ? personality.fishing : NPC_FISHING_TIPS), [back, bye])
     };
 
@@ -4543,7 +4568,7 @@ function hearRumor(rumor) {
 }
 
 const fishJumps = [];
-const fishJumpSprites = [];
+const fishJumpGraphics = [];
 let fishJumpRandom = null;
 let nextFishJumpAt = 0;
 
@@ -4551,6 +4576,24 @@ function splashFishJump(scene, time, x, y) {
     idleRipple(scene, time, x, y);
     for (let index = 0; index < FISH_JUMP_DROPLETS; index++) {
         spawnParticle(scene, shadowLayer, time, x - 1 + index, y - 1, index - 1, -1, FISH_JUMP_DROPLET_LIFETIME, FISH_JUMP_DROPLET_COLOR);
+    }
+}
+
+function drawFishSilhouette(graphics, fish, centerX, centerY, headingX, headingY, color) {
+    const halfLength = fish.length * 0.5, radius = fish.radius, head = halfLength - radius;
+    const bound = Math.ceil(halfLength + radius + Math.abs(fish.amplitude) + 1);
+    graphics.clear().fillStyle(color, 1);
+    for (let y = -bound; y <= bound; y++) {
+        for (let x = -bound; x <= bound; x++) {
+            const localX = x + 0.5, localY = y + 0.5;
+            const along = localX * headingX + localY * headingY;
+            const spine = Phaser.Math.Clamp((halfLength - along) / fish.length, 0, 1);
+            const across = localX * -headingY + localY * headingX - fish.amplitude * spine * spine * Math.sin(spine * 5.6 - fish.phase);
+            const headOffset = along - head;
+            const inside = headOffset * headOffset + across * across < radius * radius ||
+                along < head && along > -halfLength && Math.abs(across) < radius * (along + halfLength) / (head + halfLength);
+            if (inside) graphics.fillRect(centerX + x, centerY + y, 1, 1);
+        }
     }
 }
 
@@ -4590,11 +4633,12 @@ function startFishJump(scene, time) {
         if (!canFishSwim(chunk, fish, toX, toY)) return;
     }
 
-    const sprite = fishJumpSprites.pop() || scene.add.image(0, 0, 'fishing-fish').setTint(FISH_JUMP_TINT);
-    worldObjectLayer.add(sprite);
-    sprite.setVisible(true).setFlipX(Math.cos(heading) < 0).setDepth(Math.max(fish.y, toY) + FISH_JUMP_DEPTH);
+    const graphics = fishJumpGraphics.pop() || scene.add.graphics();
+    worldObjectLayer.add(graphics);
+    graphics.setVisible(true).setDepth(Math.max(fish.y, toY) + FISH_JUMP_DEPTH);
     fish.jumping = true;
-    fishJumps.push({ fish, sprite, fromX: fish.x, fromY: fish.y, toX, toY, start: time, height: FISH_JUMP_HEIGHT + fish.length * 0.4, side: Math.cos(heading) < 0 ? -1 : 1 });
+    const color = tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(fish.x, fish.y));
+    fishJumps.push({ fish, graphics, color, fromX: fish.x, fromY: fish.y, toX, toY, heading, start: time, height: FISH_JUMP_HEIGHT + fish.length * 0.4 });
     splashFishJump(scene, time, Math.round(fish.x), Math.round(fish.y));
 }
 
@@ -4610,17 +4654,96 @@ function updateFishJumps(scene, time) {
         const amount = Math.min(1, (time - jump.start) / FISH_JUMP_TIME);
         const x = jump.fromX + (jump.toX - jump.fromX) * amount;
         const y = jump.fromY + (jump.toY - jump.fromY) * amount - Math.sin(amount * Math.PI) * jump.height;
-        jump.sprite.setPosition(Math.round(x), Math.round(y)).setRotation((amount < 0.35 ? -FISH_JUMP_TILT : amount > 0.65 ? FISH_JUMP_TILT : 0) * jump.side);
+        const pitch = (amount - 0.5) * FISH_JUMP_TILT * 2;
+        const side = Math.cos(jump.heading) < 0 ? -1 : 1;
+        const tilt = jump.heading + pitch * side;
+        drawFishSilhouette(jump.graphics, jump.fish, Math.round(x), Math.round(y), Math.cos(tilt), Math.sin(tilt), jump.color);
         if (amount < 1) continue;
 
         jump.fish.x = jump.toX;
         jump.fish.y = jump.toY;
         jump.fish.jumping = false;
         splashFishJump(scene, time, Math.round(jump.toX), Math.round(jump.toY));
-        jump.sprite.setVisible(false);
-        fishJumpSprites.push(jump.sprite);
+        jump.graphics.clear().setVisible(false);
+        fishJumpGraphics.push(jump.graphics);
         fishJumps[index] = fishJumps[fishJumps.length - 1];
         fishJumps.pop();
+    }
+}
+
+let mysteryWeights = null;
+
+function getMysteryWeights() {
+    if (mysteryWeights) return mysteryWeights;
+    const weights = MYSTERY_BAITS.map(bait => bait.attracts.size === 'giant' ? MYSTERY_GIANT_WEIGHT : bait.attracts.weight * MYSTERY_SIZE_WEIGHTS[bait.attracts.size]);
+    return mysteryWeights = { weights, total: weights.reduce((total, weight) => total + weight, 0) };
+}
+
+function getMysteryCycle(now = Date.now()) {
+    return Math.floor((now / 60000 + WORLD_SEED % MYSTERY_CYCLE_MINUTES) / MYSTERY_CYCLE_MINUTES);
+}
+
+function getMysteryBait(cycle) {
+    const { weights, total } = getMysteryWeights();
+    let roll = coordinateHash(cycle, 0, Math.imul(WORLD_SEED + 1701, WORLD_HASH_MULTIPLIER)) * total;
+    for (let index = 0; index < MYSTERY_BAITS.length; index++) {
+        roll -= weights[index];
+        if (roll <= 0) return MYSTERY_BAITS[index];
+    }
+    return MYSTERY_BAITS[0];
+}
+
+function getCurrentMysteryBait() {
+    return getMysteryBait(getMysteryCycle());
+}
+
+function isRareMysteryBait(bait) {
+    return bait.attracts.size === 'giant';
+}
+
+function getMysteryShopRumor() {
+    const cycle = getMysteryCycle();
+    if (isRareMysteryBait(getMysteryBait(cycle))) return 'now';
+    for (let ahead = 1; ahead <= MYSTERY_FORECAST_CYCLES; ahead++) {
+        if (isRareMysteryBait(getMysteryBait(cycle + ahead))) return 'soon';
+    }
+    return null;
+}
+
+function getMysteryCatchSpecies(bait, species, catchNumber) {
+    const target = bait?.attracts;
+    if (!target) return species;
+    const fits = species.size === target.size || (target.size === 'giant' && species.size === 'large');
+    const roll = coordinateHash(catchNumber, 0, Math.imul(WORLD_SEED + 1702, WORLD_HASH_MULTIPLIER));
+    return fits && roll < MYSTERY_CATCH_CHANCE ? target : species;
+}
+
+function getMysteryPalette(species) {
+    let hash = 2166136261;
+    for (let index = 0; index < species.id.length; index++) hash = Math.imul(hash ^ species.id.charCodeAt(index), 16777619);
+    const hue = (hash >>> 0) / 4294967296;
+    return MYSTERY_SHADES.map(([saturation, value]) => {
+        const color = Phaser.Display.Color.HSVToRGB(hue, saturation, value);
+        return [color.r, color.g, color.b];
+    });
+}
+
+function createMysteryBaitTextures(scene) {
+    const sources = MYSTERY_PLACEHOLDER_COLORS.map(color => [color >> 16, color >> 8 & 255, color & 255]);
+    for (const bait of MYSTERY_BAITS) {
+        const palette = getMysteryPalette(bait.attracts);
+        for (const [key, base] of [[bait.texture, 'bait-mystery'], [bait.icon, 'bait-mystery-icon']]) {
+            const source = getTerrainPixels(scene, base);
+            createCanvasTexture(scene, key, source.width, source.height, context => {
+                const image = context.createImageData(source.width, source.height);
+                image.data.set(source.data);
+                for (let index = 0; index < image.data.length; index += 4) {
+                    const shade = sources.findIndex(([red, green, blue]) => image.data[index] === red && image.data[index + 1] === green && image.data[index + 2] === blue);
+                    if (shade >= 0) image.data.set(palette[shade], index);
+                }
+                context.putImageData(image, 0, 0);
+            });
+        }
     }
 }
 
@@ -5558,7 +5681,7 @@ function finishFishingMinigame(scene, time, caught) {
         if (index !== -1) chunk.fish.splice(index, 1);
     }
 
-    const species = fish.species || FISH_SPECIES[0];
+    const species = getMysteryCatchSpecies(fishing.bait, fish.species || FISH_SPECIES[0], playerStats.fishCaught || 0);
     addCaughtFish(species);
 
     fishing.targetFish = null;
@@ -7405,7 +7528,7 @@ function useBait(bait) {
         baitInventory.set(bait.id, left);
     } else {
         baitInventory.delete(bait.id);
-        if (activeBaitId === bait.id) activeBaitId = MARKET_BAITS.find(other => baitInventory.has(other.id))?.id ?? null;
+        if (activeBaitId === bait.id) activeBaitId = ALL_BAITS.find(other => baitInventory.has(other.id))?.id ?? null;
     }
 
     saveDirty = true;
@@ -7413,8 +7536,8 @@ function useBait(bait) {
 }
 
 function cycleBait(scene) {
-    const current = MARKET_BAITS.findIndex(bait => bait.id === activeBaitId && baitInventory.has(bait.id));
-    const next = MARKET_BAITS.find((bait, index) => index > current && baitInventory.has(bait.id)) || null;
+    const current = ALL_BAITS.findIndex(bait => bait.id === activeBaitId && baitInventory.has(bait.id));
+    const next = ALL_BAITS.find((bait, index) => index > current && baitInventory.has(bait.id)) || null;
 
     if (current === -1 && !next) {
         showItemLabel(scene, 'No bait - buy some at the shop');
@@ -8727,8 +8850,14 @@ const FISH_JUMP_RUMOR_WEIGHT = 3;
 const FISH_JUMP_DROPLETS = 3;
 const FISH_JUMP_DROPLET_LIFETIME = 260;
 const FISH_JUMP_DROPLET_COLOR = 0xbce6eb;
-const FISH_JUMP_TINT = 0x52707e;
 const NPC_DRAW_MARGIN = 128;
+const MYSTERY_CYCLE_MINUTES = 20;
+const MYSTERY_FORECAST_CYCLES = 3;
+const MYSTERY_CATCH_CHANCE = 0.85;
+const MYSTERY_GIANT_WEIGHT = 0.6;
+const MYSTERY_SIZE_WEIGHTS = { small: 1.4, medium: 1, large: 0.55 };
+const MYSTERY_PLACEHOLDER_COLORS = [0x0026ff, 0x1f5aff, 0x3e8eff];
+const MYSTERY_SHADES = [[0.6, 0.5], [0.52, 0.68], [0.42, 0.84]];
 
 let hotbarSelector;
 const hotbarItemImages = [];
@@ -8941,6 +9070,8 @@ function getTextureAliases() {
     alias('shop-ui', 'ui/shop/panel');
     alias('guide', 'characters/guide/sprite');
     alias('character-parts', 'characters/people/parts');
+    alias('bait-mystery', 'items/baits/mysteryBait');
+    alias('bait-mystery-icon', 'items/baits/mystery-icon');
     alias('chest', 'items/chest');
     alias('fishing-ui', 'ui/fishing/panel');
     alias('fishing-catch-zone', 'ui/fishing/catch-zone');
@@ -9182,6 +9313,7 @@ function create() {
     createPlayerTextures(this);
     createShimmerSheet(this);
     extractRodArtStyles(this);
+    createMysteryBaitTextures(this);
     createChestSilhouette(this);
 
     for (let step = 0; step < SHIMMER_TINT_STEPS; step++) {

@@ -43,6 +43,19 @@ const FISH_SPECIES = [
     { id: 'sturgeon', name: 'Sturgeon', size: 'giant', minWater: 12000, weight: 0.12, price: 250 }
 ];
 
+const MYSTERY_BAITS = FISH_SPECIES.map(species => ({
+    id: `mystery-${species.id}`,
+    label: 'Mystery Bait',
+    texture: `bait-mystery-${species.id}`,
+    icon: `bait-mystery-${species.id}-icon`,
+    price: Math.round(8 + species.price * 0.5),
+    bundle: 3,
+    zoneBonus: 6,
+    lure: 1.4,
+    attracts: species
+}));
+const ALL_BAITS = [...MARKET_BAITS, ...MYSTERY_BAITS];
+
 const GUIDE_DIALOGUE = {
     intro: {
         portrait: 'guide-portrait-friendly',
@@ -92,12 +105,13 @@ const GUIDE_DIALOGUE = {
 const MARKET_RODS_BY_ID = new Map(MARKET_RODS.map(rod => [rod.id, rod]));
 const MARKET_RODS_BY_LABEL = new Map(MARKET_RODS.map(rod => [rod.label, rod]));
 const FISH_SPECIES_BY_ID = new Map(FISH_SPECIES.map(species => [species.id, species]));
-const MARKET_BAITS_BY_ID = new Map(MARKET_BAITS.map(bait => [bait.id, bait]));
+const MARKET_BAITS_BY_ID = new Map(ALL_BAITS.map(bait => [bait.id, bait]));
 const MARKET_PAGES = [
     { title: 'Rods', items: MARKET_RODS },
-    { title: 'Bait', items: MARKET_BAITS }
+    { title: 'Bait', items: MARKET_BAITS },
+    { title: 'Rare', get items() { return [getCurrentMysteryBait()]; } }
 ];
-const MARKET_ITEM_ROWS = Math.max(...MARKET_PAGES.map(page => page.items.length));
+const MARKET_ITEM_ROWS = Math.max(MARKET_RODS.length, MARKET_BAITS.length);
 const MARKET_SELL_INDEX = MARKET_ITEM_ROWS;
 const MARKET_EXIT_INDEX = MARKET_SELL_INDEX + 1;
 const MARKET_ROW_COUNT = MARKET_ITEM_ROWS + 2;

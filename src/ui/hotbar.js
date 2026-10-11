@@ -82,7 +82,7 @@ function useBait(bait) {
         baitInventory.set(bait.id, left);
     } else {
         baitInventory.delete(bait.id);
-        if (activeBaitId === bait.id) activeBaitId = MARKET_BAITS.find(other => baitInventory.has(other.id))?.id ?? null;
+        if (activeBaitId === bait.id) activeBaitId = ALL_BAITS.find(other => baitInventory.has(other.id))?.id ?? null;
     }
 
     saveDirty = true;
@@ -90,8 +90,8 @@ function useBait(bait) {
 }
 
 function cycleBait(scene) {
-    const current = MARKET_BAITS.findIndex(bait => bait.id === activeBaitId && baitInventory.has(bait.id));
-    const next = MARKET_BAITS.find((bait, index) => index > current && baitInventory.has(bait.id)) || null;
+    const current = ALL_BAITS.findIndex(bait => bait.id === activeBaitId && baitInventory.has(bait.id));
+    const next = ALL_BAITS.find((bait, index) => index > current && baitInventory.has(bait.id)) || null;
 
     if (current === -1 && !next) {
         showItemLabel(scene, 'No bait - buy some at the shop');

@@ -1,5 +1,5 @@
 const fishJumps = [];
-const fishJumpSprites = [];
+const fishJumpGraphics = [];
 let fishJumpRandom = null;
 let nextFishJumpAt = 0;
 
@@ -7,6 +7,24 @@ function splashFishJump(scene, time, x, y) {
     idleRipple(scene, time, x, y);
     for (let index = 0; index < FISH_JUMP_DROPLETS; index++) {
         spawnParticle(scene, shadowLayer, time, x - 1 + index, y - 1, index - 1, -1, FISH_JUMP_DROPLET_LIFETIME, FISH_JUMP_DROPLET_COLOR);
+    }
+}
+
+function drawFishSilhouette(graphics, fish, centerX, centerY, headingX, headingY, color) {
+    const halfLength = fish.length * 0.5, radius = fish.radius, head = halfLength - radius;
+    const bound = Math.ceil(halfLength + radius + Math.abs(fish.amplitude) + 1);
+    graphics.clear().fillStyle(color, 1);
+    for (let y = -bound; y <= bound; y++) {
+        for (let x = -bound; x <= bound; x++) {
+            const localX = x + 0.5, localY = y + 0.5;
+            const along = localX * headingX + localY * headingY;
+            const spine = Phaser.Math.Clamp((halfLength - along) / fish.length, 0, 1);
+            const across = localX * -headingY + localY * headingX - fish.amplitude * spine * spine * Math.sin(spine * 5.6 - fish.phase);
+            const headOffset = along - head;
+            const inside = headOffset * headOffset + across * across < radius * radius ||
+                along < head && along > -halfLength && Math.abs(across) < radius * (along + halfLength) / (head + halfLength);
+            if (inside) graphics.fillRect(centerX + x, centerY + y, 1, 1);
+        }
     }
 }
 
@@ -46,11 +64,12 @@ function startFishJump(scene, time) {
         if (!canFishSwim(chunk, fish, toX, toY)) return;
     }
 
-    const sprite = fishJumpSprites.pop() || scene.add.image(0, 0, 'fishing-fish').setTint(FISH_JUMP_TINT);
-    worldObjectLayer.add(sprite);
-    sprite.setVisible(true).setFlipX(Math.cos(heading) < 0).setDepth(Math.max(fish.y, toY) + FISH_JUMP_DEPTH);
+    const graphics = fishJumpGraphics.pop() || scene.add.graphics();
+    worldObjectLayer.add(graphics);
+    graphics.setVisible(true).setDepth(Math.max(fish.y, toY) + FISH_JUMP_DEPTH);
     fish.jumping = true;
-    fishJumps.push({ fish, sprite, fromX: fish.x, fromY: fish.y, toX, toY, start: time, height: FISH_JUMP_HEIGHT + fish.length * 0.4, side: Math.cos(heading) < 0 ? -1 : 1 });
+    const color = tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(fish.x, fish.y));
+    fishJumps.push({ fish, graphics, color, fromX: fish.x, fromY: fish.y, toX, toY, heading, start: time, height: FISH_JUMP_HEIGHT + fish.length * 0.4 });
     splashFishJump(scene, time, Math.round(fish.x), Math.round(fish.y));
 }
 
@@ -66,15 +85,18 @@ function updateFishJumps(scene, time) {
         const amount = Math.min(1, (time - jump.start) / FISH_JUMP_TIME);
         const x = jump.fromX + (jump.toX - jump.fromX) * amount;
         const y = jump.fromY + (jump.toY - jump.fromY) * amount - Math.sin(amount * Math.PI) * jump.height;
-        jump.sprite.setPosition(Math.round(x), Math.round(y)).setRotation((amount < 0.35 ? -FISH_JUMP_TILT : amount > 0.65 ? FISH_JUMP_TILT : 0) * jump.side);
+        const pitch = (amount - 0.5) * FISH_JUMP_TILT * 2;
+        const side = Math.cos(jump.heading) < 0 ? -1 : 1;
+        const tilt = jump.heading + pitch * side;
+        drawFishSilhouette(jump.graphics, jump.fish, Math.round(x), Math.round(y), Math.cos(tilt), Math.sin(tilt), jump.color);
         if (amount < 1) continue;
 
         jump.fish.x = jump.toX;
         jump.fish.y = jump.toY;
         jump.fish.jumping = false;
         splashFishJump(scene, time, Math.round(jump.toX), Math.round(jump.toY));
-        jump.sprite.setVisible(false);
-        fishJumpSprites.push(jump.sprite);
+        jump.graphics.clear().setVisible(false);
+        fishJumpGraphics.push(jump.graphics);
         fishJumps[index] = fishJumps[fishJumps.length - 1];
         fishJumps.pop();
     }

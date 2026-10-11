@@ -15,6 +15,7 @@ function create() {
     createPlayerTextures(this);
     createShimmerSheet(this);
     extractRodArtStyles(this);
+    createMysteryBaitTextures(this);
     createChestSilhouette(this);
 
     for (let step = 0; step < SHIMMER_TINT_STEPS; step++) {

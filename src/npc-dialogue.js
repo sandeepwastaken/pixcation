@@ -62,3 +62,13 @@ const NPC_NO_RUMOR_LINES = [
     "Rumors? Not today. The water's been quiet around here.",
     "I haven't heard a thing. Ask me again tomorrow!"
 ];
+
+const NPC_RARE_BAIT_NOW_LINES = [
+    "I saw something really rare in the shop just now... You should check it out!",
+    "The shop has a strange can in the Rare tab today. I've never seen one like it. Go look!"
+];
+
+const NPC_RARE_BAIT_SOON_LINES = [
+    "The shopkeeper hinted something really rare is coming in soon. Keep an eye on the shop!",
+    "Word is a very special bait will turn up at the shop before long. Don't miss it!"
+];
