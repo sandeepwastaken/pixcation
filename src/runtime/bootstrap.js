@@ -74,5 +74,5 @@ function startGame() {
     game = new Phaser.Game(config);
 }
 
-document.fonts.load('16px m6x11').then(startGame, startGame);
+document.fonts ? document.fonts.load('16px m6x11').then(startGame, startGame) : startGame();
 setTimeout(startGame, 3000);

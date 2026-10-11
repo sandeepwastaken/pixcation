@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-function createWindow(fontLoad) {
+function createWindow(fontLoad, hasFonts = true) {
     const listeners = new Map();
     const documentListeners = new Map();
     const frames = [];
@@ -21,7 +21,7 @@ function createWindow(fontLoad) {
         visibilityState: 'visible',
         addEventListener(name, callback) { documentListeners.set(name, callback); },
         documentElement: { clientWidth: 1280, clientHeight: 768 },
-        fonts: { load() { return fontLoad || { then(callback) { start = callback; } }; } }
+        fonts: hasFonts ? { load() { return fontLoad || { then(callback) { start = callback; } }; } } : null
     };
     const context = vm.createContext({
         window, document, URLSearchParams,
@@ -121,3 +121,4 @@ test('a stalled font load falls back without starting the game twice', () => {
     screen.start();
     assert.equal(screen.starts(), 1);
 });
+test('startup works without the font loading API', () => assert.equal(createWindow(undefined, false).starts(), 1));
