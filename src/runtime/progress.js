@@ -145,10 +145,12 @@ function saveProgress() {
     }
 }
 
-function resetProgress() {
+function resetProgress(nextSeed) {
     try {
         localStorage.removeItem(SAVE_KEY);
-        localStorage.removeItem(WORLD_SEED_KEY);
+        const nextKey = nextSeed ? 'pixcation-save-v1:' + nextSeed : 'pixcation-save-v1';
+        if (nextSeed !== undefined && nextKey !== SAVE_KEY) localStorage.removeItem(nextKey);
+        if (nextSeed === undefined || nextSeed === null || SAVE_KEY === 'pixcation-save-v1') localStorage.removeItem(WORLD_SEED_KEY);
     } catch (error) {
         return false;
     }

@@ -37,6 +37,36 @@ function getShapePoints(shape) {
 
 const shadowPaletteColors = [];
 const tintedShadowCache = new Map();
+const actorShadeCache = new WeakMap();
+
+function getActorShadeCoverage(x, y) {
+    const left = Math.round(x) + CHARACTER_HITBOX_X, top = Math.round(y) + CHARACTER_HITBOX_Y;
+    let shaded = 0, previousX = NaN, previousY = NaN, chunk = null;
+    for (let row = 0; row < CHARACTER_HITBOX_HEIGHT; row++) for (let column = 0; column < CHARACTER_HITBOX_WIDTH; column++) {
+        const worldX = left + column, worldY = top + row, chunkX = Math.floor(worldX / CHUNK_PIXEL_SIZE), chunkY = Math.floor(worldY / CHUNK_PIXEL_SIZE);
+        if (chunkX !== previousX || chunkY !== previousY) { chunk = loadedChunks.get(getChunkKey(chunkX, chunkY)); previousX = chunkX; previousY = chunkY; }
+        if (!chunk) continue;
+        const pixel = (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE;
+        if (chunk.treeShadePoints?.has(pixel)) shaded++;
+    }
+    return shaded / (CHARACTER_HITBOX_WIDTH * CHARACTER_HITBOX_HEIGHT);
+}
+
+function updateActorShade(scene, sprite) {
+    if (!sprite || sprite.visible === false) return;
+    const x = Math.round(sprite.x), y = Math.round(sprite.y), version = scene.actorShadeVersion || 0;
+    let cached = actorShadeCache.get(sprite);
+    if (cached && cached.scene === scene && cached.x === x && cached.y === y && cached.version === version) return;
+    const level = Math.round(255 * (1 - getActorShadeCoverage(x, y) * 0.14)), tint = level * 0x010101;
+    if (!cached || cached.tint !== tint) sprite.setTint(tint);
+    if (!cached) actorShadeCache.set(sprite, cached = {});
+    cached.scene = scene; cached.x = x; cached.y = y; cached.version = version; cached.tint = tint;
+}
+
+function updateActorShading(scene) {
+    updateActorShade(scene, character); updateActorShade(scene, guide);
+    for (const chunk of loadedChunks.values()) if (chunk.visible) for (const npc of chunk.npcs || []) if (npc.state !== 'home') updateActorShade(scene, npc.sprite);
+}
 
 function shadeGroundPixel(scene, red, green, blue, tileX, tileY) {
     if (red <= green + 6 || green < blue || getWoodColors(scene).has((red << 16) | (green << 8) | blue)) return shadeColor(red, green, blue);

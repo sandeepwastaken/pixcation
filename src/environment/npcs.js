@@ -28,7 +28,7 @@ function getNpcConnection(npc) {
     const index = neighbors.findIndex(home => home.id === npc.id);
     const companion = index < 0 ? null : neighbors[index ^ 1];
     if (!companion) return null;
-    const kind = ['sibling', 'cousin', 'close'][Math.floor(npcHash(groupX, groupY, 1330 + Math.floor(index / 2)) * 3)];
+    const kind = ['sibling', 'cousin', 'close'][Math.min(2, Math.floor(npcHash(groupX, groupY, 1330 + Math.floor(index / 2)) * 3))];
     return { companion, kind };
 }
 
@@ -251,7 +251,7 @@ function createNpc(tileX, tileY, water) {
         hasty: npcHash(tileX, tileY, 1318) < NPC_HASTY_CHANCE,
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),
-        name: `${names[pick(names.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
+        name: names[appearance[19] % names.length] + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
         look: [
             appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 + appearance[3] : appearance[2], face, shirts[appearance[5] % shirts.length], appearance[6],
             appearance[7], accessory,
@@ -1132,8 +1132,8 @@ function updateNpcs(scene, time, delta) {
 function getNpcTrade(npc) {
     const period = Math.floor(Date.now() / NPC_TRADE_PERIOD);
     const seed = Math.imul(WORLD_SEED + period, WORLD_HASH_MULTIPLIER);
-    const species = FISH_SPECIES[Math.floor(coordinateHash(npc.tileX, npc.tileY, seed) * FISH_SPECIES.length)];
-    const count = species.price > 20 ? 1 : 1 + Math.floor(coordinateHash(npc.tileY, npc.tileX, seed) * 3);
+    const species = FISH_SPECIES[Math.min(FISH_SPECIES.length - 1, Math.floor(coordinateHash(npc.tileX, npc.tileY, seed) * FISH_SPECIES.length))];
+    const count = species.price > 20 ? 1 : 1 + Math.min(2, Math.floor(coordinateHash(npc.tileY, npc.tileX, seed) * 3));
     const coins = Math.round(count * species.price * (1.5 + coordinateHash(npc.tileX + 1, npc.tileY, seed) * 0.8));
     return { period, species, count, coins };
 }
@@ -1151,7 +1151,7 @@ function completeNpcTrade(scene, npc, trade) {
 }
 
 function buildNpcDialogue(scene, npc) {
-    const personality = NPC_PERSONALITIES[Math.floor(npcHash(npc.tileX, npc.tileY, 1320) * NPC_PERSONALITIES.length)];
+    const personality = NPC_PERSONALITIES[Math.min(NPC_PERSONALITIES.length - 1, Math.floor(npcHash(npc.tileX, npc.tileY, 1320) * NPC_PERSONALITIES.length))];
     const clock = getWorldClock(), raining = getRainIntensity(clock) > 0.25;
     const connection = getNpcConnection(npc);
     const pick = lines => lines[Math.floor(npcRandom(npc) * lines.length)];

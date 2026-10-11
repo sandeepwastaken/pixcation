@@ -61,6 +61,7 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
     const scene = {};
     context.updateTreeShadows(scene, 0);
     assert.equal(groundReads, 1);
+    assert.equal(left.treeShadePoints.has(255), true);
     assert.deepEqual(Array.from(left.treeShadowImage.data.slice(255 * 4, 256 * 4)), [10, 20, 30, 255]);
     assert.equal(right.waterTexture.image.data[0], 128);
     assert.equal(right.waterTexture.image.data[1], 12);
@@ -72,6 +73,8 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
     assert.deepEqual(Array.from(context.getWindRows(2, tree.shadowHeight)), [2, 0]);
     assert.equal(right.waterTexture.image, firstWaterImage);
     assert.equal(left.treeShadowImage.data[255 * 4 + 3], 0);
+    assert.equal(left.treeShadePoints.has(255), false);
+    assert.equal(right.treeShadePoints.has(1), true);
     assert.equal(right.waterTexture.image.data[0], 255);
     assert.equal(right.waterTexture.image.data[4], 128);
     assert.equal(right.waterTexture.image.data[8], 128);

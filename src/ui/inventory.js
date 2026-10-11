@@ -45,6 +45,7 @@ function createInventoryUI(scene) {
 
     inventoryContainer = addPanelContainer(scene, INVENTORY_HIDDEN_Y, 203, [panel, inventoryHighlight, inventoryDetailImage]);
     inventoryTextLayer = addHudLayer(scene, textLayer, INVENTORY_HIDDEN_Y, 204);
+    createNewGameUI(scene);
     refreshInventoryUI(scene.time.now);
 }
 
@@ -71,7 +72,7 @@ function refreshInventoryUI(time) {
     const confirming = time < newGameConfirmUntil;
 
     if (confirming) {
-        setUITextContent(inventoryNewGameText, 'Press N again to erase all progress');
+        setUITextContent(inventoryNewGameText, 'Press N again to choose a new world');
     } else if (inventoryNewGameText.firstChild !== inventoryFooterHints) {
         inventoryNewGameText.replaceChildren(inventoryFooterHints);
     }
@@ -124,6 +125,7 @@ function closeInventory(scene) {
     if (!inventoryOpen) return;
 
     inventoryOpen = false;
+    closeNewGameChoice();
     newGameConfirmUntil = 0;
     hideSlidingPanel(scene, INVENTORY_HIDDEN_Y, () => inventoryOpen, inventoryContainer, inventoryTextLayer);
 }
@@ -141,15 +143,75 @@ function handleInventoryKey(scene, event) {
     } else if (key === 'i' || event.key === 'Escape') {
         closeInventory(scene);
     } else if (key === 'n' && scene.time.now < newGameConfirmUntil) {
-        if (resetProgress()) {
-            window.location.reload();
-        } else {
-            newGameConfirmUntil = 0;
-            inventoryNewGameText.textContent = 'Could not erase save - press N to retry';
-            inventoryNewGameText.style.color = '#d9745b';
-        }
+        openNewGameChoice();
+        newGameConfirmUntil = 0; refreshInventoryUI(scene.time.now);
     } else if (key === 'n') {
         newGameConfirmUntil = scene.time.now + 2500;
         refreshInventoryUI(scene.time.now);
     }
+}
+
+function createNewGameUI(scene) {
+    const panel = scene.add.graphics();
+    drawPanelFrame(panel, 32, 256, 112);
+    const text = createTextLayer(112, { textShadow: UI_TEXT_SHADOW });
+    createUIText(text, 48, 9, '#e0f2fd', 224, 'center').textContent = 'Start a new world';
+    const options = ['Seeded', 'Unseeded'].map((label, index) => createUIText(text, 48 + index * 112, 30, '#e0f2fd', 112, 'center'));
+    const input = document.createElement('input');
+    input.type = 'text'; input.inputMode = 'numeric'; input.maxLength = 49; input.setAttribute('aria-label', 'World seed');
+    Object.assign(input.style, { position: 'absolute', left: '48px', top: '53px', width: '224px', height: '18px', boxSizing: 'border-box', background: '#230a03', color: '#e0f2fd', border: '1px solid #465989', borderRadius: '0', fontFamily: 'inherit', fontSize: '11px', padding: '2px 4px', pointerEvents: 'auto' });
+    text.appendChild(input);
+    const note = createUIText(text, 48, 76, '#c0a887', 224, 'center', { fontSize: '9px' });
+    createUIText(text, 48, 94, '#e0f2fd', 224, 'center', { fontSize: '11px' }).textContent = 'Tab - choose   Enter - start   Esc - cancel';
+    newGameChoice = { open: false, mode: 0, options, input, note, panel: addPanelContainer(scene, 40, 205, [panel]), text: addHudLayer(scene, text, 40, 206) };
+    input.addEventListener('input', () => { newGameChoice.note.textContent = 'Starting over erases progress in this world'; });
+    input.addEventListener('keydown', event => { event.stopPropagation(); handleNewGameChoiceKey(event); });
+}
+
+function refreshNewGameChoice() {
+    for (let index = 0; index < 2; index++) newGameChoice.options[index].textContent = (newGameChoice.mode === index ? '> ' : '') + ['Seeded', 'Unseeded'][index];
+    newGameChoice.input.style.display = newGameChoice.mode === 0 ? '' : 'none';
+    newGameChoice.note.textContent = newGameChoice.mode === 0 ? 'Starting over erases progress in this world' : 'A fresh random world - existing progress is erased';
+    for (let index = 0; index < 2; index++) newGameChoice.options[index].style.color = newGameChoice.mode === index ? '#acccf9' : '#c0a887';
+}
+
+function openNewGameChoice() {
+    newGameChoice.open = true; newGameChoice.mode = 0;
+    newGameChoice.input.value = WORLD_SEED_CODE;
+    refreshNewGameChoice();
+    newGameChoice.panel.setVisible(true); newGameChoice.text.setVisible(true);
+    newGameChoice.input.focus(); newGameChoice.input.select();
+}
+
+function closeNewGameChoice() {
+    if (!newGameChoice) return;
+    newGameChoice.open = false;
+    newGameChoice.input.blur();
+    newGameChoice.panel.setVisible(false); newGameChoice.text.setVisible(false);
+}
+
+function startNewGameChoice() {
+    if (!newGameChoice.open || newGameResetting) return;
+    const seed = newGameChoice.mode === 0 ? newGameChoice.input.value.trim() : null;
+    if (seed !== null && !isValidWorldSeed(seed)) { newGameChoice.note.textContent = 'Enter a valid positive whole-number seed'; newGameChoice.input.focus(); return; }
+    const target = new URL(window.location.href);
+    if (seed === null) target.searchParams.delete('seed'); else target.searchParams.set('seed', seed);
+    if (!resetProgress(seed)) { newGameChoice.note.textContent = 'Could not erase save - try again'; return; }
+    window.location.assign(target.href);
+}
+
+function handleNewGameChoiceKey(event) {
+    if (event.repeat) return;
+    if (event.key === 'Escape') { event.preventDefault(); closeNewGameChoice(); return; }
+    if (event.key === 'Enter') { event.preventDefault(); startNewGameChoice(); return; }
+    if (event.key === 'Tab') { event.preventDefault(); newGameChoice.input.blur(); newGameChoice.mode = 1 - newGameChoice.mode; refreshNewGameChoice(); return; }
+    if (document.activeElement === newGameChoice.input) return;
+    if (['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(event.key)) { event.preventDefault(); newGameChoice.mode = 1 - newGameChoice.mode; refreshNewGameChoice(); }
+    else if (event.key.toLowerCase() === 's' || event.key.toLowerCase() === 'u') { newGameChoice.mode = event.key.toLowerCase() === 's' ? 0 : 1; refreshNewGameChoice(); }
+    else if (event.key === ' ') { event.preventDefault(); startNewGameChoice(); }
+}
+
+function handleNewGameChoicePointer(pointer) {
+    if (pointer.y >= 68 && pointer.y < 85 && pointer.x >= 48 && pointer.x < 272) { newGameChoice.input.blur(); newGameChoice.mode = pointer.x < 160 ? 0 : 1; refreshNewGameChoice(); }
+    else if (pointer.y >= 130 && pointer.y < 150 && pointer.x >= 48 && pointer.x < 272) startNewGameChoice();
 }

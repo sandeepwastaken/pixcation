@@ -51,7 +51,7 @@ test('camera scroll updates are skipped when settled and restore external scroll
 
 test('logo animation skips unchanged pixels and restores altered positions without a text overlay', () => {
     const run = createView();
-    run("for (const name of ['updateLoadedChunks', 'buildPendingChunk', 'updateCharacterShadow', 'updateBushRustle', 'updateChunkVisibility', 'updateTreeShadows', 'updateParticles', 'updateFish', 'updateChunkWater', 'updateSky']) globalThis[name] = () => {}");
+    run("for (const name of ['updateLoadedChunks', 'buildPendingChunk', 'updateCharacterShadow', 'updateBushRustle', 'updateChunkVisibility', 'updateTreeShadows', 'updateActorShading', 'updateParticles', 'updateFish', 'updateChunkWater', 'updateSky']) globalThis[name] = () => {}");
     run('let logoWrites = 0; let logoY = 40');
     run("startup = { phase: 'title', start: 0, spawnX: 0, spawnY: 0, logoShadow: { y: 0 }, logo: { get y() { return logoY; }, set y(value) { logoWrites++; logoY = value; } } }");
     run('updateStartup({}, 0, 16); updateStartup({}, 16, 16)');
@@ -72,7 +72,7 @@ test('logo animation skips unchanged pixels and restores altered positions witho
 
 test('starting swipes the title up, glides to the player, then slides the hud in', () => {
     const run = createView();
-    run("for (const name of ['updateLoadedChunks', 'buildPendingChunk', 'updateCharacterShadow', 'updateBushRustle', 'updateChunkVisibility', 'updateTreeShadows', 'updateParticles', 'updateFish', 'updateChunkWater', 'updateSky']) globalThis[name] = () => {}");
+    run("for (const name of ['updateLoadedChunks', 'buildPendingChunk', 'updateCharacterShadow', 'updateBushRustle', 'updateChunkVisibility', 'updateTreeShadows', 'updateActorShading', 'updateParticles', 'updateFish', 'updateChunkWater', 'updateSky']) globalThis[name] = () => {}");
     run("const hudItem = { y: 160, setVisible() {} }; const hidden = { setVisible() {}, destroy() {} }");
     run("startup = { phase: 'closing', start: 0, from: [0, 0], hud: [[hudItem, true, 160]], logo: { ...hidden, y: 40 }, logoShadow: { ...hidden, y: 42 }, button: { ...hidden, y: 124 }, textLayer: { ...hidden, y: 0 } }");
     run('ditherInCharacter = () => {}');

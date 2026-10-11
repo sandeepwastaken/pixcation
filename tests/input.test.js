@@ -40,6 +40,7 @@ function createInput() {
 
 const space = { key: ' ', code: 'Space', repeat: false, preventDefault() {} };
 const left = { button: 0, x: 0, y: 180 };
+test('the new world chooser consumes keyboard and pointer actions without casting', () => { const { input, run } = createInput(); run('newGameChoice = {open: true}; let chooserKeys = 0, chooserClicks = 0; function handleNewGameChoiceKey() { chooserKeys++; } function handleNewGameChoicePointer() { chooserClicks++; }'); input.keyboard.emit('keydown', space); input.emit('pointerdown', left); input.emit('wheel', {event: {timeStamp: 200}}, [], 0, 1); assert.equal(run('chooserKeys'), 1); assert.equal(run('chooserClicks'), 1); assert.equal(run('presses'), 0); });
 test('casting with either Space or a click dismisses the reveal card and starts charging', () => {
     for (const source of ['keyboard', 'pointer']) {
         const { input, run } = createInput();

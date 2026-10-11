@@ -4,15 +4,15 @@ const RUMOR_SPECIES = FISH_SPECIES.filter(species => species.size === 'large' ||
 const RUMOR_DIRECTIONS = ['east', 'southeast', 'south', 'southwest', 'west', 'northwest', 'north', 'northeast'];
 
 function getRumorHotspot(cellX, cellY, day) {
-    const key = getTileId(cellX, cellY) * 31 + day;
+    const key = `${getTileId(cellX, cellY)}:${day}`;
     const cached = rumorCache.get(key);
     if (cached !== undefined) return cached;
 
     const salt = Math.imul(WORLD_SEED + 1601 + day * 7919, WORLD_HASH_MULTIPLIER);
     let hotspot = null;
     for (let attempt = 0; attempt < RUMOR_ATTEMPTS && !hotspot; attempt++) {
-        const chunkX = cellX * RUMOR_CELL_CHUNKS + Math.floor(coordinateHash(cellX * 31 + attempt, cellY, salt) * RUMOR_CELL_CHUNKS);
-        const chunkY = cellY * RUMOR_CELL_CHUNKS + Math.floor(coordinateHash(cellX, cellY * 31 + attempt, salt) * RUMOR_CELL_CHUNKS);
+        const chunkX = cellX * RUMOR_CELL_CHUNKS + Math.min(RUMOR_CELL_CHUNKS - 1, Math.floor(coordinateHash(cellX * 31 + attempt, cellY, salt) * RUMOR_CELL_CHUNKS));
+        const chunkY = cellY * RUMOR_CELL_CHUNKS + Math.min(RUMOR_CELL_CHUNKS - 1, Math.floor(coordinateHash(cellX, cellY * 31 + attempt, salt) * RUMOR_CELL_CHUNKS));
         let waterTiles = 0;
         for (let y = 0; y < CHUNK_SIZE; y += 2) {
             for (let x = 0; x < CHUNK_SIZE; x += 2) {
@@ -22,7 +22,7 @@ function getRumorHotspot(cellX, cellY, day) {
         const area = waterTiles * TILE_SIZE * TILE_SIZE;
         const options = RUMOR_SPECIES.filter(species => area >= species.minWater);
         if (!options.length) continue;
-        hotspot = { key, day, chunkX, chunkY, species: options[Math.floor(coordinateHash(chunkX, chunkY, salt) * options.length)] };
+        hotspot = { key, day, chunkX, chunkY, species: options[Math.min(options.length - 1, Math.floor(coordinateHash(chunkX, chunkY, salt) * options.length))] };
     }
     return cacheWorldValue(rumorCache, key, hotspot);
 }

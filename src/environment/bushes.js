@@ -164,6 +164,7 @@ function updateTreeShadows(scene, time) {
     }
     if (signature === scene.treeShadowSignature) return;
     scene.treeShadowSignature = signature;
+    scene.actorShadeVersion = (scene.actorShadeVersion || 0) + 1;
     for (const chunk of loadedChunks.values()) {
         if (!chunk.visible) continue;
         const left = chunk.pixelX;
@@ -190,7 +191,7 @@ function updateTreeShadows(scene, time) {
                 if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) contact.add(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }
-        if (!points.size && !chunk.treeShadowTexture) continue;
+        chunk.treeShadePoints = points; if (!points.size && !chunk.treeShadowTexture) continue;
         chunk.treeShadowSignature = nextShadowSignature;
         if (!chunk.treeShadowTexture) {
             chunk.treeShadowTexture = acquireChunkCanvas(scene);

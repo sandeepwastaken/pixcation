@@ -125,7 +125,7 @@ const NPC_FIRST_NAMES = [
     'Effie', 'Elan', 'Elio', 'Eliza', 'Ellis', 'Elmer', 'Elsie', 'Emil', 'Enzo', 'Esme', 'Etta', 'Ezra', 'Fawn', 'Felix', 'Fern', 'Fig',
     'Finn', 'Fiona', 'Flint', 'Flo', 'Floyd', 'Frankie', 'Fritz', 'Gale', 'Georgie', 'Gil', 'Ginger', 'Gus', 'Hal', 'Hana', 'Hank', 'Harlow',
     'Hattie', 'Hazel', 'Heath', 'Hollis', 'Holly', 'Hugo', 'Ida', 'Ike', 'Imani', 'Indy', 'Ines', 'Iris', 'Ivo', 'Ivy', 'Jada', 'Jasper',
-    'Jem', 'Jett', 'Jo', 'Joel', 'Jonah', 'Joni', 'Jude', 'June', 'Juno', 'Kai', 'Kat', 'Keiko', 'Kenji', 'Kit', 'Kona', 'Lark',
+    'Jem', 'Jett', 'Jo', 'Joel', 'Jonah', 'Joni', 'Jude', 'June', 'Juno', 'Kai', 'Kat', 'Keiko', 'Kenji', 'Kit', 'Emz', 'Jessie',
     'Laurel', 'Lena', 'Leo', 'Levi', 'Lila', 'Linus', 'Lola', 'Lou', 'Luca', 'Lucy', 'Lulu', 'Mabel', 'Mack', 'Mae', 'Maggie', 'Malia',
     'Maple', 'Marco', 'Margo', 'Marlo', 'Mateo', 'Maude', 'Mavis', 'Max', 'Meadow', 'Mei', 'Mila', 'Milo', 'Mina', 'Miso', 'Moss', 'Murphy',
     'Nadia', 'Nell', 'Nico', 'Nina', 'Noah', 'Noor', 'Nora', 'Oak', 'Odette', 'Olive', 'Ollie', 'Omar', 'Opal', 'Orla', 'Oscar', 'Otis',
@@ -136,7 +136,7 @@ const NPC_FIRST_NAMES = [
     'Willa', 'Willow', 'Winnie', 'Wyatt', 'Xavi', 'Yara', 'Yuki', 'Yusuf', 'Zadie', 'Zane', 'Zara', 'Zeke', 'Zion', 'Zoe', 'Zora', 'Zuri'
 ];
 const NPC_NEUTRAL_FIRST_NAMES = ['Arden', 'Avery', 'Blair', 'Briar', 'Brook', 'Cass', 'Cedar', 'Clem', 'Dale', 'Darby', 'Drew', 'Ellis', 'Frankie', 'Gale', 'Harlow', 'Hollis', 'Indy', 'Jo', 'Jude', 'Kai', 'Kit', 'Lark', 'Lou', 'Marlo', 'Noor', 'Quinn', 'Remy', 'River', 'Robin', 'Rowan', 'Sage', 'Sasha', 'Scout', 'Shay', 'Sky', 'Sunny', 'Wren', 'Yuki'];
-const NPC_FEMININE_FIRST_NAMES = NPC_FIRST_NAMES.filter(name => NPC_NEUTRAL_FIRST_NAMES.includes(name) || ['Ada', 'Agnes', 'Alba', 'Alma', 'Anika', 'April', 'Astrid', 'Ava', 'Bea', 'Bess', 'Birdie', 'Calla', 'Camille', 'Carmen', 'Celia', 'Clara', 'Cleo', 'Clover', 'Cora', 'Dahlia', 'Daisy', 'Dawn', 'Della', 'Dina', 'Dot', 'Edie', 'Effie', 'Eliza', 'Elsie', 'Esme', 'Etta', 'Fawn', 'Fern', 'Fiona', 'Flo', 'Ginger', 'Hana', 'Hattie', 'Hazel', 'Holly', 'Ida', 'Imani', 'Ines', 'Iris', 'Ivy', 'Jada', 'Joni', 'June', 'Juno', 'Kat', 'Keiko', 'Laurel', 'Lena', 'Lila', 'Lola', 'Lucy', 'Lulu', 'Mabel', 'Mae', 'Maggie', 'Malia', 'Maple', 'Margo', 'Maude', 'Mavis', 'Meadow', 'Mei', 'Mila', 'Mina', 'Nadia', 'Nell', 'Nina', 'Nora', 'Odette', 'Olive', 'Opal', 'Orla', 'Paloma', 'Peg', 'Pepper', 'Piper', 'Poppy', 'Priya', 'Ramona', 'Rhea', 'Rosa', 'Ruby', 'Selma', 'Stella', 'Suki', 'Tali', 'Tess', 'Thea', 'Tilly', 'Tova', 'Uma', 'Una', 'Vera', 'Vida', 'Willa', 'Willow', 'Winnie', 'Yara', 'Zadie', 'Zara', 'Zoe', 'Zora', 'Zuri'].includes(name));
+const NPC_FEMININE_FIRST_NAMES = NPC_FIRST_NAMES.filter(name => NPC_NEUTRAL_FIRST_NAMES.includes(name) || ['Ada', 'Agnes', 'Alba', 'Alma', 'Anika', 'April', 'Astrid', 'Ava', 'Bea', 'Bess', 'Birdie', 'Calla', 'Camille', 'Carmen', 'Celia', 'Clara', 'Cleo', 'Clover', 'Cora', 'Dahlia', 'Daisy', 'Dawn', 'Della', 'Dina', 'Dot', 'Edie', 'Effie', 'Eliza', 'Elsie', 'Emz', 'Esme', 'Etta', 'Fawn', 'Fern', 'Fiona', 'Flo', 'Ginger', 'Hana', 'Hattie', 'Hazel', 'Holly', 'Ida', 'Imani', 'Ines', 'Iris', 'Ivy', 'Jada', 'Joni', 'June', 'Juno', 'Kat', 'Keiko', 'Laurel', 'Lena', 'Lila', 'Lola', 'Lucy', 'Lulu', 'Mabel', 'Mae', 'Maggie', 'Malia', 'Maple', 'Margo', 'Maude', 'Mavis', 'Meadow', 'Mei', 'Mila', 'Mina', 'Nadia', 'Nell', 'Nina', 'Nora', 'Odette', 'Olive', 'Opal', 'Orla', 'Paloma', 'Peg', 'Pepper', 'Piper', 'Poppy', 'Priya', 'Ramona', 'Rhea', 'Rosa', 'Ruby', 'Selma', 'Stella', 'Suki', 'Tali', 'Tess', 'Thea', 'Tilly', 'Tova', 'Uma', 'Una', 'Vera', 'Vida', 'Willa', 'Willow', 'Winnie', 'Yara', 'Zadie', 'Zara', 'Zoe', 'Zora', 'Zuri'].includes(name));
 const NPC_MASCULINE_FIRST_NAMES = NPC_FIRST_NAMES.filter(name => NPC_NEUTRAL_FIRST_NAMES.includes(name) || !NPC_FEMININE_FIRST_NAMES.includes(name));
 
 const NPC_LAST_NAMES = [
@@ -1044,9 +1044,9 @@ function composePersonPixels(scene, look, direction) {
     const colors = new Map();
     const assign = (sources, targets) => sources.forEach((source, index) => colors.set(source, targets[index]));
     assign(NPC_PART_COLORS.skin, palette.skin);
-    assign(NPC_PART_COLORS.pants, [palette.pants[1], palette.pantsAccent[1]]);
+    assign(NPC_PART_COLORS.pants, [palette.pants[0], palette.pants[1]]);
     assign(NPC_PART_COLORS.shirt, palette.shirt);
-    assign(NPC_PART_COLORS.shirtAccent, [palette.shirtAccent]); assign(NPC_PART_COLORS.pantsAccent, [palette.pantsAccent[2]]);
+    assign(NPC_PART_COLORS.shirtAccent, [palette.shirtAccent]); assign(NPC_PART_COLORS.pantsAccent, [palette.pantsAccent[1]]);
     assign(NPC_PART_COLORS.hair, palette.hair);
     assign(accessory ? NPC_PART_COLORS.accessory : NPC_PART_COLORS.hair, palette.top);
     const layers = [[face * 3 + column, 0], [9 + column, 2 + (look[11] ?? 0), 8], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
@@ -3171,6 +3171,36 @@ function getShapePoints(shape) {
 
 const shadowPaletteColors = [];
 const tintedShadowCache = new Map();
+const actorShadeCache = new WeakMap();
+
+function getActorShadeCoverage(x, y) {
+    const left = Math.round(x) + CHARACTER_HITBOX_X, top = Math.round(y) + CHARACTER_HITBOX_Y;
+    let shaded = 0, previousX = NaN, previousY = NaN, chunk = null;
+    for (let row = 0; row < CHARACTER_HITBOX_HEIGHT; row++) for (let column = 0; column < CHARACTER_HITBOX_WIDTH; column++) {
+        const worldX = left + column, worldY = top + row, chunkX = Math.floor(worldX / CHUNK_PIXEL_SIZE), chunkY = Math.floor(worldY / CHUNK_PIXEL_SIZE);
+        if (chunkX !== previousX || chunkY !== previousY) { chunk = loadedChunks.get(getChunkKey(chunkX, chunkY)); previousX = chunkX; previousY = chunkY; }
+        if (!chunk) continue;
+        const pixel = (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE;
+        if (chunk.treeShadePoints?.has(pixel)) shaded++;
+    }
+    return shaded / (CHARACTER_HITBOX_WIDTH * CHARACTER_HITBOX_HEIGHT);
+}
+
+function updateActorShade(scene, sprite) {
+    if (!sprite || sprite.visible === false) return;
+    const x = Math.round(sprite.x), y = Math.round(sprite.y), version = scene.actorShadeVersion || 0;
+    let cached = actorShadeCache.get(sprite);
+    if (cached && cached.scene === scene && cached.x === x && cached.y === y && cached.version === version) return;
+    const level = Math.round(255 * (1 - getActorShadeCoverage(x, y) * 0.14)), tint = level * 0x010101;
+    if (!cached || cached.tint !== tint) sprite.setTint(tint);
+    if (!cached) actorShadeCache.set(sprite, cached = {});
+    cached.scene = scene; cached.x = x; cached.y = y; cached.version = version; cached.tint = tint;
+}
+
+function updateActorShading(scene) {
+    updateActorShade(scene, character); updateActorShade(scene, guide);
+    for (const chunk of loadedChunks.values()) if (chunk.visible) for (const npc of chunk.npcs || []) if (npc.state !== 'home') updateActorShade(scene, npc.sprite);
+}
 
 function shadeGroundPixel(scene, red, green, blue, tileX, tileY) {
     if (red <= green + 6 || green < blue || getWoodColors(scene).has((red << 16) | (green << 8) | blue)) return shadeColor(red, green, blue);
@@ -3671,6 +3701,7 @@ function updateTreeShadows(scene, time) {
     }
     if (signature === scene.treeShadowSignature) return;
     scene.treeShadowSignature = signature;
+    scene.actorShadeVersion = (scene.actorShadeVersion || 0) + 1;
     for (const chunk of loadedChunks.values()) {
         if (!chunk.visible) continue;
         const left = chunk.pixelX;
@@ -3697,7 +3728,7 @@ function updateTreeShadows(scene, time) {
                 if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) contact.add(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }
-        if (!points.size && !chunk.treeShadowTexture) continue;
+        chunk.treeShadePoints = points; if (!points.size && !chunk.treeShadowTexture) continue;
         chunk.treeShadowSignature = nextShadowSignature;
         if (!chunk.treeShadowTexture) {
             chunk.treeShadowTexture = acquireChunkCanvas(scene);
@@ -3766,7 +3797,7 @@ function getNpcConnection(npc) {
     const index = neighbors.findIndex(home => home.id === npc.id);
     const companion = index < 0 ? null : neighbors[index ^ 1];
     if (!companion) return null;
-    const kind = ['sibling', 'cousin', 'close'][Math.floor(npcHash(groupX, groupY, 1330 + Math.floor(index / 2)) * 3)];
+    const kind = ['sibling', 'cousin', 'close'][Math.min(2, Math.floor(npcHash(groupX, groupY, 1330 + Math.floor(index / 2)) * 3))];
     return { companion, kind };
 }
 
@@ -3989,7 +4020,7 @@ function createNpc(tileX, tileY, water) {
         hasty: npcHash(tileX, tileY, 1318) < NPC_HASTY_CHANCE,
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),
-        name: `${names[pick(names.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
+        name: names[appearance[19] % names.length] + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
         look: [
             appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 + appearance[3] : appearance[2], face, shirts[appearance[5] % shirts.length], appearance[6],
             appearance[7], accessory,
@@ -4870,8 +4901,8 @@ function updateNpcs(scene, time, delta) {
 function getNpcTrade(npc) {
     const period = Math.floor(Date.now() / NPC_TRADE_PERIOD);
     const seed = Math.imul(WORLD_SEED + period, WORLD_HASH_MULTIPLIER);
-    const species = FISH_SPECIES[Math.floor(coordinateHash(npc.tileX, npc.tileY, seed) * FISH_SPECIES.length)];
-    const count = species.price > 20 ? 1 : 1 + Math.floor(coordinateHash(npc.tileY, npc.tileX, seed) * 3);
+    const species = FISH_SPECIES[Math.min(FISH_SPECIES.length - 1, Math.floor(coordinateHash(npc.tileX, npc.tileY, seed) * FISH_SPECIES.length))];
+    const count = species.price > 20 ? 1 : 1 + Math.min(2, Math.floor(coordinateHash(npc.tileY, npc.tileX, seed) * 3));
     const coins = Math.round(count * species.price * (1.5 + coordinateHash(npc.tileX + 1, npc.tileY, seed) * 0.8));
     return { period, species, count, coins };
 }
@@ -4889,7 +4920,7 @@ function completeNpcTrade(scene, npc, trade) {
 }
 
 function buildNpcDialogue(scene, npc) {
-    const personality = NPC_PERSONALITIES[Math.floor(npcHash(npc.tileX, npc.tileY, 1320) * NPC_PERSONALITIES.length)];
+    const personality = NPC_PERSONALITIES[Math.min(NPC_PERSONALITIES.length - 1, Math.floor(npcHash(npc.tileX, npc.tileY, 1320) * NPC_PERSONALITIES.length))];
     const clock = getWorldClock(), raining = getRainIntensity(clock) > 0.25;
     const connection = getNpcConnection(npc);
     const pick = lines => lines[Math.floor(npcRandom(npc) * lines.length)];
@@ -5083,15 +5114,15 @@ const RUMOR_SPECIES = FISH_SPECIES.filter(species => species.size === 'large' ||
 const RUMOR_DIRECTIONS = ['east', 'southeast', 'south', 'southwest', 'west', 'northwest', 'north', 'northeast'];
 
 function getRumorHotspot(cellX, cellY, day) {
-    const key = getTileId(cellX, cellY) * 31 + day;
+    const key = `${getTileId(cellX, cellY)}:${day}`;
     const cached = rumorCache.get(key);
     if (cached !== undefined) return cached;
 
     const salt = Math.imul(WORLD_SEED + 1601 + day * 7919, WORLD_HASH_MULTIPLIER);
     let hotspot = null;
     for (let attempt = 0; attempt < RUMOR_ATTEMPTS && !hotspot; attempt++) {
-        const chunkX = cellX * RUMOR_CELL_CHUNKS + Math.floor(coordinateHash(cellX * 31 + attempt, cellY, salt) * RUMOR_CELL_CHUNKS);
-        const chunkY = cellY * RUMOR_CELL_CHUNKS + Math.floor(coordinateHash(cellX, cellY * 31 + attempt, salt) * RUMOR_CELL_CHUNKS);
+        const chunkX = cellX * RUMOR_CELL_CHUNKS + Math.min(RUMOR_CELL_CHUNKS - 1, Math.floor(coordinateHash(cellX * 31 + attempt, cellY, salt) * RUMOR_CELL_CHUNKS));
+        const chunkY = cellY * RUMOR_CELL_CHUNKS + Math.min(RUMOR_CELL_CHUNKS - 1, Math.floor(coordinateHash(cellX, cellY * 31 + attempt, salt) * RUMOR_CELL_CHUNKS));
         let waterTiles = 0;
         for (let y = 0; y < CHUNK_SIZE; y += 2) {
             for (let x = 0; x < CHUNK_SIZE; x += 2) {
@@ -5101,7 +5132,7 @@ function getRumorHotspot(cellX, cellY, day) {
         const area = waterTiles * TILE_SIZE * TILE_SIZE;
         const options = RUMOR_SPECIES.filter(species => area >= species.minWater);
         if (!options.length) continue;
-        hotspot = { key, day, chunkX, chunkY, species: options[Math.floor(coordinateHash(chunkX, chunkY, salt) * options.length)] };
+        hotspot = { key, day, chunkX, chunkY, species: options[Math.min(options.length - 1, Math.floor(coordinateHash(chunkX, chunkY, salt) * options.length))] };
     }
     return cacheWorldValue(rumorCache, key, hotspot);
 }
@@ -7164,6 +7195,7 @@ function updateStartup(scene, time, delta) {
     updateBushRustle(scene, time, false);
     updateChunkVisibility();
     updateTreeShadows(scene, time);
+    updateActorShading(scene);
     updateParticles(time);
     updateFish(delta);
     updateChunkWater(time);
@@ -7746,6 +7778,7 @@ function createInventoryUI(scene) {
 
     inventoryContainer = addPanelContainer(scene, INVENTORY_HIDDEN_Y, 203, [panel, inventoryHighlight, inventoryDetailImage]);
     inventoryTextLayer = addHudLayer(scene, textLayer, INVENTORY_HIDDEN_Y, 204);
+    createNewGameUI(scene);
     refreshInventoryUI(scene.time.now);
 }
 
@@ -7772,7 +7805,7 @@ function refreshInventoryUI(time) {
     const confirming = time < newGameConfirmUntil;
 
     if (confirming) {
-        setUITextContent(inventoryNewGameText, 'Press N again to erase all progress');
+        setUITextContent(inventoryNewGameText, 'Press N again to choose a new world');
     } else if (inventoryNewGameText.firstChild !== inventoryFooterHints) {
         inventoryNewGameText.replaceChildren(inventoryFooterHints);
     }
@@ -7825,6 +7858,7 @@ function closeInventory(scene) {
     if (!inventoryOpen) return;
 
     inventoryOpen = false;
+    closeNewGameChoice();
     newGameConfirmUntil = 0;
     hideSlidingPanel(scene, INVENTORY_HIDDEN_Y, () => inventoryOpen, inventoryContainer, inventoryTextLayer);
 }
@@ -7842,17 +7876,77 @@ function handleInventoryKey(scene, event) {
     } else if (key === 'i' || event.key === 'Escape') {
         closeInventory(scene);
     } else if (key === 'n' && scene.time.now < newGameConfirmUntil) {
-        if (resetProgress()) {
-            window.location.reload();
-        } else {
-            newGameConfirmUntil = 0;
-            inventoryNewGameText.textContent = 'Could not erase save - press N to retry';
-            inventoryNewGameText.style.color = '#d9745b';
-        }
+        openNewGameChoice();
+        newGameConfirmUntil = 0; refreshInventoryUI(scene.time.now);
     } else if (key === 'n') {
         newGameConfirmUntil = scene.time.now + 2500;
         refreshInventoryUI(scene.time.now);
     }
+}
+
+function createNewGameUI(scene) {
+    const panel = scene.add.graphics();
+    drawPanelFrame(panel, 32, 256, 112);
+    const text = createTextLayer(112, { textShadow: UI_TEXT_SHADOW });
+    createUIText(text, 48, 9, '#e0f2fd', 224, 'center').textContent = 'Start a new world';
+    const options = ['Seeded', 'Unseeded'].map((label, index) => createUIText(text, 48 + index * 112, 30, '#e0f2fd', 112, 'center'));
+    const input = document.createElement('input');
+    input.type = 'text'; input.inputMode = 'numeric'; input.maxLength = 49; input.setAttribute('aria-label', 'World seed');
+    Object.assign(input.style, { position: 'absolute', left: '48px', top: '53px', width: '224px', height: '18px', boxSizing: 'border-box', background: '#230a03', color: '#e0f2fd', border: '1px solid #465989', borderRadius: '0', fontFamily: 'inherit', fontSize: '11px', padding: '2px 4px', pointerEvents: 'auto' });
+    text.appendChild(input);
+    const note = createUIText(text, 48, 76, '#c0a887', 224, 'center', { fontSize: '9px' });
+    createUIText(text, 48, 94, '#e0f2fd', 224, 'center', { fontSize: '11px' }).textContent = 'Tab - choose   Enter - start   Esc - cancel';
+    newGameChoice = { open: false, mode: 0, options, input, note, panel: addPanelContainer(scene, 40, 205, [panel]), text: addHudLayer(scene, text, 40, 206) };
+    input.addEventListener('input', () => { newGameChoice.note.textContent = 'Starting over erases progress in this world'; });
+    input.addEventListener('keydown', event => { event.stopPropagation(); handleNewGameChoiceKey(event); });
+}
+
+function refreshNewGameChoice() {
+    for (let index = 0; index < 2; index++) newGameChoice.options[index].textContent = (newGameChoice.mode === index ? '> ' : '') + ['Seeded', 'Unseeded'][index];
+    newGameChoice.input.style.display = newGameChoice.mode === 0 ? '' : 'none';
+    newGameChoice.note.textContent = newGameChoice.mode === 0 ? 'Starting over erases progress in this world' : 'A fresh random world - existing progress is erased';
+    for (let index = 0; index < 2; index++) newGameChoice.options[index].style.color = newGameChoice.mode === index ? '#acccf9' : '#c0a887';
+}
+
+function openNewGameChoice() {
+    newGameChoice.open = true; newGameChoice.mode = 0;
+    newGameChoice.input.value = WORLD_SEED_CODE;
+    refreshNewGameChoice();
+    newGameChoice.panel.setVisible(true); newGameChoice.text.setVisible(true);
+    newGameChoice.input.focus(); newGameChoice.input.select();
+}
+
+function closeNewGameChoice() {
+    if (!newGameChoice) return;
+    newGameChoice.open = false;
+    newGameChoice.input.blur();
+    newGameChoice.panel.setVisible(false); newGameChoice.text.setVisible(false);
+}
+
+function startNewGameChoice() {
+    if (!newGameChoice.open || newGameResetting) return;
+    const seed = newGameChoice.mode === 0 ? newGameChoice.input.value.trim() : null;
+    if (seed !== null && !isValidWorldSeed(seed)) { newGameChoice.note.textContent = 'Enter a valid positive whole-number seed'; newGameChoice.input.focus(); return; }
+    const target = new URL(window.location.href);
+    if (seed === null) target.searchParams.delete('seed'); else target.searchParams.set('seed', seed);
+    if (!resetProgress(seed)) { newGameChoice.note.textContent = 'Could not erase save - try again'; return; }
+    window.location.assign(target.href);
+}
+
+function handleNewGameChoiceKey(event) {
+    if (event.repeat) return;
+    if (event.key === 'Escape') { event.preventDefault(); closeNewGameChoice(); return; }
+    if (event.key === 'Enter') { event.preventDefault(); startNewGameChoice(); return; }
+    if (event.key === 'Tab') { event.preventDefault(); newGameChoice.input.blur(); newGameChoice.mode = 1 - newGameChoice.mode; refreshNewGameChoice(); return; }
+    if (document.activeElement === newGameChoice.input) return;
+    if (['ArrowLeft', 'ArrowRight', 'a', 'd'].includes(event.key)) { event.preventDefault(); newGameChoice.mode = 1 - newGameChoice.mode; refreshNewGameChoice(); }
+    else if (event.key.toLowerCase() === 's' || event.key.toLowerCase() === 'u') { newGameChoice.mode = event.key.toLowerCase() === 's' ? 0 : 1; refreshNewGameChoice(); }
+    else if (event.key === ' ') { event.preventDefault(); startNewGameChoice(); }
+}
+
+function handleNewGameChoicePointer(pointer) {
+    if (pointer.y >= 68 && pointer.y < 85 && pointer.x >= 48 && pointer.x < 272) { newGameChoice.input.blur(); newGameChoice.mode = pointer.x < 160 ? 0 : 1; refreshNewGameChoice(); }
+    else if (pointer.y >= 130 && pointer.y < 150 && pointer.x >= 48 && pointer.x < 272) startNewGameChoice();
 }
 
 function createCatchCardUI(scene) {
@@ -9384,10 +9478,16 @@ const CAMERA_EASE = 2;
 
 const PROMPT_SLIDE = 4;
 
+function isValidWorldSeed(value) {
+    if (!/^[1-9][0-9]{0,48}$/.test(value)) return false;
+    const seed = BigInt(value);
+    return seed < (1n << 160n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n);
+}
+
 function getRequestedWorldSeed() {
     if (typeof window === 'undefined' || !window.location?.search) return null;
     const value = new URLSearchParams(window.location.search).get('seed');
-    if (!value || !/^[1-9][0-9]{0,48}$/.test(value)) return null;
+    if (!value || !isValidWorldSeed(value)) return null;
     const seed = BigInt(value);
     return seed < (1n << 160n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n) ? value : null;
 }
@@ -9415,7 +9515,7 @@ const NPC_SHIRTS = 10;
 const NPC_ACCESSORY_CHANCE = 0.35;
 const NPC_RARE_VANITY_CHANCE = 0.0001, NPC_PASTEL_SKIN_CHANCE = 0.01, NPC_PANTS_STYLES = 5;
 const NPC_EYE_COLORS = [0x191820, 0x633d2b, 0x46758b, 0x527349, 0x77794a, 0xadcddd, 0xb18c53], NPC_EYE_WEIGHTS = [0.64, 0.16, 0.07, 0.06, 0.04, 0.02, 0.01];
-const NPC_APPEARANCE_RADICES = [10000, 100, 5, 4, 3, 10, 9, 7, 100, 7, 10, 6, 7, 2, 8, 5, 6, 100, 2];
+const NPC_APPEARANCE_RADICES = [10000, 100, 5, 4, 3, 10, 9, 7, 100, 7, 10, 6, 7, 2, 8, 5, 6, 100, 2, 65536, 5, 65536];
 const NPC_CELL_SIZE = 10;
 const NPC_CELL_MARGIN = 2;
 const NPC_CELL_CHANCE = 0.45;
@@ -9688,6 +9788,7 @@ let inventoryDetailImage;
 let inventoryDetailTexts = [];
 let selectedFishIndex = 0;
 let newGameConfirmUntil = 0;
+let newGameChoice = null;
 let catchCardContainer;
 let catchCardTextLayer;
 let catchCardTitle;
@@ -9846,6 +9947,7 @@ function bindGameInput(scene) {
     };
     const openMenu = open => { setCursor('default'); open(); };
     scene.input.on('pointermove', pointer => {
+        if (newGameChoice?.open) { setCursor(pointer.x >= 48 && pointer.x < 272 && ((pointer.y >= 68 && pointer.y < 85) || (pointer.y >= 130 && pointer.y < 150)) ? 'pointer' : 'default'); return; }
         if (startup) {
             setCursor(startup.phase === 'title' && isStartButtonAt(pointer.x, pointer.y) ? 'pointer' : 'default');
             return;
@@ -9924,6 +10026,7 @@ function bindGameInput(scene) {
     scene.input.on('pointerdown', pointer => {
         if (pointer.button !== 0) return;
         if (spawnReturn) return;
+        if (newGameChoice?.open) { setCursor('default'); handleNewGameChoicePointer(pointer); return; }
         if (startup) {
             if (isStartButtonAt(pointer.x, pointer.y)) { setCursor('default'); beginStartup(scene.time.now); }
             return;
@@ -9979,6 +10082,7 @@ function bindGameInput(scene) {
     });
 
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
+        if (newGameChoice?.open) return;
         const step = Math.sign(deltaY);
 
         if (!step || inventoryOpen || startup || statsOpen) return;
@@ -10003,6 +10107,7 @@ function bindGameInput(scene) {
     });
 
     scene.input.keyboard.on('keydown', event => {
+        if (newGameChoice?.open) { setCursor('default'); handleNewGameChoiceKey(event); return; }
         if (event.code === 'Tab' || event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
         if (event.repeat) return;
         if (spawnReturn) return;
@@ -10296,10 +10401,12 @@ function saveProgress() {
     }
 }
 
-function resetProgress() {
+function resetProgress(nextSeed) {
     try {
         localStorage.removeItem(SAVE_KEY);
-        localStorage.removeItem(WORLD_SEED_KEY);
+        const nextKey = nextSeed ? 'pixcation-save-v1:' + nextSeed : 'pixcation-save-v1';
+        if (nextSeed !== undefined && nextKey !== SAVE_KEY) localStorage.removeItem(nextKey);
+        if (nextSeed === undefined || nextSeed === null || SAVE_KEY === 'pixcation-save-v1') localStorage.removeItem(WORLD_SEED_KEY);
     } catch (error) {
         return false;
     }
@@ -10527,6 +10634,7 @@ function updateSpawnReturn(scene, time, delta) {
     }
     updateLoadedChunks(scene); buildPendingChunk(scene); updateChunkVisibility();
     updateTreeShadows(scene, time); updateParticles(time); updateNpcs(scene, time, delta);
+    updateActorShading(scene);
     updateFish(delta); updateSky(scene, time, delta); updateChunkWater(time);
 }
 
@@ -10710,6 +10818,7 @@ function update(time, delta) {
     spawnFishRise(this, time);
     spawnMeadowMote(this, time);
     updateNpcs(this, time, delta);
+    updateActorShading(this);
     updateFishJumps(this, time);
     updateSky(this, time, delta);
     updateChunkWater(time);

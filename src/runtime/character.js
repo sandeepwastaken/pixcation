@@ -216,6 +216,7 @@ function updateSpawnReturn(scene, time, delta) {
     }
     updateLoadedChunks(scene); buildPendingChunk(scene); updateChunkVisibility();
     updateTreeShadows(scene, time); updateParticles(time); updateNpcs(scene, time, delta);
+    updateActorShading(scene);
     updateFish(delta); updateSky(scene, time, delta); updateChunkWater(time);
 }
 

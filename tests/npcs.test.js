@@ -3,6 +3,19 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('inclusive seeded rolls keep trade species, trade amounts, and dialogue personalities valid', () => {
+    const run = createNpcs();
+    run(fs.readFileSync('src/game-data.js', 'utf8'));
+    run('coordinateHash = npcHash = () => 1; findNearestRumor = getMysteryShopRumor = () => null; const edgeTrade = getNpcTrade(first); const edgeDialogue = buildNpcDialogue(scene, first);');
+    assert.equal(run('edgeTrade.species.id'), run('FISH_SPECIES.at(-1).id'));
+    assert.ok(run('edgeTrade.count >= 1 && edgeTrade.count <= 3'));
+    assert.equal(run('typeof edgeDialogue.chat.text'), 'string');
+    assert.equal(run('getNpcConnection(first).kind'), 'close');
+    assert.equal(run('getNpcConnection(second).kind'), 'close');
+    run('FISH_SPECIES.splice(0, FISH_SPECIES.length, {id: "test", price: 5}); const smallTrade = getNpcTrade(first);');
+    assert.equal(run('smallTrade.count'), 3);
+});
+
 test('new residents start at staggered times while restored routines keep their saved delay', () => {
     const run = createNpcs();
     run(fs.readFileSync('src/game-data.js', 'utf8'));
@@ -1188,7 +1201,7 @@ test('returning to spawn dithers out before panning and dithers back in afterwar
         character = { x: 320, y: 64, setPosition(x, y) { this.x = x; this.y = y; return this; } };
         mainCamera = { scrollX: 160, scrollY: 0, width: 320, height: 192, setScroll(x, y) { this.scrollX = x; this.scrollY = y; } };
         const levels = []; ditherInCharacter = (scene, level) => levels.push(level);
-        updateCharacterShadow = updateLoadedChunks = buildPendingChunk = updateChunkVisibility = updateTreeShadows = updateParticles = updateNpcs = updateFish = updateSky = updateChunkWater = drawFishingMinigame = stopCharacterForMenu = () => {};
+        updateCharacterShadow = updateLoadedChunks = buildPendingChunk = updateChunkVisibility = updateTreeShadows = updateActorShading = updateParticles = updateNpcs = updateFish = updateSky = updateChunkWater = drawFishingMinigame = stopCharacterForMenu = () => {};
         canCharacterOccupy = () => true; fishingLine = fishingWaterShadow = { clear() {} };
         returnToSpawn(scene);
     `);

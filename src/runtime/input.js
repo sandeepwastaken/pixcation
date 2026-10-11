@@ -8,6 +8,7 @@ function bindGameInput(scene) {
     };
     const openMenu = open => { setCursor('default'); open(); };
     scene.input.on('pointermove', pointer => {
+        if (newGameChoice?.open) { setCursor(pointer.x >= 48 && pointer.x < 272 && ((pointer.y >= 68 && pointer.y < 85) || (pointer.y >= 130 && pointer.y < 150)) ? 'pointer' : 'default'); return; }
         if (startup) {
             setCursor(startup.phase === 'title' && isStartButtonAt(pointer.x, pointer.y) ? 'pointer' : 'default');
             return;
@@ -86,6 +87,7 @@ function bindGameInput(scene) {
     scene.input.on('pointerdown', pointer => {
         if (pointer.button !== 0) return;
         if (spawnReturn) return;
+        if (newGameChoice?.open) { setCursor('default'); handleNewGameChoicePointer(pointer); return; }
         if (startup) {
             if (isStartButtonAt(pointer.x, pointer.y)) { setCursor('default'); beginStartup(scene.time.now); }
             return;
@@ -141,6 +143,7 @@ function bindGameInput(scene) {
     });
 
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
+        if (newGameChoice?.open) return;
         const step = Math.sign(deltaY);
 
         if (!step || inventoryOpen || startup || statsOpen) return;
@@ -165,6 +168,7 @@ function bindGameInput(scene) {
     });
 
     scene.input.keyboard.on('keydown', event => {
+        if (newGameChoice?.open) { setCursor('default'); handleNewGameChoiceKey(event); return; }
         if (event.code === 'Tab' || event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
         if (event.repeat) return;
         if (spawnReturn) return;

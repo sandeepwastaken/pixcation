@@ -110,6 +110,7 @@ function updateStartup(scene, time, delta) {
     updateBushRustle(scene, time, false);
     updateChunkVisibility();
     updateTreeShadows(scene, time);
+    updateActorShading(scene);
     updateParticles(time);
     updateFish(delta);
     updateChunkWater(time);

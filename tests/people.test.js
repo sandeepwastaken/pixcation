@@ -13,7 +13,7 @@ function createPeople(seed = '13') {
 }
 
 function solveRequestedSeed() {
-    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 0, 0, 1, 7, 5, 0, 0, 0, 5, 6, 0, 0, 1, 0, 99, 1])');
+    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 0, 0, 1, 7, 5, 0, 0, 0, 5, 6, 0, 0, 1, 0, 0, 1, NPC_FEMININE_FIRST_NAMES.indexOf("Emz"), 0, 0])');
 }
 
 test('a reversed ordinary seed produces the requested rare resident near spawn', () => {
@@ -21,7 +21,8 @@ test('a reversed ordinary seed produces the requested rare resident near spawn',
     run('const resident = findCellNpc(1, 0)');
     assert.equal(run('resident.tileX'), 13);
     assert.equal(run('resident.tileY'), 4);
-    assert.deepEqual(JSON.parse(run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 6, 1]);
+    assert.equal(run('resident.name'), 'Emz');
+    assert.deepEqual(JSON.parse(run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1]);
     assert.equal(run('WORLD_SEED'), 13);
     assert.equal(run('getTerrainType(0, 0)'), 'grass');
     assert.equal(run('(() => { const queue = [[0, 0]], seen = new Set(["0,0"]); for (let index = 0; index < queue.length; index++) { const [x, y] = queue[index]; if (x === 13 && y === 4) return true; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, key = nx + "," + ny; if (Math.abs(nx) > 25 || Math.abs(ny) > 25 || seen.has(key) || !isNpcWalkableTile(nx, ny)) continue; seen.add(key); queue.push([nx, ny]); } } return false; })()'), true);
@@ -31,7 +32,7 @@ test('a reversed ordinary seed produces the requested rare resident near spawn',
 test('the requested costume renders mixed vanity hair, pants, skin, and clothing colors', () => {
     const run = createPeople(solveRequestedSeed());
     run("const resident = findCellNpc(1, 0), colors = new Set(composePersonPixels({}, resident.look, 'front'));");
-    for (const color of ['NPC_HAIR_COLORS[6][1]', 'NPC_ACCESSORY_COLORS[5][2]', 'NPC_SKIN_TONES[5][1]', 'NPC_SHIRT_COLORS[7][1]', 'NPC_PANTS_COLORS[5][1]', 'NPC_PANTS_COLORS[6][1]']) assert.equal(run('colors.has(' + color + ')'), true, color);
+    for (const color of ['NPC_HAIR_COLORS[6][1]', 'NPC_ACCESSORY_COLORS[5][2]', 'NPC_SKIN_TONES[5][1]', 'NPC_SHIRT_COLORS[7][1]', 'NPC_PANTS_COLORS[5][0]', 'NPC_PANTS_COLORS[5][1]', 'NPC_PANTS_COLORS[6][1]', 'NPC_EYE_COLORS[0]']) assert.equal(run('colors.has(' + color + ')'), true, color);
 });
 
 test('eyes recolor independently from skin shadows and survive mirroring', () => {
@@ -59,4 +60,21 @@ test('eye weights and wardrobe rarity retain their stated probabilities', () => 
     assert.deepEqual(JSON.parse(run('JSON.stringify(Array.from({length: 7}, (_, index) => Array.from({length: 100}, (_, roll) => getNpcEyeColor(roll)).filter(color => color === index).length))')), [64, 16, 7, 6, 4, 2, 1]);
     const counts = JSON.parse(run('JSON.stringify(Array.from({length: 10000}, (_, roll) => { const rolls = NPC_APPEARANCE_RADICES.map(() => 0); rolls[0] = roll; rolls[1] = roll % 100; getNpcAppearanceRolls = () => rolls; const npc = createNpc(13, 4, null); return [Number(npc.look[5] === 1 && npc.look[6] === 5), Number(npc.look[0] >= 5), Number(npc.look[3] !== npc.look[10] && npc.look[4] !== npc.look[12])]; }).reduce((counts, row) => counts.map((count, index) => count + row[index]), [0, 0, 0]))'));
     assert.deepEqual(counts, [1, 100, 10000]);
+});
+
+test('all pants styles shade their primary color separately from the pink-purple accent', () => {
+    const run = createPeople();
+    for (let style = 0; style < 5; style++) for (const direction of ['back', 'front', 'left', 'right']) {
+        run('constituentLook = [0, 0, 0, 0, 5, 1, 0, 0, 0, 0, 1, ' + style + ', 6, 0, 0]; composed = composePersonPixels({}, constituentLook, ' + JSON.stringify(direction) + ');');
+        assert.equal(run('(() => { const sheet = getTerrainPixels({}, "character-parts"), column = ' + JSON.stringify(direction) + ' === "back" ? 0 : ' + JSON.stringify(direction) + ' === "front" ? 1 : 2, mirror = ' + JSON.stringify(direction) + ' === "right", colors = new Map([[0x4a0067, NPC_PANTS_COLORS[5][0]], [0xb700ff, NPC_PANTS_COLORS[5][1]], [0xdf8fff, NPC_PANTS_COLORS[6][1]]]); for (let y = 0; y < 8; y++) for (let x = 0; x < 16; x++) { const source = ((' + (style + 2) + ' * 16 + y) * sheet.width + (9 + column) * 16 + (mirror ? 15 - x : x)) * 4, color = sheet.data[source] << 16 | sheet.data[source + 1] << 8 | sheet.data[source + 2]; if (colors.has(color) && composed[(y + 8) * 16 + x] !== colors.get(color)) return false; } return true; })()'), true, 'pants ' + (style + 1) + ' ' + direction);
+    }
+});
+
+test('exactly one of five surname rolls produces a first name only', () => {
+    const run = createPeople();
+    run('const nameRolls = NPC_APPEARANCE_RADICES.map(() => 0); nameRolls[18] = 1; nameRolls[19] = NPC_FEMININE_FIRST_NAMES.indexOf("Emz"); getNpcAppearanceRolls = () => nameRolls;');
+    const names = Array.from({length: 5}, (_, roll) => run('nameRolls[20] = ' + roll + '; createNpc(13, 4, null).name'));
+    assert.equal(names.filter(name => !name.includes(' ')).length, 1);
+    assert.equal(names[0], 'Emz');
+    assert.equal(names.slice(1).every(name => name.startsWith('Emz ')), true);
 });

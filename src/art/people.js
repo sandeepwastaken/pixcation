@@ -18,9 +18,9 @@ function composePersonPixels(scene, look, direction) {
     const colors = new Map();
     const assign = (sources, targets) => sources.forEach((source, index) => colors.set(source, targets[index]));
     assign(NPC_PART_COLORS.skin, palette.skin);
-    assign(NPC_PART_COLORS.pants, [palette.pants[1], palette.pantsAccent[1]]);
+    assign(NPC_PART_COLORS.pants, [palette.pants[0], palette.pants[1]]);
     assign(NPC_PART_COLORS.shirt, palette.shirt);
-    assign(NPC_PART_COLORS.shirtAccent, [palette.shirtAccent]); assign(NPC_PART_COLORS.pantsAccent, [palette.pantsAccent[2]]);
+    assign(NPC_PART_COLORS.shirtAccent, [palette.shirtAccent]); assign(NPC_PART_COLORS.pantsAccent, [palette.pantsAccent[1]]);
     assign(NPC_PART_COLORS.hair, palette.hair);
     assign(accessory ? NPC_PART_COLORS.accessory : NPC_PART_COLORS.hair, palette.top);
     const layers = [[face * 3 + column, 0], [9 + column, 2 + (look[11] ?? 0), 8], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];

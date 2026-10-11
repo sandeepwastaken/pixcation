@@ -99,6 +99,7 @@ let inventoryDetailImage;
 let inventoryDetailTexts = [];
 let selectedFishIndex = 0;
 let newGameConfirmUntil = 0;
+let newGameChoice = null;
 let catchCardContainer;
 let catchCardTextLayer;
 let catchCardTitle;
