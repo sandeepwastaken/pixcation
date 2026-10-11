@@ -5064,7 +5064,11 @@ function createSlicedTexture(scene, key, width, height) {
     createCanvasTexture(scene, key, width, height, context => {
         for (const [sx, sw, dx, dw] of [[0, 16, 0, 16], [40, 16, 16, width - 32], [80, 16, width - 16, 16]]) {
             for (const [sy, sh, dy, dh] of [[0, 6, 0, 6], [8, 4, 6, height - 12], [14, 6, height - 6, 6]]) {
-                for (let y = 0; y < dh; y += sh) for (let x = 0; x < dw; x += sw) context.drawImage(source, sx, sy, Math.min(sw, dw - x), Math.min(sh, dh - y), dx + x, dy + y, Math.min(sw, dw - x), Math.min(sh, dh - y));
+                for (let y = 0; y < dh; y += sh) for (let x = 0; x < dw; x += sw) {
+                    const tileWidth = Math.min(sw, dw - x);
+                    const tileHeight = Math.min(sh, dh - y);
+                    context.drawImage(source, sx, sy, tileWidth, tileHeight, dx + x, dy + y, tileWidth, tileHeight);
+                }
             }
         }
     });
