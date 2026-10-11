@@ -291,6 +291,17 @@ const MAP_FLECK_CHANCE = 0.35;
 const WATER_BIOME_SCALE = 900;
 const WATER_BIOME_OFFSET = [WORLD_SEED % 997, Math.floor(WORLD_SEED / 997) % 991];
 const WATER_TINTS = [[0.8, 1.08, 0.95], [1, 1, 1], [0.76, 0.82, 0.95]];
+const DIRT_BIOME_SCALE = 50;
+const DIRT_TINTS = [
+    [0, 1.07, 0.98, 0.93],
+    [0.5, 1, 1, 1],
+    [1, 0.93, 0.95, 0.98]
+];
+const TREE_PALETTE_WEIGHTS = [
+    [0, [1, 3, 0, 3, 2, 0]],
+    [0.5, [6, 2, 1, 0.3, 0, 0]],
+    [1, [3, 0.5, 4, 0, 0, 2]]
+];
 const GRASS_BIOME_SCALE = 70;
 const GRASS_BIOME_CONTRAST = 1.9;
 const GRASS_TINTS = [

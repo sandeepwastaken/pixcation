@@ -78,6 +78,10 @@ function getMapEdgeDistance(tileX, tileY) {
     return inside ? distance : -distance;
 }
 
+function tintMapColor(color, tint) {
+    return tint.reduce((total, value, channel) => total | Math.min(255, Math.round((color >> (16 - channel * 8) & 255) * value)) << (16 - channel * 8), 0);
+}
+
 function getMapGrassFleck(color) {
     const red = color & 255, green = color >> 8 & 255, blue = color >> 16 & 255;
     if (green <= red + 4 || green <= blue + 8) return 0;
@@ -97,6 +101,7 @@ function generateMapTileColor(tileX, tileY) {
 
     if (covering) {
         color = covering.type === 'tree' ? palette.trunk : palette[covering.type];
+        if (covering.type === 'bush') color = tintMapColor(color, getGrassTint(tileX, tileY));
     } else {
         const tile = getWorldTile(tileX, tileY);
         if (tile.key.startsWith('wood')) return toMapPixel(palette.wood);
@@ -114,6 +119,7 @@ function generateMapTileColor(tileX, tileY) {
         } else {
             color = terrain === 'grass' ? palette.grass : palette.dirt;
         }
+        if (terrain === 'dirt' && !(tree && tree[1] !== 'shadow')) color = tintMapColor(color, getDirtTint(tileX, tileY));
         if (terrain === 'grass' && !(tree && tree[1] !== 'shadow')) {
             const [red, green, blue] = tintGrassColor([color >> 16, color >> 8 & 255, color & 255], tileX, tileY);
             color = (red << 16) | (green << 8) | blue;

@@ -69,9 +69,11 @@ function createPropArt(scene) {
 
     const trunk = getTerrainPixels(scene, 'tree-bare');
     treeVariants.length = 0;
+    treeVariantsByPalette.length = 0;
+    for (const palette of TREE_LEAF_PALETTES) treeVariantsByPalette.push([]);
 
     for (let index = 0; index < TREE_VARIANT_COUNT; index++) {
-        const variant = generateTreeVariant(trunk, Math.floor(worldHash(index, 0, 766) * 4294967295));
+        const variant = generateTreeVariant(trunk, Math.floor(worldHash(index, 0, 766) * 4294967295), index % TREE_LEAF_PALETTES.length);
         variant.key = `tree-${index}`;
         createCanvasTexture(scene, variant.key, variant.width, variant.height, context => {
             context.putImageData(new ImageData(variant.data, variant.width, variant.height), 0, 0);
@@ -82,6 +84,7 @@ function createPropArt(scene) {
             });
         }
         treeVariants.push(variant);
+        treeVariantsByPalette[index % TREE_LEAF_PALETTES.length].push(variant);
     }
 }
 

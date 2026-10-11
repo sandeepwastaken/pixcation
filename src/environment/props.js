@@ -120,8 +120,12 @@ function isTileClearOfProps(tileX, tileY) {
 }
 
 function getTreeVariant(tileX, tileY) {
-    const index = Math.floor(worldHash(tileX, tileY, 766) * treeVariants.length);
-    return treeVariants[Math.min(index, treeVariants.length - 1)];
+    const weights = blendBiomeStops(TREE_PALETTE_WEIGHTS, getGrassBiome(tileX + 1, tileY + 0.5));
+    let roll = worldHash(tileX, tileY, 767) * weights.reduce((total, weight) => total + weight, 0);
+    let palette = 0;
+    while (palette < weights.length - 1 && (roll -= weights[palette]) >= 0) palette++;
+    const options = treeVariantsByPalette[palette]?.length ? treeVariantsByPalette[palette] : treeVariants;
+    return options[Math.min(Math.floor(worldHash(tileX, tileY, 766) * options.length), options.length - 1)];
 }
 
 function getPropSprite(tileX, tileY) {

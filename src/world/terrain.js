@@ -269,14 +269,44 @@ function getGrassBiome(tileX, tileY) {
     return Math.min(1, Math.max(0, (noise - 0.5) * GRASS_BIOME_CONTRAST + 0.5));
 }
 
-function computeGrassTint(tileX, tileY) {
-    const biome = getGrassBiome(tileX + 0.5, tileY + 0.5);
+function blendBiomeStops(stops, biome) {
     let index = 1;
-    while (index < GRASS_TINTS.length - 1 && GRASS_TINTS[index][0] < biome) index++;
-    const [fromAt, ...from] = GRASS_TINTS[index - 1];
-    const [toAt, ...to] = GRASS_TINTS[index];
+    while (index < stops.length - 1 && stops[index][0] < biome) index++;
+    const [fromAt, ...from] = stops[index - 1];
+    const [toAt, ...to] = stops[index];
     const amount = Math.min(1, Math.max(0, (biome - fromAt) / (toAt - fromAt)));
-    return from.map((value, channel) => value + (to[channel] - value) * amount);
+    return from.flat().map((value, channel) => value + (to.flat()[channel] - value) * amount);
+}
+
+function computeGrassTint(tileX, tileY) {
+    return blendBiomeStops(GRASS_TINTS, getGrassBiome(tileX + 0.5, tileY + 0.5));
+}
+
+const dirtTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
+
+function computeDirtTint(tileX, tileY) {
+    const noise = valueNoise(tileX + 0.5, tileY + 0.5, DIRT_BIOME_SCALE, 911) * 0.7 + valueNoise(tileX - 40.5, tileY + 23.5, DIRT_BIOME_SCALE / 3, 912) * 0.3;
+    return blendBiomeStops(DIRT_TINTS, Math.min(1, Math.max(0, (noise - 0.5) * 1.9 + 0.5)));
+}
+
+function getDirtTint(tileX, tileY) {
+    return dirtTints(tileX, tileY, computeDirtTint);
+}
+
+function getTintColor(tint, strength) {
+    const scaled = tint.map(value => 1 + (value - 1) * strength);
+    const max = Math.max(...scaled);
+    return scaled.reduce((color, value, channel) => color | Math.round(255 * value / max) << (16 - channel * 8), 0);
+}
+
+function getWoodColors(scene) {
+    if (scene.woodColors) return scene.woodColors;
+    scene.woodColors = new Set();
+    for (const key of ['wood', 'woodLeft', 'woodRight']) {
+        const data = getTerrainPixels(scene, key).data;
+        for (let index = 0; index < data.length; index += 4) if (data[index + 3]) scene.woodColors.add((data[index] << 16) | (data[index + 1] << 8) | data[index + 2]);
+    }
+    return scene.woodColors;
 }
 
 function getGrassTint(tileX, tileY) {
@@ -288,19 +318,27 @@ function tintGrassColor(color, tileX, tileY) {
     return color.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
 }
 
-function tintChunkGrass(context, originTileX, originTileY) {
+function tintChunkGrass(scene, context, originTileX, originTileY) {
+    const woodColors = getWoodColors(scene);
     const image = context.getImageData(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
     const data = image.data;
     for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
         let tint = null;
+        let dirtTint = null;
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
             const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
-            if (x % TILE_SIZE === 0) tint = getGrassTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+            if (x % TILE_SIZE === 0) {
+                tint = getGrassTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+                dirtTint = getDirtTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+            }
             const red = data[index], green = data[index + 1], blue = data[index + 2];
-            if (!data[index + 3] || green <= red + 4 || green <= blue + 8) continue;
-            data[index] = Math.min(255, Math.round(red * tint[0]));
-            data[index + 1] = Math.min(255, Math.round(green * tint[1]));
-            data[index + 2] = Math.min(255, Math.round(blue * tint[2]));
+            if (!data[index + 3]) continue;
+            const grass = green > red + 4 && green > blue + 8;
+            if (!grass && (red <= green + 6 || green < blue || woodColors.has((red << 16) | (green << 8) | blue))) continue;
+            const scale = grass ? tint : dirtTint;
+            data[index] = Math.min(255, Math.round(red * scale[0]));
+            data[index + 1] = Math.min(255, Math.round(green * scale[1]));
+            data[index + 2] = Math.min(255, Math.round(blue * scale[2]));
         }
     }
     context.putImageData(image, 0, 0);

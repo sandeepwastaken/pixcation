@@ -125,9 +125,6 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         index = 2.0;
                     }
 
-                    float wave = fract(t * 0.22 + noise(p * 0.02) * 0.6);
-                    float waveLine = 2.0 + (1.0 - wave) * 5.0;
-                    if (abs(shore + wobble * 0.35 - waveLine) < 0.5 && wave < 0.85) index = max(index, 7.0 + (wave > 0.5 ? 1.0 : 0.0));
 
 
                     float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));

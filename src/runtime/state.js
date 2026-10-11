@@ -41,6 +41,7 @@ let characterShadow;
 const shadowLut = new Map();
 const propArt = new Map();
 const treeVariants = [];
+const treeVariantsByPalette = [];
 const staticShadowCasters = [];
 const particlePool = [];
 const availableParticles = [];

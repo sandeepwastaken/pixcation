@@ -128,11 +128,13 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
             if (prop === 'bush') {
                 const bush = { x: tileX * TILE_SIZE, y: baseY, slices: [], rustleStart: -Infinity, touching: false, offset: 0 };
+                const bushTint = getTintColor(getGrassTint(tileX, tileY), 1);
 
                 for (let slice = 0; slice < TILE_SIZE; slice++) {
                     const image = scene.add.image(bush.x, baseY, `bush-slice-${slice}`)
                         .setOrigin(0, 1)
-                        .setDepth(baseY - TILE_SIZE + slice + 0.5);
+                        .setDepth(baseY - TILE_SIZE + slice + 0.5)
+                        .setTint(bushTint);
 
                     worldObjectLayer.add(image);
                     tileSprites.push(image);
@@ -143,7 +145,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             } else if (prop === 'tree') {
                 const sprite = getPropSprite(tileX, tileY);
                 const trunk = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-trunk`).setOrigin(0).setDepth(baseY);
-                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1);
+                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1).setTint(getTintColor(getGrassTint(tileX, tileY), 0.5));
                 worldObjectLayer.add([trunk, canopy]);
                 tileSprites.push(trunk, canopy);
                 const variant = getTreeVariant(tileX, tileY);
@@ -178,8 +180,8 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
     const shadowMask = getStaticShadowMask(chunkX, chunkY);
     if (shadowMask) bakeGroundShadows(scene, groundContext, chunkX, chunkY, shadowMask);
-    tintChunkGrass(groundContext, originTileX, originTileY);
-    if (upperContext) tintChunkGrass(upperContext, originTileX, originTileY);
+    tintChunkGrass(scene, groundContext, originTileX, originTileY);
+    if (upperContext) tintChunkGrass(scene, upperContext, originTileX, originTileY);
 
     const groundLayer = createChunkLayer(scene, groundTexture, pixelX, pixelY, 0);
     const upperLayer = upperTexture ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5) : null;

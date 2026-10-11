@@ -230,9 +230,6 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         index = 2.0;
                     }
 
-                    float wave = fract(t * 0.22 + noise(p * 0.02) * 0.6);
-                    float waveLine = 2.0 + (1.0 - wave) * 5.0;
-                    if (abs(shore + wobble * 0.35 - waveLine) < 0.5 && wave < 0.85) index = max(index, 7.0 + (wave > 0.5 ? 1.0 : 0.0));
 
 
                     float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
@@ -376,9 +373,11 @@ function createPropArt(scene) {
 
     const trunk = getTerrainPixels(scene, 'tree-bare');
     treeVariants.length = 0;
+    treeVariantsByPalette.length = 0;
+    for (const palette of TREE_LEAF_PALETTES) treeVariantsByPalette.push([]);
 
     for (let index = 0; index < TREE_VARIANT_COUNT; index++) {
-        const variant = generateTreeVariant(trunk, Math.floor(worldHash(index, 0, 766) * 4294967295));
+        const variant = generateTreeVariant(trunk, Math.floor(worldHash(index, 0, 766) * 4294967295), index % TREE_LEAF_PALETTES.length);
         variant.key = `tree-${index}`;
         createCanvasTexture(scene, variant.key, variant.width, variant.height, context => {
             context.putImageData(new ImageData(variant.data, variant.width, variant.height), 0, 0);
@@ -389,6 +388,7 @@ function createPropArt(scene) {
             });
         }
         treeVariants.push(variant);
+        treeVariantsByPalette[index % TREE_LEAF_PALETTES.length].push(variant);
     }
 }
 
@@ -559,7 +559,7 @@ function createTreeShadow(owner, width, height, centerY, salt) {
     return points;
 }
 
-function generateTreeVariant(trunk, seed) {
+function generateTreeVariant(trunk, seed, paletteIndex) {
     const random = createSeededRandom(seed);
     const flip = random() < 0.5;
     const width = trunk.width + TREE_PAD_X * 2;
@@ -578,7 +578,8 @@ function generateTreeVariant(trunk, seed) {
         }
     }
 
-    const palette = pickTreePalette(random);
+    const picked = pickTreePalette(random);
+    const palette = TREE_LEAF_PALETTES[paletteIndex] ?? picked;
     const colors = palette.colors;
     const radiusX = 23 + random() * 5;
     const radiusY = 17 + random() * 3;
@@ -1099,14 +1100,44 @@ function getGrassBiome(tileX, tileY) {
     return Math.min(1, Math.max(0, (noise - 0.5) * GRASS_BIOME_CONTRAST + 0.5));
 }
 
-function computeGrassTint(tileX, tileY) {
-    const biome = getGrassBiome(tileX + 0.5, tileY + 0.5);
+function blendBiomeStops(stops, biome) {
     let index = 1;
-    while (index < GRASS_TINTS.length - 1 && GRASS_TINTS[index][0] < biome) index++;
-    const [fromAt, ...from] = GRASS_TINTS[index - 1];
-    const [toAt, ...to] = GRASS_TINTS[index];
+    while (index < stops.length - 1 && stops[index][0] < biome) index++;
+    const [fromAt, ...from] = stops[index - 1];
+    const [toAt, ...to] = stops[index];
     const amount = Math.min(1, Math.max(0, (biome - fromAt) / (toAt - fromAt)));
-    return from.map((value, channel) => value + (to[channel] - value) * amount);
+    return from.flat().map((value, channel) => value + (to.flat()[channel] - value) * amount);
+}
+
+function computeGrassTint(tileX, tileY) {
+    return blendBiomeStops(GRASS_TINTS, getGrassBiome(tileX + 0.5, tileY + 0.5));
+}
+
+const dirtTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
+
+function computeDirtTint(tileX, tileY) {
+    const noise = valueNoise(tileX + 0.5, tileY + 0.5, DIRT_BIOME_SCALE, 911) * 0.7 + valueNoise(tileX - 40.5, tileY + 23.5, DIRT_BIOME_SCALE / 3, 912) * 0.3;
+    return blendBiomeStops(DIRT_TINTS, Math.min(1, Math.max(0, (noise - 0.5) * 1.9 + 0.5)));
+}
+
+function getDirtTint(tileX, tileY) {
+    return dirtTints(tileX, tileY, computeDirtTint);
+}
+
+function getTintColor(tint, strength) {
+    const scaled = tint.map(value => 1 + (value - 1) * strength);
+    const max = Math.max(...scaled);
+    return scaled.reduce((color, value, channel) => color | Math.round(255 * value / max) << (16 - channel * 8), 0);
+}
+
+function getWoodColors(scene) {
+    if (scene.woodColors) return scene.woodColors;
+    scene.woodColors = new Set();
+    for (const key of ['wood', 'woodLeft', 'woodRight']) {
+        const data = getTerrainPixels(scene, key).data;
+        for (let index = 0; index < data.length; index += 4) if (data[index + 3]) scene.woodColors.add((data[index] << 16) | (data[index + 1] << 8) | data[index + 2]);
+    }
+    return scene.woodColors;
 }
 
 function getGrassTint(tileX, tileY) {
@@ -1118,19 +1149,27 @@ function tintGrassColor(color, tileX, tileY) {
     return color.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
 }
 
-function tintChunkGrass(context, originTileX, originTileY) {
+function tintChunkGrass(scene, context, originTileX, originTileY) {
+    const woodColors = getWoodColors(scene);
     const image = context.getImageData(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
     const data = image.data;
     for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
         let tint = null;
+        let dirtTint = null;
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
             const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
-            if (x % TILE_SIZE === 0) tint = getGrassTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+            if (x % TILE_SIZE === 0) {
+                tint = getGrassTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+                dirtTint = getDirtTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+            }
             const red = data[index], green = data[index + 1], blue = data[index + 2];
-            if (!data[index + 3] || green <= red + 4 || green <= blue + 8) continue;
-            data[index] = Math.min(255, Math.round(red * tint[0]));
-            data[index + 1] = Math.min(255, Math.round(green * tint[1]));
-            data[index + 2] = Math.min(255, Math.round(blue * tint[2]));
+            if (!data[index + 3]) continue;
+            const grass = green > red + 4 && green > blue + 8;
+            if (!grass && (red <= green + 6 || green < blue || woodColors.has((red << 16) | (green << 8) | blue))) continue;
+            const scale = grass ? tint : dirtTint;
+            data[index] = Math.min(255, Math.round(red * scale[0]));
+            data[index + 1] = Math.min(255, Math.round(green * scale[1]));
+            data[index + 2] = Math.min(255, Math.round(blue * scale[2]));
         }
     }
     context.putImageData(image, 0, 0);
@@ -2178,11 +2217,13 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
             if (prop === 'bush') {
                 const bush = { x: tileX * TILE_SIZE, y: baseY, slices: [], rustleStart: -Infinity, touching: false, offset: 0 };
+                const bushTint = getTintColor(getGrassTint(tileX, tileY), 1);
 
                 for (let slice = 0; slice < TILE_SIZE; slice++) {
                     const image = scene.add.image(bush.x, baseY, `bush-slice-${slice}`)
                         .setOrigin(0, 1)
-                        .setDepth(baseY - TILE_SIZE + slice + 0.5);
+                        .setDepth(baseY - TILE_SIZE + slice + 0.5)
+                        .setTint(bushTint);
 
                     worldObjectLayer.add(image);
                     tileSprites.push(image);
@@ -2193,7 +2234,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             } else if (prop === 'tree') {
                 const sprite = getPropSprite(tileX, tileY);
                 const trunk = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-trunk`).setOrigin(0).setDepth(baseY);
-                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1);
+                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1).setTint(getTintColor(getGrassTint(tileX, tileY), 0.5));
                 worldObjectLayer.add([trunk, canopy]);
                 tileSprites.push(trunk, canopy);
                 const variant = getTreeVariant(tileX, tileY);
@@ -2228,8 +2269,8 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
     const shadowMask = getStaticShadowMask(chunkX, chunkY);
     if (shadowMask) bakeGroundShadows(scene, groundContext, chunkX, chunkY, shadowMask);
-    tintChunkGrass(groundContext, originTileX, originTileY);
-    if (upperContext) tintChunkGrass(upperContext, originTileX, originTileY);
+    tintChunkGrass(scene, groundContext, originTileX, originTileY);
+    if (upperContext) tintChunkGrass(scene, upperContext, originTileX, originTileY);
 
     const groundLayer = createChunkLayer(scene, groundTexture, pixelX, pixelY, 0);
     const upperLayer = upperTexture ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5) : null;
@@ -2615,8 +2656,12 @@ function isTileClearOfProps(tileX, tileY) {
 }
 
 function getTreeVariant(tileX, tileY) {
-    const index = Math.floor(worldHash(tileX, tileY, 766) * treeVariants.length);
-    return treeVariants[Math.min(index, treeVariants.length - 1)];
+    const weights = blendBiomeStops(TREE_PALETTE_WEIGHTS, getGrassBiome(tileX + 1, tileY + 0.5));
+    let roll = worldHash(tileX, tileY, 767) * weights.reduce((total, weight) => total + weight, 0);
+    let palette = 0;
+    while (palette < weights.length - 1 && (roll -= weights[palette]) >= 0) palette++;
+    const options = treeVariantsByPalette[palette]?.length ? treeVariantsByPalette[palette] : treeVariants;
+    return options[Math.min(Math.floor(worldHash(tileX, tileY, 766) * options.length), options.length - 1)];
 }
 
 function getPropSprite(tileX, tileY) {
@@ -5297,6 +5342,10 @@ function getMapEdgeDistance(tileX, tileY) {
     return inside ? distance : -distance;
 }
 
+function tintMapColor(color, tint) {
+    return tint.reduce((total, value, channel) => total | Math.min(255, Math.round((color >> (16 - channel * 8) & 255) * value)) << (16 - channel * 8), 0);
+}
+
 function getMapGrassFleck(color) {
     const red = color & 255, green = color >> 8 & 255, blue = color >> 16 & 255;
     if (green <= red + 4 || green <= blue + 8) return 0;
@@ -5316,6 +5365,7 @@ function generateMapTileColor(tileX, tileY) {
 
     if (covering) {
         color = covering.type === 'tree' ? palette.trunk : palette[covering.type];
+        if (covering.type === 'bush') color = tintMapColor(color, getGrassTint(tileX, tileY));
     } else {
         const tile = getWorldTile(tileX, tileY);
         if (tile.key.startsWith('wood')) return toMapPixel(palette.wood);
@@ -5333,6 +5383,7 @@ function generateMapTileColor(tileX, tileY) {
         } else {
             color = terrain === 'grass' ? palette.grass : palette.dirt;
         }
+        if (terrain === 'dirt' && !(tree && tree[1] !== 'shadow')) color = tintMapColor(color, getDirtTint(tileX, tileY));
         if (terrain === 'grass' && !(tree && tree[1] !== 'shadow')) {
             const [red, green, blue] = tintGrassColor([color >> 16, color >> 8 & 255, color & 255], tileX, tileY);
             color = (red << 16) | (green << 8) | blue;
@@ -7029,6 +7080,17 @@ const MAP_FLECK_CHANCE = 0.35;
 const WATER_BIOME_SCALE = 900;
 const WATER_BIOME_OFFSET = [WORLD_SEED % 997, Math.floor(WORLD_SEED / 997) % 991];
 const WATER_TINTS = [[0.8, 1.08, 0.95], [1, 1, 1], [0.76, 0.82, 0.95]];
+const DIRT_BIOME_SCALE = 50;
+const DIRT_TINTS = [
+    [0, 1.07, 0.98, 0.93],
+    [0.5, 1, 1, 1],
+    [1, 0.93, 0.95, 0.98]
+];
+const TREE_PALETTE_WEIGHTS = [
+    [0, [1, 3, 0, 3, 2, 0]],
+    [0.5, [6, 2, 1, 0.3, 0, 0]],
+    [1, [3, 0.5, 4, 0, 0, 2]]
+];
 const GRASS_BIOME_SCALE = 70;
 const GRASS_BIOME_CONTRAST = 1.9;
 const GRASS_TINTS = [
@@ -7106,6 +7168,7 @@ let characterShadow;
 const shadowLut = new Map();
 const propArt = new Map();
 const treeVariants = [];
+const treeVariantsByPalette = [];
 const staticShadowCasters = [];
 const particlePool = [];
 const availableParticles = [];

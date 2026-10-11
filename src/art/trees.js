@@ -137,7 +137,7 @@ function createTreeShadow(owner, width, height, centerY, salt) {
     return points;
 }
 
-function generateTreeVariant(trunk, seed) {
+function generateTreeVariant(trunk, seed, paletteIndex) {
     const random = createSeededRandom(seed);
     const flip = random() < 0.5;
     const width = trunk.width + TREE_PAD_X * 2;
@@ -156,7 +156,8 @@ function generateTreeVariant(trunk, seed) {
         }
     }
 
-    const palette = pickTreePalette(random);
+    const picked = pickTreePalette(random);
+    const palette = TREE_LEAF_PALETTES[paletteIndex] ?? picked;
     const colors = palette.colors;
     const radiusX = 23 + random() * 5;
     const radiusY = 17 + random() * 3;
