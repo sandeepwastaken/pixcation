@@ -266,7 +266,7 @@ const grassTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
 
 function getGrassBiome(tileX, tileY) {
     const noise = valueNoise(tileX, tileY, GRASS_BIOME_SCALE, 901) * 0.75 + valueNoise(tileX + 57, tileY - 31, GRASS_BIOME_SCALE / 3, 902) * 0.25;
-    return Math.min(1, Math.max(0, (noise - 0.5) * GRASS_BIOME_CONTRAST + 0.5));
+    return Phaser.Math.Clamp((noise - 0.5) * GRASS_BIOME_CONTRAST + 0.5, 0, 1);
 }
 
 function blendBiomeStops(stops, biome) {
@@ -274,7 +274,7 @@ function blendBiomeStops(stops, biome) {
     while (index < stops.length - 1 && stops[index][0] < biome) index++;
     const [fromAt, ...from] = stops[index - 1];
     const [toAt, ...to] = stops[index];
-    const amount = Math.min(1, Math.max(0, (biome - fromAt) / (toAt - fromAt)));
+    const amount = Phaser.Math.Clamp((biome - fromAt) / (toAt - fromAt), 0, 1);
     return from.flat().map((value, channel) => value + (to.flat()[channel] - value) * amount);
 }
 
@@ -286,7 +286,7 @@ const dirtTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
 
 function computeDirtTint(tileX, tileY) {
     const noise = valueNoise(tileX + 0.5, tileY + 0.5, DIRT_BIOME_SCALE, 911) * 0.7 + valueNoise(tileX - 40.5, tileY + 23.5, DIRT_BIOME_SCALE / 3, 912) * 0.3;
-    return blendBiomeStops(DIRT_TINTS, Math.min(1, Math.max(0, (noise - 0.5) * 1.9 + 0.5)));
+    return blendBiomeStops(DIRT_TINTS, Phaser.Math.Clamp((noise - 0.5) * 1.9 + 0.5, 0, 1));
 }
 
 function getDirtTint(tileX, tileY) {
@@ -374,7 +374,7 @@ function getWaterTint(worldX, worldY) {
     const [offsetX, offsetY] = WATER_BIOME_OFFSET;
     const noise = waterBiomeNoise(worldX / WATER_BIOME_SCALE + offsetX, worldY / WATER_BIOME_SCALE + offsetY) * 0.75 +
         waterBiomeNoise(worldX / (WATER_BIOME_SCALE / 3) + offsetX + 17, worldY / (WATER_BIOME_SCALE / 3) + offsetY + 9) * 0.25;
-    const amount = Math.min(1, Math.max(0, (noise - 0.5) * 1.9 + 0.5));
+    const amount = Phaser.Math.Clamp((noise - 0.5) * 1.9 + 0.5, 0, 1);
     const [from, to, mix] = amount < 0.5 ? [WATER_TINTS[0], WATER_TINTS[1], amount * 2] : [WATER_TINTS[1], WATER_TINTS[2], amount * 2 - 1];
     return from.map((value, channel) => value + (to[channel] - value) * mix);
 }
