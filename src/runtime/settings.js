@@ -277,6 +277,15 @@ const GRASS_FLECKS_PER_STEP = 2;
 
 const MAP_PAN_SPEED = 90;
 const MAP_MAX_ZOOM = 3;
+const MAP_FOG_EDGE = 3;
+const MAP_FOG_SALT = 9137;
+const MAP_TREE_SHAPE = [
+    [3, 0, 1, 'canopy'],
+    [2, -1, 2, 'canopy'],
+    [1, -1, 2, 'under'],
+    [0, 2, 3, 'shadow'],
+    [-1, 0, 3, 'shadow']
+];
 
 const CAMERA_EASE = 2;
 

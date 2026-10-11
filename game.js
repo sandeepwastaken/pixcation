@@ -5053,6 +5053,7 @@ function getMapPalette(scene) {
         boulder: pack(getDominantColor(scene, 'boulder')),
         wood: pack(getDominantColor(scene, 'wood')),
         store: pack(getDominantColor(scene, 'store')),
+        trunk: pack(getDominantColor(scene, 'tree-bare')),
         water: [0x87bed8, 0x72a8cf, 0x6890ca],
         fog: [0x1a1a1a, 0x2a2a2a],
         guide: 0xacccf9,
@@ -5078,6 +5079,33 @@ function getMapWaterDepth(tileX, tileY) {
     return 2;
 }
 
+function getMapTreeAt(tileX, tileY) {
+    for (const [offsetY, left, right, tone] of MAP_TREE_SHAPE) {
+        for (let treeX = tileX - right; treeX <= tileX - left; treeX++) {
+            if (getPropAt(treeX, tileY + offsetY) === 'tree') return [getTreeVariant(treeX, tileY + offsetY).color, tone];
+        }
+    }
+    return null;
+}
+
+function shadeMapColor(color) {
+    return (([r, g, b]) => (r << 16) | (g << 8) | b)(shadeColor(color >> 16, color >> 8 & 255, color & 255));
+}
+
+function getMapEdgeDistance(tileX, tileY) {
+    const chunkX = Math.floor(tileX / CHUNK_SIZE);
+    const chunkY = Math.floor(tileY / CHUNK_SIZE);
+    const localX = tileX - chunkX * CHUNK_SIZE + 0.5;
+    const localY = tileY - chunkY * CHUNK_SIZE + 0.5;
+    const inside = discoveredChunks.has(getTileId(chunkX, chunkY));
+    let distance = MAP_FOG_EDGE;
+    if (discoveredChunks.has(getTileId(chunkX - 1, chunkY)) !== inside) distance = Math.min(distance, localX);
+    if (discoveredChunks.has(getTileId(chunkX + 1, chunkY)) !== inside) distance = Math.min(distance, CHUNK_SIZE - localX);
+    if (discoveredChunks.has(getTileId(chunkX, chunkY - 1)) !== inside) distance = Math.min(distance, localY);
+    if (discoveredChunks.has(getTileId(chunkX, chunkY + 1)) !== inside) distance = Math.min(distance, CHUNK_SIZE - localY);
+    return inside ? distance : -distance;
+}
+
 function toMapPixel(color) {
     return (0xff000000 | (color & 255) << 16 | color & 0xff00 | color >> 16 & 255) >>> 0;
 }
@@ -5088,15 +5116,18 @@ function generateMapTileColor(tileX, tileY) {
     let color;
 
     if (covering) {
-        color = covering.type === 'tree' ? getTreeVariant(covering.tileX, tileY).color : palette[covering.type];
+        color = covering.type === 'tree' ? palette.trunk : palette[covering.type];
     } else {
         const tile = getWorldTile(tileX, tileY);
         if (tile.key.startsWith('wood')) return toMapPixel(palette.wood);
         const terrain = getTerrainType(tileX, tileY);
+        const tree = terrain === 'water' ? null : getMapTreeAt(tileX, tileY);
 
-        if (terrain === 'water') {
+        if (tree && tree[1] !== 'shadow') {
+            color = tree[1] === 'canopy' ? tree[0] : shadeMapColor(tree[0]);
+        } else if (terrain === 'water') {
             color = palette.water[getMapWaterDepth(tileX, tileY)];
-        } else if (tile.blocking === 'lower') {
+        } else if (tile.blocking === 'lower' || tree || getTerrainType(tileX, tileY + 1) === 'water') {
             color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;
         } else {
             color = terrain === 'grass' ? palette.grass : palette.dirt;
@@ -5126,20 +5157,12 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
 
     for (let viewY = 0; viewY < viewHeight; viewY++) {
         const tileY = originY + viewY;
-        const chunkY = Math.floor(tileY / CHUNK_SIZE);
         const top = viewY * zoom;
         const bottom = Math.min(top + zoom, MAP_HEIGHT);
-        let previousChunkX = null;
-        let discovered = false;
 
         for (let viewX = 0; viewX < viewWidth; viewX++) {
             const tileX = originX + viewX;
-            const chunkX = Math.floor(tileX / CHUNK_SIZE);
-            if (chunkX !== previousChunkX) {
-                previousChunkX = chunkX;
-                discovered = discoveredChunks.has(getTileId(chunkX, chunkY));
-            }
-            if (!discovered) continue;
+            if (getMapEdgeDistance(tileX, tileY) <= (coordinateHash(tileX, tileY, MAP_FOG_SALT) - 0.5) * MAP_FOG_EDGE) continue;
 
             const color = mapColors(tileX, tileY, generateMapTileColor);
             const left = viewX * zoom;
@@ -6732,6 +6755,15 @@ const GRASS_FLECKS_PER_STEP = 2;
 
 const MAP_PAN_SPEED = 90;
 const MAP_MAX_ZOOM = 3;
+const MAP_FOG_EDGE = 3;
+const MAP_FOG_SALT = 9137;
+const MAP_TREE_SHAPE = [
+    [3, 0, 1, 'canopy'],
+    [2, -1, 2, 'canopy'],
+    [1, -1, 2, 'under'],
+    [0, 2, 3, 'shadow'],
+    [-1, 0, 3, 'shadow']
+];
 
 const CAMERA_EASE = 2;
 
