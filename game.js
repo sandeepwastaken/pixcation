@@ -3097,7 +3097,10 @@ function kickUpDust(scene, time, moveX, moveY) {
     const tileX = Math.floor(footX / TILE_SIZE);
     const tileY = Math.floor(footY / TILE_SIZE);
     const tileKey = getWorldTile(tileX, tileY).key;
-    if (tileKey.startsWith('wood')) return;
+    if (tileKey.startsWith('wood')) {
+        if (Math.random() < WOOD_DUST_CHANCE) spawnParticle(scene, shadowLayer, time, Math.round(footX - moveX * 5), footY - 1, moveX !== 0 ? -moveX : Math.random() < 0.5 ? -1 : 1, -1, DUST_LIFETIME, WOOD_DUST_COLORS[Math.floor(Math.random() * WOOD_DUST_COLORS.length)]);
+        return;
+    }
     const terrain = getTerrainType(tileX, tileY);
     const petal = tileKey === 'grass3' ? FLOWER_PETAL_COLOR : tileKey === 'grass4' ? (([red, green, blue]) => (red << 16) | (green << 8) | blue)(getFlowerPatchColor(tileX, tileY)) : null;
     if (petal && Math.random() < PETAL_KICK_CHANCE) spawnParticle(scene, shadowLayer, time, Math.round(footX - moveX * 4), footY - 2, moveX !== 0 ? -moveX : Math.random() < 0.5 ? -1 : 1, -1, PETAL_LIFETIME, petal);
@@ -7234,6 +7237,8 @@ const MOTE_COLORS = [0xf6f5e5, 0xe1dc7a];
 const FLOWER_PETAL_COLOR = 0xf6f5e5;
 const PETAL_KICK_CHANCE = 0.6;
 const PETAL_LIFETIME = 520;
+const WOOD_DUST_CHANCE = 0.45;
+const WOOD_DUST_COLORS = [0xb88b61, 0xae7d57];
 const FISH_RISE_RANGE = 2600;
 const CATCH_SPARKLE_LIFETIME = 420;
 
