@@ -16,11 +16,11 @@ function createGuideDialogueUI(scene) {
 
     const textLayer = createTextLayer(78, CRISP_TEXT_STYLE);
 
-    dialogueName = createUIText(textLayer, 64, 5, '#acccf9');
+    dialogueName = createUIText(textLayer, 64, 10, '#acccf9');
     dialogueName.textContent = 'Guide';
-    dialogueText = createUIText(textLayer, 64, 21, '#e0f2fd', 146, null, { whiteSpace: 'normal' });
+    dialogueText = createUIText(textLayer, 64, 26, '#e0f2fd', 146, null, { whiteSpace: 'normal' });
     dialogueOptionTexts = [0, 1, 2].map(index => {
-        return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 4 + index * DIALOGUE_OPTION_STEP, '#c0a887');
+        return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 2 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });
 
     dialogueContainer = addPanelContainer(scene, DIALOGUE_HIDDEN_Y, 200, [panel, dialogueHighlight, dialoguePortrait]);

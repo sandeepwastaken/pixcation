@@ -5160,6 +5160,55 @@ function updateSky(scene, time, delta) {
     updateRain(scene, time, delta, rain);
 }
 
+const fireflies = [];
+let fireflyGlow = null;
+
+function getNightLevel(clock) {
+    const light = blendBiomeStops(SKY_LIGHT_STOPS, clock.hour);
+    return Phaser.Math.Clamp((1 - (light[0] + light[1] + light[2]) / 3) / FIREFLY_DARK_LEVEL, 0, 1) * (1 - getRainIntensity(clock));
+}
+
+function createFireflies(scene) {
+    fireflyGlow = scene.add.graphics().setDepth(SKY_DEPTH + 1).setBlendMode(Phaser.BlendModes.ADD);
+}
+
+const isNearFireflyWater = (tileX, tileY) => [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].some(([stepX, stepY]) => [1, FIREFLY_WATER_TILES].some(reach => getTerrainType(tileX + stepX * reach, tileY + stepY * reach) === 'water'));
+
+function placeFirefly(fly, time) {
+    const x = mainCamera.scrollX - FIREFLY_MARGIN + Math.random() * (mainCamera.width + FIREFLY_MARGIN * 2);
+    const y = mainCamera.scrollY - FIREFLY_MARGIN + Math.random() * (mainCamera.height + FIREFLY_MARGIN * 2);
+    const grassy = getTerrainType(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE)) === 'grass' && isNearFireflyWater(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE));
+    Object.assign(fly, { x, y, grassy, born: time, life: FIREFLY_LIFE_MIN + Math.random() * FIREFLY_LIFE_RANGE, heading: Math.random() * Math.PI * 2, height: FIREFLY_MIN_HEIGHT + Math.random() * FIREFLY_HEIGHT_RANGE, phase: Math.random() * 1000 });
+}
+
+function updateFireflies(time, delta) {
+    if (!fireflyGlow) return;
+    fireflyGlow.clear();
+    const night = getNightLevel(getWorldClock());
+    if (night <= 0) return;
+    const step = Math.min(delta, 50) / 1000;
+    const centerX = mainCamera.scrollX + mainCamera.width / 2, centerY = mainCamera.scrollY + mainCamera.height / 2;
+    while (fireflies.length < FIREFLY_COUNT) fireflies.push({ born: 0, life: 0, grassy: false });
+    for (const fly of fireflies) {
+        const age = time - fly.born;
+        if (age > fly.life || !fly.grassy) { placeFirefly(fly, time); continue; }
+        fly.heading += Math.sin(time * FIREFLY_TURN_RATE + fly.phase) * FIREFLY_TURN * step;
+        fly.x += Math.cos(fly.heading) * FIREFLY_SPEED * step;
+        fly.y += Math.sin(fly.heading) * FIREFLY_SPEED * step;
+        const height = fly.height + Math.sin(time * FIREFLY_BOB_RATE + fly.phase * 3) * FIREFLY_BOB;
+        const lift = height / FIREFLY_CAMERA_HEIGHT;
+        const screenX = Math.round(fly.x + (fly.x - centerX) * lift);
+        const screenY = Math.round(fly.y + (fly.y - centerY) * lift - height);
+        const pulse = Math.pow(Math.max(0, Math.sin(time * FIREFLY_PULSE_RATE + fly.phase)), 4);
+        const glow = night * Math.min(1, age / FIREFLY_FADE, (fly.life - age) / FIREFLY_FADE) * (FIREFLY_BASE_GLOW + (1 - FIREFLY_BASE_GLOW) * pulse);
+        const size = height > FIREFLY_NEAR_HEIGHT ? 2 : 1, groundX = Math.round(fly.x), groundY = Math.round(fly.y);
+        fireflyGlow.fillStyle(FIREFLY_POOL_COLOR, glow * FIREFLY_POOL_ALPHA * (1 - height / FIREFLY_MAX_HEIGHT)).fillRect(groundX - 2, groundY - 1, 5, 3).fillRect(groundX - 1, groundY - 2, 3, 5);
+        fireflyGlow.fillStyle(FIREFLY_HALO_COLOR, glow * FIREFLY_HALO_ALPHA * 0.4).fillRect(screenX - 2, screenY, size + 4, size).fillRect(screenX, screenY - 2, size, size + 4);
+        fireflyGlow.fillStyle(FIREFLY_HALO_COLOR, glow * FIREFLY_HALO_ALPHA).fillRect(screenX - 1, screenY - 1, size + 2, size + 2);
+        fireflyGlow.fillStyle(FIREFLY_CORE_COLOR, glow).fillRect(screenX, screenY, size, size);
+    }
+}
+
 const rumorCache = new Map();
 const heardRumors = new Map();
 const RUMOR_SPECIES = FISH_SPECIES.filter(species => species.size === 'large' || species.size === 'giant');
@@ -7252,6 +7301,7 @@ function updateStartup(scene, time, delta) {
     updateFish(delta);
     updateChunkWater(time);
     updateSky(scene, time, delta);
+    updateFireflies(time, delta);
 }
 
 const playTimeFormatCache = { seconds: null, label: '' };
@@ -7457,11 +7507,11 @@ function createGuideDialogueUI(scene) {
 
     const textLayer = createTextLayer(78, CRISP_TEXT_STYLE);
 
-    dialogueName = createUIText(textLayer, 64, 5, '#acccf9');
+    dialogueName = createUIText(textLayer, 64, 10, '#acccf9');
     dialogueName.textContent = 'Guide';
-    dialogueText = createUIText(textLayer, 64, 21, '#e0f2fd', 146, null, { whiteSpace: 'normal' });
+    dialogueText = createUIText(textLayer, 64, 26, '#e0f2fd', 146, null, { whiteSpace: 'normal' });
     dialogueOptionTexts = [0, 1, 2].map(index => {
-        return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 4 + index * DIALOGUE_OPTION_STEP, '#c0a887');
+        return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 2 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });
 
     dialogueContainer = addPanelContainer(scene, DIALOGUE_HIDDEN_Y, 200, [panel, dialogueHighlight, dialoguePortrait]);
@@ -9713,6 +9763,30 @@ const RAIN_COLOR = 0xc8dcf0;
 const RAIN_RIPPLE_COLOR = 0x9bd2e1;
 const RAIN_RIPPLE_LIFETIME = 240;
 const RAIN_FLECK_LIFETIME = 150;
+const FIREFLY_COUNT = 12;
+const FIREFLY_MARGIN = 24;
+const FIREFLY_WATER_TILES = 3;
+const FIREFLY_DARK_LEVEL = 0.4;
+const FIREFLY_MIN_HEIGHT = 4;
+const FIREFLY_HEIGHT_RANGE = 26;
+const FIREFLY_BOB = 4;
+const FIREFLY_MAX_HEIGHT = 34;
+const FIREFLY_NEAR_HEIGHT = 24;
+const FIREFLY_CAMERA_HEIGHT = 160;
+const FIREFLY_SPEED = 9;
+const FIREFLY_TURN = 2.4;
+const FIREFLY_TURN_RATE = 0.0011;
+const FIREFLY_BOB_RATE = 0.0017;
+const FIREFLY_PULSE_RATE = 0.0021;
+const FIREFLY_BASE_GLOW = 0.08;
+const FIREFLY_FADE = 900;
+const FIREFLY_LIFE_MIN = 6000;
+const FIREFLY_LIFE_RANGE = 9000;
+const FIREFLY_CORE_COLOR = 0xfff3a6;
+const FIREFLY_HALO_COLOR = 0xb8d65a;
+const FIREFLY_HALO_ALPHA = 0.6;
+const FIREFLY_POOL_COLOR = 0x8fae4a;
+const FIREFLY_POOL_ALPHA = 0.35;
 const RUMOR_CELL_CHUNKS = 5;
 const RUMOR_ATTEMPTS = 4;
 const RUMOR_NEAR_TILES = 40;
@@ -10268,6 +10342,7 @@ function create() {
     cameraScrollX = mainCamera.scrollX;
     cameraScrollY = mainCamera.scrollY;
     createSky(this);
+    createFireflies(this);
 
     spawnGuideAndStore(this);
     updateLoadedChunks(this, true);
@@ -10884,6 +10959,7 @@ function update(time, delta) {
     updateActorShading(this);
     updateFishJumps(this, time);
     updateSky(this, time, delta);
+    updateFireflies(time, delta);
     updateChunkWater(time);
 }
 

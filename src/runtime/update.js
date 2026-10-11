@@ -45,5 +45,6 @@ function update(time, delta) {
     updateActorShading(this);
     updateFishJumps(this, time);
     updateSky(this, time, delta);
+    updateFireflies(time, delta);
     updateChunkWater(time);
 }

@@ -116,4 +116,5 @@ function updateStartup(scene, time, delta) {
     updateFish(delta);
     updateChunkWater(time);
     updateSky(scene, time, delta);
+    updateFireflies(time, delta);
 }
