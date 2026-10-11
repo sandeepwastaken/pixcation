@@ -7100,6 +7100,7 @@ function bindGameInput(scene) {
             return;
         }
         if (!isMenuOpen() && isStatsButtonAt(pointer.x, pointer.y)) {
+            setCursor('default');
             openStats();
             return;
         }
@@ -7130,6 +7131,7 @@ function bindGameInput(scene) {
             const target = getClickedWorldTarget(pointer);
 
             if (target) {
+                setCursor('default');
                 openInteraction(scene, target);
             } else if (isBaitSlotAt(pointer.x, pointer.y)) {
                 cycleBait(scene);
@@ -7190,12 +7192,12 @@ function bindGameInput(scene) {
         else if (inventoryOpen) handleInventoryKey(scene, event);
         else if (mapOpen) handleMapKey(scene, event);
         else if (marketOpen) handleMarketKey(scene, event);
-        else if (key === 'i') openInventory(scene);
-        else if (code === 'Tab') openStats();
+        else if (key === 'i') { setCursor('default'); openInventory(scene); }
+        else if (code === 'Tab') { setCursor('default'); openStats(); }
         else if (code === 'Space') pressAction('keyboard');
-        else if (key === 'm') openMap(scene);
+        else if (key === 'm') { setCursor('default'); openMap(scene); }
         else if (key === 'b') cycleBait(scene);
-        else if (key === 'e') openInteraction(scene, getInteractionTarget(true));
+        else if (key === 'e') { setCursor('default'); openInteraction(scene, getInteractionTarget(true)); }
         else if (CHEATS_ENABLED && key === 's') spawnSturgeonAtCursor(scene);
         else if (slot >= 0 && slot < 9) selectHotbarSlot(scene, slot);
     });

@@ -78,6 +78,7 @@ test('gameplay navigation keys prevent browser scrolling', () => {
     assert.equal(cursorUpdates.at(-1), 'default');
 });
 
+test('keyboard-opened menus clear a stale pointer cursor', () => { const { input, run, cursorUpdates } = createInput(); run("getClickedWorldTarget = () => 'guide'; openInventory = openMap = openInteraction = () => {}; getInteractionTarget = () => 'guide'"); for (const [key, code] of [['i', 'KeyI'], ['m', 'KeyM'], ['e', 'KeyE']]) { input.emit('pointermove', { x: 100, y: 100 }); input.keyboard.emit('keydown', { key, code, repeat: false }); } assert.deepEqual(cursorUpdates, ['pointer', 'default', 'pointer', 'default', 'pointer', 'default']); });
 test('mouse and keyboard holds release a cast only when both are released', () => {
     const { input, run } = createInput();
     input.emit('pointerdown', left);
@@ -106,9 +107,10 @@ test('right clicks do not cast or release a held left click', () => {
 });
 
 test('the stats button and Tab open stats without casting and Escape closes it', () => {
-    const { input, run } = createInput();
+    const { input, run, cursorUpdates } = createInput();
     input.emit('pointerdown', { button: 0, x: 280, y: 12 });
     assert.equal(run('statsOpen'), true);
+    assert.equal(cursorUpdates.at(-1), 'default');
     assert.equal(run('presses'), 0);
     input.keyboard.emit('keydown', { key: 'Escape', code: 'Escape', repeat: false });
     assert.equal(run('statsOpen'), false);
