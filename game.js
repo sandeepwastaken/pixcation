@@ -3728,8 +3728,7 @@ function updateTreeShadows(scene, time) {
                 if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) contact.add(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }
-        chunk.treeShadePoints = points; if (!points.size && !chunk.treeShadowTexture) continue;
-        chunk.treeShadowSignature = nextShadowSignature;
+        chunk.treeShadePoints = points; chunk.treeShadowSignature = nextShadowSignature; if (!points.size && !chunk.treeShadowTexture) continue;
         if (!chunk.treeShadowTexture) {
             chunk.treeShadowTexture = acquireChunkCanvas(scene);
             chunk.treeShadowLayer = createChunkLayer(scene, chunk.treeShadowTexture, chunk.pixelX, chunk.pixelY, 2);
@@ -3846,8 +3845,8 @@ function getNpcHouse(npc) {
 }
 
 function updateNpcHouses(scene, time = scene.time.now) {
-    const homes = new Set();
-    for (const npc of [...loadedChunks.values()].flatMap(chunk => chunk.npcs || [])) {
+    const homes = scene.loadedNpcHouseIds ||= new Set(); homes.clear();
+    for (const chunk of loadedChunks.values()) for (const npc of chunk.npcs || []) {
         const house = npc.house;
         if (!house || homes.has(house.id)) continue;
         homes.add(house.id);
@@ -4008,8 +4007,9 @@ function createNpc(tileX, tileY, water) {
     const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
     const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
-    const feminine = appearance[18] === 1, face = appearance[4], names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
-    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8, 9] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) : [0, 2, 4, 5, 6, 7, 8, 9], hairstyles = feminine ? [2, 5, 7, 8, 9] : face === 1 ? [0, 1, 5, 7, 8, 9] : [0, 1, 3, 4, 5, 6, 7, 8, 9];
+    const feminine = rareVanity || appearance[18] === 1, face = appearance[4], names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
+    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8]) : [0, 2, 4, 6, 7, 8], hairstyles = feminine ? [0, 2, 7, 8, 9] : face === 1 ? [0, 1, 5, 6, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9];
+    const vanity = feminine ? [0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 6] : [0, 0, 1, 1, 2, 2, 3, 6, 6, 6, 6], pants = feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
     return {
         id: getTileId(tileX, tileY),
         tileX,
@@ -4024,9 +4024,9 @@ function createNpc(tileX, tileY, water) {
         look: [
             appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 + appearance[3] : appearance[2], face, shirts[appearance[5] % shirts.length], appearance[6],
             appearance[7], accessory,
-            accessory ? (rareVanity ? 5 : [0, 1, 2, 3, 4, 6, 7][appearance[9]]) : hairstyles[appearance[10] % hairstyles.length],
+            accessory ? (rareVanity ? 5 : vanity[appearance[9] % vanity.length]) : hairstyles[appearance[10] % hairstyles.length],
             accessory ? appearance[11] : appearance[12],
-            appearance[13], appearance[12], (appearance[6] + 1 + appearance[14]) % NPC_SHIRT_COLORS.length, appearance[15], (appearance[7] + 1 + appearance[16]) % NPC_PANTS_COLORS.length, getNpcEyeColor(appearance[17]), Number(feminine)
+            appearance[13], appearance[12], (appearance[6] + 1 + appearance[14]) % NPC_SHIRT_COLORS.length, pants[appearance[15] % pants.length], (appearance[7] + 1 + appearance[16]) % NPC_PANTS_COLORS.length, getNpcEyeColor(appearance[17]), Number(feminine)
         ]
     };
 }
@@ -4888,14 +4888,13 @@ function updateNpcs(scene, time, delta) {
             moved ||= tile !== getTileId(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE));
             if (npc.state === 'home') continue;
             const x = npc.x - character.x, y = npc.y - character.y, distance = x * x + y * y;
-            if (distance < nearestDistance) [nearest, nearestDistance] = [npc, distance];
+            if (distance < nearestDistance && canNpcsTalkAcross(character, npc)) [nearest, nearestDistance] = [npc, distance];
         }
     }
     if (moved) saveDirty = true;
 
     if (nearest === nearestNpc) return;
     nearestNpc = nearest;
-    if (nearest && !isMenuOpen()) showItemLabel(scene, `E - talk to ${nearest.name}`);
 }
 
 function getNpcTrade(npc) {
@@ -4979,7 +4978,7 @@ function buildNpcDialogue(scene, npc) {
 }
 
 function talkToNearestNpc(scene) {
-    if (!nearestNpc || isMenuOpen() || !dialogueContainer) return;
+    if (!nearestNpc || nearestNpc.state === 'home' || isMenuOpen() || !dialogueContainer || (nearestNpc.x - character.x) ** 2 + (nearestNpc.y - character.y) ** 2 >= NPC_TALK_DISTANCE_SQUARED || !canNpcsTalkAcross(character, nearestNpc)) return;
     const connection = nearestNpc && getNpcConnection(nearestNpc);
     const companion = connection && activeNpcs.find(other => other.id === connection.companion.id);
     if (companion && !companion.talking && !companion.fishing && !companion.needsShelter && !(companion.house && (companion.dailyPlan === 'home' || companion.goal === 'home')) && ['idle', 'walk', 'social'].includes(companion.state) && Math.hypot(companion.x - character.x, companion.y - character.y) <= TILE_SIZE * 8) {
@@ -7910,6 +7909,7 @@ function refreshNewGameChoice() {
 
 function openNewGameChoice() {
     newGameChoice.open = true; newGameChoice.mode = 0;
+    newGameChoice.inventoryTextVisible = inventoryTextLayer?.visible || false; inventoryTextLayer?.setVisible(false);
     newGameChoice.input.value = WORLD_SEED_CODE;
     refreshNewGameChoice();
     newGameChoice.panel.setVisible(true); newGameChoice.text.setVisible(true);
@@ -7921,6 +7921,7 @@ function closeNewGameChoice() {
     newGameChoice.open = false;
     newGameChoice.input.blur();
     newGameChoice.panel.setVisible(false); newGameChoice.text.setVisible(false);
+    if (inventoryOpen && newGameChoice.inventoryTextVisible) inventoryTextLayer?.setVisible(true);
 }
 
 function startNewGameChoice() {
@@ -8068,6 +8069,7 @@ function createInteractionPromptUI(scene) {
 
     marketPrompt = makePrompt('E', 'Market');
     guidePrompt = makePrompt('E', 'Talk to the Guide');
+    npcPrompt = makePrompt('E', '');
     itemPrompt = makePrompt(null, '');
 
     interactionPromptLayer = addHudLayer(scene, wrapper, PROMPT_Y, 103);
@@ -8081,7 +8083,9 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
         ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
         : null;
     const showItem = available && !target && time < itemLabelUntil;
-    const state = (target === 'market' ? 1 : 0) | (target === 'guide' ? 2 : 0) | (showItem ? 4 : 0);
+    const showNpc = available && !target && !showItem && nearestNpc && nearestNpc.state !== 'home';
+    if (showNpc && npcPrompt.label.textContent !== `- talk to ${nearestNpc.name}`) { setUITextContent(npcPrompt.label, `- talk to ${nearestNpc.name}`); snapPromptWidth(npcPrompt); }
+    const state = (target === 'market' ? 1 : 0) | (target === 'guide' ? 2 : 0) | (showItem ? 4 : 0) | (showNpc ? 8 : 0);
 
     if (state === promptState) return;
 
@@ -8103,8 +8107,9 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
     marketPrompt.style.display = state & 1 ? 'flex' : 'none';
     guidePrompt.style.display = state & 2 ? 'flex' : 'none';
     itemPrompt.style.display = state & 4 ? 'flex' : 'none';
+    npcPrompt.style.display = state & 8 ? 'flex' : 'none';
     interactionPromptLayer.setVisible(true);
-    for (const box of [marketPrompt, guidePrompt, itemPrompt]) snapPromptWidth(box);
+    for (const box of [marketPrompt, guidePrompt, itemPrompt, npcPrompt]) snapPromptWidth(box);
     if (!wasShowing) promptMotion.value = 0;
     applyPromptMotion();
     scene.tweens.add({ targets: promptMotion, value: 1, duration: 240, ease: 'Linear', onUpdate: applyPromptMotion });
@@ -8114,7 +8119,7 @@ function applyPromptMotion() {
     interactionPromptLayer
         .setY(PROMPT_Y + Math.round((1 - promptMotion.value) * PROMPT_SLIDE))
         .setVisible(promptMotion.value > 0.05);
-    for (const box of [marketPrompt, guidePrompt, itemPrompt]) snapPromptWidth(box);
+    for (const box of [marketPrompt, guidePrompt, itemPrompt, npcPrompt]) snapPromptWidth(box);
     const level = Math.round(promptMotion.value * 16);
     const style = interactionPromptLayer.node.style;
     const mask = level >= 16 ? '' : getPromptDitherMask(level);
@@ -9509,13 +9514,13 @@ function loadWorldSeed() {
 
 const NPC_PART_SIZE = 16;
 const NPC_FACES = 3;
-const NPC_ACCESSORIES = 8;
+const NPC_ACCESSORIES = 7;
 const NPC_HAIRSTYLES = 10;
-const NPC_SHIRTS = 10;
+const NPC_SHIRTS = 9;
 const NPC_ACCESSORY_CHANCE = 0.35;
 const NPC_RARE_VANITY_CHANCE = 0.0001, NPC_PASTEL_SKIN_CHANCE = 0.01, NPC_PANTS_STYLES = 5;
 const NPC_EYE_COLORS = [0x191820, 0x633d2b, 0x46758b, 0x527349, 0x77794a, 0xadcddd, 0xb18c53], NPC_EYE_WEIGHTS = [0.64, 0.16, 0.07, 0.06, 0.04, 0.02, 0.01];
-const NPC_APPEARANCE_RADICES = [10000, 100, 5, 4, 3, 10, 9, 7, 100, 7, 10, 6, 7, 2, 8, 5, 6, 100, 2, 65536, 5, 65536];
+const NPC_APPEARANCE_RADICES = [10000, 100, 5, 4, 3, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536];
 const NPC_CELL_SIZE = 10;
 const NPC_CELL_MARGIN = 2;
 const NPC_CELL_CHANCE = 0.45;
@@ -9831,6 +9836,7 @@ let newGameResetting = false;
 let interactionPromptLayer;
 let marketPrompt;
 let guidePrompt;
+let npcPrompt;
 
 let dialogueNode = 'intro';
 let dialogueNodes = null;

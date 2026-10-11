@@ -191,8 +191,7 @@ function updateTreeShadows(scene, time) {
                 if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) contact.add(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }
-        chunk.treeShadePoints = points; if (!points.size && !chunk.treeShadowTexture) continue;
-        chunk.treeShadowSignature = nextShadowSignature;
+        chunk.treeShadePoints = points; chunk.treeShadowSignature = nextShadowSignature; if (!points.size && !chunk.treeShadowTexture) continue;
         if (!chunk.treeShadowTexture) {
             chunk.treeShadowTexture = acquireChunkCanvas(scene);
             chunk.treeShadowLayer = createChunkLayer(scene, chunk.treeShadowTexture, chunk.pixelX, chunk.pixelY, 2);

@@ -3,6 +3,19 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('unshaded chunks retain their empty shadow results while distant trees sway', () => {
+    const tree = {x: 0, y: 0, baseY: 0, width: 32, shadow: [], contactShadow: [], shadowHeight: 1, offset: 0};
+    const distant = {trees: [tree], pixelX: 0, pixelY: 0, visible: false}, clear = {trees: [], pixelX: 256, pixelY: 0, visible: true};
+    const context = vm.createContext({loadedChunks: new Map([[0, distant], [1, clear]]), CHUNK_PIXEL_SIZE: 256, TREE_SHADOW_SHIFT: 6});
+    vm.runInContext(fs.readFileSync('src/environment/bushes.js', 'utf8'), context);
+    const scene = {}; context.updateTreeShadows(scene, 0);
+    const points = clear.treeShadePoints;
+    assert.equal(clear.treeShadowSignature, 'land:');
+    tree.offset = 2; context.updateTreeShadows(scene, 100);
+    assert.equal(clear.treeShadePoints, points);
+    assert.equal(clear.treeShadowTexture, undefined);
+});
+
 test('wind stays on the pixel grid and rustling keeps tree trunks anchored', () => {
     let sineCalls = 0;
     const math = Object.create(Math);

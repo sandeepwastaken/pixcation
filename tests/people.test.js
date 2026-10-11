@@ -78,3 +78,28 @@ test('exactly one of five surname rolls produces a first name only', () => {
     assert.equal(names[0], 'Emz');
     assert.equal(names.slice(1).every(name => name.startsWith('Emz ')), true);
 });
+
+test('all specified hair, clothing, and pants rows obey their gender rules and remain available', () => {
+    for (const feminine of [0, 1]) {
+        const run = createPeople();
+        run('const wardrobeRolls = NPC_APPEARANCE_RADICES.map(() => 0); wardrobeRolls[0] = 1; wardrobeRolls[8] = 99; wardrobeRolls[18] = ' + feminine + '; getNpcAppearanceRolls = () => wardrobeRolls; const looks = []; for(let roll = 0; roll < 720; roll++) {wardrobeRolls[5] = roll; wardrobeRolls[10] = roll % 120; wardrobeRolls[15] = roll % 20; looks.push(createNpc(13, 4, null).look);}');
+        for (const [index, allowed] of [[6, feminine ? [0, 2, 7, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9]], [2, feminine ? [0, 1, 2, 3, 4, 5, 6, 7, 8] : [0, 2, 4, 6, 7, 8]], [11, feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4]]]) assert.deepEqual(JSON.parse(run('JSON.stringify([...new Set(looks.map(look => look[' + index + ']))].sort((a, b) => a - b))')), allowed);
+    }
+});
+
+test('unisex vanity preferences retain both genders without admitting female-only rows to men', () => {
+    const counts = [];
+    for (const feminine of [0, 1]) {
+        const run = createPeople();
+        run('const vanityRolls = NPC_APPEARANCE_RADICES.map(() => 0); vanityRolls[0] = 1; vanityRolls[18] = ' + feminine + '; getNpcAppearanceRolls = () => vanityRolls; const counts = new Array(7).fill(0); for(let roll = 0; roll < 143; roll++) {vanityRolls[9] = roll; counts[createNpc(13, 4, null).look[6]]++;}');
+        counts.push(JSON.parse(run('JSON.stringify(counts)')));
+    }
+    assert.equal(counts[0][4], 0); assert.equal(counts[0][5], 0);
+    assert.ok(counts[1][4] > 0);
+    assert.ok(counts[1][3] > counts[0][3] && counts[0][3] > 0);
+    assert.ok(counts[0][6] > counts[1][6] && counts[1][6] > 0);
+    const rare = createPeople();
+    rare('const rareRolls = NPC_APPEARANCE_RADICES.map(() => 0); getNpcAppearanceRolls = () => rareRolls; const resident = createNpc(13, 4, null);');
+    assert.equal(rare('resident.look[14]'), 1); assert.equal(rare('resident.look[6]'), 5);
+    assert.equal(rare('NPC_FEMININE_FIRST_NAMES.includes(resident.name.split(" ")[0])'), true);
+});

@@ -177,6 +177,7 @@ function refreshNewGameChoice() {
 
 function openNewGameChoice() {
     newGameChoice.open = true; newGameChoice.mode = 0;
+    newGameChoice.inventoryTextVisible = inventoryTextLayer?.visible || false; inventoryTextLayer?.setVisible(false);
     newGameChoice.input.value = WORLD_SEED_CODE;
     refreshNewGameChoice();
     newGameChoice.panel.setVisible(true); newGameChoice.text.setVisible(true);
@@ -188,6 +189,7 @@ function closeNewGameChoice() {
     newGameChoice.open = false;
     newGameChoice.input.blur();
     newGameChoice.panel.setVisible(false); newGameChoice.text.setVisible(false);
+    if (inventoryOpen && newGameChoice.inventoryTextVisible) inventoryTextLayer?.setVisible(true);
 }
 
 function startNewGameChoice() {

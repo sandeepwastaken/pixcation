@@ -58,6 +58,7 @@ function createInteractionPromptUI(scene) {
 
     marketPrompt = makePrompt('E', 'Market');
     guidePrompt = makePrompt('E', 'Talk to the Guide');
+    npcPrompt = makePrompt('E', '');
     itemPrompt = makePrompt(null, '');
 
     interactionPromptLayer = addHudLayer(scene, wrapper, PROMPT_Y, 103);
@@ -71,7 +72,9 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
         ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
         : null;
     const showItem = available && !target && time < itemLabelUntil;
-    const state = (target === 'market' ? 1 : 0) | (target === 'guide' ? 2 : 0) | (showItem ? 4 : 0);
+    const showNpc = available && !target && !showItem && nearestNpc && nearestNpc.state !== 'home';
+    if (showNpc && npcPrompt.label.textContent !== `- talk to ${nearestNpc.name}`) { setUITextContent(npcPrompt.label, `- talk to ${nearestNpc.name}`); snapPromptWidth(npcPrompt); }
+    const state = (target === 'market' ? 1 : 0) | (target === 'guide' ? 2 : 0) | (showItem ? 4 : 0) | (showNpc ? 8 : 0);
 
     if (state === promptState) return;
 
@@ -93,8 +96,9 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
     marketPrompt.style.display = state & 1 ? 'flex' : 'none';
     guidePrompt.style.display = state & 2 ? 'flex' : 'none';
     itemPrompt.style.display = state & 4 ? 'flex' : 'none';
+    npcPrompt.style.display = state & 8 ? 'flex' : 'none';
     interactionPromptLayer.setVisible(true);
-    for (const box of [marketPrompt, guidePrompt, itemPrompt]) snapPromptWidth(box);
+    for (const box of [marketPrompt, guidePrompt, itemPrompt, npcPrompt]) snapPromptWidth(box);
     if (!wasShowing) promptMotion.value = 0;
     applyPromptMotion();
     scene.tweens.add({ targets: promptMotion, value: 1, duration: 240, ease: 'Linear', onUpdate: applyPromptMotion });
@@ -104,7 +108,7 @@ function applyPromptMotion() {
     interactionPromptLayer
         .setY(PROMPT_Y + Math.round((1 - promptMotion.value) * PROMPT_SLIDE))
         .setVisible(promptMotion.value > 0.05);
-    for (const box of [marketPrompt, guidePrompt, itemPrompt]) snapPromptWidth(box);
+    for (const box of [marketPrompt, guidePrompt, itemPrompt, npcPrompt]) snapPromptWidth(box);
     const level = Math.round(promptMotion.value * 16);
     const style = interactionPromptLayer.node.style;
     const mask = level >= 16 ? '' : getPromptDitherMask(level);

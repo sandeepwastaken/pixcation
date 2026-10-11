@@ -12,7 +12,7 @@ function createNewGame(search = '', options = {}) {
     scene.add.graphics = scene.add.container = scene.add.dom = object;
     const context = vm.createContext({ document, scene, TEST_MODE: false, URL, URLSearchParams, window: { location: { href: 'http://localhost:8000/?cheats=true' + search, search: '?cheats=true' + search, assign: value => navigations.push(value) } }, localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => { if (options.failRemove) throw new Error('Storage unavailable'); removals.push(key); storage.delete(key); } } });
     vm.runInContext(['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'runtime/progress.js', 'ui/elements.js', 'ui/panels.js', 'ui/inventory.js'].map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);
-    vm.runInContext('createNewGameUI(scene); inventoryOpen = true;', context);
+    vm.runInContext('createNewGameUI(scene); inventoryOpen = true; inventoryTextLayer = {visible: true, setVisible(value) {this.visible = value;}};', context);
     return { storage, navigations, removals, run: code => vm.runInContext(code, context) };
 }
 
@@ -23,9 +23,11 @@ test('double N opens the world choice without deleting anything and Escape cance
     session.run('handleInventoryKey(scene, {key: "n"})');
     assert.equal(session.run('newGameChoice.open'), true);
     assert.equal(session.run('newGameChoice.input.value'), '13');
+    assert.equal(session.run('inventoryTextLayer.visible'), false);
     assert.equal(session.removals.length, 0);
     session.run('handleNewGameChoiceKey({key: "Escape", preventDefault() {}})');
     assert.equal(session.run('newGameChoice.open'), false);
+    assert.equal(session.run('inventoryTextLayer.visible'), true);
     assert.equal(session.removals.length, 0);
 });
 
@@ -78,4 +80,12 @@ test('mouse choices and seed editing preserve mode selection until confirmation'
     assert.equal(session.removals.length, 0);
     session.run('newGameChoice.input.value = "71"; handleNewGameChoicePointer({x: 160, y: 140})');
     assert.equal(new URL(session.navigations[0]).searchParams.get('seed'), '71');
+});
+
+test('closing the world chooser cannot reveal an already hidden Fishpedia text layer', () => {
+    const session = createNewGame();
+    session.run('inventoryTextLayer.visible = false; openNewGameChoice(); closeNewGameChoice()');
+    assert.equal(session.run('inventoryTextLayer.visible'), false);
+    session.run('inventoryTextLayer.visible = true; openNewGameChoice(); inventoryOpen = false; closeNewGameChoice()');
+    assert.equal(session.run('inventoryTextLayer.visible'), false);
 });

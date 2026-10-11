@@ -142,6 +142,7 @@ let newGameResetting = false;
 let interactionPromptLayer;
 let marketPrompt;
 let guidePrompt;
+let npcPrompt;
 
 let dialogueNode = 'intro';
 let dialogueNodes = null;
