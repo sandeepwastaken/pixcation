@@ -13,6 +13,7 @@ function kickUpDust(scene, time, moveX, moveY) {
 
     if (!colors) return;
     const count = colors === DUST_COLORS ? DUST_PER_STEP : GRASS_FLECKS_PER_STEP;
+    const tint = terrain === 'dirt' ? getDirtTint(tileX, tileY) : getGrassTint(tileX, tileY);
 
     for (let index = 0; index < count; index++) {
         const side = index % 2 === 0 ? -1 : 1;
@@ -22,20 +23,21 @@ function kickUpDust(scene, time, moveX, moveY) {
 
         spawnParticle(
             scene, shadowLayer, time, Math.round(footX + offsetX), footY + offsetY,
-            moveX !== 0 ? -moveX : side, -1, DUST_LIFETIME, colors[index % colors.length]
+            moveX !== 0 ? -moveX : side, -1, DUST_LIFETIME, tintMapColor(colors[index % colors.length], tint)
         );
     }
 }
 
 function dropLeaves(scene, time, bush) {
     const originX = bush.x + BUSH_FOOTPRINT_LEFT, originY = bush.y - BUSH_FOOTPRINT_HEIGHT, depth = bush.y + 1;
+    const tint = getGrassTint(Math.floor(bush.x / TILE_SIZE), Math.floor((bush.y - 1) / TILE_SIZE));
     for (let index = 0; index < LEAVES_PER_RUSTLE; index++) {
         spawnParticle(
             scene, worldObjectLayer, time,
             originX + Math.floor(Math.random() * (BUSH_FOOTPRINT_RIGHT - BUSH_FOOTPRINT_LEFT)),
             originY + Math.floor(Math.random() * 4),
             Math.random() < 0.5 ? -1 : 1, 1, LEAF_LIFETIME,
-            LEAF_COLORS[index % LEAF_COLORS.length], depth
+            tintMapColor(LEAF_COLORS[index % LEAF_COLORS.length], tint), depth
         );
     }
 }
