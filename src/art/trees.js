@@ -154,6 +154,7 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
     const width = trunk.width + TREE_PAD_X * 2;
     const height = trunk.height + TREE_PAD_TOP;
     const data = new Uint8ClampedArray(width * height * 4);
+    const trunkShade = TREE_TRUNK_SHADES[Math.floor(createSeededRandom(seed ^ 0x5bd1e995)() * TREE_TRUNK_SHADES.length)];
 
     for (let y = 0; y < trunk.height; y++) {
         const sourceRow = y * trunk.width;
@@ -163,7 +164,8 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
             if (!trunk.data[source + 3]) continue;
 
             const pixel = targetRow + x;
-            writeRGBPixel(data, pixel, (trunk.data[source] << 16) | (trunk.data[source + 1] << 8) | trunk.data[source + 2]);
+            const [red, green, blue] = [0, 1, 2].map(channel => Math.min(255, Math.round(trunk.data[source + channel] * trunkShade)));
+            writeRGBPixel(data, pixel, (red << 16) | (green << 8) | blue);
         }
     }
 

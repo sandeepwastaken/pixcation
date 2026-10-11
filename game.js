@@ -727,6 +727,7 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
     const width = trunk.width + TREE_PAD_X * 2;
     const height = trunk.height + TREE_PAD_TOP;
     const data = new Uint8ClampedArray(width * height * 4);
+    const trunkShade = TREE_TRUNK_SHADES[Math.floor(createSeededRandom(seed ^ 0x5bd1e995)() * TREE_TRUNK_SHADES.length)];
 
     for (let y = 0; y < trunk.height; y++) {
         const sourceRow = y * trunk.width;
@@ -736,7 +737,8 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
             if (!trunk.data[source + 3]) continue;
 
             const pixel = targetRow + x;
-            writeRGBPixel(data, pixel, (trunk.data[source] << 16) | (trunk.data[source + 1] << 8) | trunk.data[source + 2]);
+            const [red, green, blue] = [0, 1, 2].map(channel => Math.min(255, Math.round(trunk.data[source + channel] * trunkShade)));
+            writeRGBPixel(data, pixel, (red << 16) | (green << 8) | blue);
         }
     }
 
@@ -7233,7 +7235,7 @@ function refreshFishpediaDetail() {
     const [name, size, price, count] = inventoryDetailTexts;
     setUITextContent(name, caught ? species.name : '???');
     setUITextContent(size, caught ? FISH_SIZE_CLASSES[species.size].label : 'Not caught yet');
-    setUITextContent(price, caught ? `Sells for ${species.price}c` : '');
+    setUITextContent(price, caught ? `Value: ${species.price}c` : '');
     setUITextContent(count, caught ? `Holding ${fishInventory.get(species.id) || 0}` : '');
 }
 
@@ -7298,12 +7300,14 @@ function createCatchCardUI(scene) {
     catchCardImage = scene.add.image(CATCH_CARD_X + 8, 8, 'fish/placeholder').setOrigin(0);
 
     const textLayer = createTextLayer(CATCH_CARD_HEIGHT);
-    const textX = CATCH_CARD_X + 48, textWidth = CATCH_CARD_WIDTH - 54, clip = { overflow: 'hidden', textOverflow: 'ellipsis' };
+    const textX = CATCH_CARD_X + 48, textWidth = CATCH_CARD_WIDTH - 54, clip = { overflow: 'hidden', textOverflow: 'ellipsis', paddingBottom: '4px' };
 
     catchCardKicker = createUIText(textLayer, textX, 8, '#c0a887', textWidth, null, { fontSize: '11px', lineHeight: '9px', ...clip });
     catchCardTitle = createUIText(textLayer, textX, 18, '#e0f2fd', textWidth, null, clip);
     catchCardDetail = createUIText(textLayer, textX, 32, '#e8c170', textWidth, null, { fontSize: '11px', lineHeight: '9px', ...clip });
 
+    const hint = createUIText(textLayer, CATCH_CARD_X + CATCH_CARD_WIDTH - 60, 8, '#8c7358', 54, 'right', { fontSize: '11px', lineHeight: '9px' });
+    appendKeyHints(hint, [['Enter', 'OK']]).firstChild.style.marginLeft = '0';
     catchCardContainer = addPanelContainer(scene, CATCH_CARD_Y + 8, 205, [panel, catchCardImage]);
     catchCardTextLayer = addHudLayer(scene, textLayer, CATCH_CARD_Y + 8, 206);
 }
@@ -7320,7 +7324,7 @@ function showRewardCard(scene, time, kicker, title, detail, image, kickerColor =
     setUITextContent(catchCardTitle, title);
     setUITextContent(catchCardDetail, detail);
     catchCardImage.setTexture(image);
-    catchCardUntil = time + CATCH_CARD_DURATION;
+    catchCardUntil = Infinity;
     itemLabelUntil = 0;
 
     const card = [catchCardContainer, catchCardTextLayer], hiddenY = CATCH_CARD_Y + 8;
@@ -7331,11 +7335,16 @@ function showRewardCard(scene, time, kicker, title, detail, image, kickerColor =
     popIn(scene, catchCardImage, 4);
     scene.tweens.add({ targets: catchCardImage, y: 8, delay: 140, duration: 220, ease: 'Bounce.Out', onUpdate: snapTweenTarget });
 
-    catchCardHideEvent = scene.time.delayedCall(CATCH_CARD_DURATION - 180, () => {
-        slidePanel(scene, hiddenY, 180, 'Cubic.In', card, () => {
-            for (const target of card) target.setVisible(false);
-        });
+}
+
+function hideCatchCard(scene) {
+    if (catchCardUntil !== Infinity) return false;
+    catchCardUntil = 0;
+    const card = [catchCardContainer, catchCardTextLayer];
+    slidePanel(scene, CATCH_CARD_Y + 8, 180, 'Cubic.In', card, () => {
+        for (const target of card) target.setVisible(false);
     });
+    return true;
 }
 
 const promptDitherMasks = [];
@@ -8738,6 +8747,7 @@ const TREE_HITBOX_HEIGHT = 5;
 const TREE_VARIANT_COUNT = 24;
 const TREE_TONE_SHARES = [0.09, 0.42, 0.75, 0.97];
 const TREE_DITHER_SHARE = 0.015;
+const TREE_TRUNK_SHADES = [0.8, 0.88, 0.94, 1, 1.07];
 const TREE_PAD_X = 14;
 const TREE_PAD_TOP = 8;
 const TREE_SHADOW_SHIFT = 7;
@@ -9411,6 +9421,7 @@ function bindGameInput(scene) {
         if (code === 'KeyW' || code === 'ArrowUp') verticalPriority = -1;
         if (code === 'KeyS' || code === 'ArrowDown') verticalPriority = 1;
 
+        if (code === 'Enter' && !isMenuOpen() && hideCatchCard(scene)) return;
         if (statsOpen) {
             if (code === 'Escape' || code === 'Tab') closeStats();
         } else if (dialogueOpen) handleGuideDialogueKey(scene, event);
