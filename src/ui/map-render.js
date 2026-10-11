@@ -78,6 +78,14 @@ function getMapEdgeDistance(tileX, tileY) {
     return inside ? distance : -distance;
 }
 
+function getMapGrassFleck(color) {
+    const red = color & 255, green = color >> 8 & 255, blue = color >> 16 & 255;
+    if (green <= red + 4 || green <= blue + 8) return 0;
+    const fleck = toMapPixel(shadeMapColor((red << 16) | (green << 8) | blue));
+    mapPalette.flecks.set(color, fleck);
+    return fleck;
+}
+
 function toMapPixel(color) {
     return (0xff000000 | (color & 255) << 16 | color & 0xff00 | color >> 16 & 255) >>> 0;
 }
@@ -103,6 +111,10 @@ function generateMapTileColor(tileX, tileY) {
             color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;
         } else {
             color = terrain === 'grass' ? palette.grass : palette.dirt;
+        }
+        if (terrain === 'grass' && !(tree && tree[1] !== 'shadow')) {
+            const [red, green, blue] = tintGrassColor([color >> 16, color >> 8 & 255, color & 255], tileX, tileY);
+            color = (red << 16) | (green << 8) | blue;
         }
     }
 
@@ -146,7 +158,7 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
                 if (singlePixel) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
             }
 
-            const fleck = zoom > 1 && mapPalette.flecks.get(color);
+            const fleck = zoom > 1 && (mapPalette.flecks.get(color) ?? getMapGrassFleck(color));
             const fleckRoll = fleck ? coordinateHash(tileX, tileY, MAP_FLECK_SALT) : 1;
             if (fleckRoll < MAP_FLECK_CHANCE) {
                 const fleckX = left + Math.floor(fleckRoll / MAP_FLECK_CHANCE * zoom);

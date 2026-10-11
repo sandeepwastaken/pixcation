@@ -261,3 +261,47 @@ function generateWorldTile(tileX, tileY) {
 
     return tile;
 }
+
+const grassTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
+
+function getGrassBiome(tileX, tileY) {
+    const noise = valueNoise(tileX, tileY, GRASS_BIOME_SCALE, 901) * 0.75 + valueNoise(tileX + 57, tileY - 31, GRASS_BIOME_SCALE / 3, 902) * 0.25;
+    return Math.min(1, Math.max(0, (noise - 0.5) * GRASS_BIOME_CONTRAST + 0.5));
+}
+
+function computeGrassTint(tileX, tileY) {
+    const biome = getGrassBiome(tileX + 0.5, tileY + 0.5);
+    let index = 1;
+    while (index < GRASS_TINTS.length - 1 && GRASS_TINTS[index][0] < biome) index++;
+    const [fromAt, ...from] = GRASS_TINTS[index - 1];
+    const [toAt, ...to] = GRASS_TINTS[index];
+    const amount = Math.min(1, Math.max(0, (biome - fromAt) / (toAt - fromAt)));
+    return from.map((value, channel) => value + (to[channel] - value) * amount);
+}
+
+function getGrassTint(tileX, tileY) {
+    return grassTints(tileX, tileY, computeGrassTint);
+}
+
+function tintGrassColor(color, tileX, tileY) {
+    const tint = getGrassTint(tileX, tileY);
+    return color.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
+}
+
+function tintChunkGrass(context, originTileX, originTileY) {
+    const image = context.getImageData(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
+    const data = image.data;
+    for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
+        let tint = null;
+        for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
+            const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
+            if (x % TILE_SIZE === 0) tint = getGrassTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+            const red = data[index], green = data[index + 1], blue = data[index + 2];
+            if (!data[index + 3] || green <= red + 4 || green <= blue + 8) continue;
+            data[index] = Math.min(255, Math.round(red * tint[0]));
+            data[index + 1] = Math.min(255, Math.round(green * tint[1]));
+            data[index + 2] = Math.min(255, Math.round(blue * tint[2]));
+        }
+    }
+    context.putImageData(image, 0, 0);
+}

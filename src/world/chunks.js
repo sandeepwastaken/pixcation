@@ -178,6 +178,8 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
     const shadowMask = getStaticShadowMask(chunkX, chunkY);
     if (shadowMask) bakeGroundShadows(scene, groundContext, chunkX, chunkY, shadowMask);
+    tintChunkGrass(groundContext, originTileX, originTileY);
+    if (upperContext) tintChunkGrass(upperContext, originTileX, originTileY);
 
     const groundLayer = createChunkLayer(scene, groundTexture, pixelX, pixelY, 0);
     const upperLayer = upperTexture ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5) : null;

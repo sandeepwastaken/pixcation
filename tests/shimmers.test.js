@@ -31,6 +31,7 @@ function createWorld(includeOpenWater = true) {
         function getShorelineTile() { return { textureKey: 'shoreline', waterCells: [{ x: 0, y: 0, width: 16, height: 16 }], edgeCells: [] }; }
         function getPropAt() { return null; }
         function getStaticShadowMask() { return null; }
+        function tintChunkGrass() {}
         function drawingContext() { return { setTransform() {}, clearRect() {}, drawImage() {} }; }
         const document = { createElement: () => ({ getContext: drawingContext }) };
         function sprite() {

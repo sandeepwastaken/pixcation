@@ -288,6 +288,15 @@ const MAP_FOG_EDGE = 3;
 const MAP_FOG_SALT = 9137;
 const MAP_FLECK_SALT = 4421;
 const MAP_FLECK_CHANCE = 0.35;
+const GRASS_BIOME_SCALE = 70;
+const GRASS_BIOME_CONTRAST = 1.9;
+const GRASS_TINTS = [
+    [0, 1.13, 0.95, 0.8],
+    [0.28, 1.09, 1.02, 0.8],
+    [0.5, 1, 1, 1],
+    [0.76, 0.9, 1, 0.94],
+    [1, 0.82, 0.95, 0.9]
+];
 const MAP_TREE_SHAPE = [
     [3, 0, 1, 'canopy'],
     [2, -1, 2, 'canopy'],

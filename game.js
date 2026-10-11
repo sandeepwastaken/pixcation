@@ -1072,6 +1072,50 @@ function generateWorldTile(tileX, tileY) {
     return tile;
 }
 
+const grassTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
+
+function getGrassBiome(tileX, tileY) {
+    const noise = valueNoise(tileX, tileY, GRASS_BIOME_SCALE, 901) * 0.75 + valueNoise(tileX + 57, tileY - 31, GRASS_BIOME_SCALE / 3, 902) * 0.25;
+    return Math.min(1, Math.max(0, (noise - 0.5) * GRASS_BIOME_CONTRAST + 0.5));
+}
+
+function computeGrassTint(tileX, tileY) {
+    const biome = getGrassBiome(tileX + 0.5, tileY + 0.5);
+    let index = 1;
+    while (index < GRASS_TINTS.length - 1 && GRASS_TINTS[index][0] < biome) index++;
+    const [fromAt, ...from] = GRASS_TINTS[index - 1];
+    const [toAt, ...to] = GRASS_TINTS[index];
+    const amount = Math.min(1, Math.max(0, (biome - fromAt) / (toAt - fromAt)));
+    return from.map((value, channel) => value + (to[channel] - value) * amount);
+}
+
+function getGrassTint(tileX, tileY) {
+    return grassTints(tileX, tileY, computeGrassTint);
+}
+
+function tintGrassColor(color, tileX, tileY) {
+    const tint = getGrassTint(tileX, tileY);
+    return color.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
+}
+
+function tintChunkGrass(context, originTileX, originTileY) {
+    const image = context.getImageData(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
+    const data = image.data;
+    for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
+        let tint = null;
+        for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
+            const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
+            if (x % TILE_SIZE === 0) tint = getGrassTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+            const red = data[index], green = data[index + 1], blue = data[index + 2];
+            if (!data[index + 3] || green <= red + 4 || green <= blue + 8) continue;
+            data[index] = Math.min(255, Math.round(red * tint[0]));
+            data[index + 1] = Math.min(255, Math.round(green * tint[1]));
+            data[index + 2] = Math.min(255, Math.round(blue * tint[2]));
+        }
+    }
+    context.putImageData(image, 0, 0);
+}
+
 const bridgeCandidateCache = new Map();
 const pierCandidateCache = new Map();
 
@@ -2137,6 +2181,8 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
     const shadowMask = getStaticShadowMask(chunkX, chunkY);
     if (shadowMask) bakeGroundShadows(scene, groundContext, chunkX, chunkY, shadowMask);
+    tintChunkGrass(groundContext, originTileX, originTileY);
+    if (upperContext) tintChunkGrass(upperContext, originTileX, originTileY);
 
     const groundLayer = createChunkLayer(scene, groundTexture, pixelX, pixelY, 0);
     const upperLayer = upperTexture ? createChunkLayer(scene, upperTexture, pixelX, pixelY, 1.5) : null;
@@ -2819,14 +2865,14 @@ function getGroundShadowColor(scene, worldX, worldY) {
     const pixel = chunk ? (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE : 0;
 
     if (!chunk || chunk.shadowMask?.[pixel]) return null;
-    if (isFlatShadowTile(tile)) return getTileShadowColor(scene, tile);
+    if (isFlatShadowTile(tile)) return tintGrassColor(getTileShadowColor(scene, tile), tileX, tileY);
 
     const { upper, ground } = getChunkPixels(chunk);
     const index = pixel * 4;
 
     if (upper && upper[index + 3]) return shadeColor(upper[index], upper[index + 1], upper[index + 2]);
     if (!ground[index + 3]) return null;
-    if (tile.key.startsWith('grass')) return getTileShadowColor(scene, tile);
+    if (tile.key.startsWith('grass')) return tintGrassColor(getTileShadowColor(scene, tile), tileX, tileY);
 
     return shadeColor(ground[index], ground[index + 1], ground[index + 2]);
 }
@@ -5203,6 +5249,14 @@ function getMapEdgeDistance(tileX, tileY) {
     return inside ? distance : -distance;
 }
 
+function getMapGrassFleck(color) {
+    const red = color & 255, green = color >> 8 & 255, blue = color >> 16 & 255;
+    if (green <= red + 4 || green <= blue + 8) return 0;
+    const fleck = toMapPixel(shadeMapColor((red << 16) | (green << 8) | blue));
+    mapPalette.flecks.set(color, fleck);
+    return fleck;
+}
+
 function toMapPixel(color) {
     return (0xff000000 | (color & 255) << 16 | color & 0xff00 | color >> 16 & 255) >>> 0;
 }
@@ -5228,6 +5282,10 @@ function generateMapTileColor(tileX, tileY) {
             color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;
         } else {
             color = terrain === 'grass' ? palette.grass : palette.dirt;
+        }
+        if (terrain === 'grass' && !(tree && tree[1] !== 'shadow')) {
+            const [red, green, blue] = tintGrassColor([color >> 16, color >> 8 & 255, color & 255], tileX, tileY);
+            color = (red << 16) | (green << 8) | blue;
         }
     }
 
@@ -5271,7 +5329,7 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
                 if (singlePixel) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
             }
 
-            const fleck = zoom > 1 && mapPalette.flecks.get(color);
+            const fleck = zoom > 1 && (mapPalette.flecks.get(color) ?? getMapGrassFleck(color));
             const fleckRoll = fleck ? coordinateHash(tileX, tileY, MAP_FLECK_SALT) : 1;
             if (fleckRoll < MAP_FLECK_CHANCE) {
                 const fleckX = left + Math.floor(fleckRoll / MAP_FLECK_CHANCE * zoom);
@@ -6918,6 +6976,15 @@ const MAP_FOG_EDGE = 3;
 const MAP_FOG_SALT = 9137;
 const MAP_FLECK_SALT = 4421;
 const MAP_FLECK_CHANCE = 0.35;
+const GRASS_BIOME_SCALE = 70;
+const GRASS_BIOME_CONTRAST = 1.9;
+const GRASS_TINTS = [
+    [0, 1.13, 0.95, 0.8],
+    [0.28, 1.09, 1.02, 0.8],
+    [0.5, 1, 1, 1],
+    [0.76, 0.9, 1, 0.94],
+    [1, 0.82, 0.95, 0.9]
+];
 const MAP_TREE_SHAPE = [
     [3, 0, 1, 'canopy'],
     [2, -1, 2, 'canopy'],
