@@ -9,9 +9,10 @@ function createStartup(scene) {
     const button = scene.add.image(112, 124, 'ui-button').setOrigin(0).setScrollFactor(0).setDepth(800);
     const text = createTextLayer(192);
     createUIText(text, 112, 127, '#d4d7dd', 96, 'center', { textShadow: '1px 1px #4a5059' }).textContent = 'Start';
-    createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(35, 10, 3, 0.45)' }).textContent = 'Enter / Space / Click to begin';
+    const hint = createUIText(text, 0, 154, '#e0f2fd', 320, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(35, 10, 3, 0.45)' });
+    hint.textContent = 'Enter / Space / Click to begin';
     const textLayer = addHudLayer(scene, text, 0, 801).setVisible(true);
-    startup = { phase: 'title', start: scene.time.now, hud, logo, logoShadow, button, textLayer, spawnX: character.x, spawnY: character.y };
+    startup = { phase: 'title', start: scene.time.now, hud, logo, logoShadow, button, textLayer, hint, spawnX: character.x, spawnY: character.y };
 }
 
 function beginStartup(time) {
@@ -32,6 +33,8 @@ function updateStartup(scene, time, delta) {
         if (mainCamera.scrollX !== scrollX || mainCamera.scrollY !== scrollY) mainCamera.setScroll(scrollX, scrollY);
         const hover = Math.round(Math.sin(age / 1000) * 2);
         if (startup.logo.y !== 40 + hover) startup.logoShadow.y = (startup.logo.y = 40 + hover) + 2;
+        const hintVisibility = age % 1600 < 1200 ? '' : 'hidden';
+        if (startup.hint && startup.hint.style.visibility !== hintVisibility) startup.hint.style.visibility = hintVisibility;
     } else if (startup.phase === 'closing') {
         const t = Math.min(1, age / 900);
         const lift = Math.round(t * t * 160);
