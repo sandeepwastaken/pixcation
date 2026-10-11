@@ -1,4 +1,5 @@
 const windRowCache = new Map();
+let weatherWind = 1;
 
 function getWindOffset(time, x, y, strength = 1, gust = 0.7 + 0.3 * Math.sin(time / 7100)) {
     const phase = x * 0.013 + y * 0.007;
@@ -75,7 +76,7 @@ function getBushWindTextures(scene, offset, count) {
     return textures;
 }
 function updateBushRustle(scene, time, isWalking) {
-    const gust = 0.7 + 0.3 * Math.sin(time / 7100);
+    const gust = (0.7 + 0.3 * Math.sin(time / 7100)) * weatherWind;
     const left = character.x + CHARACTER_HITBOX_X;
     const top = character.y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH;

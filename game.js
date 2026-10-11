@@ -3579,6 +3579,7 @@ function releaseParticle(image) {
 }
 
 const windRowCache = new Map();
+let weatherWind = 1;
 
 function getWindOffset(time, x, y, strength = 1, gust = 0.7 + 0.3 * Math.sin(time / 7100)) {
     const phase = x * 0.013 + y * 0.007;
@@ -3655,7 +3656,7 @@ function getBushWindTextures(scene, offset, count) {
     return textures;
 }
 function updateBushRustle(scene, time, isWalking) {
-    const gust = 0.7 + 0.3 * Math.sin(time / 7100);
+    const gust = (0.7 + 0.3 * Math.sin(time / 7100)) * weatherWind;
     const left = character.x + CHARACTER_HITBOX_X;
     const top = character.y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH;
@@ -4132,12 +4133,11 @@ function spawnChunkNpcs(scene, chunkX, chunkY, sprites) {
             npc.sprite = scene.add.image(npc.x, npc.y, getNpcTexture(scene, npc.look, npc.direction)).setOrigin(0).setDepth(npc.y + NPC_PART_SIZE);
             npc.house = getNpcHouse(npc);
             npc.shadow = scene.add.graphics();
-            npc.bubble = scene.add.text(npc.x - 40, npc.y - 26, '', { fontFamily: 'm6x11', fontSize: '11px', color: '#e0f2fd', backgroundColor: '#36160d', padding: { x: 3, y: 2 }, wordWrap: { width: 110 } }).setOrigin(0).setVisible(false);
             npc.line = scene.add.graphics();
             npc.waterShadow = scene.add.graphics().setDepth(1.25);
-            worldObjectLayer.add([npc.sprite, npc.line, npc.bubble]);
+            worldObjectLayer.add([npc.sprite, npc.line]);
             shadowLayer.add(npc.shadow);
-            sprites.push(npc.sprite, npc.shadow, npc.line, npc.waterShadow, npc.bubble);
+            sprites.push(npc.sprite, npc.shadow, npc.line, npc.waterShadow);
             restoreNpc(scene, npc);
             npcs.push(npc);
         }
@@ -5069,6 +5069,7 @@ let rainGraphics = null;
 let rainRandom = null;
 let rainSpawnCarry = 0;
 let lightningFlash = null, lightningAt = -Infinity;
+let rainDrift = 0;
 let worldClockText = null, worldClockLayer = null;
 
 function getWorldClock(now = Date.now()) {
@@ -5122,7 +5123,7 @@ function updateRain(scene, time, delta, intensity) {
     rainSpawnCarry += intensity * RAIN_DROPS_PER_SECOND * Math.min(delta, 50) / 1000;
     while (rainSpawnCarry >= 1) {
         rainSpawnCarry--;
-        const landX = Math.round(mainCamera.scrollX + rainRandom() * (mainCamera.width + RAIN_DRIFT));
+        const landX = Math.round(mainCamera.scrollX - RAIN_DRIFT + rainRandom() * (mainCamera.width + RAIN_DRIFT * 4));
         const landY = Math.round(mainCamera.scrollY + rainRandom() * mainCamera.height);
         const duration = (RAIN_FALL_MIN + rainRandom() * RAIN_FALL_RANGE) / RAIN_SPEED * 1000;
         rainDrops.push({ landX, landY, born: time, duration, near: rainRandom() < RAIN_NEAR_SHARE });
@@ -5130,7 +5131,7 @@ function updateRain(scene, time, delta, intensity) {
 
     rainGraphics.clear();
     if (!rainDrops.length) return;
-    const drift = RAIN_DRIFT * (1 + Math.sin(time * RAIN_GUST_RATE) * RAIN_GUST);
+    const drift = rainDrift, slant = drift / RAIN_SPEED;
     for (let index = rainDrops.length - 1; index >= 0; index--) {
         const drop = rainDrops[index];
         const remaining = 1 - (time - drop.born) / drop.duration;
@@ -5141,7 +5142,9 @@ function updateRain(scene, time, delta, intensity) {
             continue;
         }
         const seconds = remaining * drop.duration / 1000;
-        rainGraphics.fillStyle(RAIN_COLOR, drop.near ? RAIN_ALPHA : RAIN_ALPHA * RAIN_FAR_ALPHA).fillRect(Math.round(drop.landX - drift * seconds), Math.round(drop.landY - RAIN_SPEED * seconds) - (drop.near ? RAIN_NEAR_STREAK : RAIN_STREAK), 1, drop.near ? RAIN_NEAR_STREAK : RAIN_STREAK);
+        const length = drop.near ? RAIN_NEAR_STREAK : RAIN_STREAK, headX = Math.round(drop.landX - drift * seconds), headY = Math.round(drop.landY - RAIN_SPEED * seconds);
+        rainGraphics.fillStyle(RAIN_COLOR, drop.near ? RAIN_ALPHA : RAIN_ALPHA * RAIN_FAR_ALPHA);
+        for (let pixel = 1; pixel <= length; pixel++) rainGraphics.fillRect(headX - Math.round(pixel * slant), headY - pixel, 1, 1);
     }
 }
 
@@ -5160,6 +5163,9 @@ function updateSky(scene, time, delta) {
     const clock = getWorldClock();
     if (worldClockText) setUITextContent(worldClockText, `${String(Math.floor(clock.hour)).padStart(2, '0')}:${String(Math.floor(clock.hour * 60) % 60).padStart(2, '0')}`);
     const rain = getRainIntensity(clock);
+    const storm = getWeatherHash(clock.day, 3, 1401) < STORM_CHANCE ? rain : 0;
+    rainDrift = RAIN_DRIFT * (1 + Math.sin(time * RAIN_GUST_RATE) * RAIN_GUST) + storm * (STORM_WIND + (Math.sin(time * STORM_GUST_RATE) + Math.sin(time * STORM_GUST_RATE * 2.7 + 1.3) * 0.5) * STORM_GUST);
+    weatherWind = 1 + storm * (STORM_TREE_WIND - 1);
     const light = blendBiomeStops(SKY_LIGHT_STOPS, clock.hour);
     const dim = 1 - rain * RAIN_DIM;
     const color = light.reduce((total, value, channel) => total | Math.round(255 * Phaser.Math.Clamp(value * (dim + rain * RAIN_COOL * (channel - 1)), 0, 1)) << (16 - channel * 8), 0);
@@ -9784,6 +9790,10 @@ const RAIN_GUST_RATE = 0.0004;
 const RAIN_COOL = 0.05;
 const STORM_CHANCE = 0.5;
 const STORM_RAIN = 1.8;
+const STORM_WIND = 60;
+const STORM_GUST = 75;
+const STORM_GUST_RATE = 0.0009;
+const STORM_TREE_WIND = 1.8;
 const LIGHTNING_PER_SECOND = 0.08;
 const LIGHTNING_TIME = 520;
 const LIGHTNING_ALPHA = 0.35;

@@ -5,6 +5,7 @@ let rainGraphics = null;
 let rainRandom = null;
 let rainSpawnCarry = 0;
 let lightningFlash = null, lightningAt = -Infinity;
+let rainDrift = 0;
 let worldClockText = null, worldClockLayer = null;
 
 function getWorldClock(now = Date.now()) {
@@ -58,7 +59,7 @@ function updateRain(scene, time, delta, intensity) {
     rainSpawnCarry += intensity * RAIN_DROPS_PER_SECOND * Math.min(delta, 50) / 1000;
     while (rainSpawnCarry >= 1) {
         rainSpawnCarry--;
-        const landX = Math.round(mainCamera.scrollX + rainRandom() * (mainCamera.width + RAIN_DRIFT));
+        const landX = Math.round(mainCamera.scrollX - RAIN_DRIFT + rainRandom() * (mainCamera.width + RAIN_DRIFT * 4));
         const landY = Math.round(mainCamera.scrollY + rainRandom() * mainCamera.height);
         const duration = (RAIN_FALL_MIN + rainRandom() * RAIN_FALL_RANGE) / RAIN_SPEED * 1000;
         rainDrops.push({ landX, landY, born: time, duration, near: rainRandom() < RAIN_NEAR_SHARE });
@@ -66,7 +67,7 @@ function updateRain(scene, time, delta, intensity) {
 
     rainGraphics.clear();
     if (!rainDrops.length) return;
-    const drift = RAIN_DRIFT * (1 + Math.sin(time * RAIN_GUST_RATE) * RAIN_GUST);
+    const drift = rainDrift, slant = drift / RAIN_SPEED;
     for (let index = rainDrops.length - 1; index >= 0; index--) {
         const drop = rainDrops[index];
         const remaining = 1 - (time - drop.born) / drop.duration;
@@ -77,7 +78,9 @@ function updateRain(scene, time, delta, intensity) {
             continue;
         }
         const seconds = remaining * drop.duration / 1000;
-        rainGraphics.fillStyle(RAIN_COLOR, drop.near ? RAIN_ALPHA : RAIN_ALPHA * RAIN_FAR_ALPHA).fillRect(Math.round(drop.landX - drift * seconds), Math.round(drop.landY - RAIN_SPEED * seconds) - (drop.near ? RAIN_NEAR_STREAK : RAIN_STREAK), 1, drop.near ? RAIN_NEAR_STREAK : RAIN_STREAK);
+        const length = drop.near ? RAIN_NEAR_STREAK : RAIN_STREAK, headX = Math.round(drop.landX - drift * seconds), headY = Math.round(drop.landY - RAIN_SPEED * seconds);
+        rainGraphics.fillStyle(RAIN_COLOR, drop.near ? RAIN_ALPHA : RAIN_ALPHA * RAIN_FAR_ALPHA);
+        for (let pixel = 1; pixel <= length; pixel++) rainGraphics.fillRect(headX - Math.round(pixel * slant), headY - pixel, 1, 1);
     }
 }
 
@@ -96,6 +99,9 @@ function updateSky(scene, time, delta) {
     const clock = getWorldClock();
     if (worldClockText) setUITextContent(worldClockText, `${String(Math.floor(clock.hour)).padStart(2, '0')}:${String(Math.floor(clock.hour * 60) % 60).padStart(2, '0')}`);
     const rain = getRainIntensity(clock);
+    const storm = getWeatherHash(clock.day, 3, 1401) < STORM_CHANCE ? rain : 0;
+    rainDrift = RAIN_DRIFT * (1 + Math.sin(time * RAIN_GUST_RATE) * RAIN_GUST) + storm * (STORM_WIND + (Math.sin(time * STORM_GUST_RATE) + Math.sin(time * STORM_GUST_RATE * 2.7 + 1.3) * 0.5) * STORM_GUST);
+    weatherWind = 1 + storm * (STORM_TREE_WIND - 1);
     const light = blendBiomeStops(SKY_LIGHT_STOPS, clock.hour);
     const dim = 1 - rain * RAIN_DIM;
     const color = light.reduce((total, value, channel) => total | Math.round(255 * Phaser.Math.Clamp(value * (dim + rain * RAIN_COOL * (channel - 1)), 0, 1)) << (16 - channel * 8), 0);
