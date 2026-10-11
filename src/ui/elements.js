@@ -1,3 +1,5 @@
+const UI_TEXT_SHADOW = '1px 1px #4a5059';
+
 function isMenuOpen() {
     return dialogueOpen || marketOpen || mapOpen || inventoryOpen || statsOpen;
 }
