@@ -22,7 +22,7 @@ function createWindow(fontLoad, hasFonts = true) {
         addEventListener(name, callback) { documentListeners.set(name, callback); },
         getElementById() { return { addEventListener(name, callback) { documentListeners.set(`container:${name}`, callback); } }; },
         documentElement: { clientWidth: 1280, clientHeight: 768 },
-        fonts: hasFonts ? { load() { return fontLoad || { then(callback) { start = callback; } }; } } : null
+        fonts: hasFonts ? { load() { if (fontLoad instanceof Error) throw fontLoad; return fontLoad || { then(callback) { start = callback; } }; } } : null
     };
     const context = vm.createContext({
         window, document, URLSearchParams,
@@ -117,6 +117,7 @@ test('tab visibility pauses play time and saves hidden progress', () => {
     assert.equal(screen.saves(), 1);
 });
 
+test('a synchronous font loading failure still reaches the fallback', () => { const screen = createWindow(new Error('Font API failed')); assert.equal(screen.starts(), 0); screen.timeout(); assert.equal(screen.starts(), 1); });
 test('a stalled font load falls back without starting the game twice', () => {
     const screen = createWindow();
     screen.timeout();

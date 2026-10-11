@@ -6487,8 +6487,8 @@ function startGame() {
     game = new Phaser.Game(config);
 }
 
-document.fonts ? document.fonts.load('16px m6x11').then(startGame, startGame) : startGame();
 setTimeout(startGame, 3000);
+document.fonts ? (() => { try { document.fonts.load('16px m6x11').then(startGame, startGame); } catch (error) {} })() : startGame();
 
 const TILE_SIZE = 16;
 const DIRT_CLIFF_TILES = [
