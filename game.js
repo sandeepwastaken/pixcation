@@ -511,28 +511,24 @@ function createTreeCanopyMask(puffs, width, height, edgeSalt) {
     return owner;
 }
 
-function createTreeShadow(puffs, centerX, centerY, height, edgeSalt) {
-    const shadowHash = createLeafHash(edgeSalt + 1);
-    const shadow = new Set();
+function createTreeShadow(owner, width, height, centerY) {
     const groundY = height - 1;
-
-    for (const puff of puffs) {
-        const shadowX = centerX + (puff.x - centerX) * 0.85 + 8;
-        const shadowY = groundY + 3 + (puff.y - centerY) * 0.4;
-        const reachX = puff.radius * 1.0;
-        const reachY = puff.radius * 0.55;
-
-        for (let y = Math.floor(shadowY - reachY); y <= Math.ceil(shadowY + reachY); y++) {
-            const dy = (y + 0.5 - shadowY) / reachY;
-            for (let x = Math.floor(shadowX - reachX); x <= Math.ceil(shadowX + reachX); x++) {
-                const dx = (x + 0.5 - shadowX) / reachX;
-                if (dx * dx + dy * dy <= 1 + (shadowHash(x, y) - 0.5) * 0.25) shadow.add(y * 1024 + x);            }
+    let top = height;
+    let bottom = -1;
+    for (let pixel = 0; pixel < owner.length; pixel++) {
+        if (owner[pixel] < 0) continue;
+        const y = Math.floor(pixel / width);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+    }
+    const points = [];
+    for (let y = Math.floor(groundY + TREE_SHADOW_DROP + (top - centerY) * TREE_SHADOW_SQUASH); y <= Math.ceil(groundY + TREE_SHADOW_DROP + (bottom - centerY) * TREE_SHADOW_SQUASH); y++) {
+        const sourceY = Math.round(centerY + (y - groundY - TREE_SHADOW_DROP) / TREE_SHADOW_SQUASH);
+        if (sourceY < 0 || sourceY >= height) continue;
+        for (let x = TREE_SHADOW_SHIFT; x < width + TREE_SHADOW_SHIFT; x++) {
+            if (owner[sourceY * width + x - TREE_SHADOW_SHIFT] >= 0) points.push(x, y);
         }
     }
-
-    const points = [];
-    const open = point => 4 - shadow.has(point - 1) - shadow.has(point + 1) - shadow.has(point - 1024) - shadow.has(point + 1024);
-    for (const point of shadow) if (shadowHash((point % 1024) >> 1, (point >> 10) >> 1) >= 0.22 * open(point) + 0.16) points.push(point % 1024, point >> 10);
     return points;
 }
 
@@ -654,13 +650,13 @@ function generateTreeVariant(trunk, seed) {
         const puffY = (y + 0.5 - puff.y) / puff.radius;
         const puffZ = Math.sqrt(Math.max(0, 1 - puffX * puffX - puffY * puffY));
         const local = puff.core ? 0.5 : -0.45 * puffX - 0.7 * puffY + 0.35 * puffZ;
-        const lit = (-0.5 * nx - 0.65 * ny + 0.57 * 1.6) / length * 0.5 + (local * 0.5 + 0.3) * 0.5;
-        const global = -0.2 * (x + 0.5 - centerX) / radiusX - 0.6 * (depth - 0.45);
+        const lit = (-0.5 * nx - 0.65 * ny + 0.57 * 1.6) / length * 0.3 + (local * 0.5 + 0.3) * 0.7;
+        const global = -0.12 * (x + 0.5 - centerX) / radiusX - 0.3 * (depth - 0.45);
         let value = (lit - 0.62) * 1.9 + global;
 
         const speck = textureHash((x + (y & 1)) >> 1, y >> 1);
-        if (speck > 0.8) value += 0.28;
-        else if (speck < 0.2) value -= 0.28;
+        if (speck > 0.86) value += 0.22;
+        else if (speck < 0.14) value -= 0.22;
 
         values[pixel] = value;
     }
@@ -730,7 +726,7 @@ function generateTreeVariant(trunk, seed) {
         }
     }
 
-    const shadowPoints = createTreeShadow(puffs, centerX, centerY, height, edgeSalt);
+    const shadowPoints = createTreeShadow(owner, width, height, centerY);
 
     let hitLeft = width;
     let hitRight = 0;
@@ -4078,16 +4074,7 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
     let water;
     let tileX;
     let tileY, tileOriginX, tileOriginY;
-    fishingWaterShadow.fillStyle(0x5a7eb6, 1);
-    for (let index = 0; index < pixelPathLength; index++) {
-        const amount = index / lastIndex;
-        const height = Math.max(0, fromHeight + heightRange * amount);
-        const x = pixelPathX[index] + Math.round(height / 6);
-        const y = pixelPathY[index] + Math.round(height);
-        if (x === previousX && y === previousY) continue;
-        previousX = x;
-        previousY = y;
-        if ((x + y) % 2) continue;
+    const plot = (x, y) => {
         const nextTileX = Math.floor(x / TILE_SIZE);
         const nextTileY = Math.floor(y / TILE_SIZE);
         if (nextTileX !== tileX || nextTileY !== tileY) {
@@ -4095,8 +4082,19 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
             tileX = nextTileX; tileOriginX = tileX * TILE_SIZE;
             tileY = nextTileY; tileOriginY = tileY * TILE_SIZE;
         }
-        if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] !== 1) continue;
-        fishingWaterShadow.fillRect(x, y, 1, 1);
+        if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] === 1) fishingWaterShadow.fillRect(x, y, 1, 1);
+    };
+    fishingWaterShadow.fillStyle(0x5a7eb6, 1);
+    for (let index = 0; index < pixelPathLength; index++) {
+        const amount = index / lastIndex;
+        const height = Math.max(0, fromHeight + heightRange * amount);
+        const x = pixelPathX[index] + Math.round(height / 6);
+        const y = pixelPathY[index] + Math.round(height);
+        if (x === previousX && y === previousY) continue;
+        const steps = previousX === undefined ? 0 : Math.max(Math.abs(x - previousX), Math.abs(y - previousY));
+        for (let step = steps ? 1 : 0; step <= steps; step++) plot(steps ? Math.round(previousX + (x - previousX) * step / steps) : x, steps ? Math.round(previousY + (y - previousY) * step / steps) : y);
+        previousX = x;
+        previousY = y;
     }
 }
 
@@ -6701,9 +6699,12 @@ const TREE_CANOPY_TILES = 4;
 const TREE_HITBOX_HEIGHT = 5;
 const TREE_VARIANT_COUNT = 24;
 const TREE_TONE_SHARES = [0.09, 0.42, 0.75, 0.97];
-const TREE_DITHER_SHARE = 0.05;
+const TREE_DITHER_SHARE = 0.015;
 const TREE_PAD_X = 14;
 const TREE_PAD_TOP = 8;
+const TREE_SHADOW_SHIFT = 6;
+const TREE_SHADOW_DROP = 2;
+const TREE_SHADOW_SQUASH = 0.5;
 const TREE_LEAF_PALETTES = [
     { weight: 6, colors: [0x376451, 0x4a7a52, 0x6c955d, 0x8eb067, 0xb0c579], extras: [0x7e4332, 0xc0493b] },
     { weight: 2, colors: [0x3f5f3c, 0x587a45, 0x7a9a50, 0x9fb862, 0xc3d27e], extras: [] },

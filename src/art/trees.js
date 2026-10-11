@@ -108,28 +108,24 @@ function createTreeCanopyMask(puffs, width, height, edgeSalt) {
     return owner;
 }
 
-function createTreeShadow(puffs, centerX, centerY, height, edgeSalt) {
-    const shadowHash = createLeafHash(edgeSalt + 1);
-    const shadow = new Set();
+function createTreeShadow(owner, width, height, centerY) {
     const groundY = height - 1;
-
-    for (const puff of puffs) {
-        const shadowX = centerX + (puff.x - centerX) * 0.85 + 8;
-        const shadowY = groundY + 3 + (puff.y - centerY) * 0.4;
-        const reachX = puff.radius * 1.0;
-        const reachY = puff.radius * 0.55;
-
-        for (let y = Math.floor(shadowY - reachY); y <= Math.ceil(shadowY + reachY); y++) {
-            const dy = (y + 0.5 - shadowY) / reachY;
-            for (let x = Math.floor(shadowX - reachX); x <= Math.ceil(shadowX + reachX); x++) {
-                const dx = (x + 0.5 - shadowX) / reachX;
-                if (dx * dx + dy * dy <= 1 + (shadowHash(x, y) - 0.5) * 0.25) shadow.add(y * 1024 + x);            }
+    let top = height;
+    let bottom = -1;
+    for (let pixel = 0; pixel < owner.length; pixel++) {
+        if (owner[pixel] < 0) continue;
+        const y = Math.floor(pixel / width);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+    }
+    const points = [];
+    for (let y = Math.floor(groundY + TREE_SHADOW_DROP + (top - centerY) * TREE_SHADOW_SQUASH); y <= Math.ceil(groundY + TREE_SHADOW_DROP + (bottom - centerY) * TREE_SHADOW_SQUASH); y++) {
+        const sourceY = Math.round(centerY + (y - groundY - TREE_SHADOW_DROP) / TREE_SHADOW_SQUASH);
+        if (sourceY < 0 || sourceY >= height) continue;
+        for (let x = TREE_SHADOW_SHIFT; x < width + TREE_SHADOW_SHIFT; x++) {
+            if (owner[sourceY * width + x - TREE_SHADOW_SHIFT] >= 0) points.push(x, y);
         }
     }
-
-    const points = [];
-    const open = point => 4 - shadow.has(point - 1) - shadow.has(point + 1) - shadow.has(point - 1024) - shadow.has(point + 1024);
-    for (const point of shadow) if (shadowHash((point % 1024) >> 1, (point >> 10) >> 1) >= 0.22 * open(point) + 0.16) points.push(point % 1024, point >> 10);
     return points;
 }
 
@@ -251,13 +247,13 @@ function generateTreeVariant(trunk, seed) {
         const puffY = (y + 0.5 - puff.y) / puff.radius;
         const puffZ = Math.sqrt(Math.max(0, 1 - puffX * puffX - puffY * puffY));
         const local = puff.core ? 0.5 : -0.45 * puffX - 0.7 * puffY + 0.35 * puffZ;
-        const lit = (-0.5 * nx - 0.65 * ny + 0.57 * 1.6) / length * 0.5 + (local * 0.5 + 0.3) * 0.5;
-        const global = -0.2 * (x + 0.5 - centerX) / radiusX - 0.6 * (depth - 0.45);
+        const lit = (-0.5 * nx - 0.65 * ny + 0.57 * 1.6) / length * 0.3 + (local * 0.5 + 0.3) * 0.7;
+        const global = -0.12 * (x + 0.5 - centerX) / radiusX - 0.3 * (depth - 0.45);
         let value = (lit - 0.62) * 1.9 + global;
 
         const speck = textureHash((x + (y & 1)) >> 1, y >> 1);
-        if (speck > 0.8) value += 0.28;
-        else if (speck < 0.2) value -= 0.28;
+        if (speck > 0.86) value += 0.22;
+        else if (speck < 0.14) value -= 0.22;
 
         values[pixel] = value;
     }
@@ -327,7 +323,7 @@ function generateTreeVariant(trunk, seed) {
         }
     }
 
-    const shadowPoints = createTreeShadow(puffs, centerX, centerY, height, edgeSalt);
+    const shadowPoints = createTreeShadow(owner, width, height, centerY);
 
     let hitLeft = width;
     let hitRight = 0;
