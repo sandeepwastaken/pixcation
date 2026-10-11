@@ -7325,6 +7325,7 @@ function create() {
             callback: saveProgress,
             loop: true
         });
+        window.addEventListener('pagehide', () => { saveDirty = true; saveProgress(); });
     }
 }
 
@@ -7429,6 +7430,7 @@ function loadProgress(scene) {
     }
 
     guideHasMetPlayer = saved.guideMet === true;
+    if (character && Array.isArray(saved.position) && saved.position.length === 2 && saved.position.every(Number.isSafeInteger)) character.setPosition(saved.position[0], saved.position[1]);
 
     restoreSavedRods(scene, saved.rods);
     restoreSavedFish(saved.fish);
@@ -7463,6 +7465,7 @@ function saveProgress() {
             activeBait: activeBaitId,
             chests: [...openedChests],
             guideMet: guideHasMetPlayer,
+            position: character ? [Math.round(character.x), Math.round(character.y)] : null,
             stats: Object.fromEntries(Object.entries(playerStats).map(([key, value]) => [key, Math.floor(value)]))
         }));
         saveDirty = false;

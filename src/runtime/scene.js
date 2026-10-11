@@ -98,5 +98,6 @@ function create() {
             callback: saveProgress,
             loop: true
         });
+        window.addEventListener('pagehide', () => { saveDirty = true; saveProgress(); });
     }
 }

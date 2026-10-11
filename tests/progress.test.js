@@ -37,6 +37,7 @@ function createSession(saved, options = {}) {
         eraseChestSilhouette: chunk => erased.push(chunk.chest.id)
     });
     vm.runInContext(source, context);
+    vm.runInContext('character = { x: 0, y: 0, setPosition(x, y) { this.x = x; this.y = y; } };', context);
     return {
         writes, items, erased, removals,
         load: () => context.loadProgress({}),
@@ -57,7 +58,7 @@ test('player progress survives a save and load round trip', () => {
     const saved = {
         version: 1, coins: 123, rods: ['basic', 'master'], fish: [['bluegill', 2], ['goldfish', 1]],
         catchLog: ['bluegill', 'goldfish'], explored: [-123, 4], bait: [['trainer', 5]],
-        activeBait: 'trainer', chests: [-31, 10], guideMet: true,
+        activeBait: 'trainer', chests: [-31, 10], guideMet: true, position: [48, -32],
         stats: { fishCaught: 18, playTimeMs: 90000, moneyEarned: 270, fishSold: 15, casts: 23, moneySpent: 80 }
     };
     const session = createSession(saved);
