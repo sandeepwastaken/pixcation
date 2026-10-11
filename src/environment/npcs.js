@@ -389,7 +389,8 @@ function createNpcCast(npc, time, toX, toY) {
         driftPhase: npcRandom(npc) * Math.PI * 2,
         rope: null,
         lure: null,
-        nibbles: 0
+        nibbles: 0,
+        nibbling: false
     };
 }
 
@@ -465,26 +466,28 @@ function updateNpcFloat(scene, npc, time, age) {
         if (dip >= FISH_NIBBLE_DIP_TIME) fishing.dipStart = undefined;
     }
 
-    if (!fishing.lure && !fishing.nibbles && time >= fishing.lureAt) {
+    if (!fishing.lure && !fishing.nibbling && time >= fishing.lureAt) {
         fishing.lure = findNpcLureFish(npc);
         fishing.lureAt = time + NPC_LURE_DELAY;
     }
     const fish = fishing.lure?.fish;
-    if (fish && !fishing.nibbles) {
+    if (fish && !fishing.nibbling) {
         const x = fish.x - fishing.bobberX, y = fish.y - fishing.bobberY;
         if (x * x + y * y < NPC_SCARE_RADIUS * NPC_SCARE_RADIUS) {
+            fishing.nibbling = true;
             fishing.nibbles = 1 + Math.floor(npcRandom(npc) * NPC_MAX_NIBBLES);
             fishing.nibbleAt = time + 300 + npcRandom(npc) * 420;
         } else if (fish.state === 'flee' || fish.state === 'lure' || fish.state === 'idle') {
             releaseNpcLure(npc);
         }
     } else if (fish && fishing.dipStart === undefined && time >= fishing.nibbleAt) {
-        if (fishing.nibbles-- > 0) {
+        if (fishing.nibbles > 0) {
+            fishing.nibbles--;
             fishing.dipStart = time;
             fishing.rippled = false;
             fishing.nibbleAt = time + FISH_NIBBLE_DIP_TIME + 260 + npcRandom(npc) * 380;
         } else {
-            fishing.nibbles = 0;
+            fishing.nibbling = false;
             scareNpcFish(npc, time);
         }
     }
