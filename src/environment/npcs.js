@@ -321,12 +321,11 @@ function spawnChunkNpcs(scene, chunkX, chunkY, sprites) {
             npc.sprite = scene.add.image(npc.x, npc.y, getNpcTexture(scene, npc.look, npc.direction)).setOrigin(0).setDepth(npc.y + NPC_PART_SIZE);
             npc.house = getNpcHouse(npc);
             npc.shadow = scene.add.graphics();
-            npc.bubble = scene.add.text(npc.x - 40, npc.y - 26, '', { fontFamily: 'm6x11', fontSize: '11px', color: '#e0f2fd', backgroundColor: '#36160d', padding: { x: 3, y: 2 }, wordWrap: { width: 110 } }).setOrigin(0).setVisible(false);
             npc.line = scene.add.graphics();
             npc.waterShadow = scene.add.graphics().setDepth(1.25);
-            worldObjectLayer.add([npc.sprite, npc.line, npc.bubble]);
+            worldObjectLayer.add([npc.sprite, npc.line]);
             shadowLayer.add(npc.shadow);
-            sprites.push(npc.sprite, npc.shadow, npc.line, npc.waterShadow, npc.bubble);
+            sprites.push(npc.sprite, npc.shadow, npc.line, npc.waterShadow);
             restoreNpc(scene, npc);
             npcs.push(npc);
         }
