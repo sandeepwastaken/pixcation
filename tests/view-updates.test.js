@@ -65,7 +65,7 @@ test('logo animation skips unchanged pixels and restores altered positions witho
     assert.equal(run('startup.logo.y'), 41);
     assert.equal(run('startup.title'), undefined);
     assert.equal(run('mainCamera.scrollX'), -60);
-    assert.equal(run('mainCamera.scrollY'), -94);
+    assert.equal(run('mainCamera.scrollY'), -91);
 });
 
 test('starting swipes the title up, glides to the player, then slides the hud in', () => {

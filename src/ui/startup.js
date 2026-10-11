@@ -60,7 +60,7 @@ function beginStartup(time) {
 function updateStartup(scene, time, delta) {
     const age = time - startup.start;
     if (startup.phase === 'title') {
-        const angle = age / 18000;
+        const angle = age / 6000;
         const scrollX = Math.round(startup.spawnX + Math.cos(angle) * 100 - 160);
         const scrollY = Math.round(startup.spawnY + Math.sin(angle) * 72 - 96);
         if (mainCamera.scrollX !== scrollX || mainCamera.scrollY !== scrollY) mainCamera.setScroll(scrollX, scrollY);
