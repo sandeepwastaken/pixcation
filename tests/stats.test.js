@@ -37,7 +37,7 @@ test('stats migration keeps known fish and rejects invalid or unsafe amounts', (
 });
 
 test('fish sale summaries stay within safe integer limits', () => { const { run } = createStats(); run("fishInventory.set('bluegill', Number.MAX_SAFE_INTEGER); fishInventory.set('roach', Number.MAX_SAFE_INTEGER)"); assert.deepEqual(JSON.parse(run('JSON.stringify(getFishInventorySummary())')), { count: Number.MAX_SAFE_INTEGER, value: Number.MAX_SAFE_INTEGER }); });
-test('fish sales cannot overflow the coin balance', () => { const { context, run } = createStats(); context.animateCoinTotal = () => {}; context.refreshMarketOptions = () => {}; run("playerCoins = Number.MAX_SAFE_INTEGER; fishInventory.set('bluegill', 1); selectedMarketOption = MARKET_SELL_INDEX; buySelectedMarketItem({})"); assert.equal(run('playerCoins'), Number.MAX_SAFE_INTEGER); });
+test('fish sales cannot overflow the coin balance', () => { const { context, run } = createStats(); context.animateCoinTotal = () => {}; context.refreshMarketOptions = () => {}; context.sparkleOverPlayer = () => {}; run("playerCoins = Number.MAX_SAFE_INTEGER; fishInventory.set('bluegill', 1); selectedMarketOption = MARKET_SELL_INDEX; buySelectedMarketItem({})"); assert.equal(run('playerCoins'), Number.MAX_SAFE_INTEGER); });
 test('play time includes slow frames and excludes hidden or unfocused time', () => {
     const { context, run } = createStats();
     let focused = true;

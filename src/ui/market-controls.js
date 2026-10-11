@@ -174,6 +174,7 @@ function buySelectedMarketItem(scene) {
     }
 
     saveDirty = true;
+    sparkleOverPlayer(scene);
     animateCoinTotal(scene);
     refreshMarketOptions();
 }

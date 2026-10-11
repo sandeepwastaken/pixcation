@@ -42,6 +42,19 @@ function dropLeaves(scene, time, bush) {
     }
 }
 
+function goldSparkle(scene, time, x, y) {
+    for (let index = 0; index < CHEST_SPARKLE_COLORS.length * 2; index++) {
+        spawnParticle(
+            scene, worldObjectLayer, time, x - 3 + index, y - (index % 2) * 2,
+            index % 2 ? 1 : -1, -1, 360, CHEST_SPARKLE_COLORS[index % CHEST_SPARKLE_COLORS.length], character.depth + 0.4
+        );
+    }
+}
+
+function sparkleOverPlayer(scene) {
+    goldSparkle(scene, scene.time.now, Math.round(character.x + CHARACTER_SIZE / 2), Math.round(character.y) + 2);
+}
+
 function spawnParticle(scene, layer, born, x, y, drift, rise, lifetime, color, depth = 0, directionX = 0, directionY = 0, ring = false) {
     let image = availableParticles.pop();
 

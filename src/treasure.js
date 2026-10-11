@@ -185,12 +185,7 @@ function openHauledChest(scene, time, x, y) {
         rewards.push(species.name);
     }
 
-    for (let index = 0; index < CHEST_SPARKLE_COLORS.length * 2; index++) {
-        spawnParticle(
-            scene, worldObjectLayer, time, x - 3 + index, y - 4 - (index % 2) * 2,
-            index % 2 ? 1 : -1, -1, 360, CHEST_SPARKLE_COLORS[index % CHEST_SPARKLE_COLORS.length], character.depth + 0.4
-        );
-    }
+    goldSparkle(scene, time, x, y - 4);
 
     showRewardCard(scene, time, 'You found a treasure chest!', rewards.join(' · '));
 }
