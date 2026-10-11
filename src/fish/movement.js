@@ -58,6 +58,7 @@ function animateFishTail(fish, seconds, beat, sweep, response) {
 function scatterFishFromSplash(x, y) {
     const radius = 12;
     const radiusSquared = radius * radius;
+    const fled = [];
 
     for (const chunk of loadedWaterChunks) {
         if (!chunk.fish.length) continue;
@@ -78,6 +79,8 @@ function scatterFishFromSplash(x, y) {
             }
 
             startFishFlee(fish, 700);
+            fled.push(fish);
         }
     }
+    return fled;
 }

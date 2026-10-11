@@ -3,7 +3,7 @@ const splashDirections = Array.from({ length: SPLASH_PARTICLES }, (_, index) => 
     return [Math.cos(angle), Math.sin(angle)];
 });
 function splash(scene, time, x, y) {
-    scatterFishFromSplash(x, y);
+    for (const fish of scatterFishFromSplash(x, y)) idleRipple(scene, time, Math.round(fish.x), Math.round(fish.y));
     const centerX = Math.round(x);
     const centerY = Math.round(y);
 
