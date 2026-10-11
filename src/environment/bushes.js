@@ -116,6 +116,13 @@ function updateBushRustle(scene, time, isWalking) {
             tree.canopy.x = tree.x - 3;
         }
     }
+    if (store) {
+        const hiding = right > store.x + 4 && left < store.x + STORE_WIDTH - 4 && bottom > store.y + 4 && bottom < store.y + STORE_HITBOX_Y;
+        if (hiding !== Boolean(store.see)) {
+            store.see = hiding;
+            store.setTexture(hiding ? getSeeThroughTexture(scene, 'store') : 'store');
+        }
+    }
 }
 
 function updateTreeShadows(scene, time) {

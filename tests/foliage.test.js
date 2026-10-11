@@ -9,7 +9,7 @@ test('wind stays on the pixel grid and rustling keeps tree trunks anchored', () 
     math.sin = angle => { sineCalls++; return Math.sin(angle); };
     const tree = { x: -40, y: -64, baseY: 0, width: 64, canopy: { x: -40, setTexture(key) { this.key = key; } }, rustleStart: -Infinity, touching: false };
     const bush = { x: -16, y: 0, slices: [{ x: -16, setTexture() {} }], rustleStart: -Infinity, touching: false, offset: 0 };
-    const context = vm.createContext({ Math: math, character: { x: -16, y: -16 }, loadedChunks: new Map([['0', { trees: [tree], bushes: [bush] }]]), dropLeaves() {} });
+    const context = vm.createContext({ Math: math, character: { x: -16, y: -16 }, loadedChunks: new Map([['0', { trees: [tree], bushes: [bush] }]]), dropLeaves() {}, store: null });
     vm.runInContext(fs.readFileSync('src/runtime/settings.js', 'utf8') + fs.readFileSync('src/environment/bushes.js', 'utf8'), context);
     context.getWindTexture = (scene, key, offset) => `${offset}`;
     const positions = new Set();
