@@ -2863,7 +2863,7 @@ function buildShadowLut(scene) {
         let best = null;
 
         for (const other of entries) {
-            if (other.luma >= color.luma || best && other.luma <= best.luma) continue;
+            if (other.luma >= color.luma - 10 || best && other.luma <= best.luma) continue;
             if (Math.abs(color.saturation - other.saturation) >= 0.14) continue;
 
             const hueDifference = Math.abs(color.hue - other.hue), hueGap = Math.min(hueDifference, 360 - hueDifference);
