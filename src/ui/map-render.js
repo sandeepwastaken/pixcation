@@ -12,7 +12,6 @@ function getMapPalette(scene) {
 
     mapPalette = {
         grass: pack(grass),
-        grassEdge: pack(shadeColor(...grass)),
         dirt: pack(dirt),
         dirtEdge: pack(shadeColor(...dirt)),
         bush: 0x4a7a52,
@@ -27,12 +26,6 @@ function getMapPalette(scene) {
         player: 0xf6f5e5,
         outline: 0x230a03
     };
-
-    mapPalette.flecks = new Map([
-        [toMapPixel(mapPalette.grass), toMapPixel(mapPalette.grassEdge)],
-        [toMapPixel(mapPalette.dirt), toMapPixel(mapPalette.dirtEdge)],
-        [toMapPixel(mapPalette.water[2]), toMapPixel(mapPalette.water[1])]
-    ]);
     return mapPalette;
 }
 
@@ -82,14 +75,6 @@ function tintMapColor(color, tint) {
     return tint.reduce((total, value, channel) => total | Math.min(255, Math.round((color >> (16 - channel * 8) & 255) * value)) << (16 - channel * 8), 0);
 }
 
-function getMapGrassFleck(color) {
-    const red = color & 255, green = color >> 8 & 255, blue = color >> 16 & 255;
-    if (green <= red + 4 || green <= blue + 8) return 0;
-    const fleck = toMapPixel(shadeMapColor((red << 16) | (green << 8) | blue));
-    mapPalette.flecks.set(color, fleck);
-    return fleck;
-}
-
 function toMapPixel(color) {
     return (0xff000000 | (color & 255) << 16 | color & 0xff00 | color >> 16 & 255) >>> 0;
 }
@@ -99,7 +84,7 @@ function generateMapTileColor(tileX, tileY) {
     const covering = getPropCovering(tileX, tileY);
     let color;
 
-    if (covering) {
+    if (covering && covering.type !== 'rock') {
         color = covering.type === 'tree' ? palette.trunk : palette[covering.type];
         if (covering.type === 'bush') color = tintMapColor(color, getGrassTint(tileX, tileY));
     } else {
@@ -111,18 +96,10 @@ function generateMapTileColor(tileX, tileY) {
         if (tree && tree[1] !== 'shadow') {
             color = tree[1] === 'canopy' ? tree[0] : shadeMapColor(tree[0]);
         } else if (terrain === 'water') {
-            color = palette.water[getMapWaterDepth(tileX, tileY)];
-            const tint = getWaterTint(tileX * TILE_SIZE + TILE_SIZE / 2, tileY * TILE_SIZE + TILE_SIZE / 2);
-            color = tint.reduce((total, value, channel) => total | Math.min(255, Math.round((color >> (16 - channel * 8) & 255) * value)) << (16 - channel * 8), 0);
-        } else if (tile.blocking === 'lower' || tree || getTerrainType(tileX, tileY + 1) === 'water') {
-            color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;
+            color = tintMapColor(palette.water[getMapWaterDepth(tileX, tileY)], getWaterTint(tileX * TILE_SIZE + TILE_SIZE / 2, tileY * TILE_SIZE + TILE_SIZE / 2));
         } else {
-            color = terrain === 'grass' ? palette.grass : palette.dirt;
-        }
-        if (terrain === 'dirt' && !(tree && tree[1] !== 'shadow')) color = tintMapColor(color, getDirtTint(tileX, tileY));
-        if (terrain === 'grass' && !(tree && tree[1] !== 'shadow')) {
-            const [red, green, blue] = tintGrassColor([color >> 16, color >> 8 & 255, color & 255], tileX, tileY);
-            color = (red << 16) | (green << 8) | blue;
+            color = terrain === 'grass' ? tintMapColor(palette.grass, getGrassTint(tileX, tileY)) : tintMapColor(palette.dirt, getDirtTint(tileX, tileY));
+            if (tile.blocking === 'lower' || tree || getTerrainType(tileX, tileY + 1) === 'water') color = shadeMapColor(color);
         }
     }
 
@@ -164,14 +141,6 @@ function drawMapTerrain(pixels, originX, originY, zoom) {
                 const row = y * MAP_WIDTH;
 
                 if (singlePixel) pixels[row + left] = color; else pixels.fill(color, row + left, row + right);
-            }
-
-            const fleck = zoom > 1 && (mapPalette.flecks.get(color) ?? getMapGrassFleck(color));
-            const fleckRoll = fleck ? coordinateHash(tileX, tileY, MAP_FLECK_SALT) : 1;
-            if (fleckRoll < MAP_FLECK_CHANCE) {
-                const fleckX = left + Math.floor(fleckRoll / MAP_FLECK_CHANCE * zoom);
-                const fleckY = top + Math.floor(coordinateHash(tileY, tileX, MAP_FLECK_SALT) * zoom);
-                if (fleckX < right && fleckY < bottom) pixels[fleckY * MAP_WIDTH + fleckX] = fleck;
             }
         }
     }
