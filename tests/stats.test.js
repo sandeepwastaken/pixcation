@@ -24,6 +24,7 @@ test('lifetime catches survive selling inventory and treasure fish do not count 
     assert.equal(run('saveDirty'), true);
 });
 
+test('catching fish cannot overflow its saved inventory count', () => { const { context, run } = createStats(); run("fishInventory.set(FISH_SPECIES[0].id, Number.MAX_SAFE_INTEGER)"); context.addCaughtFish(run('FISH_SPECIES[0]')); assert.equal(run('fishInventory.get(FISH_SPECIES[0].id)'), Number.MAX_SAFE_INTEGER); });
 test('stats migration keeps known fish and rejects invalid or unsafe amounts', () => {
     const { context, run } = createStats();
     run("fishInventory.set('bluegill', 3)");

@@ -53,7 +53,7 @@ function finishFishingMinigame(scene, time, caught) {
 }
 
 function addCaughtFish(species, caught = true) {
-    fishInventory.set(species.id, (fishInventory.get(species.id) || 0) + 1);
+    fishInventory.set(species.id, Math.min(Number.MAX_SAFE_INTEGER, (fishInventory.get(species.id) || 0) + 1));
     catchLog.add(species.id);
     if (caught) recordPlayerStat('fishCaught');
     saveDirty = true;
