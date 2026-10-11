@@ -90,8 +90,10 @@ function updateWaterFishing(scene, time, delta) {
 function updateFishing(scene, time, delta, isWalking) {
     const interrupted = isWalking || isMenuOpen() || !hasRodSelected();
 
-    if (fishingGraphicsActive) fishingLine.clear();
-    if (fishingGraphicsActive) fishingWaterShadow.clear();
+    if (fishingGraphicsActive) {
+        fishingLine.clear();
+        fishingWaterShadow.clear();
+    }
     fishingGraphicsActive = Boolean(fishing || castCharge);
     if (castCharge && interrupted) castCharge = null;
     drawCastCharge(time);
@@ -165,8 +167,7 @@ function updateFishing(scene, time, delta, isWalking) {
     [tipX, tipY] = getRodTip(time);
     const [handX, handY] = getRodHand();
     const { polePalette, linePalette, bobberPalette } = fishing.rod;
-    const taut = fishing.state === 'reeling' || fishing.state === 'bite' || fishing.state === 'hooked' ||
-        fishing.state === 'minigame' || fishing.state === 'snagged';
+    const taut = tautFishingStates.has(fishing.state);
 
     const depth = fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY);
     if (fishingLine.depth !== depth) fishingLine.setDepth(depth);

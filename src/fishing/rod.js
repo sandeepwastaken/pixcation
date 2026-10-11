@@ -2,6 +2,7 @@ const castDirections = { left: [-1, 0], right: [1, 0], back: [0, -1], front: [0,
 const waterFishingStates = new Set([
     'floating', 'landing', 'approaching', 'inspecting', 'nibbleWait', 'nibbleDip', 'bite', 'hooked', 'minigame', 'snagged'
 ]);
+const tautFishingStates = new Set(['reeling', 'bite', 'hooked', 'minigame', 'snagged']);
 const rodHandPosition = new Int32Array(2);
 const rodTipPosition = new Int32Array(2);
 
