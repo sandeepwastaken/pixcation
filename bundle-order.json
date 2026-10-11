@@ -1,6 +1,7 @@
 [
     "game-data.js",
     "npc-names.js",
+    "npc-dialogue.js",
     "water-pipeline.js",
     "art/textures.js",
     "art/trees.js",
