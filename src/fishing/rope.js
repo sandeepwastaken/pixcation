@@ -66,16 +66,7 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
     let water;
     let tileX;
     let tileY, tileOriginX, tileOriginY;
-    fishingWaterShadow.fillStyle(0x5a7eb6, 1);
-    for (let index = 0; index < pixelPathLength; index++) {
-        const amount = index / lastIndex;
-        const height = Math.max(0, fromHeight + heightRange * amount);
-        const x = pixelPathX[index] + Math.round(height / 6);
-        const y = pixelPathY[index] + Math.round(height);
-        if (x === previousX && y === previousY) continue;
-        previousX = x;
-        previousY = y;
-        if ((x + y) % 2) continue;
+    const plot = (x, y) => {
         const nextTileX = Math.floor(x / TILE_SIZE);
         const nextTileY = Math.floor(y / TILE_SIZE);
         if (nextTileX !== tileX || nextTileY !== tileY) {
@@ -83,8 +74,19 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
             tileX = nextTileX; tileOriginX = tileX * TILE_SIZE;
             tileY = nextTileY; tileOriginY = tileY * TILE_SIZE;
         }
-        if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] !== 1) continue;
-        fishingWaterShadow.fillRect(x, y, 1, 1);
+        if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] === 1) fishingWaterShadow.fillRect(x, y, 1, 1);
+    };
+    fishingWaterShadow.fillStyle(0x5a7eb6, 1);
+    for (let index = 0; index < pixelPathLength; index++) {
+        const amount = index / lastIndex;
+        const height = Math.max(0, fromHeight + heightRange * amount);
+        const x = pixelPathX[index] + Math.round(height / 6);
+        const y = pixelPathY[index] + Math.round(height);
+        if (x === previousX && y === previousY) continue;
+        const steps = previousX === undefined ? 0 : Math.max(Math.abs(x - previousX), Math.abs(y - previousY));
+        for (let step = steps ? 1 : 0; step <= steps; step++) plot(steps ? Math.round(previousX + (x - previousX) * step / steps) : x, steps ? Math.round(previousY + (y - previousY) * step / steps) : y);
+        previousX = x;
+        previousY = y;
     }
 }
 

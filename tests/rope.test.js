@@ -82,7 +82,6 @@ test('fishing shadows project whole pixels onto water and skip land', () => {
     for (const [x, y, width, height] of pixels) {
         assert.ok(Number.isInteger(x) && Number.isInteger(y));
         assert.ok(x >= 2 && y >= 2);
-        assert.equal((x + y) % 2, 0);
         assert.equal(width, 1);
         assert.equal(height, 1);
     }
@@ -97,7 +96,7 @@ test('fishing shadows reuse tiles across negative borders without drawing onto l
     renderer.run('drawFishingWaterShadow({}, 0, 0)');
     assert.deepEqual(JSON.parse(renderer.run('JSON.stringify(tileReads)')), [[-2, -1], [-1, -1], [0, -1], [1, -1]]);
     assert.equal(renderer.run('surfaceReads'), 4);
-    assert.deepEqual(JSON.parse(renderer.run('JSON.stringify(shadowPixels)')), Array.from({ length: 15 }, (_, index) => [-19 + index * 2, -1]));
+    assert.deepEqual(JSON.parse(renderer.run('JSON.stringify(shadowPixels)')), Array.from({ length: 30 }, (_, index) => [-20 + index, -1]));
 });
 test('duplicate shadow projections draw once and empty paths skip graphics work', () => {
     const renderer = createRenderer();
@@ -109,7 +108,7 @@ test('duplicate shadow projections draw once and empty paths skip graphics work'
     renderer.run('function getTerrainSurface() { return { water: new Uint8Array(TILE_SIZE * TILE_SIZE).fill(waterEnabled ? 1 : 0) }; }');
     renderer.run('pixelPathLength = 13; pixelPathX.fill(0); for (let index = 0; index < 13; index++) pixelPathY[index] = index');
     renderer.run('drawFishingWaterShadow({}, 6, 0)');
-    assert.deepEqual(JSON.parse(renderer.run('JSON.stringify(shadowPixels)')), [[1, 7], [1, 9], [0, 10], [0, 12]]);
+    assert.deepEqual(JSON.parse(renderer.run('JSON.stringify(shadowPixels)')), [[1, 6], [1, 7], [1, 8], [1, 9], [0, 10], [0, 11], [0, 12]]);
     assert.equal(renderer.run('tileReads'), 1);
     renderer.run('shadowPixels.length = 0; pixelPathLength = 1; pixelPathX[0] = 1; pixelPathY[0] = 0; drawFishingWaterShadow({}, 6, 0)');
     assert.deepEqual(JSON.parse(renderer.run('JSON.stringify(shadowPixels)')), [[2, 6]]);
