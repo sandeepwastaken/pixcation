@@ -89,7 +89,7 @@ function shadeWaterWood(data, woodMask) {
         let index = y * CHUNK_PIXEL_SIZE * 4;
 
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
-            if (woodMask[maskRow + x] && data[index]) data[index] = 128;
+            if (woodMask[maskRow + x] && data[index]) data[index] = 128, data[index + 2] = 5;
         }
     }
 }
@@ -109,7 +109,8 @@ function markWaterFoam(scene, data, pixelX, pixelY) {
             for (const [offsetX, offsetY] of WATER_FOAM_OFFSETS) {
                 const nextX = x + offsetX, nextY = y + offsetY;
                 const inside = nextX >= 0 && nextY >= 0 && nextX < CHUNK_PIXEL_SIZE && nextY < CHUNK_PIXEL_SIZE;
-                if (inside ? !data[(nextY * CHUNK_PIXEL_SIZE + nextX) * 4] : !isWaterPixel(scene, pixelX + nextX, pixelY + nextY)) {
+                if ((inside ? !data[(nextY * CHUNK_PIXEL_SIZE + nextX) * 4] : !isWaterPixel(scene, pixelX + nextX, pixelY + nextY)) &&
+                    !getWorldTile(Math.floor((pixelX + nextX) / TILE_SIZE), Math.floor((pixelY + nextY) / TILE_SIZE)).key.startsWith('wood')) {
                     data[index + 2] = 255;
                     break;
                 }
@@ -143,7 +144,8 @@ function buildChunkWater(scene, chunk) {
     shadeWaterDepth(data, shoreDistances, shadowMask);
     shadeWaterShorelines(scene, data, shorelineTiles);
     shadeWaterBanks(scene, data, pixelX, pixelY);
-    shadeWaterWood(data, getChunkWoodMask(scene, gatherNearbyWoodTiles(chunkX, chunkY, woodTiles)));
+    const woodMask = getChunkWoodMask(scene, gatherNearbyWoodTiles(chunkX, chunkY, woodTiles));
+    shadeWaterWood(data, woodMask);
     bakeChestSilhouette(chunk, data);
     markWaterEdges(data, edgeCells, pixelX, pixelY);
     markWaterFoam(scene, data, pixelX, pixelY);

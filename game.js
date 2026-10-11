@@ -218,6 +218,22 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     float crestA = noise(p * vec2(0.055, 0.2) + vec2(t * 0.55, t * 0.06) + warp * 4.0);
                     float crestB = noise(p * vec2(0.115, 0.33) + vec2(-t * 0.28, t * 0.1) + warp * 3.0 + vec2(19.0, 7.0));
                     if (reach > 12.0 && cluster > 0.42) index = clamp(index + (crestA + bayer * 0.03 > 0.66 ? 1.0 : 0.0) + (crestB + bayer * 0.03 > 0.7 ? 1.0 : 0.0), 0.0, 6.0);
+                    float dashRow = floor(p.y / 7.0);
+                    float dashSpeed = (mod(dashRow, 2.0) < 1.0 ? 1.0 : -1.0) * (2.0 + hash(vec2(dashRow, 3.1)) * 3.0);
+                    float dashX = p.x + floor(t * dashSpeed);
+                    vec2 dashCell = vec2(floor(dashX / 16.0), dashRow);
+                    float dashSeed = hash(dashCell);
+                    float dashLife = fract(t * 0.16 + dashSeed * 7.0);
+                    float dashLocalX = mod(dashX, 16.0) - 2.0 - floor(hash(dashCell + 5.0) * 6.0);
+                    float dashLocalY = mod(p.y, 7.0) - 1.0 - floor(hash(dashCell + 9.0) * 4.0);
+                    float dashLength = floor((3.0 + floor(dashSeed * 5.0)) * clamp(min(dashLife, 1.0 - dashLife) * 4.0, 0.0, 1.0));
+                    if (reach > 7.0 && dashSeed > 0.45 && dashLocalX >= 0.0 && dashLocalX < dashLength) {
+                        if (abs(dashLocalY) < 0.5) index = min(index + (dashLength > 4.0 && dashLocalX > 0.5 && dashLocalX < dashLength - 1.5 ? 2.0 : 1.0), 7.0);
+                        else if (abs(dashLocalY - 1.0) < 0.5 && dashLocalX > 0.5 && dashLocalX < dashLength - 0.5) index = max(index - 1.0, 1.0);
+                    }
+                    float glint = hash(dashCell + 17.0);
+                    if (reach > 7.0 && glint > 0.9 && fract(t * 0.5 + glint * 13.0) < 0.06 && abs(dashLocalY + 1.0) < 0.5 && abs(dashLocalX - 2.0) < 0.5) index = 10.0;
+
                     float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
                     float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
                     float gate = light + max(0.0, 12.0 - shore) / 12.0 * 0.08 - max(0.0, shore - 10.0) * 0.02;
@@ -281,7 +297,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         }
                     }
 
-                    gl_FragColor = vec4(tone(index), 1.0);
+                    gl_FragColor = vec4(tone(index) * (fishShaded < 0.5 && shaded > 0.5 && edgeCode > 4.5 && edgeCode < 5.5 ? 0.8 : 1.0), 1.0);
                 }
             `
         });
@@ -1865,7 +1881,7 @@ function shadeWaterWood(data, woodMask) {
         let index = y * CHUNK_PIXEL_SIZE * 4;
 
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
-            if (woodMask[maskRow + x] && data[index]) data[index] = 128;
+            if (woodMask[maskRow + x] && data[index]) data[index] = 128, data[index + 2] = 5;
         }
     }
 }
@@ -1885,7 +1901,8 @@ function markWaterFoam(scene, data, pixelX, pixelY) {
             for (const [offsetX, offsetY] of WATER_FOAM_OFFSETS) {
                 const nextX = x + offsetX, nextY = y + offsetY;
                 const inside = nextX >= 0 && nextY >= 0 && nextX < CHUNK_PIXEL_SIZE && nextY < CHUNK_PIXEL_SIZE;
-                if (inside ? !data[(nextY * CHUNK_PIXEL_SIZE + nextX) * 4] : !isWaterPixel(scene, pixelX + nextX, pixelY + nextY)) {
+                if ((inside ? !data[(nextY * CHUNK_PIXEL_SIZE + nextX) * 4] : !isWaterPixel(scene, pixelX + nextX, pixelY + nextY)) &&
+                    !getWorldTile(Math.floor((pixelX + nextX) / TILE_SIZE), Math.floor((pixelY + nextY) / TILE_SIZE)).key.startsWith('wood')) {
                     data[index + 2] = 255;
                     break;
                 }
@@ -1919,7 +1936,8 @@ function buildChunkWater(scene, chunk) {
     shadeWaterDepth(data, shoreDistances, shadowMask);
     shadeWaterShorelines(scene, data, shorelineTiles);
     shadeWaterBanks(scene, data, pixelX, pixelY);
-    shadeWaterWood(data, getChunkWoodMask(scene, gatherNearbyWoodTiles(chunkX, chunkY, woodTiles)));
+    const woodMask = getChunkWoodMask(scene, gatherNearbyWoodTiles(chunkX, chunkY, woodTiles));
+    shadeWaterWood(data, woodMask);
     bakeChestSilhouette(chunk, data);
     markWaterEdges(data, edgeCells, pixelX, pixelY);
     markWaterFoam(scene, data, pixelX, pixelY);
