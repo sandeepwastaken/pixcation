@@ -20,6 +20,7 @@ function createWindow(fontLoad, hasFonts = true) {
     const document = {
         visibilityState: 'visible',
         addEventListener(name, callback) { documentListeners.set(name, callback); },
+        getElementById() { return { addEventListener(name, callback) { documentListeners.set(`container:${name}`, callback); } }; },
         documentElement: { clientWidth: 1280, clientHeight: 768 },
         fonts: hasFonts ? { load() { return fontLoad || { then(callback) { start = callback; } }; } } : null
     };
@@ -49,6 +50,7 @@ function createWindow(fontLoad, hasFonts = true) {
         },
         flush: () => frames.splice(0).forEach(callback => callback()),
         timeout: () => timers.shift()?.(),
+        contextMenu: event => documentListeners.get('container:contextmenu')(event),
         queued: () => frames.length,
         writes: () => zoomWrites,
         starts: () => starts,
@@ -101,6 +103,7 @@ test('fractional pixel ratios and small viewports keep whole physical pixels', (
     assert.equal(screen.zoom(), 0.5);
 });
 
+test('the game container suppresses the browser context menu', () => { const event = { prevented: false, preventDefault() { this.prevented = true; } }; createWindow().contextMenu(event); assert.equal(event.prevented, true); });
 test('page hiding saves progress before the browser discards the game', () => {
     const screen = createWindow();
     screen.hide();
