@@ -2869,6 +2869,7 @@ function rebakeLoadedShadows(scene) {
         chunk.groundTexture.refresh();
         chunk.shadowMask = mask;
         chunk.pixels = null;
+        chunk.treeShadowColors = null;
         chunk.treeShadowSignature = null;
         scene.treeShadowSignature = null;
     }
@@ -3401,6 +3402,7 @@ function updateTreeShadows(scene, time) {
         const water = chunk.waterShadowBase ? (chunk.treeWaterShadowImage ||= new ImageData(new Uint8ClampedArray(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE * 4), CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE)) : null;
         if (water) water.data.set(chunk.waterShadowBase);
         for (const pixel of contact) points.add(pixel);
+        const colors = chunk.treeShadowColors ||= new Int32Array(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE).fill(-2);
         for (const pixel of points) {
             const worldX = left + pixel % CHUNK_PIXEL_SIZE;
             const worldY = top + Math.floor(pixel / CHUNK_PIXEL_SIZE);
@@ -3408,9 +3410,14 @@ function updateTreeShadows(scene, time) {
                 water.data[pixel * 4] = 128;
                 continue;
             }
-            const ground = getGroundShadowColor(scene, worldX, worldY);
-            const color = ground && contact.has(pixel) ? shadeColor(...ground) : ground;
-            if (color !== null) writeRGBPixel(image.data, pixel, (color[0] << 16) | (color[1] << 8) | color[2]);
+            if (colors[pixel] === -2) {
+                const ground = getGroundShadowColor(scene, worldX, worldY);
+                colors[pixel] = ground ? (ground[0] << 16) | (ground[1] << 8) | ground[2] : -1;
+            }
+            const packed = colors[pixel];
+            if (packed < 0) continue;
+            const color = contact.has(pixel) ? shadeColor(packed >> 16, packed >> 8 & 255, packed & 255) : null;
+            writeRGBPixel(image.data, pixel, color ? (color[0] << 16) | (color[1] << 8) | color[2] : packed);
         }
         chunk.treeShadowTexture.getContext().putImageData(image, 0, 0);
         chunk.treeShadowTexture.refresh();
