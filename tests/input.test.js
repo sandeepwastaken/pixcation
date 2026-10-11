@@ -29,6 +29,7 @@ function createInput() {
         function getClickedWorldTarget() { return null; }
         function isBaitSlotAt() { return false; }
         function isStatsButtonAt(x, y) { return x >= 264 && x < 312 && y >= 8 && y < 24; }
+        function isStartButtonAt(x, y) { return x >= 112 && x < 208 && y >= 124 && y < 144; }
         function openStats() { statsOpen = true; }
         function closeStats() { statsOpen = false; }
         function isMenuOpen() { return false; }
