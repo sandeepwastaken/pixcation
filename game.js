@@ -2066,7 +2066,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 worldObjectLayer.add([trunk, canopy]);
                 tileSprites.push(trunk, canopy);
                 const variant = getTreeVariant(tileX, tileY);
-                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-trunk`, shadow: sprite.shadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
+                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-trunk`, color: variant.color, shadow: sprite.shadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
             } else if (prop) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
@@ -3015,6 +3015,10 @@ function updateBushRustle(scene, time, isWalking) {
                 top < tree.baseY + 2 && bottom > tree.baseY - 12;
             if (touching && isWalking && !tree.touching) tree.rustleStart = time;
             tree.touching = touching;
+            if (tree.color && chunk.visible && time >= (tree.nextLeafAt ??= time + Math.random() * TREE_LEAF_RANGE)) {
+                tree.nextLeafAt = time + TREE_LEAF_MIN + Math.random() * TREE_LEAF_RANGE;
+                spawnParticle(scene, worldObjectLayer, time, tree.x + 14 + Math.floor(Math.random() * (tree.width - 28)), tree.y + 40 + Math.floor(Math.random() * 8), Math.random() < 0.5 ? -1 : 1, 2, TREE_LEAF_LIFETIME, tree.color, tree.baseY + 0.2);
+            }
             const hiding = right > tree.x + 10 && left < tree.x + tree.width - 10 && bottom > tree.y + 12 && bottom < tree.baseY - 2;
             if (tree.trunk && hiding !== Boolean(tree.see)) {
                 tree.see = hiding;
@@ -6769,6 +6773,9 @@ const BOBBER_BOTTOM_COLOR = 0xf6f5e5;
 const LEAVES_PER_RUSTLE = 2;
 const LEAF_LIFETIME = 420;
 const LEAF_COLORS = [0x6c955d, 0x4a7a52];
+const TREE_LEAF_MIN = 4000;
+const TREE_LEAF_RANGE = 6000;
+const TREE_LEAF_LIFETIME = 1500;
 
 const BUSH_FOOTPRINT_LEFT = 3;
 const BUSH_FOOTPRINT_RIGHT = 29;

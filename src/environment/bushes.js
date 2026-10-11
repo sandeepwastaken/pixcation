@@ -99,6 +99,10 @@ function updateBushRustle(scene, time, isWalking) {
                 top < tree.baseY + 2 && bottom > tree.baseY - 12;
             if (touching && isWalking && !tree.touching) tree.rustleStart = time;
             tree.touching = touching;
+            if (tree.color && chunk.visible && time >= (tree.nextLeafAt ??= time + Math.random() * TREE_LEAF_RANGE)) {
+                tree.nextLeafAt = time + TREE_LEAF_MIN + Math.random() * TREE_LEAF_RANGE;
+                spawnParticle(scene, worldObjectLayer, time, tree.x + 14 + Math.floor(Math.random() * (tree.width - 28)), tree.y + 40 + Math.floor(Math.random() * 8), Math.random() < 0.5 ? -1 : 1, 2, TREE_LEAF_LIFETIME, tree.color, tree.baseY + 0.2);
+            }
             const hiding = right > tree.x + 10 && left < tree.x + tree.width - 10 && bottom > tree.y + 12 && bottom < tree.baseY - 2;
             if (tree.trunk && hiding !== Boolean(tree.see)) {
                 tree.see = hiding;

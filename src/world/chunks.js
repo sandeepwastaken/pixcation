@@ -147,7 +147,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 worldObjectLayer.add([trunk, canopy]);
                 tileSprites.push(trunk, canopy);
                 const variant = getTreeVariant(tileX, tileY);
-                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-trunk`, shadow: sprite.shadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
+                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-trunk`, color: variant.color, shadow: sprite.shadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
             } else if (prop) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
