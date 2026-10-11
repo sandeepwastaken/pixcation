@@ -1,6 +1,7 @@
 const npcCache = new Map();
 const npcTradesDone = new Set();
 const npcMemory = new Map();
+const npcHouseCache = new Map(), npcHouseSprites = new Map(), npcHouseTiles = new Set();
 const NPC_DIRECTIONS = [['left', -1, 0], ['right', 1, 0], ['front', 0, 1], ['back', 0, -1]];
 const NPC_DIRECTION_STEPS = new Map(NPC_DIRECTIONS.map(([direction, stepX, stepY]) => [direction, [stepX, stepY]]));
 let npcShadowPoints = null;
@@ -26,7 +27,49 @@ function getNpcConnection(npc) {
 
 function describeNpcConnection(npc, connection) {
     const name = connection.companion.name.split(' ')[0];
-    return connection.kind === 'close' ? `I'm close to ${name}. We often spend time together around here.` : `${name} is my ${connection.kind}. We like to keep each other company.`;
+    const shared = npc.house?.residents.includes(connection.companion.id);
+    return (connection.kind === 'close' ? `I'm close to ${name}.` : `${name} is my ${connection.kind}.`) + (shared ? ' We share a home nearby.' : ' We spend time together around here.');
+}
+
+function getNpcHouse(npc) {
+    const peer = getNpcConnection(npc)?.companion;
+    const residents = peer && Math.abs(peer.tileX - npc.tileX) <= 6 && Math.abs(peer.tileY - npc.tileY) <= 6 ? [npc, peer] : [npc];
+    const id = Math.min(...residents.map(resident => resident.id));
+    if (npcHouseCache.has(id)) return npcHouseCache.get(id);
+    const centerX = Math.round(residents.reduce((sum, resident) => sum + resident.tileX, 0) / residents.length) - 1;
+    const centerY = Math.round(residents.reduce((sum, resident) => sum + resident.tileY, 0) / residents.length) - 2;
+    for (let radius = 0; radius <= 4; radius++) {
+        for (let offsetY = -radius; offsetY <= radius; offsetY++) for (let offsetX = -radius; offsetX <= radius; offsetX++) {
+            if (radius && Math.abs(offsetX) !== radius && Math.abs(offsetY) !== radius) continue;
+            const x = centerX + offsetX, y = centerY + offsetY;
+            if (!residents.every(resident => isNpcInHomeArea(resident, x + 1, y + 2))) continue;
+            if ([...npcHouseCache.values()].some(house => house && x < house.x + 2 && x + 2 > house.x && y < house.y + 3 && y + 3 > house.y)) continue;
+            let clear = true;
+            for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 2; dx++) {
+                if (!isNpcStandingTile(x + dx, y + dy) || !isNpcWalkableTile(x + dx, y + dy) || dy < 2 && getNpcAt(x + dx, y + dy)) clear = false;
+            }
+            if (!clear) continue;
+            const house = { id, x, y, doorX: x + 1, doorY: y + 2, residents: residents.map(resident => resident.id) };
+            npcHouseCache.set(id, house);
+            npcHouseTiles.add(getTileId(x, y + 1)); npcHouseTiles.add(getTileId(x + 1, y + 1));
+            return house;
+        }
+    }
+    npcHouseCache.set(id, null);
+    return null;
+}
+
+function updateNpcHouses(scene) {
+    const homes = new Set();
+    for (const npc of activeNpcs) {
+        const house = npc.house;
+        if (!house || homes.has(house.id)) continue;
+        homes.add(house.id);
+        if (npcHouseSprites.has(house.id)) continue;
+        const sprite = scene.add.image(house.x * TILE_SIZE, house.y * TILE_SIZE, 'house').setOrigin(0).setDepth((house.y + 2) * TILE_SIZE);
+        worldObjectLayer.add(sprite); npcHouseSprites.set(house.id, sprite);
+    }
+    for (const [id, sprite] of npcHouseSprites) if (!homes.has(id)) { sprite.destroy(); npcHouseSprites.delete(id); }
 }
 
 function findNpcMeetingPath(npc, target) {
@@ -96,6 +139,7 @@ function isNpcStandingTile(tileX, tileY) {
 }
 
 function isNpcWalkableTile(tileX, tileY) {
+    if (npcHouseTiles.has(getTileId(tileX, tileY))) return false;
     const tile = getWorldTile(tileX, tileY);
     if (tile.blocking || getPropCovering(tileX, tileY)) return false;
     if (tile.key.startsWith('wood')) return tile.key === 'wood';
@@ -181,6 +225,7 @@ function spawnChunkNpcs(scene, chunkX, chunkY, sprites) {
                 rod: MARKET_RODS[home.rodIndex]
             };
             npc.sprite = scene.add.image(npc.x, npc.y, getNpcTexture(scene, npc.look, npc.direction)).setOrigin(0).setDepth(npc.y + NPC_PART_SIZE);
+            npc.house = getNpcHouse(npc);
             npc.shadow = scene.add.graphics();
             npc.bubble = scene.add.text(npc.x - 40, npc.y - 26, '', { fontFamily: 'm6x11', fontSize: '11px', color: '#e0f2fd', backgroundColor: '#36160d', padding: { x: 3, y: 2 }, wordWrap: { width: 110 } }).setOrigin(0).setVisible(false);
             npc.line = scene.add.graphics();
@@ -200,6 +245,7 @@ function serializeNpc(npc, time) {
     const goal = npc.state === 'walk' ? npc.path[npc.path.length - 1] : null;
     return {
         id: npc.id,
+        home: npc.state === 'home',
         x: npc.x,
         y: npc.y,
         direction: npc.direction,
@@ -239,6 +285,7 @@ function restoreNpc(scene, npc) {
     const time = scene.time.now;
     Object.assign(npc, { x: state.x, y: state.y, rng: state.rng | 0, state: 'idle', until: time + (state.wait || 0), path: [], fishing: null });
     if (!isNpcInHomeArea(npc, npc.x / TILE_SIZE, npc.y / TILE_SIZE)) { npc.x = npc.tileX * TILE_SIZE; npc.y = npc.tileY * TILE_SIZE; npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE); return; }
+    if (state.home === true && npc.house) { npc.x = npc.house.doorX * TILE_SIZE; npc.y = npc.house.doorY * TILE_SIZE; npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE); enterNpcHouse(npc); return; }
     if (NPC_DIRECTION_STEPS.has(state.direction)) npc.direction = state.direction;
     if (state.spot) {
         const water = findNpcWater(state.spot[0], state.spot[1]);
@@ -258,7 +305,8 @@ function restoreNpc(scene, npc) {
 
 function isBlockedByNpc(left, top, right, bottom, ignore) {
     for (const npc of activeNpcs) {
-        if (npc !== ignore && actorBlocksRect(npc, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) return true;
+        if (npc !== ignore && npc.state !== 'home' && actorBlocksRect(npc, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) return true;
+        if (npc.house && actorBlocksRect({ x: npc.house.x * TILE_SIZE, y: npc.house.y * TILE_SIZE }, 0, TILE_SIZE, TILE_SIZE * 2, TILE_SIZE, left, top, right, bottom)) return true;
     }
     return false;
 }
@@ -358,7 +406,7 @@ function chooseNpcPlan(scene, npc, time) {
     if (tryNpcSocialPlan(scene, npc, time)) return;
     const fromX = Math.round(npc.x / TILE_SIZE), fromY = Math.round(npc.y / TILE_SIZE);
     const radius = npc.role === 'trader' ? NPC_TRADER_ROAM : NPC_ROAM_RADIUS;
-    if (npc.role !== 'trader' && npcRandom(npc) < NPC_FISH_CHANCE) {
+    if (npc.role !== 'trader' && npcRandom(npc) < (npc.dailyPlan === 'late' ? 0.8 : NPC_FISH_CHANCE)) {
         for (let attempt = 0; attempt < NPC_PLAN_ATTEMPTS; attempt++) {
             const [tileX, tileY] = rollNpcTile(npc, radius);
             if (npc.failedSpots.has(getTileId(tileX, tileY)) || !isNpcStandingTile(tileX, tileY)) continue;
@@ -391,6 +439,9 @@ function stepNpc(scene, npc, time, delta) {
     }
 
     const moveX = Math.sign(distanceX), moveY = distanceX ? 0 : Math.sign(distanceY);
+    const travelDirection = moveX ? (moveX < 0 ? 'left' : 'right') : (moveY < 0 ? 'back' : 'front');
+    if (npc.travelDirection !== travelDirection) { npc.travelDirection = travelDirection; npc.turnUntil = time + 80 + npcRandom(npc) * 100; npc.walkSpeed = 0; }
+    if (time < npc.turnUntil) { setNpcPose(scene, npc, travelDirection, 0); return false; }
     const pace = npc.walkSpeed = Math.min(npc.speed, (npc.walkSpeed || 0) + Math.min(delta, 50) / 1000);
     const frameDelta = Math.min(delta, 50);
     const distance = CHARACTER_SPEED * pace * frameDelta / 1000;
@@ -656,11 +707,48 @@ function settleNpc(scene, npc, time, delay) {
     npc.until = time + delay;
 }
 
+function getNpcDailyPlan(npc, clock) {
+    const bedtime = 20 + npcHash(npc.tileX, npc.tileY, 1334) * 2;
+    const wake = 6 + npcHash(npc.tileX, npc.tileY, 1335) * 2;
+    if (clock.hour >= wake && clock.hour < bedtime) return 'day';
+    const night = clock.hour < wake ? clock.day - 1 : clock.day;
+    return npc.water && npcHash(npc.tileX, npc.tileY, 1340 + night % 10000) < 0.25 ? 'late' : 'home';
+}
+
+function enterNpcHouse(npc) {
+    npc.state = 'home'; npc.path = []; npc.sprite.setVisible(false);
+    npc.shadow.clear(); if (npc.bubble) npc.bubble.setVisible(false);
+    npc.shadowX = npc.shadowY = null;
+    saveDirty = true;
+}
+
+function updateNpcHome(scene, npc, time) {
+    if (!npc.house) return false;
+    npc.dailyPlan = getNpcDailyPlan(npc, getWorldClock());
+    if (npc.state === 'home') {
+        if (npc.dailyPlan === 'home' || !canNpcOccupy(scene, npc, npc.x, npc.y)) return true;
+        npc.sprite.setVisible(true); settleNpc(scene, npc, time, NPC_IDLE_MIN + npcRandom(npc) * NPC_IDLE_RANGE);
+        saveDirty = true;
+        npc.lookAt = npc.until;
+        return false;
+    }
+    if (npc.dailyPlan !== 'home' || npc.talking || npc.goal === 'join' && dialogueOpen || npc.state === 'walk' && npc.goal === 'home' || time < (npc.homeRetryAt || 0)) return false;
+    if (npc.fishing) { if (npc.fishing.state !== 'reeling') startNpcReel(npc, time); return false; }
+    const path = findNpcPath(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE), npc.house.doorX, npc.house.doorY, npc);
+    npc.homeRetryAt = time + 4000;
+    if (!path) return false;
+    npc.charge = null;
+    if (!path.length) { enterNpcHouse(npc); return true; }
+    startNpcPath(npc, path, 'home', time);
+    return false;
+}
+
 function updateNpc(scene, npc, time, delta) {
     if (npc.fishing) updateNpcFishing(scene, npc, time);
+    if (updateNpcHome(scene, npc, time)) return;
     if (npc.state === 'social') {
         const other = activeNpcs.find(other => other.id === npc.socialPartner);
-        if (!other || time >= npc.until || other.talking) settleNpc(scene, npc, time, NPC_IDLE_MIN);
+        if (!other || other.state !== 'social' || time >= npc.until || other.talking) settleNpc(scene, npc, time, NPC_IDLE_MIN);
         else setNpcPose(scene, npc, getDirectionToward(npc, other.x, other.y), 0);
     } else if (npc.state === 'talk') {
         setNpcPose(scene, npc, getDirectionToward(npc, character.x, character.y), 0);
@@ -670,7 +758,7 @@ function updateNpc(scene, npc, time, delta) {
     } else if (npc.state === 'idle') {
         if (time >= npc.lookAt) {
             npc.lookAt = time + NPC_LOOK_MIN + npcRandom(npc) * NPC_LOOK_RANGE;
-            setNpcPose(scene, npc, NPC_DIRECTIONS[Math.floor(npcRandom(npc) * NPC_DIRECTIONS.length)][0], 0);
+            setNpcPose(scene, npc, Math.hypot(character.x - npc.x, character.y - npc.y) < TILE_SIZE * 3 ? getDirectionToward(npc, character.x, character.y) : npcRandom(npc) < 0.65 ? npc.direction : NPC_DIRECTIONS[Math.floor(npcRandom(npc) * NPC_DIRECTIONS.length)][0], 0);
         }
         if (time >= npc.until) chooseNpcPlan(scene, npc, time);
     } else if (npc.state === 'walk') {
@@ -685,6 +773,7 @@ function updateNpc(scene, npc, time, delta) {
             const goal = npc.goal;
             settleNpc(scene, npc, time, NPC_IDLE_MIN + npcRandom(npc) * NPC_IDLE_RANGE);
             npc.lookAt = npc.until;
+            if (goal === 'home') { enterNpcHouse(npc); return; }
             if (goal === 'visit' || goal === 'follow') startNpcConversation(scene, npc, activeNpcs.find(other => other.id === npc.socialPartner), time);
             if (goal === 'join' && dialogueOpen && dialogueNpc?.id === npc.joining) { npc.talking = true; npc.state = 'talk'; npc.joinedConversation = npc.joining; }
             if (npc.goal === 'fish') {
@@ -711,12 +800,14 @@ function updateNpcs(scene, time, delta) {
     let moved = false;
     activeNpcs.length = 0;
     for (const chunk of loadedChunks.values()) for (const npc of chunk.npcs || []) activeNpcs.push(npc);
+    updateNpcHouses(scene);
 
     for (const chunk of loadedChunks.values()) {
         for (const npc of chunk.npcs || []) {
             const tile = getTileId(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE));
             updateNpc(scene, npc, time, delta);
             moved ||= tile !== getTileId(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE));
+            if (npc.state === 'home') continue;
             const x = npc.x - character.x, y = npc.y - character.y, distance = x * x + y * y;
             if (distance < nearestDistance) [nearest, nearestDistance] = [npc, distance];
         }
@@ -769,6 +860,7 @@ function buildNpcDialogue(scene, npc) {
         tips: node(pick(npc.fishing ? personality.fishing : NPC_FISHING_TIPS), [back, bye])
     };
     if (connection) nodes.chat.options[1] = { label: 'Your company?', next: 'company' };
+    if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
     if (companion?.joining === npc.id) nodes.company.options.unshift({ label: 'Say hello', action: () => companion.joinedConversation === npc.id && companion.talking ? 'companion' : 'waiting' });
     if (companion) nodes.companion = { portrait: getNpcTexture(scene, companion.look, 'front', 0), portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: `Hi! ${connection.kind === 'close' ? "I'm close to " + first : first + ' is my ' + connection.kind}. How is your fishing going?`, options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'Back', next: 'intro' }, bye] };
     if (companion) nodes.companionReply = { ...nodes.companion, text: 'Glad to hear it. Maybe we will see you around the water later!', options: [back, bye] };

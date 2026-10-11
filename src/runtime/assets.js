@@ -20,7 +20,7 @@ function getTextureAliases() {
         alias(tileKey, `environment/terrain/${tileKey}`);
     }
 
-    for (const key of ['bush', 'boulder', 'rock', 'tree-bare', 'store']) {
+    for (const key of ['bush', 'boulder', 'rock', 'tree-bare', 'store', 'house']) {
         alias(key, `environment/objects/${key}`);
     }
 

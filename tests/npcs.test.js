@@ -15,7 +15,7 @@ function createNpcs() {
         mainCamera = { scrollX: 0, scrollY: 0, width: 320, height: 192 };
         character = { x: 48, y: 48 };
         const scene = { time: { now: 100 } };
-        const actor = home => ({ ...home, look: [], x: 48, y: 48, state: 'idle', direction: 'front', frame: 0, rng: 1, speed: 0.5, path: [], until: 1000, sprite: { setTexture() { return this; }, setPosition() { return this; }, setDepth() { return this; } } });
+        const actor = home => ({ ...home, look: [], x: 48, y: 48, state: 'idle', direction: 'front', frame: 0, rng: 1, speed: 0.5, path: [], until: 1000, shadow: { clear() {} }, sprite: { setTexture() { return this; }, setPosition() { return this; }, setDepth() { return this; }, setVisible(value) { this.visible = value; return this; } } });
         const first = actor(homes[0]), second = actor(homes[1]); second.x = 64;
         activeNpcs.push(first, second);
     `, context);
@@ -30,6 +30,45 @@ test('seeded connections are mutual and survive rebuilding the NPC cache', () =>
     assert.equal(run('getNpcConnection(second).kind'), kind);
     run('npcCache.clear()');
     assert.equal(run('getNpcConnection(first).kind'), kind);
+});
+
+test('nearby connected residents share one clear house within both home areas', () => {
+    const run = createNpcs();
+    run('homes[0].tileX = first.tileX = 7; homes[1].tileX = second.tileX = 12; isNpcStandingTile = () => true; getNpcAt = () => null; first.house = getNpcHouse(first); second.house = getNpcHouse(second)');
+    assert.equal(run('first.house === second.house'), true);
+    assert.equal(run('first.house.residents.length'), 2);
+    assert.ok(run('isNpcInHomeArea(first, first.house.doorX, first.house.doorY) && isNpcInHomeArea(second, first.house.doorX, first.house.doorY)'));
+    assert.equal(run('npcHouseTiles.size'), 2);
+    assert.equal(run('isBlockedByNpc(first.house.x * TILE_SIZE, (first.house.y + 1) * TILE_SIZE, first.house.x * TILE_SIZE + 1, (first.house.y + 1) * TILE_SIZE + 1)'), true);
+});
+
+test('night routines send residents home and allow some fishers to stay out overnight', () => {
+    const run = createNpcs();
+    assert.equal(run('getNpcDailyPlan(first, { hour: 23, day: 4 })'), 'home');
+    assert.equal(run('getNpcDailyPlan(first, { hour: 12, day: 4 })'), 'day');
+    run('first.water = {}; const nightSalts = []; npcHash = (x, y, salt) => { if (salt >= 1340) nightSalts.push(salt); return 0.1; }');
+    assert.equal(run('getNpcDailyPlan(first, { hour: 23, day: 4 })'), 'late');
+    assert.equal(run('getNpcDailyPlan(first, { hour: 1, day: 5 })'), 'late');
+    assert.equal(run('nightSalts[0] === nightSalts[1]'), true);
+});
+
+test('residents enter at night, restore indoors, and wait for a clear doorway in the morning', () => {
+    const run = createNpcs();
+    run('first.house = { id: 1, x: 2, y: 1, doorX: 3, doorY: 3, residents: [1] }; first.x = 32; getWorldClock = () => ({ hour: 23, day: 4 }); updateNpcHome(scene, first, 100)');
+    assert.equal(run('first.goal'), 'home');
+    assert.ok(run('first.path.every(([x, y]) => isNpcInHomeArea(first, x, y))'));
+    run('first.x = 48; first.path = []; updateNpc(scene, first, 116, 16)');
+    assert.equal(run('first.state'), 'home');
+    assert.equal(run('first.sprite.visible'), false);
+    assert.equal(run('saveDirty'), true);
+    run("const savedHome = serializeNpc(first, 116); npcMemory.set(first.id, savedHome); first.state = 'idle'; first.sprite.visible = true; restoreNpc(scene, first)");
+    assert.equal(run('first.state'), 'home');
+    assert.equal(run('first.sprite.visible'), false);
+    run('getWorldClock = () => ({ hour: 12, day: 5 }); canNpcOccupy = () => false; updateNpcHome(scene, first, 200)');
+    assert.equal(run('first.state'), 'home');
+    run('canNpcOccupy = () => true; updateNpcHome(scene, first, 216)');
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.sprite.visible'), true);
 });
 
 test('NPC paths cannot leave the home area even to bypass an obstacle', () => {
