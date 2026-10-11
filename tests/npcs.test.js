@@ -1187,7 +1187,7 @@ test('nearby connected residents share one clear house within both home areas', 
     assert.equal(run('first.house === second.house'), true);
     assert.equal(run('first.house.residents.length'), 2);
     assert.ok(run('isNpcInHomeArea(first, first.house.doorX, first.house.doorY) && isNpcInHomeArea(second, first.house.doorX, first.house.doorY)'));
-    assert.equal(run('npcHouseTiles.size'), 2);
+    assert.equal(run('npcHouseTiles.size'), 3);
     assert.equal(run('isBlockedByNpc(first.house.x * TILE_SIZE, (first.house.y + 1) * TILE_SIZE, first.house.x * TILE_SIZE + 1, (first.house.y + 1) * TILE_SIZE + 1)'), true);
 });
 

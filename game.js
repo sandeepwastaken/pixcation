@@ -3822,7 +3822,7 @@ const activeNpcs = [];
 function isNpcInHomeArea(npc, x, y) { return Math.abs(x - npc.tileX) <= NPC_ROAM_RADIUS && Math.abs(y - npc.tileY) <= NPC_ROAM_RADIUS; }
 
 function isNpcHouseSetbackClear(x, y) {
-    for (let dy = -2; dy <= 4; dy++) for (let dx = -2; dx <= 3; dx++) {
+    for (let dy = -2; dy <= 4; dy++) for (let dx = -2; dx <= 4; dx++) {
         if (getTerrainType(x + dx, y + dy) === 'water') return false;
     }
     return true;
@@ -3872,15 +3872,15 @@ function getNpcHouse(npc) {
             const x = centerX + offsetX, y = centerY + offsetY;
             if (!residents.every(resident => isNpcInHomeArea(resident, x + 1, y + 2))) continue;
             if (!isNpcHouseSetbackClear(x, y)) continue;
-            if ([...npcHouseCache.values()].some(house => house && x < house.x + 2 && x + 2 > house.x && y < house.y + 3 && y + 3 > house.y)) continue;
+            if ([...npcHouseCache.values()].some(house => house && x < house.x + 3 && x + 3 > house.x && y < house.y + 3 && y + 3 > house.y)) continue;
             let clear = true;
-            for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 2; dx++) {
+            for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) {
                 if (!isNpcStandingTile(x + dx, y + dy) || !isNpcWalkableTile(x + dx, y + dy) || dy < 2 && getNpcAt(x + dx, y + dy)) clear = false;
             }
             if (!clear) continue;
             const house = { id, x, y, doorX: x + 1, doorY: y + 2, residents: residents.map(resident => resident.id) };
             npcHouseCache.set(id, house);
-            npcHouseTiles.add(getTileId(x, y + 1)); npcHouseTiles.add(getTileId(x + 1, y + 1));
+            npcHouseTiles.add(getTileId(x, y + 1)); npcHouseTiles.add(getTileId(x + 1, y + 1)); npcHouseTiles.add(getTileId(x + 2, y + 1));
             return house;
         }
     }
@@ -3896,11 +3896,11 @@ function updateNpcHouses(scene, time = scene.time.now) {
         homes.add(house.id);
         let sprite = npcHouseSprites.get(house.id);
         if (!sprite) {
-            sprite = scene.add.image(house.x * TILE_SIZE, house.y * TILE_SIZE, 'house').setOrigin(0).setDepth((house.y + 2) * TILE_SIZE);
+            sprite = scene.add.image(house.x * TILE_SIZE, (house.y + 2) * TILE_SIZE - HOUSE_HEIGHT, 'house').setOrigin(0).setDepth((house.y + 2) * TILE_SIZE);
             worldObjectLayer.add(sprite); npcHouseSprites.set(house.id, sprite);
         }
         const left = character.x + CHARACTER_HITBOX_X, right = left + CHARACTER_HITBOX_WIDTH, bottom = character.y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT;
-        const hiding = character.visible !== false && right > sprite.x && left < sprite.x + 2 * TILE_SIZE && bottom > sprite.y && bottom < sprite.y + 2 * TILE_SIZE;
+        const hiding = character.visible !== false && right > sprite.x && left < sprite.x + HOUSE_WIDTH && bottom > sprite.y && bottom < sprite.y + HOUSE_HEIGHT;
         if (stepSeeThrough(sprite, hiding, time)) sprite.setTexture(seeThrough(scene, 'house', sprite.seeLevel));
     }
     for (const [id, sprite] of npcHouseSprites) if (!homes.has(id)) { sprite.destroy(); npcHouseSprites.delete(id); }
@@ -4225,7 +4225,7 @@ function restoreNpc(scene, npc) {
 function isBlockedByNpc(left, top, right, bottom, ignore) {
     for (const npc of activeNpcs) {
         if (npc !== ignore && npc.state !== 'home' && actorBlocksRect(npc, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) return true;
-        if (npc.house && actorBlocksRect({ x: npc.house.x * TILE_SIZE, y: npc.house.y * TILE_SIZE }, 0, TILE_SIZE, TILE_SIZE * 2, TILE_SIZE, left, top, right, bottom)) return true;
+        if (npc.house && actorBlocksRect({ x: npc.house.x * TILE_SIZE, y: npc.house.y * TILE_SIZE }, 0, TILE_SIZE, HOUSE_WIDTH, TILE_SIZE, left, top, right, bottom)) return true;
     }
     return false;
 }
@@ -9891,6 +9891,8 @@ const FISH_JUMP_DROPLETS = 3;
 const FISH_JUMP_DROPLET_LIFETIME = 260;
 const FISH_JUMP_DROPLET_COLOR = 0xbce6eb;
 const NPC_DRAW_MARGIN = 128;
+const HOUSE_WIDTH = 48;
+const HOUSE_HEIGHT = 22;
 const MYSTERY_CYCLE_MINUTES = 20;
 const MYSTERY_FORECAST_CYCLES = 3;
 const MYSTERY_CATCH_CHANCE = 0.85;
