@@ -108,7 +108,7 @@ function createTreeCanopyMask(puffs, width, height, edgeSalt) {
     return owner;
 }
 
-function createTreeShadow(owner, width, height, centerY) {
+function createTreeShadow(owner, width, height, centerY, salt) {
     const groundY = height - 1;
     let top = height;
     let bottom = -1;
@@ -118,13 +118,21 @@ function createTreeShadow(owner, width, height, centerY) {
         top = Math.min(top, y);
         bottom = Math.max(bottom, y);
     }
-    const points = [];
+    const shadow = new Set();
     for (let y = Math.floor(groundY + TREE_SHADOW_DROP + (top - centerY) * TREE_SHADOW_SQUASH); y <= Math.ceil(groundY + TREE_SHADOW_DROP + (bottom - centerY) * TREE_SHADOW_SQUASH); y++) {
         const sourceY = Math.round(centerY + (y - groundY - TREE_SHADOW_DROP) / TREE_SHADOW_SQUASH);
         if (sourceY < 0 || sourceY >= height) continue;
         for (let x = TREE_SHADOW_SHIFT; x < width + TREE_SHADOW_SHIFT; x++) {
-            if (owner[sourceY * width + x - TREE_SHADOW_SHIFT] >= 0) points.push(x, y);
+            if (owner[sourceY * width + x - TREE_SHADOW_SHIFT] >= 0) shadow.add(y * 1024 + x);
         }
+    }
+    const dapple = createLeafHash(salt);
+    const points = [];
+    for (const point of shadow) {
+        const x = point % 1024, y = point >> 10;
+        let open = 0;
+        for (const offset of [-1, 1, -1024, 1024, -2, 2, -2048, 2048]) open += !shadow.has(point + offset);
+        if (dapple(x >> 1, y) >= TREE_SHADOW_DAPPLE + open * TREE_SHADOW_EDGE_DAPPLE) points.push(x, y);
     }
     return points;
 }
@@ -251,7 +259,7 @@ function generateTreeVariant(trunk, seed) {
         const global = -0.12 * (x + 0.5 - centerX) / radiusX - 0.3 * (depth - 0.45);
         let value = (lit - 0.62) * 1.9 + global;
 
-        const speck = textureHash((x + (y & 1)) >> 1, y >> 1);
+        const speck = textureHash(x >> 1, y);
         if (speck > 0.86) value += 0.22;
         else if (speck < 0.14) value -= 0.22;
 
@@ -323,7 +331,7 @@ function generateTreeVariant(trunk, seed) {
         }
     }
 
-    const shadowPoints = createTreeShadow(owner, width, height, centerY);
+    const shadowPoints = createTreeShadow(owner, width, height, centerY, edgeSalt + 1);
 
     let hitLeft = width;
     let hitRight = 0;

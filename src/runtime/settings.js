@@ -255,9 +255,11 @@ const TREE_TONE_SHARES = [0.09, 0.42, 0.75, 0.97];
 const TREE_DITHER_SHARE = 0.015;
 const TREE_PAD_X = 14;
 const TREE_PAD_TOP = 8;
-const TREE_SHADOW_SHIFT = 6;
-const TREE_SHADOW_DROP = 2;
+const TREE_SHADOW_SHIFT = 7;
+const TREE_SHADOW_DROP = 6;
 const TREE_SHADOW_SQUASH = 0.5;
+const TREE_SHADOW_DAPPLE = 0.2;
+const TREE_SHADOW_EDGE_DAPPLE = 0.09;
 const TREE_LEAF_PALETTES = [
     { weight: 6, colors: [0x376451, 0x4a7a52, 0x6c955d, 0x8eb067, 0xb0c579], extras: [0x7e4332, 0xc0493b] },
     { weight: 2, colors: [0x3f5f3c, 0x587a45, 0x7a9a50, 0x9fb862, 0xc3d27e], extras: [] },
