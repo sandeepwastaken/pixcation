@@ -55,7 +55,7 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
     const left = { key: 'left', pixelX: 0, pixelY: 0, trees: [tree, tree, distant], visible: true };
     const right = { key: 'right', pixelX: 256, pixelY: 0, trees: [], visible: true, waterTexture: makeTexture(), waterShadowBase: base };
     let groundReads = 0;
-    const context = vm.createContext({ ImageData: PixelImage, CHUNK_PIXEL_SIZE: size, loadedChunks: new Map([['left', left], ['right', right]]), acquireChunkCanvas: makeTexture, createChunkLayer: () => ({ setVisible() {} }), isWaterPixel: (scene, x) => x >= 256, getGroundShadowColor: () => { groundReads++; return [10, 20, 30]; }, writeRGBPixel: (data, pixel, color) => { data.set([color >> 16, color >> 8 & 255, color & 255, 255], pixel * 4); } });
+    const context = vm.createContext({ ImageData: PixelImage, CHUNK_PIXEL_SIZE: size, TREE_SHADOW_SHIFT: 6, loadedChunks: new Map([['left', left], ['right', right]]), acquireChunkCanvas: makeTexture, createChunkLayer: () => ({ setVisible() {} }), isWaterPixel: (scene, x) => x >= 256, getGroundShadowColor: () => { groundReads++; return [10, 20, 30]; }, writeRGBPixel: (data, pixel, color) => { data.set([color >> 16, color >> 8 & 255, color & 255, 255], pixel * 4); } });
     vm.runInContext(fs.readFileSync('src/environment/bushes.js', 'utf8'), context);
     const scene = {};
     context.updateTreeShadows(scene, 0);

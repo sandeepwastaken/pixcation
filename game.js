@@ -3009,7 +3009,7 @@ function updateTreeShadows(scene, time) {
         const top = chunk.pixelY;
         const right = left + CHUNK_PIXEL_SIZE;
         const bottom = top + CHUNK_PIXEL_SIZE;
-        const shadowTrees = trees.filter(tree => !(tree.x + tree.width + 3 < left || tree.x - 3 > right || tree.baseY + 32 < top || tree.baseY - 32 > bottom));
+        const shadowTrees = trees.filter(tree => !(tree.x + tree.width + TREE_SHADOW_SHIFT < left || tree.x - 3 > right || tree.baseY + 32 < top || tree.baseY - 32 > bottom));
         const nextShadowSignature = (chunk.waterTexture ? 'w:' : 'land:') + shadowTrees.map(tree => `${tree.x},${tree.y},${tree.offset};`).join('');
         if (chunk.treeShadowSignature === nextShadowSignature) continue;
         const points = new Set();
