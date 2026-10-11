@@ -26,9 +26,13 @@ function getRainWindow(day) {
 
 function getRainIntensity(clock) {
     const window = getRainWindow(clock.day);
-    if (!window) return 0;
+    if (!window || isSnowDay(clock.day)) return 0;
     return Phaser.Math.Clamp(Math.min(clock.hour - window[0], window[1] - clock.hour) / RAIN_FADE_HOURS, 0, 1);
 }
+
+const isSnowDay = day => getWeatherHash(day, 4, 1401) < SNOW_CHANCE;
+const getSnowWindow = clock => isSnowDay(clock.day) ? getRainWindow(clock.day) : null;
+const getSnowfall = (clock, window = getSnowWindow(clock)) => window ? Phaser.Math.Clamp(Math.min(clock.hour - window[0], window[1] - clock.hour) / RAIN_FADE_HOURS, 0, 1) : 0;
 
 function createSky(scene) {
     const clockLayer = createTextLayer(28, { fontSize: '11px', color: '#e0f2fd', textShadow: '1px 1px rgba(0, 0, 0, 0.65)' });

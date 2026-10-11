@@ -3,7 +3,7 @@ let fireflyGlow = null;
 
 function getNightLevel(clock) {
     const light = blendBiomeStops(SKY_LIGHT_STOPS, clock.hour);
-    return Phaser.Math.Clamp((1 - (light[0] + light[1] + light[2]) / 3) / FIREFLY_DARK_LEVEL, 0, 1) * (1 - getRainIntensity(clock));
+    return Phaser.Math.Clamp((1 - (light[0] + light[1] + light[2]) / 3) / FIREFLY_DARK_LEVEL, 0, 1) * (1 - getRainIntensity(clock)) * (1 - getSnowfall(clock));
 }
 
 function createFireflies(scene) {

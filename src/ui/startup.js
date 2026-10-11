@@ -117,4 +117,5 @@ function updateStartup(scene, time, delta) {
     updateChunkWater(time);
     updateSky(scene, time, delta);
     updateFireflies(time, delta);
+    updateSnow(scene, time, delta);
 }

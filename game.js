@@ -5090,9 +5090,13 @@ function getRainWindow(day) {
 
 function getRainIntensity(clock) {
     const window = getRainWindow(clock.day);
-    if (!window) return 0;
+    if (!window || isSnowDay(clock.day)) return 0;
     return Phaser.Math.Clamp(Math.min(clock.hour - window[0], window[1] - clock.hour) / RAIN_FADE_HOURS, 0, 1);
 }
+
+const isSnowDay = day => getWeatherHash(day, 4, 1401) < SNOW_CHANCE;
+const getSnowWindow = clock => isSnowDay(clock.day) ? getRainWindow(clock.day) : null;
+const getSnowfall = (clock, window = getSnowWindow(clock)) => window ? Phaser.Math.Clamp(Math.min(clock.hour - window[0], window[1] - clock.hour) / RAIN_FADE_HOURS, 0, 1) : 0;
 
 function createSky(scene) {
     const clockLayer = createTextLayer(28, { fontSize: '11px', color: '#e0f2fd', textShadow: '1px 1px rgba(0, 0, 0, 0.65)' });
@@ -5184,7 +5188,7 @@ let fireflyGlow = null;
 
 function getNightLevel(clock) {
     const light = blendBiomeStops(SKY_LIGHT_STOPS, clock.hour);
-    return Phaser.Math.Clamp((1 - (light[0] + light[1] + light[2]) / 3) / FIREFLY_DARK_LEVEL, 0, 1) * (1 - getRainIntensity(clock));
+    return Phaser.Math.Clamp((1 - (light[0] + light[1] + light[2]) / 3) / FIREFLY_DARK_LEVEL, 0, 1) * (1 - getRainIntensity(clock)) * (1 - getSnowfall(clock));
 }
 
 function createFireflies(scene) {
@@ -5225,6 +5229,37 @@ function updateFireflies(time, delta) {
         fireflyGlow.fillStyle(FIREFLY_HALO_COLOR, glow * FIREFLY_HALO_ALPHA * 0.4).fillRect(screenX - 2, screenY, size + 4, size).fillRect(screenX, screenY - 2, size, size + 4);
         fireflyGlow.fillStyle(FIREFLY_HALO_COLOR, glow * FIREFLY_HALO_ALPHA).fillRect(screenX - 1, screenY - 1, size + 2, size + 2);
         fireflyGlow.fillStyle(FIREFLY_CORE_COLOR, glow).fillRect(screenX, screenY, size, size);
+    }
+}
+
+const snowflakes = [];
+let snowGraphics = null, snowSpawnCarry = 0;
+
+function createSnow(scene) {
+    snowGraphics = scene.add.graphics().setDepth(RAIN_DEPTH);
+}
+
+function spawnSnowflake() {
+    const x = mainCamera.scrollX - SNOW_MARGIN + Math.random() * (mainCamera.width + SNOW_MARGIN * 2);
+    const y = mainCamera.scrollY + Math.random() * (mainCamera.height + SNOW_HEIGHT_MIN + SNOW_HEIGHT_RANGE);
+    snowflakes.push({ x, y, height: SNOW_HEIGHT_MIN + Math.random() * SNOW_HEIGHT_RANGE, near: Math.random() < SNOW_NEAR_SHARE, phase: Math.random() * 1000, landed: 0 });
+}
+
+function updateSnow(scene, time, delta) {
+    if (!snowGraphics) return;
+    const clock = getWorldClock(), step = Math.min(delta, 50) / 1000;
+    snowSpawnCarry += getSnowfall(clock) * SNOW_FLAKES_PER_SECOND * step;
+    for (; snowSpawnCarry >= 1; snowSpawnCarry--) spawnSnowflake();
+    snowGraphics.clear();
+    const centerX = mainCamera.scrollX + mainCamera.width / 2, centerY = mainCamera.scrollY + mainCamera.height / 2;
+    for (let index = snowflakes.length - 1; index >= 0; index--) {
+        const flake = snowflakes[index];
+        if (flake.landed && time - flake.landed > SNOW_SETTLE) { snowflakes[index] = snowflakes[snowflakes.length - 1]; snowflakes.pop(); continue; }
+        if (!flake.landed) { flake.height -= (flake.near ? SNOW_NEAR_SPEED : SNOW_FALL_SPEED) * step; flake.x += (SNOW_WIND * weatherWind + Math.sin(time * SNOW_SWAY_RATE + flake.phase) * SNOW_SWAY) * step; }
+        if (!flake.landed && flake.height <= 0) Object.assign(flake, { height: 0, landed: isWaterPixel(scene, Math.round(flake.x), Math.round(flake.y)) ? -Infinity : time });
+        const lift = flake.height / SNOW_CAMERA_HEIGHT, size = flake.near ? 2 : 1;
+        const x = Math.round(flake.x + (flake.x - centerX) * lift), y = Math.round(flake.y + (flake.y - centerY) * lift - flake.height);
+        snowGraphics.fillStyle(flake.near ? SNOW_COLOR : SNOW_TINT, flake.landed ? Math.max(0, 1 - (time - flake.landed) / SNOW_SETTLE) : 1).fillRect(x, y, size, size);
     }
 }
 
@@ -7321,6 +7356,7 @@ function updateStartup(scene, time, delta) {
     updateChunkWater(time);
     updateSky(scene, time, delta);
     updateFireflies(time, delta);
+    updateSnow(scene, time, delta);
 }
 
 const playTimeFormatCache = { seconds: null, label: '' };
@@ -9794,6 +9830,21 @@ const STORM_WIND = 60;
 const STORM_GUST = 75;
 const STORM_GUST_RATE = 0.0009;
 const STORM_TREE_WIND = 1.8;
+const SNOW_CHANCE = 0.3;
+const SNOW_FLAKES_PER_SECOND = 70;
+const SNOW_NEAR_SHARE = 0.25;
+const SNOW_FALL_SPEED = 20;
+const SNOW_NEAR_SPEED = 32;
+const SNOW_HEIGHT_MIN = 40;
+const SNOW_HEIGHT_RANGE = 80;
+const SNOW_MARGIN = 32;
+const SNOW_WIND = 8;
+const SNOW_SWAY = 14;
+const SNOW_SWAY_RATE = 0.0024;
+const SNOW_SETTLE = 1200;
+const SNOW_CAMERA_HEIGHT = 160;
+const SNOW_COLOR = 0xf4f8ff;
+const SNOW_TINT = 0xdce8f6;
 const LIGHTNING_PER_SECOND = 0.08;
 const LIGHTNING_TIME = 520;
 const LIGHTNING_ALPHA = 0.35;
@@ -10377,6 +10428,7 @@ function create() {
     cameraScrollY = mainCamera.scrollY;
     createSky(this);
     createFireflies(this);
+    createSnow(this);
 
     spawnGuideAndStore(this);
     updateLoadedChunks(this, true);
@@ -10994,6 +11046,7 @@ function update(time, delta) {
     updateFishJumps(this, time);
     updateSky(this, time, delta);
     updateFireflies(time, delta);
+    updateSnow(this, time, delta);
     updateChunkWater(time);
 }
 

@@ -46,5 +46,6 @@ function update(time, delta) {
     updateFishJumps(this, time);
     updateSky(this, time, delta);
     updateFireflies(time, delta);
+    updateSnow(this, time, delta);
     updateChunkWater(time);
 }

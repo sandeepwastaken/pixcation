@@ -23,6 +23,7 @@
     "environment/npcs.js",
     "environment/sky.js",
     "environment/fireflies.js",
+    "environment/snow.js",
     "environment/rumors.js",
     "environment/jumps.js",
     "environment/mystery.js",
