@@ -89,7 +89,7 @@ function shadeWaterWood(data, woodMask) {
         let index = y * CHUNK_PIXEL_SIZE * 4;
 
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++, index += 4) {
-            if (woodMask[maskRow + x] && data[index]) data[index] = 128, data[index + 2] = 5;
+            if (woodMask[maskRow + x] && woodMask[maskRow + x - 1] && woodMask[maskRow + x - WOOD_MASK_SIZE] && data[index]) data[index] = 128, data[index + 2] = 5;
         }
     }
 }
