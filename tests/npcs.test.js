@@ -3,6 +3,90 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('night fishers tolerate light rain but take shelter in a heavy shower', () => {
+    const run = createNpcs();
+    run('first.water = {}; first.house = { doorX: 5, doorY: 3 }; npcHash = () => 0.1; getWorldClock = () => ({ hour: 23, day: 1 }); getRainIntensity = () => 0.4; updateNpcHome(scene, first, 100)');
+    assert.equal(run('first.dailyPlan'), 'late');
+    assert.equal(run('first.needsShelter'), false);
+    assert.equal(run('first.state'), 'idle');
+    run('getRainIntensity = () => 0.8; updateNpcHome(scene, first, 1000)');
+    assert.equal(run('first.needsShelter'), true);
+    assert.equal(run('first.goal'), 'home');
+});
+
+test('residents shelter from heavy rain and stay indoors until it eases', () => {
+    const run = createNpcs();
+    run('first.house = { doorX: 3, doorY: 3 }; first.x = 32; canNpcOccupy = () => true; getRainIntensity = () => 0.8; updateNpcHome(scene, first, 100)');
+    assert.equal(run('first.goal'), 'home');
+    assert.equal(run('first.needsShelter'), true);
+    assert.ok(run('describeNpcPlans(first).includes("rain")'));
+    run('first.x = 48; first.path = []; updateNpc(scene, first, 116, 16)');
+    assert.equal(run('first.state'), 'home');
+    run('getRainIntensity = () => 0.4');
+    assert.equal(run('updateNpcHome(scene, first, 1000)'), true);
+    assert.equal(run('first.state'), 'home');
+    run('getRainIntensity = () => 0.2; updateNpcHome(scene, first, 2000)');
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.needsShelter'), false);
+    run('getRainIntensity = () => 0.4; updateNpcHome(scene, first, 3000)');
+    assert.equal(run('first.state'), 'idle');
+});
+
+test('rain changes interrupted plans and canceled shelter trips do not enter an empty house', () => {
+    const run = createNpcs();
+    run("first.house = { doorX: 5, doorY: 3 }; startNpcPath(first, [[4, 3]], 'wander', 100); pauseNpcActivity(first); settleNpc(scene, first, 100, 0); canNpcOccupy = () => true; getRainIntensity = () => 0.8");
+    assert.equal(run('resumeNpcActivity(scene, first, 1000)'), false);
+    run('updateNpcHome(scene, first, 1016)');
+    assert.equal(run('first.goal'), 'home');
+    run('getRainIntensity = () => 0; updateNpcHome(scene, first, 2000)');
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.goal'), null);
+});
+
+test('social plans leave a neighbor who is already walking home alone', () => {
+    const run = createNpcs();
+    run("startNpcPath(second, [[5, 3]], 'home', 100); npcRandom = () => 0");
+    assert.equal(run('tryNpcSocialPlan(scene, first, 1000)'), false);
+    assert.equal(run('second.goal'), 'home');
+    assert.equal(run('second.state'), 'walk');
+});
+
+test('evening destinations survive a conversation and a save without losing their purpose', () => {
+    const run = createNpcs();
+    run("first.dailyPlan = 'evening'; first.house = { doorX: 5, doorY: 3 }; canNpcOccupy = () => true; npcRandom = () => 0; getWorldClock = () => ({ hour: 21, day: 1 }); chooseNpcPlan(scene, first, 100); pauseNpcActivity(first); settleNpc(scene, first, 100, 0)");
+    assert.equal(run('first.pausedActivity.goal'), 'windDown');
+    assert.equal(run('resumeNpcActivity(scene, first, 1000)'), true);
+    assert.equal(run('first.goal'), 'windDown');
+    run('npcMemory.set(first.id, serializeNpc(first, 1000)); restoreNpc(scene, first)');
+    assert.equal(run('first.goal'), 'windDown');
+    assert.equal(run('first.path.at(-1)[0]'), 5);
+});
+
+test('residents wind down near home before their individual bedtime', () => {
+    const run = createNpcs();
+    assert.equal(run('getNpcDailyPlan(first, { hour: 19, day: 1 })'), 'day');
+    assert.equal(run('getNpcDailyPlan(first, { hour: 21, day: 1 })'), 'evening');
+    assert.equal(run('getNpcDailyPlan(first, { hour: 22, day: 1 })'), 'home');
+    run("first.dailyPlan = 'evening'; first.house = { doorX: 5, doorY: 3 }; canNpcOccupy = () => true; npcRandom = () => 0; chooseNpcPlan(scene, first, 100)");
+    assert.equal(run('first.goal'), 'windDown');
+    assert.equal(run('first.path.at(-1)[0]'), 5);
+    assert.ok(run('describeNpcPlans(first).includes("winding down")'));
+    run('first.x = 80; settleNpc(scene, first, 100, 0); chooseNpcPlan(scene, first, 1000)');
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.until'), 7000);
+});
+
+test('bedtime route retries do not start new wandering, socializing, or casts', () => {
+    const run = createNpcs();
+    run("first.house = { doorX: 5, doorY: 3 }; first.state = 'charge'; first.charge = { start: 50 }; getWorldClock = () => ({ hour: 23, day: 1 }); isNpcWalkableTile = () => false; updateNpcHome(scene, first, 100)");
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.charge'), null);
+    run('let socialAttempts = 0; tryNpcSocialPlan = () => { socialAttempts++; return true; }; chooseNpcPlan(scene, first, 1100)');
+    assert.equal(run('socialAttempts'), 0);
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.until'), 2100);
+});
+
 test('saved journeys home resume at night but expire when loaded during the day', () => {
     const run = createNpcs();
     run("first.house = { doorX: 5, doorY: 3 }; startNpcPath(first, [[4, 3], [5, 3]], 'home', 100); pauseNpcActivity(first); const journeyHome = serializeNpc(first, 100); npcMemory.set(first.id, journeyHome); getWorldClock = () => ({ hour: 23, day: 1 }); restoreNpc(scene, first)");
@@ -294,6 +378,7 @@ function createNpcs() {
         isNpcWalkableTile = () => true;
         getTerrainType = () => 'grass';
         getWorldClock = () => ({ hour: 12, day: 1 });
+        getRainIntensity = () => 0;
         drawNpcRod = drawNpcShadow = () => {};
         mainCamera = { scrollX: 0, scrollY: 0, width: 320, height: 192 };
         character = { x: 48, y: 48 };
