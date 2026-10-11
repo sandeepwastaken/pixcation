@@ -41,17 +41,17 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                 }
 
                 vec3 tone(float index) {
-                    if (index < 0.5) return vec3(0.353, 0.494, 0.714);
-                    if (index < 1.5) return vec3(0.376, 0.522, 0.741);
-                    if (index < 2.5) return vec3(0.392, 0.541, 0.765);
-                    if (index < 3.5) return vec3(0.408, 0.565, 0.792);
-                    if (index < 4.5) return vec3(0.420, 0.592, 0.800);
-                    if (index < 5.5) return vec3(0.435, 0.624, 0.812);
-                    if (index < 6.5) return vec3(0.455, 0.662, 0.808);
-                    if (index < 7.5) return vec3(0.490, 0.698, 0.808);
-                    if (index < 8.5) return vec3(0.560, 0.776, 0.843);
-                    if (index < 9.5) return vec3(0.675, 0.867, 0.898);
-                    return vec3(0.820, 0.929, 0.945);
+                    if (index < 0.5) return vec3(0.157, 0.306, 0.580);
+                    if (index < 1.5) return vec3(0.180, 0.353, 0.643);
+                    if (index < 2.5) return vec3(0.204, 0.400, 0.698);
+                    if (index < 3.5) return vec3(0.227, 0.447, 0.745);
+                    if (index < 4.5) return vec3(0.259, 0.510, 0.792);
+                    if (index < 5.5) return vec3(0.306, 0.588, 0.839);
+                    if (index < 6.5) return vec3(0.376, 0.675, 0.871);
+                    if (index < 7.5) return vec3(0.478, 0.769, 0.894);
+                    if (index < 8.5) return vec3(0.659, 0.871, 0.925);
+                    if (index < 9.5) return vec3(0.800, 0.933, 0.949);
+                    return vec3(0.925, 0.980, 0.980);
                 }
 
                 float code(float channel) {
@@ -86,7 +86,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     float shore = floor(code(mask.g) / 3.0);
                     float wobble = (fbm(p * 0.045 + warp * 0.6 + vec2(t * 0.05, -t * 0.04)) - 0.5) * 4.0;
                     float lap = sin(t * 1.3 + (p.x + p.y) * 0.045) * max(0.0, 1.0 - shore / 8.0) * 1.2;
-                    float reach = shore + wobble + bayer * 2.2 - lap;
+                    float reach = shore + wobble + bayer * 0.8 - lap;
                     float depth = fbm(p * 0.012 + warp * 1.2 + vec2(t * 0.03, t * 0.01)) + bayer * 0.05 -
                         max(0.0, shore - 15.0) * 0.012;
                     float light = fbm(p * 0.021 - warp * 0.9 + vec2(-t * 0.06, t * 0.04)) + checker * 0.016;
