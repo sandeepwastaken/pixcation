@@ -12,8 +12,10 @@ function createInput() {
     input.setDefaultCursor = cursor => cursorUpdates.push(cursor);
     const events = new EventEmitter();
     const gameEvents = new EventEmitter();
+    const documentEvents = new EventEmitter();
     const context = vm.createContext({
         scene: { input, events, game: { events: gameEvents }, time: { now: 100 } },
+        document: { addEventListener: documentEvents.on.bind(documentEvents), removeEventListener: documentEvents.off.bind(documentEvents) },
         Phaser: { Core: { Events: { BLUR: 'blur', FOCUS: 'focus' } }, Scenes: { Events: { SHUTDOWN: 'shutdown' } } },
         CHEATS_ENABLED: false
     });
@@ -32,7 +34,7 @@ function createInput() {
         function isMenuOpen() { return false; }
         bindGameInput(scene);
     `, context);
-    return { input, events, gameEvents, cursorUpdates, run: code => vm.runInContext(code, context) };
+    return { input, events, gameEvents, documentEvents, cursorUpdates, run: code => vm.runInContext(code, context) };
 }
 
 const space = { key: ' ', code: 'Space', repeat: false, preventDefault() {} };
@@ -147,7 +149,7 @@ test('outside mouse releases preserve a simultaneous keyboard hold', () => {
 });
 
 test('losing focus cancels a charge and drag without casting on return', () => {
-    const { input, gameEvents, run } = createInput();
+    const { input, gameEvents, documentEvents, run } = createInput();
     input.keyboard.emit('keydown', space);
     run('mapDrag = { x: 10, y: 10 }');
     gameEvents.emit('blur');
@@ -158,14 +160,19 @@ test('losing focus cancels a charge and drag without casting on return', () => {
     assert.equal(run('releases'), 0);
     input.keyboard.emit('keydown', space);
     assert.equal(run('presses'), 2);
+    documentEvents.emit('visibilitychange');
+    assert.equal(run('fishingActionHeld'), false);
+    assert.equal(run('castCharge'), null);
 });
 
 test('scene shutdown removes its game focus handler and clears held input', () => {
-    const { input, events, gameEvents, run } = createInput();
+    const { input, events, gameEvents, documentEvents, run } = createInput();
     input.emit('pointerdown', left);
     assert.equal(gameEvents.listenerCount('blur'), 1);
+    assert.equal(documentEvents.listenerCount('visibilitychange'), 1);
     events.emit('shutdown');
     assert.equal(gameEvents.listenerCount('blur'), 0);
+    assert.equal(documentEvents.listenerCount('visibilitychange'), 0);
     assert.equal(run('fishingActionHeld'), false);
     assert.equal(run('castCharge'), null);
 });

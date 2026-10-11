@@ -7067,9 +7067,11 @@ function bindGameInput(scene) {
     };
     const resetPlayClock = () => { lastPlayTime = null; };
     scene.game.events.on(Phaser.Core.Events.BLUR, resetActions);
+    document.addEventListener('visibilitychange', resetActions);
     scene.game.events.on(Phaser.Core.Events.FOCUS, resetPlayClock);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
         scene.game.events.off(Phaser.Core.Events.BLUR, resetActions);
+        document.removeEventListener('visibilitychange', resetActions);
         scene.game.events.off(Phaser.Core.Events.FOCUS, resetPlayClock);
         resetActions();
     });
