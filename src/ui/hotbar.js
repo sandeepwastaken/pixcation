@@ -108,6 +108,7 @@ function showItemLabel(scene, text) {
     if (!itemPrompt) return;
 
     setUITextContent(itemPrompt.label, text);
+    snapPromptWidth(itemPrompt);
     itemLabelUntil = scene.time.now + ITEM_LABEL_DURATION;
 }
 

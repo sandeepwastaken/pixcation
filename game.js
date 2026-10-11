@@ -5748,7 +5748,7 @@ function createInteractionPromptUI(scene) {
         height: '18px',
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: '6px',
         pointerEvents: 'none',
         fontFamily: 'm6x11, monospace',
@@ -5832,6 +5832,7 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
     guidePrompt.style.display = state & 2 ? 'flex' : 'none';
     itemPrompt.style.display = state & 4 ? 'flex' : 'none';
     interactionPromptLayer.setVisible(true);
+    for (const box of [marketPrompt, guidePrompt, itemPrompt]) snapPromptWidth(box);
     if (!wasShowing) promptMotion.value = 0;
     applyPromptMotion();
     scene.tweens.add({ targets: promptMotion, value: 1, duration: 240, ease: 'Linear', onUpdate: applyPromptMotion });
@@ -5841,6 +5842,7 @@ function applyPromptMotion() {
     interactionPromptLayer
         .setY(PROMPT_Y + Math.round((1 - promptMotion.value) * PROMPT_SLIDE))
         .setVisible(promptMotion.value > 0.05);
+    for (const box of [marketPrompt, guidePrompt, itemPrompt]) snapPromptWidth(box);
     const level = Math.round(promptMotion.value * 16);
     const style = interactionPromptLayer.node.style;
     const mask = level >= 16 ? '' : getPromptDitherMask(level);
@@ -5852,10 +5854,19 @@ function applyPromptMotion() {
 function getPromptDitherMask(level) {
     if (promptDitherMasks[level]) return promptDitherMasks[level];
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 4;
+    canvas.width = canvas.height = 64;
     const context = canvas.getContext('2d');
-    for (let index = 0; index < 16; index++) if (PROMPT_DITHER_RANKS[index] < level) context.fillRect(index % 4, index >> 2, 1, 1);
+    for (let index = 0; index < 16; index++) if (PROMPT_DITHER_RANKS[index] < level) context.fillRect(index % 4 * 16, (index >> 2) * 16, 16, 16);
     return promptDitherMasks[level] = `url(${canvas.toDataURL()})`;
+}
+
+function snapPromptWidth(box) {
+    if (box.style.display === 'none' || box.snappedText === box.textContent) return;
+    box.style.width = '';
+    const width = box.getBoundingClientRect().width / (interactionPromptLayer.node.getBoundingClientRect().width / 320);
+    if (!width) return;
+    box.style.width = `${Math.ceil(width / 2) * 2}px`;
+    box.snappedText = box.textContent;
 }
 
 function createMarketUI(scene) {
@@ -6042,6 +6053,7 @@ function showItemLabel(scene, text) {
     if (!itemPrompt) return;
 
     setUITextContent(itemPrompt.label, text);
+    snapPromptWidth(itemPrompt);
     itemLabelUntil = scene.time.now + ITEM_LABEL_DURATION;
 }
 
