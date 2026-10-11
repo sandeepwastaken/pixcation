@@ -52,6 +52,7 @@ test('using the last bait equips another owned bait and ignores missing bait', (
     assert.equal(run('activeBaitId'), null);
 });
 
+test('adding bait cannot overflow its saved count', () => { const run = createSession(); run("baitInventory.set('novice', Number.MAX_SAFE_INTEGER); addBait(MARKET_BAITS[0], 5)"); assert.equal(run("baitInventory.get('novice')"), Number.MAX_SAFE_INTEGER); });
 test('bait cycling keeps inventory order and the unequipped step for every owned subset', () => {
     const ids = ['novice', 'trainer', 'advanced'];
     for (let mask = 0; mask < 8; mask++) {

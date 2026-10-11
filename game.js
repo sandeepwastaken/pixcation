@@ -5711,7 +5711,7 @@ function getActiveBait() {
 }
 
 function addBait(bait, amount, equip) {
-    baitInventory.set(bait.id, (baitInventory.get(bait.id) || 0) + amount);
+    baitInventory.set(bait.id, Math.min(Number.MAX_SAFE_INTEGER, (baitInventory.get(bait.id) || 0) + amount));
     if (equip || !getActiveBait()) activeBaitId = bait.id;
     saveDirty = true;
     refreshBaitSlot();
