@@ -48,6 +48,7 @@ function getTextureAliases() {
     alias('selected', 'ui/hud/selected');
     alias('shop-ui', 'ui/shop/panel');
     alias('guide', 'characters/guide/sprite');
+    alias('character-parts', 'characters/people/parts');
     alias('chest', 'items/chest');
     alias('fishing-ui', 'ui/fishing/panel');
     alias('fishing-catch-zone', 'ui/fishing/catch-zone');

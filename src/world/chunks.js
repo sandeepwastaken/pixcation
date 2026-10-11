@@ -209,6 +209,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
         waterBuild: waterMaskCells.length > 0 ? { waterMaskCells, edgeCells, woodTiles, shorelineTiles } : null
     };
 
+    chunk.npcs = spawnChunkNpcs(scene, chunkX, chunkY, tileSprites);
     loadedChunks.set(key, chunk);
     if (waterCells.length > 0) loadedShimmerChunks.add(chunk);
 

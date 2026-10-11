@@ -32,6 +32,7 @@ function forEachStaticShadowPoint(chunkX, chunkY, callback) {
 
     for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
         for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
+            forEachNpcShadowPoint(tileX, tileY, callback);
             const type = getPropAt(tileX, tileY);
             if (!type || type === 'tree') continue;
 

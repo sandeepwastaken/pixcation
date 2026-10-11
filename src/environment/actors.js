@@ -11,7 +11,7 @@ function isGuideSpawnTile(tileX, tileY) {
 function canPlaceStoreAt(storeTileX, storeTileY) {
     for (let localY = 0; localY < STORE_HEIGHT_TILES; localY += 1) {
         for (let localX = 0; localX < STORE_WIDTH_TILES; localX += 1) {
-            if (!isGuideSpawnTile(storeTileX + localX, storeTileY + localY)) {
+            if (!isGuideSpawnTile(storeTileX + localX, storeTileY + localY) || getNpcAt(storeTileX + localX, storeTileY + localY)) {
                 return false;
             }
         }
@@ -33,7 +33,7 @@ function findGuideAndStoreSpawn() {
                 const storeTileX = guideTileX - 1;
                 const storeTileY = guideTileY - STORE_HEIGHT_TILES;
 
-                if (!isGuideSpawnTile(guideTileX, guideTileY) || !canPlaceStoreAt(storeTileX, storeTileY)) {
+                if (!isGuideSpawnTile(guideTileX, guideTileY) || getNpcAt(guideTileX, guideTileY) || !canPlaceStoreAt(storeTileX, storeTileY)) {
                     continue;
                 }
 

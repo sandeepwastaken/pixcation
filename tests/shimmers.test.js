@@ -29,6 +29,7 @@ function createWorld(includeOpenWater = true) {
         function getTerrainTile() { return { key: 'water' }; }
         function getGroundTile(x, y) { const tile = getWorldTile(x, y); return tile.bridge ? getTerrainTile(x, y) : tile; }
         function getWaterBiomeAmount() { return 0.5; }
+        function spawnChunkNpcs() { return []; }
         function getTextureSource() { return { width: 16, height: 16 }; }
         function getShorelineTile() { return { textureKey: 'shoreline', waterCells: [{ x: 0, y: 0, width: 16, height: 16 }], edgeCells: [] }; }
         function getPropAt() { return null; }

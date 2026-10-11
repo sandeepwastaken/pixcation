@@ -103,6 +103,41 @@ const MARKET_EXIT_INDEX = MARKET_SELL_INDEX + 1;
 const MARKET_ROW_COUNT = MARKET_ITEM_ROWS + 2;
 const SAVE_KEY = 'pixcation-save-v1';
 
+const NPC_FIRST_NAMES = [
+    'Ada', 'Abe', 'Agnes', 'Alba', 'Alder', 'Alma', 'Alvin', 'Amos', 'Anika', 'Ansel', 'April', 'Arlo', 'Arden', 'Ashby', 'Aster', 'Astrid',
+    'Aubrey', 'August', 'Ava', 'Avery', 'Basil', 'Bea', 'Benny', 'Bernie', 'Bess', 'Birdie', 'Blair', 'Bodhi', 'Bram', 'Briar', 'Brook', 'Bruno',
+    'Cal', 'Calla', 'Calvin', 'Camille', 'Carmen', 'Cass', 'Cedar', 'Cecil', 'Celia', 'Chester', 'Clara', 'Clem', 'Cleo', 'Clover', 'Cody', 'Cora',
+    'Cosmo', 'Cyrus', 'Dahlia', 'Daisy', 'Dale', 'Darby', 'Dawn', 'Dean', 'Della', 'Dex', 'Dina', 'Dot', 'Drew', 'Dusty', 'Edie', 'Edgar',
+    'Effie', 'Elan', 'Elio', 'Eliza', 'Ellis', 'Elmer', 'Elsie', 'Emil', 'Enzo', 'Esme', 'Etta', 'Ezra', 'Fawn', 'Felix', 'Fern', 'Fig',
+    'Finn', 'Fiona', 'Flint', 'Flo', 'Floyd', 'Frankie', 'Fritz', 'Gale', 'Georgie', 'Gil', 'Ginger', 'Gus', 'Hal', 'Hana', 'Hank', 'Harlow',
+    'Hattie', 'Hazel', 'Heath', 'Hollis', 'Holly', 'Hugo', 'Ida', 'Ike', 'Imani', 'Indy', 'Ines', 'Iris', 'Ivo', 'Ivy', 'Jada', 'Jasper',
+    'Jem', 'Jett', 'Jo', 'Joel', 'Jonah', 'Joni', 'Jude', 'June', 'Juno', 'Kai', 'Kat', 'Keiko', 'Kenji', 'Kit', 'Kona', 'Lark',
+    'Laurel', 'Lena', 'Leo', 'Levi', 'Lila', 'Linus', 'Lola', 'Lou', 'Luca', 'Lucy', 'Lulu', 'Mabel', 'Mack', 'Mae', 'Maggie', 'Malia',
+    'Maple', 'Marco', 'Margo', 'Marlo', 'Mateo', 'Maude', 'Mavis', 'Max', 'Meadow', 'Mei', 'Mila', 'Milo', 'Mina', 'Miso', 'Moss', 'Murphy',
+    'Nadia', 'Nell', 'Nico', 'Nina', 'Noah', 'Noor', 'Nora', 'Oak', 'Odette', 'Olive', 'Ollie', 'Omar', 'Opal', 'Orla', 'Oscar', 'Otis',
+    'Otto', 'Pablo', 'Paloma', 'Peg', 'Pepper', 'Percy', 'Pip', 'Piper', 'Poppy', 'Priya', 'Quill', 'Quinn', 'Rafi', 'Ramona', 'Ravi', 'Reed',
+    'Reggie', 'Remy', 'Rhea', 'Rio', 'River', 'Robin', 'Rosa', 'Rowan', 'Ruby', 'Rufus', 'Rye', 'Sage', 'Sal', 'Sami', 'Sasha', 'Scout',
+    'Selma', 'Shay', 'Sid', 'Sky', 'Sol', 'Sonny', 'Sora', 'Stella', 'Sunny', 'Suki', 'Tad', 'Tali', 'Tam', 'Tess', 'Theo', 'Thea',
+    'Tilly', 'Toby', 'Tomas', 'Tova', 'Tuck', 'Uma', 'Una', 'Vera', 'Vic', 'Vida', 'Viggo', 'Vince', 'Wade', 'Walt', 'Wren', 'Wes',
+    'Willa', 'Willow', 'Winnie', 'Wyatt', 'Xavi', 'Yara', 'Yuki', 'Yusuf', 'Zadie', 'Zane', 'Zara', 'Zeke', 'Zion', 'Zoe', 'Zora', 'Zuri'
+];
+
+const NPC_LAST_NAMES = [
+    'Abbott', 'Acorn', 'Alder', 'Ames', 'Ashdown', 'Baker', 'Banks', 'Barlow', 'Barnes', 'Bay', 'Beck', 'Bell', 'Birch', 'Bishop', 'Black', 'Bloom',
+    'Bonner', 'Bower', 'Bramble', 'Brook', 'Burrows', 'Bush', 'Calder', 'Carver', 'Castle', 'Chase', 'Clay', 'Cliff', 'Cobb', 'Cole', 'Cook', 'Cotton',
+    'Cove', 'Crane', 'Cricket', 'Cross', 'Dale', 'Darling', 'Dawes', 'Dell', 'Dewey', 'Drake', 'Dune', 'Dunn', 'Eddy', 'Elm', 'Ember', 'Fairley',
+    'Fallow', 'Farrow', 'Fenn', 'Field', 'Finch', 'Fisher', 'Fleet', 'Flint', 'Ford', 'Fox', 'Frost', 'Gale', 'Garner', 'Glade', 'Glenn', 'Goode',
+    'Gray', 'Greer', 'Grove', 'Gull', 'Hale', 'Hallow', 'Hart', 'Hawke', 'Hayes', 'Heath', 'Hearth', 'Hill', 'Holt', 'Hook', 'Hope', 'Huck',
+    'Hollis', 'Ivers', 'Jay', 'Keel', 'Kemp', 'Kettle', 'Knoll', 'Lake', 'Lane', 'Lark', 'Leaf', 'Lee', 'Linden', 'Lock', 'Lowe', 'Lumen',
+    'Lyle', 'Mace', 'Mallow', 'Marsh', 'Meade', 'Mercer', 'Mill', 'Minnow', 'Moor', 'Moss', 'Nash', 'Noble', 'North', 'Nutt', 'Oakes', 'Orchard',
+    'Otter', 'Page', 'Paddock', 'Park', 'Pebble', 'Penn', 'Pike', 'Pine', 'Plum', 'Pond', 'Poole', 'Quarry', 'Rains', 'Reed', 'Reef', 'Ridge',
+    'Rook', 'Rowe', 'Rush', 'Rye', 'Sable', 'Salt', 'Sands', 'Shaw', 'Shell', 'Shore', 'Sky', 'Slate', 'Sloane', 'Snow', 'Sparrow', 'Spring',
+    'Stone', 'Storm', 'Strand', 'Swift', 'Tate', 'Teal', 'Thatcher', 'Thorne', 'Tide', 'Todd', 'Trout', 'Tully', 'Vale', 'Vance', 'Wade', 'Ward',
+    'Warren', 'Waters', 'Weaver', 'Webb', 'Wells', 'West', 'Whit', 'Wick', 'Wilde', 'Willow', 'Winter', 'Wolfe', 'Wood', 'Wren', 'Yarrow', 'Yates',
+    'Abara', 'Bianchi', 'Castillo', 'Dubois', 'Esposito', 'Fujita', 'Garza', 'Haddad', 'Ito', 'Jensen', 'Kaur', 'Larsen', 'Moreau', 'Nakamura', 'Okafor', 'Petrov',
+    'Quintero', 'Rossi', 'Sato', 'Tanaka', 'Ueda', 'Varga', 'Weiss', 'Xu', 'Yilmaz', 'Zhou'
+];
+
 window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL.Pipelines.SinglePipeline {
     constructor(game) {
         super({
@@ -1857,6 +1892,7 @@ function forEachStaticShadowPoint(chunkX, chunkY, callback) {
 
     for (let tileY = minTileY; tileY <= maxTileY; tileY++) {
         for (let tileX = minTileX; tileX <= maxTileX; tileX++) {
+            forEachNpcShadowPoint(tileX, tileY, callback);
             const type = getPropAt(tileX, tileY);
             if (!type || type === 'tree') continue;
 
@@ -2385,6 +2421,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
         waterBuild: waterMaskCells.length > 0 ? { waterMaskCells, edgeCells, woodTiles, shorelineTiles } : null
     };
 
+    chunk.npcs = spawnChunkNpcs(scene, chunkX, chunkY, tileSprites);
     loadedChunks.set(key, chunk);
     if (waterCells.length > 0) loadedShimmerChunks.add(chunk);
 
@@ -2809,7 +2846,7 @@ function isGuideSpawnTile(tileX, tileY) {
 function canPlaceStoreAt(storeTileX, storeTileY) {
     for (let localY = 0; localY < STORE_HEIGHT_TILES; localY += 1) {
         for (let localX = 0; localX < STORE_WIDTH_TILES; localX += 1) {
-            if (!isGuideSpawnTile(storeTileX + localX, storeTileY + localY)) {
+            if (!isGuideSpawnTile(storeTileX + localX, storeTileY + localY) || getNpcAt(storeTileX + localX, storeTileY + localY)) {
                 return false;
             }
         }
@@ -2831,7 +2868,7 @@ function findGuideAndStoreSpawn() {
                 const storeTileX = guideTileX - 1;
                 const storeTileY = guideTileY - STORE_HEIGHT_TILES;
 
-                if (!isGuideSpawnTile(guideTileX, guideTileY) || !canPlaceStoreAt(storeTileX, storeTileY)) {
+                if (!isGuideSpawnTile(guideTileX, guideTileY) || getNpcAt(guideTileX, guideTileY) || !canPlaceStoreAt(storeTileX, storeTileY)) {
                     continue;
                 }
 
@@ -3462,6 +3499,226 @@ function updateTreeShadows(scene, time) {
             chunk.waterTexture.getContext().putImageData(water, 0, 0);
             chunk.waterTexture.refresh();
         }
+    }
+}
+
+const npcCache = new Map();
+const npcTradesDone = new Set();
+const NPC_DIRECTIONS = [['left', -1, 0], ['right', 1, 0], ['front', 0, 1], ['back', 0, -1]];
+let npcShadowPoints = null;
+let nearestNpc = null;
+
+function npcHash(tileX, tileY, salt) {
+    return coordinateHash(tileX, tileY, Math.imul(WORLD_SEED + salt, WORLD_HASH_MULTIPLIER));
+}
+
+function getNpcAt(tileX, tileY) {
+    const key = getTileId(tileX, tileY);
+    const cached = npcCache.get(key);
+    return cached !== undefined ? cached : cacheWorldValue(npcCache, key, findNpc(tileX, tileY));
+}
+
+function findNpcWater(tileX, tileY) {
+    for (const [direction, stepX, stepY] of NPC_DIRECTIONS) {
+        if (getTerrainType(tileX + stepX, tileY + stepY) !== 'water' && getTerrainType(tileX + stepX * 2, tileY + stepY * 2) !== 'water') continue;
+        const distance = getTerrainType(tileX + stepX * 2, tileY + stepY * 2) === 'water' ? 2 : 1;
+        return { direction, x: tileX + stepX * distance, y: tileY + stepY * distance };
+    }
+    return null;
+}
+
+function findNpc(tileX, tileY) {
+    if (Math.abs(tileX) < NPC_SPAWN_CLEARANCE && Math.abs(tileY) < NPC_SPAWN_CLEARANCE) return null;
+    const roll = npcHash(tileX, tileY, 1301);
+    if (roll >= NPC_SHORE_CHANCE || !isGuideSpawnTile(tileX, tileY)) return null;
+    const water = findNpcWater(tileX, tileY);
+    if (!water && roll >= NPC_INLAND_CHANCE) return null;
+
+    const pick = (count, salt) => Math.floor(npcHash(tileX, tileY, salt) * count);
+    const accessory = npcHash(tileX, tileY, 1310) < NPC_ACCESSORY_CHANCE ? 1 : 0;
+    return {
+        id: getTileId(tileX, tileY),
+        tileX,
+        tileY,
+        water,
+        role: water ? 'fisher' : npcHash(tileX, tileY, 1302) < NPC_TRADER_CHANCE ? 'trader' : 'idle',
+        name: `${NPC_FIRST_NAMES[pick(NPC_FIRST_NAMES.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
+        look: [
+            pick(NPC_SKIN_TONES.length, 1305), pick(NPC_FACES, 1306), pick(NPC_SHIRTS, 1307), pick(NPC_SHIRT_COLORS.length, 1308),
+            pick(NPC_PANTS_COLORS.length, 1309), accessory,
+            accessory ? pick(NPC_ACCESSORIES, 1311) : pick(NPC_HAIRSTYLES, 1312),
+            accessory ? pick(NPC_ACCESSORY_COLORS.length, 1313) : pick(NPC_HAIR_COLORS.length, 1314)
+        ],
+        direction: water ? water.direction : 'front'
+    };
+}
+
+function getNpcTexture(scene, look, direction) {
+    const key = `npc-${look.join('-')}-${direction}`;
+    if (scene.textures.exists(key)) return key;
+
+    const [skin, face, shirt, shirtColor, pants, accessory, top, topColor] = look;
+    const column = direction === 'back' ? 0 : direction === 'front' ? 1 : 2;
+    const mirror = direction === 'right';
+    const colors = new Map();
+    const assign = (sources, targets) => sources.forEach((source, index) => colors.set(source, targets[index]));
+    assign(NPC_PART_COLORS.skin, NPC_SKIN_TONES[skin]);
+    assign(NPC_PART_COLORS.pants, NPC_PANTS_COLORS[pants]);
+    assign(NPC_PART_COLORS.shirt, NPC_SHIRT_COLORS[shirtColor]);
+    if (accessory) assign(NPC_PART_COLORS.accessory, NPC_ACCESSORY_COLORS[topColor]);
+    else assign(NPC_PART_COLORS.hair, NPC_HAIR_COLORS[topColor]);
+    const layers = [[face * 3 + column, 0], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
+    const sheet = getTerrainPixels(scene, 'character-parts');
+
+    createCanvasTexture(scene, key, NPC_PART_SIZE, NPC_PART_SIZE, context => {
+        const image = context.createImageData(NPC_PART_SIZE, NPC_PART_SIZE);
+        for (const [cellX, cellY] of layers) {
+            for (let y = 0; y < NPC_PART_SIZE; y++) {
+                for (let x = 0; x < NPC_PART_SIZE; x++) {
+                    const source = ((cellY * NPC_PART_SIZE + y) * sheet.width + cellX * NPC_PART_SIZE + (mirror ? NPC_PART_SIZE - 1 - x : x)) * 4;
+                    if (!sheet.data[source + 3]) continue;
+                    const color = colors.get((sheet.data[source] << 16) | (sheet.data[source + 1] << 8) | sheet.data[source + 2]);
+                    if (color !== undefined) writeRGBPixel(image.data, y * NPC_PART_SIZE + x, color);
+                }
+            }
+        }
+        context.putImageData(image, 0, 0);
+    });
+    return key;
+}
+
+function plotNpcLine(graphics, fromX, fromY, toX, toY, color) {
+    const steps = Math.max(Math.abs(toX - fromX), Math.abs(toY - fromY), 1);
+    graphics.fillStyle(color, 1);
+    for (let step = 0; step <= steps; step++) {
+        graphics.fillRect(Math.round(fromX + (toX - fromX) * step / steps), Math.round(fromY + (toY - fromY) * step / steps), 1, 1);
+    }
+}
+
+function drawNpcFishingLine(scene, npc, sprites) {
+    const [handX, handY] = { left: [5, 11], right: [10, 11], front: [12, 11], back: [3, 11] }[npc.direction];
+    const [reachX, reachY] = { left: [-5, -6], right: [5, -6], front: [3, -4], back: [-3, -8] }[npc.direction];
+    const fromX = npc.x + handX, fromY = npc.y + handY, tipX = fromX + reachX, tipY = fromY + reachY;
+    const bobberX = npc.water.x * TILE_SIZE + TILE_SIZE / 2, bobberY = npc.water.y * TILE_SIZE + TILE_SIZE / 2;
+    const line = scene.add.graphics().setDepth(npc.y + NPC_PART_SIZE + (npc.direction === 'back' ? -0.1 : 0.1));
+    const bobber = scene.add.graphics().setDepth(bobberY);
+
+    plotNpcLine(line, fromX, fromY, tipX, tipY, NPC_ROD_COLOR);
+    plotNpcLine(line, tipX, tipY, bobberX, bobberY - 2, FISHING_LINE_COLOR);
+    bobber.fillStyle(BOBBER_TOP_COLOR, 1).fillRect(bobberX - 1, bobberY - 2, 2, 1).fillStyle(BOBBER_BOTTOM_COLOR, 1).fillRect(bobberX - 1, bobberY - 1, 2, 1);
+    worldObjectLayer.add([line, bobber]);
+    sprites.push(line, bobber);
+    return bobber;
+}
+
+function spawnChunkNpcs(scene, chunkX, chunkY, sprites) {
+    const npcs = [];
+    for (let localY = 0; localY < CHUNK_SIZE; localY++) {
+        for (let localX = 0; localX < CHUNK_SIZE; localX++) {
+            const found = getNpcAt(chunkX * CHUNK_SIZE + localX, chunkY * CHUNK_SIZE + localY);
+            if (!found) continue;
+
+            const npc = { ...found, x: found.tileX * TILE_SIZE, y: found.tileY * TILE_SIZE, nextTurnAt: 0 };
+            npc.sprite = scene.add.image(npc.x, npc.y, getNpcTexture(scene, npc.look, npc.direction)).setOrigin(0).setDepth(npc.y + NPC_PART_SIZE);
+            worldObjectLayer.add(npc.sprite);
+            sprites.push(npc.sprite);
+            if (npc.water) npc.bobber = drawNpcFishingLine(scene, npc, sprites);
+            npcs.push(npc);
+        }
+    }
+    return npcs;
+}
+
+function forEachNpcShadowPoint(tileX, tileY, callback) {
+    if (!getNpcAt(tileX, tileY)) return;
+    npcShadowPoints ||= getShapePoints(ACTOR_SHADOW_SHAPE);
+    for (let point = 0; point < npcShadowPoints.length; point += 2) {
+        callback(tileX * TILE_SIZE + ACTOR_SHADOW_X + npcShadowPoints[point], tileY * TILE_SIZE + ACTOR_SHADOW_Y + npcShadowPoints[point + 1]);
+    }
+}
+
+function isBlockedByNpc(left, top, right, bottom) {
+    for (const chunk of loadedChunks.values()) {
+        for (const npc of chunk.npcs || []) {
+            if (actorBlocksRect(npc, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT, left, top, right, bottom)) return true;
+        }
+    }
+    return false;
+}
+
+function turnNpc(scene, npc, direction) {
+    if (npc.direction === direction) return;
+    npc.direction = direction;
+    npc.sprite.setTexture(getNpcTexture(scene, npc.look, direction));
+}
+
+function getDirectionToward(npc) {
+    const x = character.x - npc.x, y = character.y - npc.y;
+    return Math.abs(x) > Math.abs(y) ? (x < 0 ? 'left' : 'right') : (y < 0 ? 'back' : 'front');
+}
+
+function updateNpcs(scene, time) {
+    let nearest = null;
+    let nearestDistance = NPC_TALK_DISTANCE_SQUARED;
+
+    for (const chunk of loadedChunks.values()) {
+        if (!chunk.visible || !chunk.npcs) continue;
+        for (const npc of chunk.npcs) {
+            const x = npc.x - character.x, y = npc.y - character.y, distance = x * x + y * y;
+            if (distance < nearestDistance) [nearest, nearestDistance] = [npc, distance];
+            if (npc.bobber) {
+                const bob = Math.floor(time / NPC_BOB_TIME + npc.tileX) % 2;
+                if (npc.bobber.y !== bob) npc.bobber.y = bob;
+            } else if (time >= npc.nextTurnAt) {
+                npc.nextTurnAt = time + NPC_TURN_MIN + Math.random() * NPC_TURN_RANGE;
+                turnNpc(scene, npc, ['front', 'left', 'right', 'front'][Math.floor(Math.random() * 4)]);
+            }
+        }
+    }
+
+    if (nearest && !nearest.bobber) turnNpc(scene, nearest, getDirectionToward(nearest));
+    if (nearest === nearestNpc) return;
+    nearestNpc = nearest;
+    if (nearest && !isMenuOpen()) showItemLabel(scene, `E  Talk to ${nearest.name}`);
+}
+
+function getNpcTrade(npc) {
+    const period = Math.floor(Date.now() / NPC_TRADE_PERIOD);
+    const seed = Math.imul(WORLD_SEED + period, WORLD_HASH_MULTIPLIER);
+    const species = FISH_SPECIES[Math.floor(coordinateHash(npc.tileX, npc.tileY, seed) * FISH_SPECIES.length)];
+    const count = species.price > 20 ? 1 : 1 + Math.floor(coordinateHash(npc.tileY, npc.tileX, seed) * 3);
+    const coins = Math.round(count * species.price * (1.5 + coordinateHash(npc.tileX + 1, npc.tileY, seed) * 0.8));
+    return { period, species, count, coins };
+}
+
+function talkToNearestNpc(scene) {
+    const npc = nearestNpc;
+    if (!npc || isMenuOpen()) return;
+    const time = scene.time.now;
+
+    if (npc.role !== 'trader') {
+        const lines = npc.role === 'fisher' ? NPC_FISHER_LINES : NPC_IDLE_LINES;
+        showRewardCard(scene, time, npc.name, lines[Math.floor(Math.random() * lines.length)]);
+        return;
+    }
+
+    const trade = getNpcTrade(npc);
+    const tradeKey = `${npc.id}:${trade.period}`;
+    const owned = fishInventory.get(trade.species.id) || 0;
+    if (npcTradesDone.has(tradeKey)) {
+        showRewardCard(scene, time, npc.name, 'All set for now. Come back in an hour!');
+    } else if (owned < trade.count) {
+        showRewardCard(scene, time, npc.name, `I'd pay ${trade.coins}c for ${trade.count} ${trade.species.name}`);
+    } else {
+        if (owned > trade.count) fishInventory.set(trade.species.id, owned - trade.count);
+        else fishInventory.delete(trade.species.id);
+        playerCoins = Math.min(Number.MAX_SAFE_INTEGER, playerCoins + trade.coins);
+        recordPlayerStat('moneyEarned', trade.coins);
+        recordPlayerStat('fishSold', trade.count);
+        npcTradesDone.add(tradeKey);
+        saveDirty = true;
+        sparkleOverPlayer(scene);
+        showRewardCard(scene, time, `Traded with ${npc.name}!`, `${trade.count} ${trade.species.name} for ${trade.coins}c`);
     }
 }
 
@@ -6603,6 +6860,7 @@ function finishGuideDialogueText() {
 function openInteraction(scene, target) {
     if (target === 'guide') openGuideDialogue(scene);
     else if (target === 'market') openMarket(scene);
+    else talkToNearestNpc(scene);
 }
 
 function stopDialogueTyping() {
@@ -7384,6 +7642,77 @@ function loadWorldSeed() {
     }
 }
 
+const NPC_PART_SIZE = 16;
+const NPC_FACES = 3;
+const NPC_ACCESSORIES = 4;
+const NPC_HAIRSTYLES = 5;
+const NPC_SHIRTS = 5;
+const NPC_ACCESSORY_CHANCE = 0.35;
+const NPC_SHORE_CHANCE = 0.012;
+const NPC_INLAND_CHANCE = 0.0025;
+const NPC_TRADER_CHANCE = 0.4;
+const NPC_SPAWN_CLEARANCE = 10;
+const NPC_TALK_DISTANCE_SQUARED = 24 * 24;
+const NPC_TURN_MIN = 2500;
+const NPC_TURN_RANGE = 5000;
+const NPC_BOB_TIME = 450;
+const NPC_TRADE_PERIOD = 60 * 60 * 1000;
+const NPC_ROD_COLOR = 0x7e4332;
+const NPC_SKIN_TONES = [
+    [0x83645a, 0x9d856f, 0xb5a58b, 0x443c38],
+    [0xb07a62, 0xd3a383, 0xe8c4a0, 0x4a3530],
+    [0x8c5a3c, 0xb07a52, 0xc99a6c, 0x3a2620],
+    [0x5e3a2a, 0x7d4f37, 0x9a6a4a, 0x2a1a16],
+    [0x3e2620, 0x58372a, 0x744b38, 0x1e1412]
+];
+const NPC_HAIR_COLORS = [
+    [0x1f1a1d, 0x2f282c, 0x463c40],
+    [0x4a2e22, 0x6b4430, 0x8c5e40],
+    [0x6b2f22, 0x8f4430, 0xb06040],
+    [0xa07a3a, 0xc9a052, 0xe6c878],
+    [0x6e6a6a, 0x969090, 0xbdb7b2],
+    [0x9a4a20, 0xc0682c, 0xdc8c44]
+];
+const NPC_SHIRT_COLORS = [
+    [0x505aa2, 0x6b88b8],
+    [0x4a7a52, 0x6c955d],
+    [0x8c3a3a, 0xb05050],
+    [0xa07a30, 0xc9a04a],
+    [0x2f6f6f, 0x4a9090],
+    [0x5e4a7a, 0x7a669a],
+    [0xb0a080, 0xd2c4a2]
+];
+const NPC_PANTS_COLORS = [
+    [0x773333, 0x9a4444],
+    [0x2e3550, 0x434c70],
+    [0x4e3a2a, 0x6b5240],
+    [0x4a5032, 0x666e46],
+    [0x4a4a52, 0x66666e]
+];
+const NPC_ACCESSORY_COLORS = [
+    [0x3f1919, 0x5c2525, 0x773333, 0x9a4444],
+    [0x1c2340, 0x2e3a66, 0x43558a, 0x6276ab],
+    [0x1e3320, 0x2f4f33, 0x426b46, 0x5e8c60],
+    [0x5a4420, 0x8a6a34, 0xb08c48, 0xd2b06a],
+    [0x6e6a64, 0xa8a49c, 0xcdc9c0, 0xeceae4]
+];
+const NPC_PART_COLORS = {
+    skin: [0xa40000, 0xd20000, 0xff0000, 0x660000],
+    pants: [0x4a0067, 0xb700ff],
+    accessory: [0x004a16, 0x00ac34, 0x00ff4d, 0x8affad],
+    hair: [0xd07d00, 0xff9900, 0xffdeab],
+    shirt: [0x00129e, 0x001eff]
+};
+const NPC_IDLE_LINES = [
+    'Lovely day for a walk.', 'Have you met the guide yet?', 'I heard chests wash up in the deep.',
+    'The flowers here change color by the patch.', 'Watch your step near the cliffs.', 'I could stay out here all day.',
+    'The shop has better rods if you save up.', 'Fish bite more with good bait.', 'Bridges make the long way short.'
+];
+const NPC_FISHER_LINES = [
+    'Shh, they are nibbling.', 'Caught a beauty this morning.', 'Patience is the whole trick.',
+    'Deeper water, bigger fish.', 'Wait for the bobber to dip twice.', 'Nothing yet, but I have time.'
+];
+
 let hotbarSelector;
 const hotbarItemImages = [];
 const hotbarItemNames = [];
@@ -7596,6 +7925,7 @@ function getTextureAliases() {
     alias('selected', 'ui/hud/selected');
     alias('shop-ui', 'ui/shop/panel');
     alias('guide', 'characters/guide/sprite');
+    alias('character-parts', 'characters/people/parts');
     alias('chest', 'items/chest');
     alias('fishing-ui', 'ui/fishing/panel');
     alias('fishing-catch-zone', 'ui/fishing/catch-zone');
@@ -8162,7 +8492,8 @@ function canCharacterOccupy(scene, x, y) {
     if (
         actorBlocksRect(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT, left, top, right, bottom) ||
         actorBlocksRect(store, STORE_HITBOX_X, STORE_HITBOX_Y, STORE_HITBOX_WIDTH, STORE_HITBOX_HEIGHT, left, top, right, bottom) ||
-        isBlockedByProp(left, top, right, bottom)
+        isBlockedByProp(left, top, right, bottom) ||
+        isBlockedByNpc(left, top, right, bottom)
     ) {
         return false;
     }
@@ -8436,6 +8767,7 @@ function update(time, delta) {
     updateFish(delta);
     spawnFishRise(this, time);
     spawnMeadowMote(this, time);
+    updateNpcs(this, time);
     updateChunkWater(time);
 }
 

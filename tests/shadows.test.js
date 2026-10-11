@@ -9,7 +9,7 @@ function createShadows() {
     const context = vm.createContext({ staticShadowCasters: casters, getPropAt: () => null });
     const source = ['runtime/settings.js', 'world/shadows.js']
         .map(file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8')).join('\n');
-    vm.runInContext(source, context);
+    vm.runInContext(source + '\nfunction forEachNpcShadowPoint() {}', context);
     return { casters, context };
 }
 

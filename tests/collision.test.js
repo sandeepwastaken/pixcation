@@ -24,6 +24,7 @@ function createWorld(waterPixels, tileOptions = {}) {
             return tiles.get(key);
         }
         function getPropAt() { return null; }
+        function isBlockedByNpc() { return false; }
     `, context);
     return code => vm.runInContext(code, context);
 }

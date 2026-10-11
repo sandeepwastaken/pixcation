@@ -75,7 +75,8 @@ function canCharacterOccupy(scene, x, y) {
     if (
         actorBlocksRect(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT, left, top, right, bottom) ||
         actorBlocksRect(store, STORE_HITBOX_X, STORE_HITBOX_Y, STORE_HITBOX_WIDTH, STORE_HITBOX_HEIGHT, left, top, right, bottom) ||
-        isBlockedByProp(left, top, right, bottom)
+        isBlockedByProp(left, top, right, bottom) ||
+        isBlockedByNpc(left, top, right, bottom)
     ) {
         return false;
     }

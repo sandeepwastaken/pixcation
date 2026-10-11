@@ -87,6 +87,7 @@ function finishGuideDialogueText() {
 function openInteraction(scene, target) {
     if (target === 'guide') openGuideDialogue(scene);
     else if (target === 'market') openMarket(scene);
+    else talkToNearestNpc(scene);
 }
 
 function stopDialogueTyping() {

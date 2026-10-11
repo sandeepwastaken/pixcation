@@ -359,3 +359,74 @@ function loadWorldSeed() {
         return DEFAULT_WORLD_SEED;
     }
 }
+
+const NPC_PART_SIZE = 16;
+const NPC_FACES = 3;
+const NPC_ACCESSORIES = 4;
+const NPC_HAIRSTYLES = 5;
+const NPC_SHIRTS = 5;
+const NPC_ACCESSORY_CHANCE = 0.35;
+const NPC_SHORE_CHANCE = 0.012;
+const NPC_INLAND_CHANCE = 0.0025;
+const NPC_TRADER_CHANCE = 0.4;
+const NPC_SPAWN_CLEARANCE = 10;
+const NPC_TALK_DISTANCE_SQUARED = 24 * 24;
+const NPC_TURN_MIN = 2500;
+const NPC_TURN_RANGE = 5000;
+const NPC_BOB_TIME = 450;
+const NPC_TRADE_PERIOD = 60 * 60 * 1000;
+const NPC_ROD_COLOR = 0x7e4332;
+const NPC_SKIN_TONES = [
+    [0x83645a, 0x9d856f, 0xb5a58b, 0x443c38],
+    [0xb07a62, 0xd3a383, 0xe8c4a0, 0x4a3530],
+    [0x8c5a3c, 0xb07a52, 0xc99a6c, 0x3a2620],
+    [0x5e3a2a, 0x7d4f37, 0x9a6a4a, 0x2a1a16],
+    [0x3e2620, 0x58372a, 0x744b38, 0x1e1412]
+];
+const NPC_HAIR_COLORS = [
+    [0x1f1a1d, 0x2f282c, 0x463c40],
+    [0x4a2e22, 0x6b4430, 0x8c5e40],
+    [0x6b2f22, 0x8f4430, 0xb06040],
+    [0xa07a3a, 0xc9a052, 0xe6c878],
+    [0x6e6a6a, 0x969090, 0xbdb7b2],
+    [0x9a4a20, 0xc0682c, 0xdc8c44]
+];
+const NPC_SHIRT_COLORS = [
+    [0x505aa2, 0x6b88b8],
+    [0x4a7a52, 0x6c955d],
+    [0x8c3a3a, 0xb05050],
+    [0xa07a30, 0xc9a04a],
+    [0x2f6f6f, 0x4a9090],
+    [0x5e4a7a, 0x7a669a],
+    [0xb0a080, 0xd2c4a2]
+];
+const NPC_PANTS_COLORS = [
+    [0x773333, 0x9a4444],
+    [0x2e3550, 0x434c70],
+    [0x4e3a2a, 0x6b5240],
+    [0x4a5032, 0x666e46],
+    [0x4a4a52, 0x66666e]
+];
+const NPC_ACCESSORY_COLORS = [
+    [0x3f1919, 0x5c2525, 0x773333, 0x9a4444],
+    [0x1c2340, 0x2e3a66, 0x43558a, 0x6276ab],
+    [0x1e3320, 0x2f4f33, 0x426b46, 0x5e8c60],
+    [0x5a4420, 0x8a6a34, 0xb08c48, 0xd2b06a],
+    [0x6e6a64, 0xa8a49c, 0xcdc9c0, 0xeceae4]
+];
+const NPC_PART_COLORS = {
+    skin: [0xa40000, 0xd20000, 0xff0000, 0x660000],
+    pants: [0x4a0067, 0xb700ff],
+    accessory: [0x004a16, 0x00ac34, 0x00ff4d, 0x8affad],
+    hair: [0xd07d00, 0xff9900, 0xffdeab],
+    shirt: [0x00129e, 0x001eff]
+};
+const NPC_IDLE_LINES = [
+    'Lovely day for a walk.', 'Have you met the guide yet?', 'I heard chests wash up in the deep.',
+    'The flowers here change color by the patch.', 'Watch your step near the cliffs.', 'I could stay out here all day.',
+    'The shop has better rods if you save up.', 'Fish bite more with good bait.', 'Bridges make the long way short.'
+];
+const NPC_FISHER_LINES = [
+    'Shh, they are nibbling.', 'Caught a beauty this morning.', 'Patience is the whole trick.',
+    'Deeper water, bigger fish.', 'Wait for the bobber to dip twice.', 'Nothing yet, but I have time.'
+];
