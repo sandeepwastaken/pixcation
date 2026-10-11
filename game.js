@@ -1158,6 +1158,13 @@ function tintGrassColor(color, tileX, tileY) {
     return color.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
 }
 
+function getFlowerPatchColor(tileX, tileY) {
+    const warpX = (valueNoise(tileX, tileY, FLOWER_PATCH_SCALE / 2, 921) - 0.5) * FLOWER_PATCH_SCALE;
+    const warpY = (valueNoise(tileX, tileY, FLOWER_PATCH_SCALE / 2, 922) - 0.5) * FLOWER_PATCH_SCALE;
+    const patch = coordinateHash(Math.floor((tileX + warpX) / FLOWER_PATCH_SCALE), Math.floor((tileY + warpY) / FLOWER_PATCH_SCALE), Math.imul(WORLD_SEED + 923, WORLD_HASH_MULTIPLIER));
+    return FLOWER_PATCH_COLORS[Math.min(FLOWER_PATCH_COLORS.length - 1, Math.floor(patch * FLOWER_PATCH_COLORS.length))];
+}
+
 function tintChunkGrass(scene, context, originTileX, originTileY) {
     const woodColors = getWoodColors(scene);
     const image = context.getImageData(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
@@ -1173,9 +1180,10 @@ function tintChunkGrass(scene, context, originTileX, originTileY) {
             }
             const red = data[index], green = data[index + 1], blue = data[index + 2];
             if (!data[index + 3]) continue;
-            const flower = FLOWER_TINTS.get((red << 16) | (green << 8) | blue);
-            if (flower) {
-                const color = blendBiomeStops(flower, getGrassBiome(originTileX + x / TILE_SIZE, originTileY + y / TILE_SIZE));
+            const pixelColor = (red << 16) | (green << 8) | blue;
+            if (FLOWER_COLORS.has(pixelColor)) continue;
+            if (pixelColor === FLOWER_PATCH_SOURCE) {
+                const color = getFlowerPatchColor(originTileX + Math.floor(x / TILE_SIZE), originTileY + Math.floor(y / TILE_SIZE));
                 data[index] = Math.round(color[0]);
                 data[index + 1] = Math.round(color[1]);
                 data[index + 2] = Math.round(color[2]);
@@ -7136,10 +7144,10 @@ const MAP_FLECK_CHANCE = 0.35;
 const WATER_BIOME_SCALE = 900;
 const WATER_BIOME_OFFSET = [WORLD_SEED % 997, Math.floor(WORLD_SEED / 997) % 991];
 const WATER_TINTS = [[0.8, 1.08, 0.95], [1, 1, 1], [0.76, 0.82, 0.95]];
-const FLOWER_TINTS = new Map([
-    [0xf6f5e5, [[0, 244, 212, 108], [0.5, 246, 245, 229], [1, 238, 178, 208]]],
-    [0xb46044, [[0, 201, 138, 62], [0.5, 180, 96, 68], [1, 168, 88, 143]]]
-]);
+const FLOWER_COLORS = new Set([0xf6f5e5, 0xe1dc7a, 0xe69d66]);
+const FLOWER_PATCH_SOURCE = 0xb46044;
+const FLOWER_PATCH_SCALE = 10;
+const FLOWER_PATCH_COLORS = [[180, 96, 68], [88, 118, 186], [146, 98, 176], [214, 118, 158]];
 const DIRT_BIOME_SCALE = 50;
 const DIRT_TINTS = [
     [0, 1.07, 0.98, 0.93],

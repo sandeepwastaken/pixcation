@@ -294,10 +294,10 @@ const MAP_FLECK_CHANCE = 0.35;
 const WATER_BIOME_SCALE = 900;
 const WATER_BIOME_OFFSET = [WORLD_SEED % 997, Math.floor(WORLD_SEED / 997) % 991];
 const WATER_TINTS = [[0.8, 1.08, 0.95], [1, 1, 1], [0.76, 0.82, 0.95]];
-const FLOWER_TINTS = new Map([
-    [0xf6f5e5, [[0, 244, 212, 108], [0.5, 246, 245, 229], [1, 238, 178, 208]]],
-    [0xb46044, [[0, 201, 138, 62], [0.5, 180, 96, 68], [1, 168, 88, 143]]]
-]);
+const FLOWER_COLORS = new Set([0xf6f5e5, 0xe1dc7a, 0xe69d66]);
+const FLOWER_PATCH_SOURCE = 0xb46044;
+const FLOWER_PATCH_SCALE = 10;
+const FLOWER_PATCH_COLORS = [[180, 96, 68], [88, 118, 186], [146, 98, 176], [214, 118, 158]];
 const DIRT_BIOME_SCALE = 50;
 const DIRT_TINTS = [
     [0, 1.07, 0.98, 0.93],
