@@ -1095,9 +1095,13 @@ function generateWorldTile(tileX, tileY) {
 
 const grassTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
 
+function stretchNoise(noise, contrast = 1.9) {
+    return Phaser.Math.Clamp((noise - 0.5) * contrast + 0.5, 0, 1);
+}
+
 function getGrassBiome(tileX, tileY) {
     const noise = valueNoise(tileX, tileY, GRASS_BIOME_SCALE, 901) * 0.75 + valueNoise(tileX + 57, tileY - 31, GRASS_BIOME_SCALE / 3, 902) * 0.25;
-    return Phaser.Math.Clamp((noise - 0.5) * GRASS_BIOME_CONTRAST + 0.5, 0, 1);
+    return stretchNoise(noise, GRASS_BIOME_CONTRAST);
 }
 
 function blendBiomeStops(stops, biome) {
@@ -1117,7 +1121,7 @@ const dirtTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
 
 function computeDirtTint(tileX, tileY) {
     const noise = valueNoise(tileX + 0.5, tileY + 0.5, DIRT_BIOME_SCALE, 911) * 0.7 + valueNoise(tileX - 40.5, tileY + 23.5, DIRT_BIOME_SCALE / 3, 912) * 0.3;
-    return blendBiomeStops(DIRT_TINTS, Phaser.Math.Clamp((noise - 0.5) * 1.9 + 0.5, 0, 1));
+    return blendBiomeStops(DIRT_TINTS, stretchNoise(noise));
 }
 
 function getDirtTint(tileX, tileY) {
@@ -1205,7 +1209,7 @@ function getWaterTint(worldX, worldY) {
     const [offsetX, offsetY] = WATER_BIOME_OFFSET;
     const noise = waterBiomeNoise(worldX / WATER_BIOME_SCALE + offsetX, worldY / WATER_BIOME_SCALE + offsetY) * 0.75 +
         waterBiomeNoise(worldX / (WATER_BIOME_SCALE / 3) + offsetX + 17, worldY / (WATER_BIOME_SCALE / 3) + offsetY + 9) * 0.25;
-    const amount = Phaser.Math.Clamp((noise - 0.5) * 1.9 + 0.5, 0, 1);
+    const amount = stretchNoise(noise);
     const [from, to, mix] = amount < 0.5 ? [WATER_TINTS[0], WATER_TINTS[1], amount * 2] : [WATER_TINTS[1], WATER_TINTS[2], amount * 2 - 1];
     return from.map((value, channel) => value + (to[channel] - value) * mix);
 }
