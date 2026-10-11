@@ -3,6 +3,58 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('neighbors speak in turns and acknowledge a shared evening routine', () => {
+    const run = createNpcs();
+    run("first.dailyPlan = second.dailyPlan = 'home'; first.house = second.house = { id: 1 }; startNpcConversation(scene, first, second, 100)");
+    assert.equal(run('first.speech'), 'Heading home soon?');
+    assert.equal(run('second.speech'), "Yes, I'll see you at home.");
+    assert.ok(run('first.speechUntil < second.speechFrom'));
+    run('first.bubble = { visible: false, setVisible(value) { this.visible = value; return this; }, setText() { return this; }, setPosition() { return this; }, setDepth() { return this; } }; second.bubble = { ...first.bubble }; updateNpcHome = () => false');
+    run('updateNpc(scene, first, 500, 16); updateNpc(scene, second, 500, 16)');
+    assert.equal(run('first.bubble.visible'), true);
+    assert.equal(run('second.bubble.visible'), false);
+    run('updateNpc(scene, first, 3000, 16); updateNpc(scene, second, 3000, 16)');
+    assert.equal(run('first.bubble.visible'), false);
+    assert.equal(run('second.bubble.visible'), true);
+    run("first.state = second.state = 'idle'; first.dailyPlan = 'day'; second.dailyPlan = 'late'; startNpcConversation(scene, first, second, 6000)");
+    assert.equal(run('first.speech'), 'Still fishing tonight?');
+});
+
+test('house placement leaves two dry tiles around the building and doorway', () => {
+    const run = createNpcs();
+    run('getTerrainType = (x, y) => x === 0 ? "water" : "grass"');
+    assert.equal(run('isNpcHouseSetbackClear(2, 3)'), false);
+    assert.equal(run('isNpcHouseSetbackClear(3, 3)'), true);
+    run('isNpcStandingTile = () => true; getNpcAt = () => null; first.house = getNpcHouse(first)');
+    assert.ok(run('first.house && first.house.x >= 3'));
+    run('npcHouseCache.clear(); npcHouseTiles.clear(); getTerrainType = () => "water"');
+    assert.equal(run('getNpcHouse(first)'), null);
+});
+
+test('blocked walkers stand still without hiding how long they have waited', () => {
+    const run = createNpcs();
+    run("startNpcPath(first, [[4, 3]], 'wander', 100); first.travelDirection = 'right'; first.turnUntil = 0; first.walkPhase = 1; canNpcOccupy = () => false");
+    run('stepNpc(scene, first, 500, 16); stepNpc(scene, first, 900, 16)');
+    assert.equal(run('first.x'), 48);
+    assert.equal(run('first.frame'), 0);
+    assert.equal(run('first.walkSpeed'), 0);
+    assert.equal(run('first.stuckSince'), 100);
+    run('canNpcOccupy = () => true; for (let time = 916; time < 1400; time += 16) stepNpc(scene, first, time, 16)');
+    assert.ok(run('first.x > 48 && Number.isInteger(first.x)'));
+});
+
+test('blocked routes go around occupied tiles without losing their purpose or home bounds', () => {
+    const run = createNpcs();
+    run("startNpcPath(first, [[4, 3], [5, 3]], 'home', 100); canNpcOccupy = (scene, npc, x, y) => x !== 64 || y !== 48");
+    assert.equal(run('rerouteNpc(scene, first, 800)'), true);
+    assert.equal(run('first.goal'), 'home');
+    assert.equal(run('first.stuckSince'), 800);
+    assert.ok(run('first.path.every(([x, y]) => (x !== 4 || y !== 3) && isNpcInHomeArea(first, x, y))'));
+    assert.equal(run('JSON.stringify(first.path.at(-1))'), '[5,3]');
+    run('canNpcOccupy = () => false');
+    assert.equal(run('rerouteNpc(scene, first, 1500)'), false);
+});
+
 function createNpcs() {
     const context = vm.createContext({ TEST_MODE: true, getTileId: (x, y) => (x + 1000) * 10000 + y, coordinateHash: () => 0.7, cacheWorldValue: (cache, key, value) => (cache.set(key, value), value), getPersonTexture: () => 'portrait' });
     const files = ['runtime/settings.js', 'runtime/state.js', 'environment/npcs.js', 'runtime/character.js', 'art/trees.js'];
@@ -11,6 +63,7 @@ function createNpcs() {
         const homes = [{ id: 1, tileX: 3, tileY: 3, name: 'Ada Reed' }, { id: 2, tileX: 13, tileY: 3, name: 'Eli Moss' }];
         findCellNpc = (x, y) => y === 0 && x < 2 && x >= 0 ? homes[x] : null;
         isNpcWalkableTile = () => true;
+        getTerrainType = () => 'grass';
         drawNpcRod = drawNpcShadow = () => {};
         mainCamera = { scrollX: 0, scrollY: 0, width: 320, height: 192 };
         character = { x: 48, y: 48 };

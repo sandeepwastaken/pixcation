@@ -9,6 +9,13 @@ let nearestNpc = null;
 const activeNpcs = [];
 function isNpcInHomeArea(npc, x, y) { return Math.abs(x - npc.tileX) <= NPC_ROAM_RADIUS && Math.abs(y - npc.tileY) <= NPC_ROAM_RADIUS; }
 
+function isNpcHouseSetbackClear(x, y) {
+    for (let dy = -2; dy <= 4; dy++) for (let dx = -2; dx <= 3; dx++) {
+        if (getTerrainType(x + dx, y + dy) === 'water') return false;
+    }
+    return true;
+}
+
 function getNpcConnection(npc) {
     const groupX = Math.floor(npc.tileX / (NPC_CELL_SIZE * 2)) * 2, groupY = Math.floor(npc.tileY / (NPC_CELL_SIZE * 2)) * 2;
     const neighbors = [];
@@ -43,6 +50,7 @@ function getNpcHouse(npc) {
             if (radius && Math.abs(offsetX) !== radius && Math.abs(offsetY) !== radius) continue;
             const x = centerX + offsetX, y = centerY + offsetY;
             if (!residents.every(resident => isNpcInHomeArea(resident, x + 1, y + 2))) continue;
+            if (!isNpcHouseSetbackClear(x, y)) continue;
             if ([...npcHouseCache.values()].some(house => house && x < house.x + 2 && x + 2 > house.x && y < house.y + 3 && y + 3 > house.y)) continue;
             let clear = true;
             for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 2; dx++) {
@@ -94,7 +102,11 @@ function startNpcConversation(scene, npc, other, time) {
         setNpcPose(scene, speaker, getDirectionToward(speaker, listener.x, listener.y), 0);
     }
     npc.speech = close ? `Good to see you, ${other.name.split(' ')[0]}.` : 'How has your day been?';
+    npc.speechFrom = time; npc.speechUntil = time + 2200;
     other.speech = close ? 'Fancy a walk together later?' : 'Pretty quiet. Any good catches?';
+    other.speechFrom = time + 2500; other.speechUntil = time + 4800;
+    if (npc.dailyPlan === 'home' || other.dailyPlan === 'home') { npc.speech = 'Heading home soon?'; other.speech = close && npc.house?.id === other.house?.id ? "Yes, I'll see you at home." : 'Yes, it has been a long day.'; }
+    else if (other.dailyPlan === 'late') { npc.speech = 'Still fishing tonight?'; other.speech = 'Just a little longer. It is peaceful out here.'; }
     return true;
 }
 
@@ -348,7 +360,7 @@ function getDirectionToward(npc, targetX, targetY) {
     return Math.abs(x) > Math.abs(y) ? (x < 0 ? 'left' : 'right') : (y < 0 ? 'back' : 'front');
 }
 
-function findNpcPath(fromX, fromY, toX, toY, npc) {
+function findNpcPath(fromX, fromY, toX, toY, npc, scene) {
     if (!isNpcWalkableTile(toX, toY)) return null;
     const start = getTileId(fromX, fromY), goal = getTileId(toX, toY);
     if (start === goal) return [];
@@ -360,6 +372,7 @@ function findNpcPath(fromX, fromY, toX, toY, npc) {
             const nextX = x + stepX, nextY = y + stepY, key = getTileId(nextX, nextY);
             if (npc && !isNpcInHomeArea(npc, nextX, nextY)) continue;
             if (previous.has(key) || !isNpcWalkableTile(nextX, nextY)) continue;
+            if (scene && !canNpcOccupy(scene, npc, nextX * TILE_SIZE, nextY * TILE_SIZE)) continue;
             previous.set(key, [x, y]);
             if (key === goal) {
                 const path = [[nextX, nextY]];
@@ -379,6 +392,15 @@ function startNpcPath(npc, path, goal, time) {
     npc.sprinting = false;
     npc.remainderX = npc.remainderY = 0;
     npc.stuckSince = time;
+}
+
+function rerouteNpc(scene, npc, time) {
+    const destination = npc.path[npc.path.length - 1];
+    if (!destination) return false;
+    const path = findNpcPath(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE), destination[0], destination[1], npc, scene);
+    if (!path?.length) return false;
+    startNpcPath(npc, path, npc.goal, time);
+    return true;
 }
 
 function rollNpcTile(npc, radius) {
@@ -442,6 +464,7 @@ function stepNpc(scene, npc, time, delta) {
     const travelDirection = moveX ? (moveX < 0 ? 'left' : 'right') : (moveY < 0 ? 'back' : 'front');
     if (npc.travelDirection !== travelDirection) { npc.travelDirection = travelDirection; npc.turnUntil = time + 80 + npcRandom(npc) * 100; npc.walkSpeed = 0; }
     if (time < npc.turnUntil) { setNpcPose(scene, npc, travelDirection, 0); return false; }
+    if (!canNpcOccupy(scene, npc, npc.x + moveX, npc.y + moveY)) { npc.walkSpeed = 0; npc.remainderX = npc.remainderY = 0; setNpcPose(scene, npc, travelDirection, 0); return false; }
     const pace = npc.walkSpeed = Math.min(npc.speed, (npc.walkSpeed || 0) + Math.min(delta, 50) / 1000);
     const frameDelta = Math.min(delta, 50);
     const distance = CHARACTER_SPEED * pace * frameDelta / 1000;
@@ -462,7 +485,7 @@ function stepNpc(scene, npc, time, delta) {
         npc.y += moveY;
         moved = true;
     }
-    if (moved || (!wholeX && !wholeY)) npc.stuckSince = time;
+    if (moved || (!wholeX && !wholeY && canNpcOccupy(scene, npc, npc.x + moveX, npc.y + moveY))) npc.stuckSince = time;
 
     npc.walkPhase += frameDelta * CHARACTER_ANIMATION_SPEED * pace / 1000;
     const direction = moveX ? (moveX < 0 ? 'left' : 'right') : (moveY < 0 ? 'back' : 'front');
@@ -781,7 +804,7 @@ function updateNpc(scene, npc, time, delta) {
                 npc.state = 'aim';
                 npc.until = time + NPC_AIM_MIN + npcRandom(npc) * NPC_AIM_RANGE;
             }
-        } else if (time - npc.stuckSince > NPC_STUCK_TIME) {
+        } else if (time - npc.stuckSince > NPC_STUCK_TIME && !rerouteNpc(scene, npc, time)) {
             settleNpc(scene, npc, time, NPC_IDLE_MIN);
         }
     } else if (npc.state === 'aim') {
@@ -791,7 +814,7 @@ function updateNpc(scene, npc, time, delta) {
     }
     drawNpcRod(scene, npc, time, delta);
     if (isNpcNearCamera(npc)) drawNpcShadow(scene, npc);
-    if (npc.bubble) { npc.bubble.setVisible(npc.state === 'social' && isNpcNearCamera(npc)); if (npc.state === 'social') npc.bubble.setText(npc.speech || '').setPosition(Math.round(npc.x - 40), Math.round(npc.y - 30)).setDepth(npc.y + NPC_PART_SIZE + 1); }
+    if (npc.bubble) { npc.bubble.setVisible(npc.state === 'social' && time >= npc.speechFrom && time < npc.speechUntil && isNpcNearCamera(npc)); if (npc.state === 'social') npc.bubble.setText(npc.speech || '').setPosition(Math.round(npc.x - 40), Math.round(npc.y - 30)).setDepth(npc.y + NPC_PART_SIZE + 1); }
 }
 
 function updateNpcs(scene, time, delta) {
