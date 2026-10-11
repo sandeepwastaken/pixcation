@@ -1,7 +1,13 @@
 const fishSpawnPools = new Map();
 const fishSpawnThresholds = [...new Set(FISH_SPECIES.map(species => species.minWater))].sort((a, b) => b - a);
+let fishSpawnRandom = null;
+
+function fishRandom() {
+    return fishSpawnRandom ? fishSpawnRandom() : Math.random();
+}
 
 function spawnChunkFish(chunk) {
+    fishSpawnRandom = createSeededRandom(coordinateHash(chunk.pixelX, chunk.pixelY, Math.imul(WORLD_SEED + 91, WORLD_HASH_MULTIPLIER)) * 4294967295);
     const regions = labelFishRegions(chunk);
 
     for (let regionIndex = 0; regionIndex < regions.length && chunk.fish.length < FISH_PER_CHUNK_MAX; regionIndex++) {
@@ -13,6 +19,7 @@ function spawnChunkFish(chunk) {
 
         spawnRegionFish(chunk, region, regionIndex + 1, count, chunk.pixelX, chunk.pixelY);
     }
+    fishSpawnRandom = null;
 }
 
 function getFishSpawnPool(waterArea) {
@@ -30,7 +37,7 @@ function getFishSpawnPool(waterArea) {
 
 function chooseFishSpecies(waterArea, pool = getFishSpawnPool(waterArea)) {
     const { species: candidates, totalWeight } = pool;
-    let roll = Math.random() * totalWeight;
+    let roll = fishRandom() * totalWeight;
 
     for (const species of candidates) {
         roll -= species.weight;
@@ -50,16 +57,16 @@ function createFish(species, giantScale) {
         y: 0,
         length: sizeDefinition.length * scale,
         radius: sizeDefinition.radius * scale,
-        heading: Math.random() * Math.PI * 2,
+        heading: fishRandom() * Math.PI * 2,
         topSpeed: 0,
         velocity: 0,
-        phase: Math.random() * Math.PI * 2,
+        phase: fishRandom() * Math.PI * 2,
         amplitude: 0,
         thrusting: false,
         burstTimer: 0,
-        idleTurn: (Math.random() - 0.5) * FISH_IDLE_TURN,
+        idleTurn: (fishRandom() - 0.5) * FISH_IDLE_TURN,
         state: 'idle',
-        timer: Math.random() * 2000,
+        timer: fishRandom() * 2000,
         targetX: 0,
         targetY: 0,
         region: 0,
@@ -72,11 +79,11 @@ function spawnRegionFish(chunk, region, label, count, originX, originY) {
     const pool = getFishSpawnPool(region.length);
     for (let index = 0; index < count; index++) {
         const species = chooseFishSpecies(region.length, pool);
-        const fish = createFish(species, 2 + Math.random() * 3);
+        const fish = createFish(species, 2 + fishRandom() * 3);
         fish.region = label;
 
         for (let attempt = 0; attempt < 40; attempt++) {
-            const pixel = fishRegionPixels[region.start + Math.floor(Math.random() * region.length)];
+            const pixel = fishRegionPixels[region.start + Math.floor(fishRandom() * region.length)];
             const x = originX + pixel % CHUNK_PIXEL_SIZE + 0.5;
             const y = originY + Math.floor(pixel / CHUNK_PIXEL_SIZE) + 0.5;
 

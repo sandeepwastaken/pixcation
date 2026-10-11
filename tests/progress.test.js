@@ -26,7 +26,7 @@ function createSession(saved, options = {}) {
                 writes.push([key, value]);
             },
             removeItem(key) {
-                assert.equal(key, 'pixcation-save-v1');
+                assert.ok(['pixcation-save-v1', 'pixcation-seed'].includes(key));
                 if (options.failRemove) throw new Error('Storage unavailable');
                 removals.push(key);
             }
@@ -203,7 +203,7 @@ test('failed new game reset leaves progress saveable and can be retried', () => 
     options.failRemove = false;
     session.run('saveDirty = true');
     assert.equal(session.reset(), true);
-    assert.deepEqual(session.removals, ['pixcation-save-v1']);
+    assert.deepEqual(session.removals, ['pixcation-save-v1', 'pixcation-seed']);
     assert.equal(session.run('newGameResetting'), true);
     assert.equal(session.run('saveDirty'), false);
     session.run('saveDirty = true');

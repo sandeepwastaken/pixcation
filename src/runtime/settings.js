@@ -26,7 +26,9 @@ const SHORE_DISTANCE_MAX = 24;
 const WATER_BASE_COLOR = [0x68, 0x90, 0xca];
 const CHUNK_LOAD_RADIUS = 1;
 const CHUNK_DISCOVERY_RADIUS = 2;
-const WORLD_SEED = 6767676767676;
+const DEFAULT_WORLD_SEED = 6767676767676;
+const WORLD_SEED_KEY = 'pixcation-seed';
+const WORLD_SEED = loadWorldSeed();
 const WORLD_HASH_MULTIPLIER = 1442695040888963407;
 const WORLD_FEATURE_SCALE = 0.42;
 const MIN_BRIDGE_WATER_LENGTH = 2;
@@ -274,3 +276,16 @@ const MAP_MAX_ZOOM = 3;
 const CAMERA_EASE = 2;
 
 const PROMPT_SLIDE = 4;
+
+function loadWorldSeed() {
+    try {
+        if (TEST_MODE) return DEFAULT_WORLD_SEED;
+        const saved = Number(localStorage.getItem(WORLD_SEED_KEY));
+        if (Number.isSafeInteger(saved) && saved > 0) return saved;
+        const seed = localStorage.getItem(SAVE_KEY) === null ? 1 + Math.floor(Math.random() * 2147483646) : DEFAULT_WORLD_SEED;
+        localStorage.setItem(WORLD_SEED_KEY, String(seed));
+        return seed;
+    } catch (error) {
+        return DEFAULT_WORLD_SEED;
+    }
+}

@@ -144,6 +144,7 @@ function saveProgress() {
 function resetProgress() {
     try {
         localStorage.removeItem(SAVE_KEY);
+        localStorage.removeItem(WORLD_SEED_KEY);
     } catch (error) {
         return false;
     }

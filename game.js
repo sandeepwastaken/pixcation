@@ -3171,8 +3171,14 @@ function isFishPathClear(chunk, fish, targetX, targetY) {
 
 const fishSpawnPools = new Map();
 const fishSpawnThresholds = [...new Set(FISH_SPECIES.map(species => species.minWater))].sort((a, b) => b - a);
+let fishSpawnRandom = null;
+
+function fishRandom() {
+    return fishSpawnRandom ? fishSpawnRandom() : Math.random();
+}
 
 function spawnChunkFish(chunk) {
+    fishSpawnRandom = createSeededRandom(coordinateHash(chunk.pixelX, chunk.pixelY, Math.imul(WORLD_SEED + 91, WORLD_HASH_MULTIPLIER)) * 4294967295);
     const regions = labelFishRegions(chunk);
 
     for (let regionIndex = 0; regionIndex < regions.length && chunk.fish.length < FISH_PER_CHUNK_MAX; regionIndex++) {
@@ -3184,6 +3190,7 @@ function spawnChunkFish(chunk) {
 
         spawnRegionFish(chunk, region, regionIndex + 1, count, chunk.pixelX, chunk.pixelY);
     }
+    fishSpawnRandom = null;
 }
 
 function getFishSpawnPool(waterArea) {
@@ -3201,7 +3208,7 @@ function getFishSpawnPool(waterArea) {
 
 function chooseFishSpecies(waterArea, pool = getFishSpawnPool(waterArea)) {
     const { species: candidates, totalWeight } = pool;
-    let roll = Math.random() * totalWeight;
+    let roll = fishRandom() * totalWeight;
 
     for (const species of candidates) {
         roll -= species.weight;
@@ -3221,16 +3228,16 @@ function createFish(species, giantScale) {
         y: 0,
         length: sizeDefinition.length * scale,
         radius: sizeDefinition.radius * scale,
-        heading: Math.random() * Math.PI * 2,
+        heading: fishRandom() * Math.PI * 2,
         topSpeed: 0,
         velocity: 0,
-        phase: Math.random() * Math.PI * 2,
+        phase: fishRandom() * Math.PI * 2,
         amplitude: 0,
         thrusting: false,
         burstTimer: 0,
-        idleTurn: (Math.random() - 0.5) * FISH_IDLE_TURN,
+        idleTurn: (fishRandom() - 0.5) * FISH_IDLE_TURN,
         state: 'idle',
-        timer: Math.random() * 2000,
+        timer: fishRandom() * 2000,
         targetX: 0,
         targetY: 0,
         region: 0,
@@ -3243,11 +3250,11 @@ function spawnRegionFish(chunk, region, label, count, originX, originY) {
     const pool = getFishSpawnPool(region.length);
     for (let index = 0; index < count; index++) {
         const species = chooseFishSpecies(region.length, pool);
-        const fish = createFish(species, 2 + Math.random() * 3);
+        const fish = createFish(species, 2 + fishRandom() * 3);
         fish.region = label;
 
         for (let attempt = 0; attempt < 40; attempt++) {
-            const pixel = fishRegionPixels[region.start + Math.floor(Math.random() * region.length)];
+            const pixel = fishRegionPixels[region.start + Math.floor(fishRandom() * region.length)];
             const x = originX + pixel % CHUNK_PIXEL_SIZE + 0.5;
             const y = originY + Math.floor(pixel / CHUNK_PIXEL_SIZE) + 0.5;
 
@@ -6518,7 +6525,9 @@ const SHORE_DISTANCE_MAX = 24;
 const WATER_BASE_COLOR = [0x68, 0x90, 0xca];
 const CHUNK_LOAD_RADIUS = 1;
 const CHUNK_DISCOVERY_RADIUS = 2;
-const WORLD_SEED = 6767676767676;
+const DEFAULT_WORLD_SEED = 6767676767676;
+const WORLD_SEED_KEY = 'pixcation-seed';
+const WORLD_SEED = loadWorldSeed();
 const WORLD_HASH_MULTIPLIER = 1442695040888963407;
 const WORLD_FEATURE_SCALE = 0.42;
 const MIN_BRIDGE_WATER_LENGTH = 2;
@@ -6766,6 +6775,19 @@ const MAP_MAX_ZOOM = 3;
 const CAMERA_EASE = 2;
 
 const PROMPT_SLIDE = 4;
+
+function loadWorldSeed() {
+    try {
+        if (TEST_MODE) return DEFAULT_WORLD_SEED;
+        const saved = Number(localStorage.getItem(WORLD_SEED_KEY));
+        if (Number.isSafeInteger(saved) && saved > 0) return saved;
+        const seed = localStorage.getItem(SAVE_KEY) === null ? 1 + Math.floor(Math.random() * 2147483646) : DEFAULT_WORLD_SEED;
+        localStorage.setItem(WORLD_SEED_KEY, String(seed));
+        return seed;
+    } catch (error) {
+        return DEFAULT_WORLD_SEED;
+    }
+}
 
 let hotbarSelector;
 const hotbarItemImages = [];
@@ -7452,6 +7474,7 @@ function saveProgress() {
 function resetProgress() {
     try {
         localStorage.removeItem(SAVE_KEY);
+        localStorage.removeItem(WORLD_SEED_KEY);
     } catch (error) {
         return false;
     }
