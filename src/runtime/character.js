@@ -203,7 +203,7 @@ function updateSpawnReturn(scene, time, delta) {
             transition.phase = 'pan'; transition.start = time;
         }
     } else if (transition.phase === 'pan') {
-        const amount = Math.min(1, age / 650), eased = amount * amount * (3 - 2 * amount);
+        const amount = Math.min(1, age / 900), eased = amount < 0.5 ? 4 * amount * amount * amount : 1 - Math.pow(2 - 2 * amount, 3) / 2;
         const targetX = character.x + CHARACTER_SIZE / 2 - mainCamera.width / 2, targetY = character.y + CHARACTER_SIZE / 2 - mainCamera.height / 2;
         mainCamera.setScroll(Math.round(transition.from[0] + (targetX - transition.from[0]) * eased), Math.round(transition.from[1] + (targetY - transition.from[1]) * eased));
         if (amount >= 1) {

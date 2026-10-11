@@ -2657,10 +2657,10 @@ function isChunkNear(chunkX, chunkY, radius) {
 }
 
 function updateLoadedChunks(scene, force = false) {
-    const centerChunkX = Math.floor((startup ? mainCamera.scrollX + mainCamera.width / 2 : character.x + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
-    const centerChunkY = Math.floor((startup ? mainCamera.scrollY + mainCamera.height / 2 : character.y + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
+    const centerChunkX = Math.floor((startup || spawnReturn ? mainCamera.scrollX + mainCamera.width / 2 : character.x + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
+    const centerChunkY = Math.floor((startup || spawnReturn ? mainCamera.scrollY + mainCamera.height / 2 : character.y + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
 
-    if (!force && centerChunkX === activeChunkX && centerChunkY === activeChunkY) return;
+    if (!force && !spawnReturn && centerChunkX === activeChunkX && centerChunkY === activeChunkY) return;
 
     const discoveredBefore = discoveredChunks.size;
 
@@ -2687,7 +2687,7 @@ function updateLoadedChunks(scene, force = false) {
             const chunkX = centerChunkX + offsetX;
 
 
-            if (force || offsetX === 0 && offsetY === 0) {
+            if (force || offsetX === 0 && offsetY === 0 || spawnReturn && chunkX * CHUNK_PIXEL_SIZE < mainCamera.scrollX + mainCamera.width && (chunkX + 1) * CHUNK_PIXEL_SIZE > mainCamera.scrollX && chunkY * CHUNK_PIXEL_SIZE < mainCamera.scrollY + mainCamera.height && (chunkY + 1) * CHUNK_PIXEL_SIZE > mainCamera.scrollY) {
                 createWorldChunk(scene, chunkX, chunkY);
             } else if (!loadedChunks.has(getChunkKey(chunkX, chunkY))) {
                 pendingChunks.push(chunkX, chunkY);
@@ -10045,7 +10045,7 @@ function updateSpawnReturn(scene, time, delta) {
             transition.phase = 'pan'; transition.start = time;
         }
     } else if (transition.phase === 'pan') {
-        const amount = Math.min(1, age / 650), eased = amount * amount * (3 - 2 * amount);
+        const amount = Math.min(1, age / 900), eased = amount < 0.5 ? 4 * amount * amount * amount : 1 - Math.pow(2 - 2 * amount, 3) / 2;
         const targetX = character.x + CHARACTER_SIZE / 2 - mainCamera.width / 2, targetY = character.y + CHARACTER_SIZE / 2 - mainCamera.height / 2;
         mainCamera.setScroll(Math.round(transition.from[0] + (targetX - transition.from[0]) * eased), Math.round(transition.from[1] + (targetY - transition.from[1]) * eased));
         if (amount >= 1) {

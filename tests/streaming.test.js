@@ -27,6 +27,17 @@ function createWorld() {
     return code => vm.runInContext(code, context);
 }
 
+test('spawn return streaming follows the camera and builds visible edge chunks immediately', () => {
+    const run = createWorld();
+    run("mainCamera = { scrollX: 100, scrollY: 0, width: 100, height: 192 }; character.x = 2048; spawnReturn = { phase: 'pan' }; updateLoadedChunks(scene)");
+    assert.equal(run('activeChunkX'), 0);
+    assert.equal(run("loadedChunks.has('0,0')"), true);
+    assert.equal(run("loadedChunks.has('8,0')"), false);
+    run('mainCamera.scrollX = 200; updateLoadedChunks(scene)');
+    assert.equal(run('activeChunkX'), 0);
+    assert.equal(run("loadedChunks.has('1,0')"), true);
+});
+
 test('discovering new chunks invalidates the map and save only when needed', () => {
     const run = createWorld();
     run('updateLoadedChunks(scene, true)');

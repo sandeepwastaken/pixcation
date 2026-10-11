@@ -3,10 +3,10 @@ function isChunkNear(chunkX, chunkY, radius) {
 }
 
 function updateLoadedChunks(scene, force = false) {
-    const centerChunkX = Math.floor((startup ? mainCamera.scrollX + mainCamera.width / 2 : character.x + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
-    const centerChunkY = Math.floor((startup ? mainCamera.scrollY + mainCamera.height / 2 : character.y + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
+    const centerChunkX = Math.floor((startup || spawnReturn ? mainCamera.scrollX + mainCamera.width / 2 : character.x + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
+    const centerChunkY = Math.floor((startup || spawnReturn ? mainCamera.scrollY + mainCamera.height / 2 : character.y + CHARACTER_SIZE / 2) / CHUNK_PIXEL_SIZE);
 
-    if (!force && centerChunkX === activeChunkX && centerChunkY === activeChunkY) return;
+    if (!force && !spawnReturn && centerChunkX === activeChunkX && centerChunkY === activeChunkY) return;
 
     const discoveredBefore = discoveredChunks.size;
 
@@ -33,7 +33,7 @@ function updateLoadedChunks(scene, force = false) {
             const chunkX = centerChunkX + offsetX;
 
 
-            if (force || offsetX === 0 && offsetY === 0) {
+            if (force || offsetX === 0 && offsetY === 0 || spawnReturn && chunkX * CHUNK_PIXEL_SIZE < mainCamera.scrollX + mainCamera.width && (chunkX + 1) * CHUNK_PIXEL_SIZE > mainCamera.scrollX && chunkY * CHUNK_PIXEL_SIZE < mainCamera.scrollY + mainCamera.height && (chunkY + 1) * CHUNK_PIXEL_SIZE > mainCamera.scrollY) {
                 createWorldChunk(scene, chunkX, chunkY);
             } else if (!loadedChunks.has(getChunkKey(chunkX, chunkY))) {
                 pendingChunks.push(chunkX, chunkY);

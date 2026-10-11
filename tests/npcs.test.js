@@ -98,12 +98,12 @@ test('returning to spawn dithers out before panning and dithers back in afterwar
     assert.equal(run('character.x'), 0);
     assert.equal(run('levels.at(-1)'), 0);
     assert.equal(run('mainCamera.scrollX'), 160);
-    run('updateSpawnReturn(scene, 675, 16)');
+    run('updateSpawnReturn(scene, 800, 16)');
     assert.equal(run('mainCamera.scrollX'), 4);
     assert.ok(run('Number.isInteger(mainCamera.scrollY)'));
-    run('updateSpawnReturn(scene, 1000, 16)');
-    assert.equal(run('spawnReturn.phase'), 'in');
     run('updateSpawnReturn(scene, 1250, 16)');
+    assert.equal(run('spawnReturn.phase'), 'in');
+    run('updateSpawnReturn(scene, 1500, 16)');
     assert.equal(run('levels.at(-1)'), 16);
     assert.equal(run('spawnReturn'), null);
 });
