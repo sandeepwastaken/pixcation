@@ -7431,6 +7431,7 @@ function bindGameInput(scene) {
         scene.input.setDefaultCursor(nextCursor);
         cursor = nextCursor;
     };
+    const openMenu = open => { setCursor('default'); open(); };
     scene.input.on('pointermove', pointer => {
         if (startup) {
             setCursor(startup.phase === 'title' && isStartButtonAt(pointer.x, pointer.y) ? 'pointer' : 'default');
@@ -7517,8 +7518,7 @@ function bindGameInput(scene) {
             return;
         }
         if (!isMenuOpen() && isStatsButtonAt(pointer.x, pointer.y)) {
-            setCursor('default');
-            openStats();
+            openMenu(openStats);
             return;
         }
         if (inventoryOpen) {
@@ -7548,8 +7548,7 @@ function bindGameInput(scene) {
             const target = getClickedWorldTarget(pointer);
 
             if (target) {
-                setCursor('default');
-                openInteraction(scene, target);
+                openMenu(() => openInteraction(scene, target));
             } else if (isBaitSlotAt(pointer.x, pointer.y)) {
                 cycleBait(scene);
             } else {
@@ -7609,12 +7608,12 @@ function bindGameInput(scene) {
         else if (inventoryOpen) handleInventoryKey(scene, event);
         else if (mapOpen) handleMapKey(scene, event);
         else if (marketOpen) handleMarketKey(scene, event);
-        else if (key === 'i') { setCursor('default'); openInventory(scene); }
-        else if (code === 'Tab') { setCursor('default'); openStats(); }
+        else if (key === 'i') openMenu(() => openInventory(scene));
+        else if (code === 'Tab') openMenu(openStats);
         else if (code === 'Space') pressAction('keyboard');
-        else if (key === 'm') { setCursor('default'); openMap(scene); }
+        else if (key === 'm') openMenu(() => openMap(scene));
         else if (key === 'b') cycleBait(scene);
-        else if (key === 'e') { setCursor('default'); openInteraction(scene, getInteractionTarget(true)); }
+        else if (key === 'e') openMenu(() => openInteraction(scene, getInteractionTarget(true)));
         else if (CHEATS_ENABLED && key === 's') spawnSturgeonAtCursor(scene);
         else if (slot >= 0 && slot < 9) selectHotbarSlot(scene, slot);
     });
