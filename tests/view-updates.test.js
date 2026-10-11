@@ -68,17 +68,19 @@ test('logo animation skips unchanged pixels and restores altered positions witho
     assert.equal(run('mainCamera.scrollY'), -94);
 });
 
-test('startup dither uses a bounded tile and skips repeated fade levels', () => {
+test('starting swipes the title up, glides to the player, then slides the hud in', () => {
     const run = createView();
-    run('let ditherFills = 0; let ditherRefreshes = 0');
-    run('const patternContext = { clearRect() {}, fillRect() { ditherFills++; } }');
-    run('const ditherContext = { clearRect() {}, createPattern(canvas, repeat) { return { canvas, repeat }; }, fillRect() { ditherFills++; } }');
-    run('startup = { level: -1, pattern: { getContext: () => patternContext }, texture: { getContext: () => ditherContext, refresh() { ditherRefreshes++; } } }');
-    run('drawStartupDither(16); drawStartupDither(16)');
-    assert.equal(run('ditherFills'), 17);
-    assert.equal(run('ditherRefreshes'), 1);
-    assert.equal(run('ditherContext.fillStyle.repeat'), 'repeat');
-    run('drawStartupDither(0); drawStartupDither(0)');
-    assert.equal(run('ditherFills'), 18);
-    assert.equal(run('ditherRefreshes'), 2);
+    run("for (const name of ['updateLoadedChunks', 'buildPendingChunk', 'updateCharacterShadow', 'updateBushRustle', 'updateChunkVisibility', 'updateTreeShadows', 'updateParticles', 'updateFish', 'updateChunkWater']) globalThis[name] = () => {}");
+    run("const hudItem = { y: 160, setVisible() {} }; const hidden = { setVisible() {}, destroy() {} }");
+    run("startup = { phase: 'closing', start: 0, from: [0, 0], hud: [[hudItem, true, 160]], logo: { ...hidden, y: 40 }, logoShadow: { ...hidden, y: 42 }, button: { ...hidden, y: 124 }, textLayer: { ...hidden, y: 0 } }");
+    run('updateStartup({}, 450, 16)');
+    assert.equal(run('startup.logo.y'), 0);
+    assert.equal(run('startup.textLayer.y'), -40);
+    assert.equal(run('mainCamera.scrollX'), run('Math.round((character.x + CHARACTER_SIZE / 2 - 160) / 2)'));
+    run('updateStartup({}, 900, 16)');
+    assert.equal(run('startup.phase'), 'opening');
+    assert.equal(run('hudItem.y'), 200);
+    run('updateStartup({}, 1350, 16)');
+    assert.equal(run('hudItem.y'), 160);
+    assert.equal(run('startup'), null);
 });
