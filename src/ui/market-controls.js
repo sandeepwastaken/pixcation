@@ -38,7 +38,7 @@ function getMarketItemStatus(item, owned = isMarketItemOwned(item)) {
     }
 
     if (playerCoins < item.price) {
-        return { text: `Need ${item.price - playerCoins}c more`, color: '#d9745b' };
+        return { text: `Need ${item.price - playerCoins}c`, color: '#d9745b' };
     }
 
     return { text: item.bundle ? `${item.bundle} for ${item.price}c` : `${item.price}c`, color: '#e8c170' };
@@ -58,7 +58,8 @@ function getFishInventorySummary() {
     return { count, value };
 }
 
-function setMarketDetail(name, status, statusColor, action, actionColor = '#acccf9') {
+function setMarketDetail(name, status, statusColor, action, actionColor = '#acccf9', note = '') {
+    setUITextContent(marketDetailNote, note);
     setUITextContent(marketDetailName, name);
     setUITextContent(marketDetailStatus, status);
     marketDetailStatus.style.color = statusColor;
@@ -123,9 +124,11 @@ function refreshMarketOptions() {
         if (marketDetailImage.tintTopLeft !== tint) marketDetailImage.setTint(tint);
         setMarketDetail(
             item.label,
-            item.bundle && held ? `Have ${held} · ${status.text}` : status.text,
+            status.text,
             status.color,
-            owned || playerCoins < item.price ? '' : 'Enter - Buy'
+            owned || playerCoins < item.price ? '' : 'Enter - Buy',
+            '#acccf9',
+            [item.was && !owned && `Was ${item.was}c`, item.bundle && held && `Have ${held}`].filter(Boolean).join(' · ')
         );
     }
 }

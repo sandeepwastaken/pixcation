@@ -109,7 +109,7 @@ const MARKET_BAITS_BY_ID = new Map(ALL_BAITS.map(bait => [bait.id, bait]));
 const MARKET_PAGES = [
     { title: 'Rods', items: MARKET_RODS },
     { title: 'Bait', items: MARKET_BAITS },
-    { title: 'Rare', get items() { return [getCurrentMysteryBait()]; } }
+    { title: 'Deals', get items() { return [getCurrentMysteryBait(), getMysteryDeal()]; } }
 ];
 const MARKET_ITEM_ROWS = Math.max(MARKET_RODS.length, MARKET_BAITS.length);
 const MARKET_SELL_INDEX = MARKET_ITEM_ROWS;

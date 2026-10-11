@@ -24,6 +24,27 @@ function getCurrentMysteryBait() {
     return getMysteryBait(getMysteryCycle());
 }
 
+let mysteryDeal = null;
+
+function getMysteryDeal(cycle = getMysteryCycle()) {
+    if (mysteryDeal?.cycle === cycle) return mysteryDeal.item;
+    const random = createSeededRandom(Math.imul(WORLD_SEED + 1703 + cycle, WORLD_HASH_MULTIPLIER));
+    const discount = 1 - DEAL_DISCOUNT_MIN - random() * DEAL_DISCOUNT_RANGE;
+    let item;
+    if (random() < DEAL_ROD_CHANCE) {
+        const rod = MARKET_RODS[Math.floor(random() * MARKET_RODS.length)];
+        item = { ...rod, was: rod.price, price: Math.max(1, Math.round(rod.price * discount)) };
+    } else {
+        const others = MYSTERY_BAITS.filter(bait => bait !== getMysteryBait(cycle));
+        const bait = random() < DEAL_MYSTERY_CHANCE ? others[Math.floor(random() * others.length)] : MARKET_BAITS[Math.floor(random() * MARKET_BAITS.length)];
+        const bundle = DEAL_BUNDLE_MIN + Math.floor(random() * DEAL_BUNDLE_RANGE);
+        const was = Math.round(bait.price / bait.bundle * bundle);
+        item = { ...bait, bundle, was, price: Math.max(1, Math.round(was * discount)) };
+    }
+    mysteryDeal = { cycle, item };
+    return item;
+}
+
 function isRareMysteryBait(bait) {
     return bait.attracts.size === 'giant';
 }

@@ -52,6 +52,7 @@ function createMarketUI(scene) {
     marketDetailName = createText(detailTextX, MARKET_LIST_Y + 39, '#e0f2fd', detailTextWidth, 'center');
     marketDetailStatus = createText(detailTextX, MARKET_LIST_Y + 51, '#c0a887', detailTextWidth, 'center');
     marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 66, '#acccf9', detailTextWidth, 'center');
+    marketDetailNote = createText(detailTextX, MARKET_LIST_Y + 78, '#8c7358', detailTextWidth, 'center', { fontSize: '11px' });
 
     const footer = createText(12, MARKET_FOOTER_Y, '#8c7358', 296, 'center', {
         fontSize: '11px',
