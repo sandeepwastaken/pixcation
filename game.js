@@ -2066,7 +2066,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 worldObjectLayer.add([trunk, canopy]);
                 tileSprites.push(trunk, canopy);
                 const variant = getTreeVariant(tileX, tileY);
-                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, shadow: sprite.shadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
+                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-trunk`, shadow: sprite.shadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
             } else if (prop) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
@@ -2950,6 +2950,19 @@ function getWindTexture(scene, key, offset) {
     return name;
 }
 
+function getSeeThroughTexture(scene, key) {
+    const name = `${key}-see`;
+    if (scene.textures.exists(name)) return name;
+    const source = getTextureSource(scene, key);
+    createCanvasTexture(scene, name, source.width, source.height, context => {
+        context.drawImage(source, 0, 0);
+        for (let y = 0; y < source.height; y++) {
+            for (let x = y & 1; x < source.width; x += 2) context.clearRect(x, y, 1, 1);
+        }
+    });
+    return name;
+}
+
 function getBushWindTextures(scene, offset, count) {
     const cache = scene.bushWindTextureCache ||= new Map();
     let textures = cache.get(offset);
@@ -3002,13 +3015,20 @@ function updateBushRustle(scene, time, isWalking) {
                 top < tree.baseY + 2 && bottom > tree.baseY - 12;
             if (touching && isWalking && !tree.touching) tree.rustleStart = time;
             tree.touching = touching;
+            const hiding = right > tree.x + 10 && left < tree.x + tree.width - 10 && bottom > tree.y + 12 && bottom < tree.baseY - 2;
+            if (tree.trunk && hiding !== Boolean(tree.see)) {
+                tree.see = hiding;
+                tree.offset = null;
+                tree.trunk.setTexture(hiding ? getSeeThroughTexture(scene, tree.trunkTexture) : tree.trunkTexture);
+            }
             const age = time - tree.rustleStart;
             const rustle = age < BUSH_RUSTLE_DURATION
                 ? BUSH_RUSTLE_PATTERN[Math.floor(age / BUSH_RUSTLE_STEP)] : 0;
             const offset = getWindOffset(time, tree.x, tree.baseY, 1.6, gust) + rustle;
             if (tree.offset === offset) continue;
             tree.offset = offset;
-            tree.canopy.setTexture(getWindTexture(scene, tree.texture, offset));
+            const windTexture = getWindTexture(scene, tree.texture, offset);
+            tree.canopy.setTexture(tree.see ? getSeeThroughTexture(scene, windTexture) : windTexture);
             tree.canopy.x = tree.x - 3;
         }
     }
