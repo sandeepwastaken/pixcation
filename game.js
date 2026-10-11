@@ -3362,10 +3362,12 @@ function updateTreeShadows(scene, time) {
             signature += `${tree.offset},`;
         }
         signature += chunk.waterTexture ? 'w' : '';
+        signature += chunk.visible ? 'v' : '';
     }
     if (signature === scene.treeShadowSignature) return;
     scene.treeShadowSignature = signature;
     for (const chunk of loadedChunks.values()) {
+        if (!chunk.visible) continue;
         const left = chunk.pixelX;
         const top = chunk.pixelY;
         const right = left + CHUNK_PIXEL_SIZE;
