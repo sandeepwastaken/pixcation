@@ -15,6 +15,35 @@ function createStartup(scene) {
     startup = { phase: 'title', start: scene.time.now, hud, logo, logoShadow, button, textLayer, hint, spawnX: character.x, spawnY: character.y };
 }
 
+function ditherPixels(source, originX, originY, level) {
+    const image = new ImageData(new Uint8ClampedArray(source.data), source.width, source.height);
+    for (let y = 0; y < source.height; y++) {
+        for (let x = 0; x < source.width; x++) {
+            if (SEE_THROUGH_RANKS[((originY + y) & 3) * 4 + ((originX + x) & 3)] >= level) image.data[(y * source.width + x) * 4 + 3] = 0;
+        }
+    }
+    return image;
+}
+
+function ditherInCharacter(scene, level) {
+    if (level >= 16) {
+        characterTextureKey = null;
+        setCharacterTexture(`character-${characterDirection}`);
+        characterShadow.context.putImageData(characterShadow.pixels, 0, 0);
+        characterShadow.texture.refresh();
+        return;
+    }
+    const source = getTerrainPixels(scene, `character-${characterDirection}`);
+    if (!scene.textures.exists('character-dither')) scene.textures.createCanvas('character-dither', source.width, source.height);
+    const texture = scene.textures.get('character-dither');
+    texture.getContext().putImageData(ditherPixels(source, Math.round(character.x), Math.round(character.y), level), 0, 0);
+    texture.refresh();
+    characterTextureKey = 'character-dither';
+    character.setTexture('character-dither');
+    characterShadow.context.putImageData(ditherPixels(characterShadow.pixels, characterShadow.x, characterShadow.y, level), 0, 0);
+    characterShadow.texture.refresh();
+}
+
 function isStartButtonAt(x, y) {
     return x >= 112 && x < 208 && y >= 124 && y < 144;
 }
@@ -41,6 +70,7 @@ function updateStartup(scene, time, delta) {
         if (startup.hint && startup.hint.style.visibility !== hintVisibility) startup.hint.style.visibility = hintVisibility;
     } else if (startup.phase === 'closing') {
         const t = Math.min(1, age / 900);
+        startup.dither = Math.max(0, Math.min(16, Math.round((t * 2 - 1) * 16)));
         const lift = Math.round(t * t * 160);
         startup.logoShadow.y = (startup.logo.y = 40 - lift) + 2;
         startup.textLayer.y = (startup.button.y = 124 - lift) - 124;
@@ -75,6 +105,7 @@ function updateStartup(scene, time, delta) {
     updateLoadedChunks(scene);
     buildPendingChunk(scene);
     updateCharacterShadow(scene);
+    if (startup.phase !== 'title' && startup.dither !== startup.ditherShown) ditherInCharacter(scene, startup.ditherShown = startup.dither);
     updateBushRustle(scene, time, false);
     updateChunkVisibility();
     updateTreeShadows(scene, time);

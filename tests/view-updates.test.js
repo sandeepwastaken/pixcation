@@ -73,6 +73,7 @@ test('starting swipes the title up, glides to the player, then slides the hud in
     run("for (const name of ['updateLoadedChunks', 'buildPendingChunk', 'updateCharacterShadow', 'updateBushRustle', 'updateChunkVisibility', 'updateTreeShadows', 'updateParticles', 'updateFish', 'updateChunkWater']) globalThis[name] = () => {}");
     run("const hudItem = { y: 160, setVisible() {} }; const hidden = { setVisible() {}, destroy() {} }");
     run("startup = { phase: 'closing', start: 0, from: [0, 0], hud: [[hudItem, true, 160]], logo: { ...hidden, y: 40 }, logoShadow: { ...hidden, y: 42 }, button: { ...hidden, y: 124 }, textLayer: { ...hidden, y: 0 } }");
+    run('ditherInCharacter = () => {}');
     run('updateStartup({}, 450, 16)');
     assert.equal(run('startup.logo.y'), 0);
     assert.equal(run('startup.textLayer.y'), -40);
