@@ -52,10 +52,10 @@ const NPC_FISHING_TIPS = [
 ];
 
 const NPC_RUMOR_LINES = [
-    "Word is a {species} is circling the water {distance} to the {direction}. Check your map!",
-    "My cousin saw a huge {species} jump {distance} to the {direction}. Check your map!",
-    "Try fishing {distance} to the {direction}. Folks keep seeing a {species}. Check your map!",
-    "Psst. There's a {species} lurking {distance} to the {direction}. Check your map!"
+    "Word is a {species} is circling the water {where}. Check your map!",
+    "My cousin saw a huge {species} jump {where}. Check your map!",
+    "Try fishing {where}. Folks keep seeing a {species}. Check your map!",
+    "Psst. There's a {species} lurking {where}. Check your map!"
 ];
 
 const NPC_NO_RUMOR_LINES = [

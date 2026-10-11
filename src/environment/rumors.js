@@ -53,8 +53,8 @@ function findNearestRumor(tileX, tileY) {
 
 function describeRumor(rumor, line) {
     const direction = RUMOR_DIRECTIONS[(Math.round(Math.atan2(rumor.y, rumor.x) / (Math.PI / 4)) + 8) % 8];
-    const distance = rumor.distance < RUMOR_NEAR_TILES ? 'close by' : rumor.distance < RUMOR_FAR_TILES ? 'a short walk' : 'a long walk';
-    return line.replaceAll('{species}', rumor.hotspot.species.name).replaceAll('{direction}', direction).replaceAll('{distance}', distance);
+    const distance = rumor.distance < RUMOR_NEAR_TILES ? 'just' : rumor.distance < RUMOR_FAR_TILES ? 'a short walk' : 'a long walk';
+    return line.replaceAll('{species}', rumor.hotspot.species.name).replaceAll('{where}', `${distance} to the ${direction}`);
 }
 
 function hearRumor(rumor) {
