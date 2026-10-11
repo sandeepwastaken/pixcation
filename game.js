@@ -109,7 +109,7 @@ const MARKET_BAITS_BY_ID = new Map(ALL_BAITS.map(bait => [bait.id, bait]));
 const MARKET_PAGES = [
     { title: 'Rods', items: MARKET_RODS },
     { title: 'Bait', items: MARKET_BAITS },
-    { title: 'Rare', get items() { return [getCurrentMysteryBait()]; } }
+    { title: 'Deals', get items() { return [getCurrentMysteryBait(), getMysteryDeal()]; } }
 ];
 const MARKET_ITEM_ROWS = Math.max(MARKET_RODS.length, MARKET_BAITS.length);
 const MARKET_SELL_INDEX = MARKET_ITEM_ROWS;
@@ -3504,17 +3504,23 @@ function getWindTexture(scene, key, offset) {
     return name;
 }
 
+function getSeeThroughPattern(context, level) {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 4;
+    const pattern = canvas.getContext('2d');
+    for (let index = 0; index < 16; index++) if (SEE_THROUGH_RANKS[index] < level) pattern.fillRect(index & 3, index >> 2, 1, 1);
+    return context.createPattern(canvas, 'repeat');
+}
+
 function getSeeThroughTexture(scene, key, level) {
     const name = `${key}-see${level}`;
     if (scene.textures.exists(name)) return name;
     const source = getTextureSource(scene, key);
     createCanvasTexture(scene, name, source.width, source.height, context => {
         context.drawImage(source, 0, 0);
-        const image = context.getImageData(0, 0, source.width, source.height);
-        for (let y = 0; y < source.height; y++) {
-            for (let x = 0; x < source.width; x++) if (SEE_THROUGH_RANKS[(y & 3) * 4 + (x & 3)] < level) image.data[(y * source.width + x) * 4 + 3] = 0;
-        }
-        context.putImageData(image, 0, 0);
+        context.globalCompositeOperation = 'destination-out';
+        context.fillStyle = getSeeThroughPattern(context, level);
+        context.fillRect(0, 0, source.width, source.height);
     });
     return name;
 }
@@ -4697,6 +4703,27 @@ function getCurrentMysteryBait() {
     return getMysteryBait(getMysteryCycle());
 }
 
+let mysteryDeal = null;
+
+function getMysteryDeal(cycle = getMysteryCycle()) {
+    if (mysteryDeal?.cycle === cycle) return mysteryDeal.item;
+    const random = createSeededRandom(Math.imul(WORLD_SEED + 1703 + cycle, WORLD_HASH_MULTIPLIER));
+    const discount = 1 - DEAL_DISCOUNT_MIN - random() * DEAL_DISCOUNT_RANGE;
+    let item;
+    if (random() < DEAL_ROD_CHANCE) {
+        const rod = MARKET_RODS[Math.floor(random() * MARKET_RODS.length)];
+        item = { ...rod, was: rod.price, price: Math.max(1, Math.round(rod.price * discount)) };
+    } else {
+        const others = MYSTERY_BAITS.filter(bait => bait !== getMysteryBait(cycle));
+        const bait = random() < DEAL_MYSTERY_CHANCE ? others[Math.floor(random() * others.length)] : MARKET_BAITS[Math.floor(random() * MARKET_BAITS.length)];
+        const bundle = DEAL_BUNDLE_MIN + Math.floor(random() * DEAL_BUNDLE_RANGE);
+        const was = Math.round(bait.price / bait.bundle * bundle);
+        item = { ...bait, bundle, was, price: Math.max(1, Math.round(was * discount)) };
+    }
+    mysteryDeal = { cycle, item };
+    return item;
+}
+
 function isRareMysteryBait(bait) {
     return bait.attracts.size === 'giant';
 }
@@ -5682,13 +5709,14 @@ function finishFishingMinigame(scene, time, caught) {
     }
 
     const species = getMysteryCatchSpecies(fishing.bait, fish.species || FISH_SPECIES[0], playerStats.fishCaught || 0);
+    const first = !catchLog.has(species.id);
     addCaughtFish(species);
 
     fishing.targetFish = null;
     fishing.targetChunk = null;
     catchBurst(scene, time, fishing.bobberX, fishing.bobberY);
     startReeling(time);
-    showCatchCard(scene, time, species);
+    showCatchCard(scene, time, species, first);
 }
 
 function addCaughtFish(species, caught = true) {
@@ -6343,7 +6371,7 @@ function openHauledChest(scene, time, x, y) {
 
     goldSparkle(scene, time, x, y - 4);
 
-    showRewardCard(scene, time, 'You found a treasure chest!', rewards.join(' · '));
+    showRewardCard(scene, time, 'You found a', 'Treasure Chest', rewards.join(' · '), 'chest', '#e8c170');
 }
 
 function updateChestBubbles(scene, time) {
@@ -6424,6 +6452,11 @@ function addHudLayer(scene, element, y, depth) {
 
     layer.pointerEvents = 'none';
     return layer;
+}
+
+function getFishArtKey(scene, species) {
+    const keys = scene.fishArtKeys ||= new Map(scene.textures.getTextureKeys().filter(key => key.startsWith('fish/')).map(key => [key.slice(5).toLowerCase(), key]));
+    return keys.get(species.id.replaceAll('-', '')) || 'fish/placeholder';
 }
 
 function addPanelContainer(scene, y, depth, children) {
@@ -6513,7 +6546,7 @@ function beginStartup(time) {
 function updateStartup(scene, time, delta) {
     const age = time - startup.start;
     if (startup.phase === 'title') {
-        const angle = age / 18000;
+        const angle = age / 6000;
         const scrollX = Math.round(startup.spawnX + Math.cos(angle) * 100 - 160);
         const scrollY = Math.round(startup.spawnY + Math.sin(angle) * 72 - 96);
         if (mainCamera.scrollX !== scrollX || mainCamera.scrollY !== scrollY) mainCamera.setScroll(scrollX, scrollY);
@@ -7104,7 +7137,15 @@ function createInventoryUI(scene) {
         .fillStyle(0x465989, 1)
         .fillRect(12, 19, 296, 1)
         .fillRect(12, 127, 296, 1)
-        .fillRect(159, 23, 1, 101);
+        .fillRect(FISHPEDIA_DETAIL_X - 4, 23, 1, 101)
+        .fillRect(FISHPEDIA_DETAIL_X + 28, 24, 36, 36)
+        .fillStyle(0x230a03, 1)
+        .fillRect(FISHPEDIA_DETAIL_X + 29, 25, 34, 34);
+
+    inventoryHighlight = scene.add.graphics()
+        .fillStyle(0x4a2216, 1)
+        .fillRect(0, 0, FISHPEDIA_COLUMN_WIDTH - 2, FISHPEDIA_ROW_HEIGHT);
+    inventoryDetailImage = scene.add.image(FISHPEDIA_DETAIL_X + 30, 26, 'fish/placeholder').setOrigin(0);
 
     const textLayer = createTextLayer(INVENTORY_HEIGHT, { color: '#c0a887' });
     const rowStyle = { fontSize: '9px', lineHeight: '8px' };
@@ -7117,18 +7158,24 @@ function createInventoryUI(scene) {
     inventoryCountTexts = [];
 
     for (let index = 0; index < FISH_SPECIES.length; index++) {
-        const column = Math.floor(index / 13);
-        const row = index % 13;
-        const x = 14 + column * 152;
-        const y = 22 + row * 8;
-        inventoryRowTexts.push(createUIText(textLayer, x, y, null, 84, null, rowStyle));
-        inventoryCountTexts.push(createUIText(textLayer, x + 84, y, null, 55, 'right', detailStyle));
+        const x = FISHPEDIA_LIST_X + 2 + Math.floor(index / FISHPEDIA_ROWS) * FISHPEDIA_COLUMN_WIDTH;
+        const y = FISHPEDIA_LIST_Y + (index % FISHPEDIA_ROWS) * FISHPEDIA_ROW_HEIGHT;
+        inventoryRowTexts.push(createUIText(textLayer, x, y, null, 76, null, rowStyle));
+        inventoryCountTexts.push(createUIText(textLayer, x + 76, y, null, 18, 'right', detailStyle));
     }
+
+    const detail = createUIText(textLayer, FISHPEDIA_DETAIL_X, 63, null, FISHPEDIA_DETAIL_WIDTH, 'center', { whiteSpace: 'normal', display: 'flex', flexDirection: 'column', gap: '2px' });
+    inventoryDetailTexts = ['#e0f2fd', '#acccf9', '#e8c170', '#8fbf7a'].map((color, index) => {
+        const line = document.createElement('div');
+        Object.assign(line.style, { color }, index && { fontSize: '11px', lineHeight: '9px' });
+        detail.appendChild(line);
+        return line;
+    });
 
     inventoryNewGameText = createUIText(textLayer, 12, 128, '#8c7358', 296, 'center', { fontSize: '11px' });
     inventoryFooterHints = appendKeyHints(document.createElement('span'), [['I/Esc', 'Close'], ['N', 'New Game']]);
 
-    inventoryContainer = addPanelContainer(scene, INVENTORY_HIDDEN_Y, 203, [panel]);
+    inventoryContainer = addPanelContainer(scene, INVENTORY_HIDDEN_Y, 203, [panel, inventoryHighlight, inventoryDetailImage]);
     inventoryTextLayer = addHudLayer(scene, textLayer, INVENTORY_HIDDEN_Y, 204);
     refreshInventoryUI(scene.time.now);
 }
@@ -7146,9 +7193,12 @@ function refreshInventoryUI(time) {
 
         setUITextContent(rowText, caught ? species.name : '???');
         rowText.style.color = caught ? '#e0f2fd' : '#6f5b49';
-        setUITextContent(countText, caught ? `x${count} ${species.price}c` : '—');
+        setUITextContent(countText, caught ? `x${count}` : '—');
         countText.style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
+        if (index === selectedFishIndex) rowText.style.color = caught ? '#acccf9' : '#8c7358';
     }
+
+    refreshFishpediaDetail();
 
     const confirming = time < newGameConfirmUntil;
 
@@ -7159,6 +7209,37 @@ function refreshInventoryUI(time) {
     }
 
     inventoryNewGameText.style.color = confirming ? '#d9745b' : '#8c7358';
+}
+
+function getFishpediaRowPosition(index) {
+    return [FISHPEDIA_LIST_X + Math.floor(index / FISHPEDIA_ROWS) * FISHPEDIA_COLUMN_WIDTH, FISHPEDIA_LIST_Y + (index % FISHPEDIA_ROWS) * FISHPEDIA_ROW_HEIGHT];
+}
+
+function getFishpediaRowAt(x, y) {
+    const column = Math.floor((x - FISHPEDIA_LIST_X) / FISHPEDIA_COLUMN_WIDTH);
+    const row = Math.floor((y - DIALOGUE_VISIBLE_Y - FISHPEDIA_LIST_Y) / FISHPEDIA_ROW_HEIGHT);
+    const index = column * FISHPEDIA_ROWS + row;
+    return x >= FISHPEDIA_LIST_X && column < 2 && row >= 0 && row < FISHPEDIA_ROWS && index < FISHPEDIA_ROWS * 2 && index < FISH_SPECIES.length ? index : -1;
+}
+
+function refreshFishpediaDetail() {
+    const species = FISH_SPECIES[selectedFishIndex], caught = catchLog.has(species.id);
+    const [x, y] = getFishpediaRowPosition(selectedFishIndex);
+    inventoryHighlight.setPosition(x, y);
+    const key = getFishArtKey(inventoryDetailImage.scene, species);
+    if (inventoryDetailImage.texture.key !== key) popIn(inventoryDetailImage.scene, inventoryDetailImage.setTexture(key), 26);
+    if (caught) inventoryDetailImage.clearTint();
+    else inventoryDetailImage.setTintFill(0x4a2216);
+    const [name, size, price, count] = inventoryDetailTexts;
+    setUITextContent(name, caught ? species.name : '???');
+    setUITextContent(size, caught ? FISH_SIZE_CLASSES[species.size].label : 'Not caught yet');
+    setUITextContent(price, caught ? `Sells for ${species.price}c` : '');
+    setUITextContent(count, caught ? `Holding ${fishInventory.get(species.id) || 0}` : '');
+}
+
+function selectFishpediaEntry(index) {
+    selectedFishIndex = Phaser.Math.Wrap(index, 0, FISH_SPECIES.length);
+    refreshInventoryUI(inventoryDetailImage.scene.time.now);
 }
 
 function openInventory(scene) {
@@ -7182,7 +7263,14 @@ function closeInventory(scene) {
 function handleInventoryKey(scene, event) {
     const key = event.key.toLowerCase();
 
-    if (key === 'i' || event.key === 'Escape') {
+    const step = getVerticalMenuStep(event, key);
+    const column = key === 'a' || event.key === 'ArrowLeft' || key === 'd' || event.key === 'ArrowRight';
+
+    if (step) {
+        selectFishpediaEntry(selectedFishIndex + step);
+    } else if (column) {
+        selectFishpediaEntry((selectedFishIndex + FISHPEDIA_ROWS) % (FISHPEDIA_ROWS * 2));
+    } else if (key === 'i' || event.key === 'Escape') {
         closeInventory(scene);
     } else if (key === 'n' && scene.time.now < newGameConfirmUntil) {
         if (resetProgress()) {
@@ -7201,24 +7289,37 @@ function handleInventoryKey(scene, event) {
 function createCatchCardUI(scene) {
     const panel = scene.add.graphics();
 
-    drawPanelFrame(panel, 40, 240, 30);
+    drawPanelFrame(panel, CATCH_CARD_X, CATCH_CARD_WIDTH, CATCH_CARD_HEIGHT)
+        .fillStyle(0x465989, 1)
+        .fillRect(CATCH_CARD_X + 6, 6, 36, 36)
+        .fillStyle(0x230a03, 1)
+        .fillRect(CATCH_CARD_X + 7, 7, 34, 34);
 
-    const textLayer = createTextLayer(30);
+    catchCardImage = scene.add.image(CATCH_CARD_X + 8, 8, 'fish/placeholder').setOrigin(0);
 
-    catchCardTitle = createUIText(textLayer, 43, 4, '#e0f2fd', 234, 'center');
-    catchCardDetail = createUIText(textLayer, 43, 16, '#e8c170', 234, 'center', { fontSize: '11px', lineHeight: '9px' });
+    const textLayer = createTextLayer(CATCH_CARD_HEIGHT);
+    const textX = CATCH_CARD_X + 48, textWidth = CATCH_CARD_WIDTH - 54, clip = { overflow: 'hidden', textOverflow: 'ellipsis' };
 
-    catchCardContainer = addPanelContainer(scene, CATCH_CARD_Y + 8, 205, [panel]);
+    catchCardKicker = createUIText(textLayer, textX, 8, '#c0a887', textWidth, null, { fontSize: '11px', lineHeight: '9px', ...clip });
+    catchCardTitle = createUIText(textLayer, textX, 18, '#e0f2fd', textWidth, null, clip);
+    catchCardDetail = createUIText(textLayer, textX, 32, '#e8c170', textWidth, null, { fontSize: '11px', lineHeight: '9px', ...clip });
+
+    catchCardContainer = addPanelContainer(scene, CATCH_CARD_Y + 8, 205, [panel, catchCardImage]);
     catchCardTextLayer = addHudLayer(scene, textLayer, CATCH_CARD_Y + 8, 206);
 }
 
-function showCatchCard(scene, time, species) {
-    showRewardCard(scene, time, `You caught a ${species.name}!`, `${species.price}c`);
+function showCatchCard(scene, time, species, first) {
+    const kicker = first ? 'New species!' : 'You caught a';
+    const detail = `${FISH_SIZE_CLASSES[species.size].label} · ${species.price}c`;
+    showRewardCard(scene, time, kicker, species.name, detail, getFishArtKey(scene, species), first ? '#8fbf7a' : '#c0a887');
 }
 
-function showRewardCard(scene, time, title, detail) {
+function showRewardCard(scene, time, kicker, title, detail, image, kickerColor = '#c0a887') {
+    setUITextContent(catchCardKicker, kicker);
+    catchCardKicker.style.color = kickerColor;
     setUITextContent(catchCardTitle, title);
     setUITextContent(catchCardDetail, detail);
+    catchCardImage.setTexture(image);
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 
@@ -7227,6 +7328,8 @@ function showRewardCard(scene, time, title, detail) {
     if (catchCardHideEvent) catchCardHideEvent.remove(false);
     for (const target of card) target.setVisible(true).setY(hiddenY);
     slidePanel(scene, CATCH_CARD_Y, 180, 'Cubic.Out', card);
+    popIn(scene, catchCardImage, 4);
+    scene.tweens.add({ targets: catchCardImage, y: 8, delay: 140, duration: 220, ease: 'Bounce.Out', onUpdate: snapTweenTarget });
 
     catchCardHideEvent = scene.time.delayedCall(CATCH_CARD_DURATION - 180, () => {
         slidePanel(scene, hiddenY, 180, 'Cubic.In', card, () => {
@@ -7424,6 +7527,7 @@ function createMarketUI(scene) {
     marketDetailName = createText(detailTextX, MARKET_LIST_Y + 39, '#e0f2fd', detailTextWidth, 'center');
     marketDetailStatus = createText(detailTextX, MARKET_LIST_Y + 51, '#c0a887', detailTextWidth, 'center');
     marketDetailAction = createText(detailTextX, MARKET_LIST_Y + 66, '#acccf9', detailTextWidth, 'center');
+    marketDetailNote = createText(detailTextX, MARKET_LIST_Y + 78, '#8c7358', detailTextWidth, 'center', { fontSize: '11px' });
 
     const footer = createText(12, MARKET_FOOTER_Y, '#8c7358', 296, 'center', {
         fontSize: '11px',
@@ -7631,7 +7735,7 @@ function getMarketItemStatus(item, owned = isMarketItemOwned(item)) {
     }
 
     if (playerCoins < item.price) {
-        return { text: `Need ${item.price - playerCoins}c more`, color: '#d9745b' };
+        return { text: `Need ${item.price - playerCoins}c`, color: '#d9745b' };
     }
 
     return { text: item.bundle ? `${item.bundle} for ${item.price}c` : `${item.price}c`, color: '#e8c170' };
@@ -7651,7 +7755,8 @@ function getFishInventorySummary() {
     return { count, value };
 }
 
-function setMarketDetail(name, status, statusColor, action, actionColor = '#acccf9') {
+function setMarketDetail(name, status, statusColor, action, actionColor = '#acccf9', note = '') {
+    setUITextContent(marketDetailNote, note);
     setUITextContent(marketDetailName, name);
     setUITextContent(marketDetailStatus, status);
     marketDetailStatus.style.color = statusColor;
@@ -7716,9 +7821,11 @@ function refreshMarketOptions() {
         if (marketDetailImage.tintTopLeft !== tint) marketDetailImage.setTint(tint);
         setMarketDetail(
             item.label,
-            item.bundle && held ? `Have ${held} · ${status.text}` : status.text,
+            status.text,
             status.color,
-            owned || playerCoins < item.price ? '' : 'Enter - Buy'
+            owned || playerCoins < item.price ? '' : 'Enter - Buy',
+            '#acccf9',
+            [item.was && !owned && `Was ${item.was}c`, item.bundle && held && `Have ${held}`].filter(Boolean).join(' · ')
         );
     }
 }
@@ -8240,7 +8347,7 @@ function runAutomatedTests(scene) {
     record('Particle pool reuses objects in constant time', reusedParticle, reusedParticle ? 'Free-list object reused' : 'Unexpected allocation');
 
     showCatchCard(scene, scene.time.now, FISH_SPECIES[0]);
-    const catchCardPassed = catchCardTitle.textContent === 'You caught a Bluegill!' &&
+    const catchCardPassed = catchCardTitle.textContent === 'Bluegill' &&
         catchCardDetail.textContent.includes('7c') && catchCardContainer.visible;
 
     record('Catch card presents species and value', catchCardPassed, catchCardPassed ? 'Name and price rendered' : 'Catch card content missing');
@@ -8479,6 +8586,13 @@ const MAP_HIDDEN_Y = -MAP_PANEL_HEIGHT;
 
 const INVENTORY_HEIGHT = 142;
 const INVENTORY_HIDDEN_Y = -INVENTORY_HEIGHT;
+const FISHPEDIA_ROWS = 13;
+const FISHPEDIA_LIST_X = 12;
+const FISHPEDIA_LIST_Y = 22;
+const FISHPEDIA_ROW_HEIGHT = 8;
+const FISHPEDIA_COLUMN_WIDTH = 100;
+const FISHPEDIA_DETAIL_X = 216;
+const FISHPEDIA_DETAIL_WIDTH = 92;
 
 const STORE_WIDTH_TILES = 3;
 const STORE_HEIGHT_TILES = 2;
@@ -8582,7 +8696,10 @@ const FISHING_GAME_PROGRESS_WIDTH = 3;
 const FISHING_GAME_PLAY_TOP = 5;
 const FISHING_GAME_PLAY_HEIGHT = 91;
 
-const CATCH_CARD_Y = 116;
+const CATCH_CARD_X = 60;
+const CATCH_CARD_WIDTH = 200;
+const CATCH_CARD_HEIGHT = 48;
+const CATCH_CARD_Y = HOTBAR_Y - CATCH_CARD_HEIGHT - 4;
 const CATCH_CARD_DURATION = 2400;
 
 const BOBBER_TOP_COLOR = 0xb46044;
@@ -8858,6 +8975,12 @@ const MYSTERY_GIANT_WEIGHT = 0.6;
 const MYSTERY_SIZE_WEIGHTS = { small: 1.4, medium: 1, large: 0.55 };
 const MYSTERY_PLACEHOLDER_COLORS = [0x0026ff, 0x1f5aff, 0x3e8eff];
 const MYSTERY_SHADES = [[0.6, 0.5], [0.52, 0.68], [0.42, 0.84]];
+const DEAL_ROD_CHANCE = 0.4;
+const DEAL_MYSTERY_CHANCE = 0.05;
+const DEAL_DISCOUNT_MIN = 0.1;
+const DEAL_DISCOUNT_RANGE = 0.15;
+const DEAL_BUNDLE_MIN = 3;
+const DEAL_BUNDLE_RANGE = 10;
 
 let hotbarSelector;
 const hotbarItemImages = [];
@@ -8954,10 +9077,17 @@ let inventorySummaryText;
 let inventoryRowTexts = [];
 let inventoryCountTexts = [];
 let inventoryNewGameText;
+let inventoryHighlight;
+let inventoryDetailImage;
+let inventoryDetailTexts = [];
+let selectedFishIndex = 0;
 let newGameConfirmUntil = 0;
 let catchCardContainer;
 let catchCardTextLayer;
 let catchCardTitle;
+let marketDetailNote;
+let catchCardKicker;
+let catchCardImage;
 let catchCardDetail;
 let catchCardHideEvent;
 let catchCardUntil = 0;
@@ -9199,7 +9329,9 @@ function bindGameInput(scene) {
             return;
         }
         if (inventoryOpen) {
-            if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(scene);
+            const entry = getFishpediaRowAt(pointer.x, pointer.y);
+            if (entry !== -1) selectFishpediaEntry(entry);
+            else if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(scene);
         } else if (marketOpen) {
             const row = getMarketRowAt(pointer.x, pointer.y);
             const tab = getMarketTabAt(pointer.x, pointer.y);

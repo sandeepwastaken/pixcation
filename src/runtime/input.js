@@ -97,7 +97,9 @@ function bindGameInput(scene) {
             return;
         }
         if (inventoryOpen) {
-            if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(scene);
+            const entry = getFishpediaRowAt(pointer.x, pointer.y);
+            if (entry !== -1) selectFishpediaEntry(entry);
+            else if (pointer.y > DIALOGUE_VISIBLE_Y + INVENTORY_HEIGHT) closeInventory(scene);
         } else if (marketOpen) {
             const row = getMarketRowAt(pointer.x, pointer.y);
             const tab = getMarketTabAt(pointer.x, pointer.y);

@@ -5,7 +5,15 @@ function createInventoryUI(scene) {
         .fillStyle(0x465989, 1)
         .fillRect(12, 19, 296, 1)
         .fillRect(12, 127, 296, 1)
-        .fillRect(159, 23, 1, 101);
+        .fillRect(FISHPEDIA_DETAIL_X - 4, 23, 1, 101)
+        .fillRect(FISHPEDIA_DETAIL_X + 28, 24, 36, 36)
+        .fillStyle(0x230a03, 1)
+        .fillRect(FISHPEDIA_DETAIL_X + 29, 25, 34, 34);
+
+    inventoryHighlight = scene.add.graphics()
+        .fillStyle(0x4a2216, 1)
+        .fillRect(0, 0, FISHPEDIA_COLUMN_WIDTH - 2, FISHPEDIA_ROW_HEIGHT);
+    inventoryDetailImage = scene.add.image(FISHPEDIA_DETAIL_X + 30, 26, 'fish/placeholder').setOrigin(0);
 
     const textLayer = createTextLayer(INVENTORY_HEIGHT, { color: '#c0a887' });
     const rowStyle = { fontSize: '9px', lineHeight: '8px' };
@@ -18,18 +26,24 @@ function createInventoryUI(scene) {
     inventoryCountTexts = [];
 
     for (let index = 0; index < FISH_SPECIES.length; index++) {
-        const column = Math.floor(index / 13);
-        const row = index % 13;
-        const x = 14 + column * 152;
-        const y = 22 + row * 8;
-        inventoryRowTexts.push(createUIText(textLayer, x, y, null, 84, null, rowStyle));
-        inventoryCountTexts.push(createUIText(textLayer, x + 84, y, null, 55, 'right', detailStyle));
+        const x = FISHPEDIA_LIST_X + 2 + Math.floor(index / FISHPEDIA_ROWS) * FISHPEDIA_COLUMN_WIDTH;
+        const y = FISHPEDIA_LIST_Y + (index % FISHPEDIA_ROWS) * FISHPEDIA_ROW_HEIGHT;
+        inventoryRowTexts.push(createUIText(textLayer, x, y, null, 76, null, rowStyle));
+        inventoryCountTexts.push(createUIText(textLayer, x + 76, y, null, 18, 'right', detailStyle));
     }
+
+    const detail = createUIText(textLayer, FISHPEDIA_DETAIL_X, 63, null, FISHPEDIA_DETAIL_WIDTH, 'center', { whiteSpace: 'normal', display: 'flex', flexDirection: 'column', gap: '2px' });
+    inventoryDetailTexts = ['#e0f2fd', '#acccf9', '#e8c170', '#8fbf7a'].map((color, index) => {
+        const line = document.createElement('div');
+        Object.assign(line.style, { color }, index && { fontSize: '11px', lineHeight: '9px' });
+        detail.appendChild(line);
+        return line;
+    });
 
     inventoryNewGameText = createUIText(textLayer, 12, 128, '#8c7358', 296, 'center', { fontSize: '11px' });
     inventoryFooterHints = appendKeyHints(document.createElement('span'), [['I/Esc', 'Close'], ['N', 'New Game']]);
 
-    inventoryContainer = addPanelContainer(scene, INVENTORY_HIDDEN_Y, 203, [panel]);
+    inventoryContainer = addPanelContainer(scene, INVENTORY_HIDDEN_Y, 203, [panel, inventoryHighlight, inventoryDetailImage]);
     inventoryTextLayer = addHudLayer(scene, textLayer, INVENTORY_HIDDEN_Y, 204);
     refreshInventoryUI(scene.time.now);
 }
@@ -47,9 +61,12 @@ function refreshInventoryUI(time) {
 
         setUITextContent(rowText, caught ? species.name : '???');
         rowText.style.color = caught ? '#e0f2fd' : '#6f5b49';
-        setUITextContent(countText, caught ? `x${count} ${species.price}c` : '—');
+        setUITextContent(countText, caught ? `x${count}` : '—');
         countText.style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
+        if (index === selectedFishIndex) rowText.style.color = caught ? '#acccf9' : '#8c7358';
     }
+
+    refreshFishpediaDetail();
 
     const confirming = time < newGameConfirmUntil;
 
@@ -60,6 +77,37 @@ function refreshInventoryUI(time) {
     }
 
     inventoryNewGameText.style.color = confirming ? '#d9745b' : '#8c7358';
+}
+
+function getFishpediaRowPosition(index) {
+    return [FISHPEDIA_LIST_X + Math.floor(index / FISHPEDIA_ROWS) * FISHPEDIA_COLUMN_WIDTH, FISHPEDIA_LIST_Y + (index % FISHPEDIA_ROWS) * FISHPEDIA_ROW_HEIGHT];
+}
+
+function getFishpediaRowAt(x, y) {
+    const column = Math.floor((x - FISHPEDIA_LIST_X) / FISHPEDIA_COLUMN_WIDTH);
+    const row = Math.floor((y - DIALOGUE_VISIBLE_Y - FISHPEDIA_LIST_Y) / FISHPEDIA_ROW_HEIGHT);
+    const index = column * FISHPEDIA_ROWS + row;
+    return x >= FISHPEDIA_LIST_X && column < 2 && row >= 0 && row < FISHPEDIA_ROWS && index < FISHPEDIA_ROWS * 2 && index < FISH_SPECIES.length ? index : -1;
+}
+
+function refreshFishpediaDetail() {
+    const species = FISH_SPECIES[selectedFishIndex], caught = catchLog.has(species.id);
+    const [x, y] = getFishpediaRowPosition(selectedFishIndex);
+    inventoryHighlight.setPosition(x, y);
+    const key = getFishArtKey(inventoryDetailImage.scene, species);
+    if (inventoryDetailImage.texture.key !== key) popIn(inventoryDetailImage.scene, inventoryDetailImage.setTexture(key), 26);
+    if (caught) inventoryDetailImage.clearTint();
+    else inventoryDetailImage.setTintFill(0x4a2216);
+    const [name, size, price, count] = inventoryDetailTexts;
+    setUITextContent(name, caught ? species.name : '???');
+    setUITextContent(size, caught ? FISH_SIZE_CLASSES[species.size].label : 'Not caught yet');
+    setUITextContent(price, caught ? `Sells for ${species.price}c` : '');
+    setUITextContent(count, caught ? `Holding ${fishInventory.get(species.id) || 0}` : '');
+}
+
+function selectFishpediaEntry(index) {
+    selectedFishIndex = Phaser.Math.Wrap(index, 0, FISH_SPECIES.length);
+    refreshInventoryUI(inventoryDetailImage.scene.time.now);
 }
 
 function openInventory(scene) {
@@ -83,7 +131,14 @@ function closeInventory(scene) {
 function handleInventoryKey(scene, event) {
     const key = event.key.toLowerCase();
 
-    if (key === 'i' || event.key === 'Escape') {
+    const step = getVerticalMenuStep(event, key);
+    const column = key === 'a' || event.key === 'ArrowLeft' || key === 'd' || event.key === 'ArrowRight';
+
+    if (step) {
+        selectFishpediaEntry(selectedFishIndex + step);
+    } else if (column) {
+        selectFishpediaEntry((selectedFishIndex + FISHPEDIA_ROWS) % (FISHPEDIA_ROWS * 2));
+    } else if (key === 'i' || event.key === 'Escape') {
         closeInventory(scene);
     } else if (key === 'n' && scene.time.now < newGameConfirmUntil) {
         if (resetProgress()) {

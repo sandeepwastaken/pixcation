@@ -1,24 +1,37 @@
 function createCatchCardUI(scene) {
     const panel = scene.add.graphics();
 
-    drawPanelFrame(panel, 40, 240, 30);
+    drawPanelFrame(panel, CATCH_CARD_X, CATCH_CARD_WIDTH, CATCH_CARD_HEIGHT)
+        .fillStyle(0x465989, 1)
+        .fillRect(CATCH_CARD_X + 6, 6, 36, 36)
+        .fillStyle(0x230a03, 1)
+        .fillRect(CATCH_CARD_X + 7, 7, 34, 34);
 
-    const textLayer = createTextLayer(30);
+    catchCardImage = scene.add.image(CATCH_CARD_X + 8, 8, 'fish/placeholder').setOrigin(0);
 
-    catchCardTitle = createUIText(textLayer, 43, 4, '#e0f2fd', 234, 'center');
-    catchCardDetail = createUIText(textLayer, 43, 16, '#e8c170', 234, 'center', { fontSize: '11px', lineHeight: '9px' });
+    const textLayer = createTextLayer(CATCH_CARD_HEIGHT);
+    const textX = CATCH_CARD_X + 48, textWidth = CATCH_CARD_WIDTH - 54, clip = { overflow: 'hidden', textOverflow: 'ellipsis' };
 
-    catchCardContainer = addPanelContainer(scene, CATCH_CARD_Y + 8, 205, [panel]);
+    catchCardKicker = createUIText(textLayer, textX, 8, '#c0a887', textWidth, null, { fontSize: '11px', lineHeight: '9px', ...clip });
+    catchCardTitle = createUIText(textLayer, textX, 18, '#e0f2fd', textWidth, null, clip);
+    catchCardDetail = createUIText(textLayer, textX, 32, '#e8c170', textWidth, null, { fontSize: '11px', lineHeight: '9px', ...clip });
+
+    catchCardContainer = addPanelContainer(scene, CATCH_CARD_Y + 8, 205, [panel, catchCardImage]);
     catchCardTextLayer = addHudLayer(scene, textLayer, CATCH_CARD_Y + 8, 206);
 }
 
-function showCatchCard(scene, time, species) {
-    showRewardCard(scene, time, `You caught a ${species.name}!`, `${species.price}c`);
+function showCatchCard(scene, time, species, first) {
+    const kicker = first ? 'New species!' : 'You caught a';
+    const detail = `${FISH_SIZE_CLASSES[species.size].label} · ${species.price}c`;
+    showRewardCard(scene, time, kicker, species.name, detail, getFishArtKey(scene, species), first ? '#8fbf7a' : '#c0a887');
 }
 
-function showRewardCard(scene, time, title, detail) {
+function showRewardCard(scene, time, kicker, title, detail, image, kickerColor = '#c0a887') {
+    setUITextContent(catchCardKicker, kicker);
+    catchCardKicker.style.color = kickerColor;
     setUITextContent(catchCardTitle, title);
     setUITextContent(catchCardDetail, detail);
+    catchCardImage.setTexture(image);
     catchCardUntil = time + CATCH_CARD_DURATION;
     itemLabelUntil = 0;
 
@@ -27,6 +40,8 @@ function showRewardCard(scene, time, title, detail) {
     if (catchCardHideEvent) catchCardHideEvent.remove(false);
     for (const target of card) target.setVisible(true).setY(hiddenY);
     slidePanel(scene, CATCH_CARD_Y, 180, 'Cubic.Out', card);
+    popIn(scene, catchCardImage, 4);
+    scene.tweens.add({ targets: catchCardImage, y: 8, delay: 140, duration: 220, ease: 'Bounce.Out', onUpdate: snapTweenTarget });
 
     catchCardHideEvent = scene.time.delayedCall(CATCH_CARD_DURATION - 180, () => {
         slidePanel(scene, hiddenY, 180, 'Cubic.In', card, () => {

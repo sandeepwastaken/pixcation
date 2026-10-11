@@ -66,6 +66,11 @@ function addHudLayer(scene, element, y, depth) {
     return layer;
 }
 
+function getFishArtKey(scene, species) {
+    const keys = scene.fishArtKeys ||= new Map(scene.textures.getTextureKeys().filter(key => key.startsWith('fish/')).map(key => [key.slice(5).toLowerCase(), key]));
+    return keys.get(species.id.replaceAll('-', '')) || 'fish/placeholder';
+}
+
 function addPanelContainer(scene, y, depth, children) {
     return scene.add.container(0, y, children)
         .setDepth(depth)

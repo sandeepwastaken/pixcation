@@ -187,7 +187,7 @@ function openHauledChest(scene, time, x, y) {
 
     goldSparkle(scene, time, x, y - 4);
 
-    showRewardCard(scene, time, 'You found a treasure chest!', rewards.join(' · '));
+    showRewardCard(scene, time, 'You found a', 'Treasure Chest', rewards.join(' · '), 'chest', '#e8c170');
 }
 
 function updateChestBubbles(scene, time) {

@@ -207,7 +207,7 @@ function runAutomatedTests(scene) {
     record('Particle pool reuses objects in constant time', reusedParticle, reusedParticle ? 'Free-list object reused' : 'Unexpected allocation');
 
     showCatchCard(scene, scene.time.now, FISH_SPECIES[0]);
-    const catchCardPassed = catchCardTitle.textContent === 'You caught a Bluegill!' &&
+    const catchCardPassed = catchCardTitle.textContent === 'Bluegill' &&
         catchCardDetail.textContent.includes('7c') && catchCardContainer.visible;
 
     record('Catch card presents species and value', catchCardPassed, catchCardPassed ? 'Name and price rendered' : 'Catch card content missing');

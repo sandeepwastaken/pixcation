@@ -44,13 +44,14 @@ function finishFishingMinigame(scene, time, caught) {
     }
 
     const species = getMysteryCatchSpecies(fishing.bait, fish.species || FISH_SPECIES[0], playerStats.fishCaught || 0);
+    const first = !catchLog.has(species.id);
     addCaughtFish(species);
 
     fishing.targetFish = null;
     fishing.targetChunk = null;
     catchBurst(scene, time, fishing.bobberX, fishing.bobberY);
     startReeling(time);
-    showCatchCard(scene, time, species);
+    showCatchCard(scene, time, species, first);
 }
 
 function addCaughtFish(species, caught = true) {
