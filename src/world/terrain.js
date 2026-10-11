@@ -333,6 +333,14 @@ function tintChunkGrass(scene, context, originTileX, originTileY) {
             }
             const red = data[index], green = data[index + 1], blue = data[index + 2];
             if (!data[index + 3]) continue;
+            const flower = FLOWER_TINTS.get((red << 16) | (green << 8) | blue);
+            if (flower) {
+                const color = blendBiomeStops(flower, getGrassBiome(originTileX + x / TILE_SIZE, originTileY + y / TILE_SIZE));
+                data[index] = Math.round(color[0]);
+                data[index + 1] = Math.round(color[1]);
+                data[index + 2] = Math.round(color[2]);
+                continue;
+            }
             const grass = green > red + 4 && green > blue + 8;
             if (!grass && (red <= green + 6 || green < blue || woodColors.has((red << 16) | (green << 8) | blue))) continue;
             const scale = grass ? tint : dirtTint;

@@ -1164,6 +1164,14 @@ function tintChunkGrass(scene, context, originTileX, originTileY) {
             }
             const red = data[index], green = data[index + 1], blue = data[index + 2];
             if (!data[index + 3]) continue;
+            const flower = FLOWER_TINTS.get((red << 16) | (green << 8) | blue);
+            if (flower) {
+                const color = blendBiomeStops(flower, getGrassBiome(originTileX + x / TILE_SIZE, originTileY + y / TILE_SIZE));
+                data[index] = Math.round(color[0]);
+                data[index + 1] = Math.round(color[1]);
+                data[index + 2] = Math.round(color[2]);
+                continue;
+            }
             const grass = green > red + 4 && green > blue + 8;
             if (!grass && (red <= green + 6 || green < blue || woodColors.has((red << 16) | (green << 8) | blue))) continue;
             const scale = grass ? tint : dirtTint;
@@ -7096,6 +7104,10 @@ const MAP_FLECK_CHANCE = 0.35;
 const WATER_BIOME_SCALE = 900;
 const WATER_BIOME_OFFSET = [WORLD_SEED % 997, Math.floor(WORLD_SEED / 997) % 991];
 const WATER_TINTS = [[0.8, 1.08, 0.95], [1, 1, 1], [0.76, 0.82, 0.95]];
+const FLOWER_TINTS = new Map([
+    [0xf6f5e5, [[0, 244, 212, 108], [0.5, 246, 245, 229], [1, 238, 178, 208]]],
+    [0xb46044, [[0, 201, 138, 62], [0.5, 180, 96, 68], [1, 168, 88, 143]]]
+]);
 const DIRT_BIOME_SCALE = 50;
 const DIRT_TINTS = [
     [0, 1.07, 0.98, 0.93],
