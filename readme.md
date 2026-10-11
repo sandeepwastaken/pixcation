@@ -10,13 +10,13 @@ Start by talking to the guide to figure out the general gameplay loop and contro
 
 Whatever you decide to do, you'll want to head over to the shop and buy your first fishing rod. Once you've got one, equip it in your hotbar using slots 1-9 and head over to the water.
 
+Press M to open the map and see the layout of your tiny world.
+
 Hold left click or Space to cast your rod.
 
 Now comes the waiting.
 
 Once a fish bites, you'll notice your bobber start splashing up and down. When the fish is fully hooked, the bobber will go down and you'll see some small indicator lines.
-
-Press M to open the map and see the layout of your tiny world.
 
 Press Space again to reel it in.
 
