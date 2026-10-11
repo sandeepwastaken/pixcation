@@ -171,26 +171,31 @@ function updateFishing(scene, time, delta, isWalking) {
 
     [tipX, tipY] = getRodTip(time);
     const [handX, handY] = getRodHand();
-    const { polePalette, linePalette, bobberPalette } = fishing.rod;
-    const taut = tautFishingStates.has(fishing.state);
+    drawAnglerLine(scene, fishing, { handX, handY, tipX, tipY, bodyY: character.y, bodyDepth: character.depth, line: fishingLine, waterShadow: fishingWaterShadow }, delta);
+}
 
-    const depth = fishing.state === 'flying' || fishing.state === 'casting' ? character.depth + 1 : Math.max(character.depth + 0.2, fishing.bobberY);
-    if (fishingLine.depth !== depth) fishingLine.setDepth(depth);
-    plotFishingLine(handX, handY, tipX, tipY, 0, polePalette);
-    const tipHeight = Math.max(0, character.y + CHARACTER_SIZE - tipY);
-    drawFishingWaterShadow(scene, character.y + CHARACTER_SIZE - handY, tipHeight);
+function drawAnglerLine(scene, cast, angler, delta) {
+    const { handX, handY, tipX, tipY, bodyY, bodyDepth, line, waterShadow } = angler;
+    const { polePalette, linePalette, bobberPalette } = cast.rod;
+    const taut = tautFishingStates.has(cast.state);
 
-    if (fishing.state === 'casting') return;
+    const depth = cast.state === 'flying' || cast.state === 'casting' ? bodyDepth + 1 : Math.max(bodyDepth + 0.2, cast.bobberY);
+    if (line.depth !== depth) line.setDepth(depth);
+    plotFishingLine(handX, handY, tipX, tipY, 0, polePalette, line);
+    const tipHeight = Math.max(0, bodyY + CHARACTER_SIZE - tipY);
+    drawFishingWaterShadow(scene, bodyY + CHARACTER_SIZE - handY, tipHeight, waterShadow);
 
-    fishing.rope ||= createFishingRope(tipX, tipY, fishing.bobberX, fishing.bobberY - 2, Math.hypot(fishing.bobberX - tipX, fishing.bobberY - 2 - tipY) + 5);
-    updateFishingRope(fishing.rope, tipX, tipY, fishing.bobberX, fishing.bobberY - 2, delta, taut ? 1 : fishing.state === 'flying' ? 0.7 : 0);
-    drawFishingRope(fishing.rope, linePalette);
-    if (waterFishingStates.has(fishing.state) || fishing.state === 'reeling') drawFishingWaterShadow(scene, tipHeight, 2);
-    fishingLine
+    if (cast.state === 'casting') return;
+
+    cast.rope ||= createFishingRope(tipX, tipY, cast.bobberX, cast.bobberY - 2, Math.hypot(cast.bobberX - tipX, cast.bobberY - 2 - tipY) + 5);
+    updateFishingRope(cast.rope, tipX, tipY, cast.bobberX, cast.bobberY - 2, delta, taut ? 1 : cast.state === 'flying' ? 0.7 : 0);
+    drawFishingRope(cast.rope, linePalette, line);
+    if (waterFishingStates.has(cast.state) || cast.state === 'reeling') drawFishingWaterShadow(scene, tipHeight, 2, waterShadow);
+    line
         .fillStyle(bobberPalette?.[2] || BOBBER_BOTTOM_COLOR, 1)
-        .fillRect(fishing.bobberX - 1, fishing.bobberY - 2, 2, 1)
+        .fillRect(cast.bobberX - 1, cast.bobberY - 2, 2, 1)
         .fillStyle(bobberPalette?.[1] || BOBBER_TOP_COLOR, 1)
-        .fillRect(fishing.bobberX - 1, fishing.bobberY - 1, 1, 1)
+        .fillRect(cast.bobberX - 1, cast.bobberY - 1, 1, 1)
         .fillStyle(bobberPalette?.[0] || BOBBER_TOP_COLOR, 1)
-        .fillRect(fishing.bobberX, fishing.bobberY - 1, 1, 1);
+        .fillRect(cast.bobberX, cast.bobberY - 1, 1, 1);
 }

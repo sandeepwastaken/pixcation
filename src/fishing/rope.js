@@ -57,7 +57,7 @@ function drawPixelPath(graphics = fishingLine) {
     }
 }
 
-function drawFishingWaterShadow(scene, fromHeight, toHeight) {
+function drawFishingWaterShadow(scene, fromHeight, toHeight, graphics = fishingWaterShadow) {
     if (!pixelPathLength) return;
     const lastIndex = Math.max(1, pixelPathLength - 1);
     const heightRange = toHeight - fromHeight;
@@ -73,9 +73,9 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
             water = getTerrainSurface(scene, getWorldTile(nextTileX, nextTileY)).water;
             tileX = nextTileX; tileOriginX = tileX * TILE_SIZE;
             tileY = nextTileY; tileOriginY = tileY * TILE_SIZE;
-            fishingWaterShadow.fillStyle(tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(tileOriginX + TILE_SIZE / 2, tileOriginY + TILE_SIZE / 2)), 1);
+            graphics.fillStyle(tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(tileOriginX + TILE_SIZE / 2, tileOriginY + TILE_SIZE / 2)), 1);
         }
-        if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] === 1) fishingWaterShadow.fillRect(x, y, 1, 1);
+        if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] === 1) graphics.fillRect(x, y, 1, 1);
     };
     for (let index = 0; index < pixelPathLength; index++) {
         const amount = index / lastIndex;
@@ -183,7 +183,7 @@ function updateFishingRope(rope, fromX, fromY, toX, toY, delta, tautness) {
     }
 }
 
-function drawFishingRope(rope, palette) {
+function drawFishingRope(rope, palette, graphics = fishingLine) {
     const points = rope.points;
     const lastIndex = points.length - 1;
     const paletteSteps = Math.max(1, lastIndex - 1);
@@ -209,5 +209,5 @@ function drawFishingRope(rope, palette) {
         }
     }
 
-    drawPixelPath();
+    drawPixelPath(graphics);
 }
