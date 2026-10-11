@@ -111,6 +111,7 @@ function updateStartup(scene, time, delta) {
     updateChunkVisibility();
     updateTreeShadows(scene, time);
     updateActorShading(scene);
+    updateActorBlinks(scene, time);
     updateParticles(time);
     updateFish(delta);
     updateChunkWater(time);

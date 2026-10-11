@@ -103,7 +103,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             }
 
             drawChunkTexture(
-                terrainTile.baseKey === 'water' ? getUpperContext() : groundContext,
+                terrainTile.baseKey === 'water' || tileKey.startsWith('wood') ? getUpperContext() : groundContext,
                 scene,
                 isWater ? shoreline.textureKey : terrainTile.textureKey || tileKey,
                 drawX,

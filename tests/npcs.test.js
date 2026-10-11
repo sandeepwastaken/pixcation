@@ -3,6 +3,65 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('subpixel walking progress and horizontal steps avoid redundant sprite depth sorting', () => {
+    const run = createNpcs();
+    run('let positionWrites = 0, depthWrites = 0; Object.assign(first.sprite, {x: 48, y: 48, depth: 64, setPosition(x, y) {positionWrites++; this.x = x; this.y = y;}, setDepth(depth) {depthWrites++; this.depth = depth;}}); Object.assign(first, {path: [[4, 3]], travelDirection: "right", turnUntil: 0, remainderX: 0, remainderY: 0, walkPhase: 1}); canNpcOccupy = () => true; stepNpc(scene, first, 101, 1)');
+    assert.equal(run('positionWrites'), 0);
+    assert.equal(run('depthWrites'), 0);
+    run('first.remainderX = 1; stepNpc(scene, first, 102, 1)');
+    assert.equal(run('positionWrites'), 1);
+    assert.equal(run('depthWrites'), 0);
+    assert.equal(run('first.sprite.x'), 49);
+});
+
+test('unchanged speech bubbles skip redundant text, transform, visibility, and depth writes', () => {
+    const run = createNpcs();
+    run('const writes = {text: 0, position: 0, depth: 0, visible: 0}; first.state = "social"; first.speech = "Hello!"; first.speechFrom = 100; first.speechUntil = 2000; first.bubble = {visible: false, setVisible(value) {writes.visible++; this.visible = value;}, setText(text) {writes.text++; this.text = text;}, setPosition(x, y) {writes.position++; this.x = x; this.y = y;}, setDepth(depth) {writes.depth++; this.depth = depth;}}; updateNpcBubble(first, 100); updateNpcBubble(first, 116);');
+    assert.deepEqual(JSON.parse(run('JSON.stringify(writes)')), {text: 1, position: 1, depth: 1, visible: 1});
+    run('first.x++; updateNpcBubble(first, 132)');
+    assert.equal(run('writes.position'), 2);
+    assert.equal(run('writes.depth'), 1);
+    run('updateNpcBubble(first, 2001); updateNpcBubble(first, 2017)');
+    assert.equal(run('writes.visible'), 2);
+    assert.equal(run('writes.text'), 1);
+});
+
+test('valid saved fishing casts retain rod reach and their remaining wait', () => {
+    const run = createNpcs();
+    run('findNpcWater = () => ({direction: "front"}); getNpcRodTip = () => [55, 48]; first.rod = {castDistance: 240}; npcMemory.set(first.id, {...serializeNpc(first, 100), spot: [5, 3], bobber: [200, 64, 12000]}); restoreNpc(scene, first)');
+    assert.equal(run('first.state'), 'fishing');
+    assert.equal(run('first.fishing.bobberX'), 200);
+    assert.equal(run('first.fishing.reelAt'), 12100);
+});
+
+test('malformed saved waits cannot freeze a restored resident indefinitely', () => {
+    for (const wait of ['6000', -1, Infinity, NaN, 1.5, Number.MAX_SAFE_INTEGER]) {
+        const run = createNpcs();
+        run('npcMemory.set(first.id, {...serializeNpc(first, 100), wait: ' + (Number.isNaN(wait) ? 'NaN' : wait === Infinity ? 'Infinity' : JSON.stringify(wait)) + '}); restoreNpc(scene, first)');
+        assert.ok(run('Number.isSafeInteger(first.until) && first.until >= scene.time.now && first.until <= scene.time.now + NPC_IDLE_MIN + NPC_IDLE_RANGE'));
+    }
+});
+
+test('malformed saved bobbers leave the remembered fishing spot usable without restoring a broken cast', () => {
+    for (const bobber of ['bad', {}, [80, 64], [null, 64, 1000], [80, 64, -1], [80, 64, '1000'], [80, 64, 9999999], [1000000, 64, 1000]]) {
+        const run = createNpcs();
+        run('findNpcWater = () => ({direction: "front"}); npcMemory.set(first.id, {...serializeNpc(first, 100), spot: [5, 3], bobber: ' + JSON.stringify(bobber) + '}); restoreNpc(scene, first)');
+        assert.equal(run('first.fishing'), null);
+        assert.equal(run('first.state'), 'idle');
+        assert.equal(run('first.spot.tileX'), 5);
+    }
+});
+
+test('malformed saved routes are ignored without pathfinding or inventing blocked plans', () => {
+    for (const goal of ['bad', {}, [4, 3], [4, null, 'wander'], [4.5, 3, 'wander'], [4000, 3, 'wander'], [4, 3, {}]]) {
+        const run = createNpcs();
+        run('let routes = 0; findNpcRoute = () => {routes++; return null;}; npcMemory.set(first.id, {...serializeNpc(first, 100), goal: ' + JSON.stringify(goal) + '}); restoreNpc(scene, first)');
+        assert.equal(run('routes'), 0);
+        assert.equal(run('first.pausedActivity'), null);
+        assert.equal(run('first.state'), 'idle');
+    }
+});
+
 test('the nearest selectable resident must have an unobstructed conversation path', () => {
     const run = createNpcs();
     run('first.x = 64; second.x = 48; second.y = 64; loadedChunks.set(0, {npcs: [first, second]}); updateNpc = () => {}; isNpcWalkableTile = (x, y) => x !== 4; updateNpcs(scene, 100, 16);');
@@ -1218,7 +1277,7 @@ test('returning to spawn dithers out before panning and dithers back in afterwar
         character = { x: 320, y: 64, setPosition(x, y) { this.x = x; this.y = y; return this; } };
         mainCamera = { scrollX: 160, scrollY: 0, width: 320, height: 192, setScroll(x, y) { this.scrollX = x; this.scrollY = y; } };
         const levels = []; ditherInCharacter = (scene, level) => levels.push(level);
-        updateCharacterShadow = updateLoadedChunks = buildPendingChunk = updateChunkVisibility = updateTreeShadows = updateActorShading = updateParticles = updateNpcs = updateFish = updateSky = updateChunkWater = drawFishingMinigame = stopCharacterForMenu = () => {};
+        updateCharacterShadow = updateLoadedChunks = buildPendingChunk = updateChunkVisibility = updateTreeShadows = updateActorShading = updateActorBlinks = updateParticles = updateNpcs = updateFish = updateSky = updateChunkWater = drawFishingMinigame = stopCharacterForMenu = () => {};
         canCharacterOccupy = () => true; fishingLine = fishingWaterShadow = { clear() {} };
         returnToSpawn(scene);
     `);

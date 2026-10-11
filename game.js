@@ -138,6 +138,8 @@ const NPC_FIRST_NAMES = [
 const NPC_NEUTRAL_FIRST_NAMES = ['Arden', 'Avery', 'Blair', 'Briar', 'Brook', 'Cass', 'Cedar', 'Clem', 'Dale', 'Darby', 'Drew', 'Ellis', 'Frankie', 'Gale', 'Harlow', 'Hollis', 'Indy', 'Jo', 'Jude', 'Kai', 'Kit', 'Lark', 'Lou', 'Marlo', 'Noor', 'Quinn', 'Remy', 'River', 'Robin', 'Rowan', 'Sage', 'Sasha', 'Scout', 'Shay', 'Sky', 'Sunny', 'Wren', 'Yuki'];
 const NPC_FEMININE_FIRST_NAMES = NPC_FIRST_NAMES.filter(name => NPC_NEUTRAL_FIRST_NAMES.includes(name) || ['Ada', 'Agnes', 'Alba', 'Alma', 'Anika', 'April', 'Astrid', 'Ava', 'Bea', 'Bess', 'Birdie', 'Calla', 'Camille', 'Carmen', 'Celia', 'Clara', 'Cleo', 'Clover', 'Cora', 'Dahlia', 'Daisy', 'Dawn', 'Della', 'Dina', 'Dot', 'Edie', 'Effie', 'Eliza', 'Elsie', 'Emz', 'Esme', 'Etta', 'Fawn', 'Fern', 'Fiona', 'Flo', 'Ginger', 'Hana', 'Hattie', 'Hazel', 'Holly', 'Ida', 'Imani', 'Ines', 'Iris', 'Ivy', 'Jada', 'Joni', 'June', 'Juno', 'Kat', 'Keiko', 'Laurel', 'Lena', 'Lila', 'Lola', 'Lucy', 'Lulu', 'Mabel', 'Mae', 'Maggie', 'Malia', 'Maple', 'Margo', 'Maude', 'Mavis', 'Meadow', 'Mei', 'Mila', 'Mina', 'Nadia', 'Nell', 'Nina', 'Nora', 'Odette', 'Olive', 'Opal', 'Orla', 'Paloma', 'Peg', 'Pepper', 'Piper', 'Poppy', 'Priya', 'Ramona', 'Rhea', 'Rosa', 'Ruby', 'Selma', 'Stella', 'Suki', 'Tali', 'Tess', 'Thea', 'Tilly', 'Tova', 'Uma', 'Una', 'Vera', 'Vida', 'Willa', 'Willow', 'Winnie', 'Yara', 'Zadie', 'Zara', 'Zoe', 'Zora', 'Zuri'].includes(name));
 const NPC_MASCULINE_FIRST_NAMES = NPC_FIRST_NAMES.filter(name => NPC_NEUTRAL_FIRST_NAMES.includes(name) || !NPC_FEMININE_FIRST_NAMES.includes(name));
+const NPC_COMMON_FEMININE_NAMES = NPC_FEMININE_FIRST_NAMES.filter(name => name !== 'Emz');
+const NPC_COMMON_MASCULINE_NAMES = NPC_MASCULINE_FIRST_NAMES.filter(name => name !== 'Emz');
 
 const NPC_LAST_NAMES = [
     'Abbott', 'Acorn', 'Alder', 'Ames', 'Ashdown', 'Baker', 'Banks', 'Barlow', 'Barnes', 'Bay', 'Beck', 'Bell', 'Birch', 'Bishop', 'Black', 'Bloom',
@@ -770,7 +772,8 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
             if (!trunk.data[source + 3]) continue;
 
             const pixel = targetRow + x;
-            const [red, green, blue] = mapTrunkTone(trunk.data, source, trunkCurve, trunkShade);
+            const patternRow = Math.max(0, Math.min(trunk.height - 1, y + Math.floor(coordinateHash(x >> 2, y >> 3, seed ^ 0x762b9) * 9) - 4)), patternSource = (patternRow * trunk.width + (flip ? trunk.width - 1 - x : x)) * 4;
+            const [red, green, blue] = mapTrunkTone(trunk.data, trunkCurve === TREE_TRUNK_CURVES[1] && trunk.data[patternSource + 3] ? patternSource : source, trunkCurve, trunkShade);
             writeRGBPixel(data, pixel, (red << 16) | (green << 8) | blue);
         }
     }
@@ -1026,17 +1029,57 @@ function createRoundedCliffTextures(scene) {
 
 function getPersonPalette(look) {
     const [skin, , , shirtColor, pants, accessory, , topColor] = look;
+    const blend = salt => look[16] ? ((Math.imul(look[16] ^ salt, 0x45d9f3b) >>> 0) & 65535) / 65535 : 0;
     return {
-        skin: NPC_SKIN_TONES[skin],
-        hair: NPC_HAIR_COLORS[look[9] ?? (accessory ? 0 : topColor)], eye: NPC_EYE_COLORS[look[13] ?? 0],
-        pants: NPC_PANTS_COLORS[pants],
-        shirt: NPC_SHIRT_COLORS[shirtColor],
-        shirtAccent: NPC_SHIRT_COLORS[look[10] ?? shirtColor][1], pantsAccent: NPC_PANTS_COLORS[look[12] ?? pants],
-        top: accessory ? NPC_ACCESSORY_COLORS[topColor] : NPC_HAIR_COLORS[topColor]
+        skin: look[15] === undefined ? NPC_SKIN_TONES[skin] : getPersonSkinRamp(skin >= 5, look[15]),
+        hair: samplePersonPalette(NPC_HAIR_COLORS, look[9] ?? (accessory ? 0 : topColor), blend(1)), eye: samplePersonPalette(NPC_EYE_PALETTES, look[13] ?? 0, look[13] ? blend(7) : 0)[0],
+        pants: samplePersonPalette(NPC_PANTS_COLORS, pants, blend(2)),
+        shirt: samplePersonPalette(NPC_SHIRT_COLORS, shirtColor, blend(3)),
+        shirtAccent: samplePersonPalette(NPC_SHIRT_COLORS, look[10] ?? shirtColor, blend(5))[1], pantsAccent: samplePersonPalette(NPC_PANTS_COLORS, look[12] ?? pants, blend(6)),
+        top: samplePersonPalette(accessory ? NPC_ACCESSORY_COLORS : NPC_HAIR_COLORS, topColor, blend(accessory ? 4 : 1))
     };
 }
 
-function composePersonPixels(scene, look, direction) {
+function samplePersonPalette(palettes, index, amount) {
+    const first = palettes[index], next = palettes[(index + 1) % palettes.length];
+    return first.map((color, shade) => [16, 8, 0].reduce((result, shift) => result | Math.round(((color >> shift) & 255) * (1 - amount) + ((next[shade] >> shift) & 255) * amount) << shift, 0));
+}
+
+function getPersonSkinRamp(pastel, amount) {
+    const anchors = pastel ? [NPC_SKIN_TONES[8], [0xc0a478, 0xe8cfaa, 0xffecd2, 0x806746], NPC_SKIN_TONES[7], NPC_SKIN_TONES[6], NPC_SKIN_TONES[5], NPC_SKIN_TONES[8]] : [NPC_SKIN_TONES[4], NPC_SKIN_TONES[3], NPC_SKIN_TONES[2], NPC_SKIN_TONES[0], NPC_SKIN_TONES[1]];
+    const value = Math.max(0, Math.min(1, amount)) * (anchors.length - 1), index = Math.min(anchors.length - 2, Math.floor(value));
+    return samplePersonPalette(anchors, index, value - index);
+}
+
+function getGuideBlinkTexture(scene) {
+    if (scene.textures.exists('guide-blink')) return;
+    const source = getTerrainPixels(scene, 'guide');
+    createCanvasTexture(scene, 'guide-blink', source.width, source.height, context => {
+        const image = context.createImageData(source.width, source.height); image.data.set(source.data);
+        for (const x of [6, 9]) writeRGBPixel(image.data, 6 * source.width + x, 0xb39777);
+        context.putImageData(image, 0, 0);
+    });
+}
+
+function updatePersonBlink(scene, sprite, look, direction, frame, time) {
+    if (!sprite || sprite.visible === false || sprite === character && (startup || spawnReturn)) return;
+    const blink = sprite.personBlinkState ||= {next: time + 1800 + Math.random() * 4200, until: 0, closed: false};
+    if (time >= blink.next) {blink.until = time + 120; blink.next = time + 2200 + Math.random() * 4200;}
+    blink.closed = time < blink.until;
+    const base = sprite.texture.key.replace(/-blink$/, ''), key = base + (blink.closed ? '-blink' : '');
+    if (sprite.texture.key === key) return;
+    if (look) getPersonTexture(scene, key, look, direction, frame, blink.closed); else if (blink.closed) getGuideBlinkTexture(scene);
+    sprite.setTexture(key);
+    if (sprite === character) characterTextureKey = key;
+}
+
+function updateActorBlinks(scene, time) {
+    updatePersonBlink(scene, character, PLAYER_LOOK, characterDirection, Number(character.texture.key.match(/walk([12])/)?.[1] || 0), time);
+    updatePersonBlink(scene, guide, null, 'front', 0, time);
+    for (const chunk of loadedChunks.values()) if (chunk.visible) for (const npc of chunk.npcs || []) if (npc.state !== 'home') updatePersonBlink(scene, npc.sprite, npc.look, npc.direction, npc.frame || 0, time);
+}
+
+function composePersonPixels(scene, look, direction, blink = false) {
     const [, face, shirt, , , accessory, top] = look;
     const palette = getPersonPalette(look);
     const column = direction === 'back' ? 0 : direction === 'front' ? 1 : 2;
@@ -1058,7 +1101,7 @@ function composePersonPixels(scene, look, direction) {
             for (let x = 0; x < NPC_PART_SIZE; x++) {
                 const source = ((cellY * NPC_PART_SIZE + y) * sheet.width + cellX * NPC_PART_SIZE + (mirror ? NPC_PART_SIZE - 1 - x : x)) * 4;
                 if (!sheet.data[source + 3]) continue;
-                const sourceColor = (sheet.data[source] << 16) | (sheet.data[source + 1] << 8) | sheet.data[source + 2], color = cellY === 0 && sourceColor === 0x660000 && y >= 6 && y <= 7 ? palette.eye : colors.get(sourceColor);
+                const sourceColor = (sheet.data[source] << 16) | (sheet.data[source + 1] << 8) | sheet.data[source + 2], color = cellY === 0 && sourceColor === 0x660000 && y >= 6 && y <= 7 ? blink ? palette.skin[1] : palette.eye : colors.get(sourceColor);
                 if (color !== undefined && y + offsetY < NPC_PART_SIZE) pixels[(y + offsetY) * NPC_PART_SIZE + x] = color;
             }
         }
@@ -1111,9 +1154,9 @@ function walkPersonPixels(pixels, direction, frame, palette) {
     return walked;
 }
 
-function getPersonTexture(scene, key, look, direction, frame = 0) {
+function getPersonTexture(scene, key, look, direction, frame = 0, blink = false) {
     if (scene.textures.exists(key)) return key;
-    const standing = composePersonPixels(scene, look, direction);
+    const standing = composePersonPixels(scene, look, direction, blink);
     const pixels = frame ? walkPersonPixels(standing, direction, frame, getPersonPalette(look)) : standing;
 
     createCanvasTexture(scene, key, NPC_PART_SIZE, NPC_PART_SIZE, context => {
@@ -1125,8 +1168,8 @@ function getPersonTexture(scene, key, look, direction, frame = 0) {
 }
 
 function createPlayerTextures(scene) {
-    for (const direction of ['front', 'back', 'left', 'right']) {
-        for (const frame of [0, 1, 2]) getPersonTexture(scene, `character-${direction}${frame ? `walk${frame}` : ''}`, PLAYER_LOOK, direction, frame);
+    for (const direction of ['front', 'back', 'left', 'right']) for (const blink of [false, true]) {
+        for (const frame of [0, 1, 2]) getPersonTexture(scene, `character-${direction}${frame ? `walk${frame}` : ''}${blink ? '-blink' : ''}`, PLAYER_LOOK, direction, frame, blink);
     }
 }
 
@@ -2542,7 +2585,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             }
 
             drawChunkTexture(
-                terrainTile.baseKey === 'water' ? getUpperContext() : groundContext,
+                terrainTile.baseKey === 'water' || tileKey.startsWith('wood') ? getUpperContext() : groundContext,
                 scene,
                 isWater ? shoreline.textureKey : terrainTile.textureKey || tileKey,
                 drawX,
@@ -2878,7 +2921,7 @@ function spawnChunkShimmer(scene, chunk) {
             cells[cell] + Phaser.Math.Between(0, cells[cell + 2] - 12),
             cells[cell + 1] + Phaser.Math.Between(0, cells[cell + 3] - 1)
         )
-        .setVisible(true)
+        .setDepth(1.25).setVisible(true)
         .setActive(true);
 
     chunk.shimmers.push(shimmer);
@@ -4007,7 +4050,7 @@ function createNpc(tileX, tileY, water) {
     const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
     const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
-    const feminine = rareVanity || appearance[18] === 1, face = appearance[4], names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
+    const rareName = appearance[22] === 0, feminine = rareVanity || rareName || appearance[18] === 1, face = appearance[4], names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
     const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8]) : [0, 2, 4, 6, 7, 8], hairstyles = feminine ? [0, 2, 7, 8, 9] : face === 1 ? [0, 1, 5, 6, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9];
     const vanity = feminine ? [0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 6] : [0, 0, 1, 1, 2, 2, 3, 6, 6, 6, 6], pants = feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
     return {
@@ -4020,26 +4063,26 @@ function createNpc(tileX, tileY, water) {
         hasty: npcHash(tileX, tileY, 1318) < NPC_HASTY_CHANCE,
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),
-        name: names[appearance[19] % names.length] + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
+        name: (rareName ? 'Emz' : names[appearance[19] % names.length]) + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
         look: [
-            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 + appearance[3] : appearance[2], face, shirts[appearance[5] % shirts.length], appearance[6],
+            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 : 0, face, shirts[appearance[5] % shirts.length], appearance[6],
             appearance[7], accessory,
             accessory ? (rareVanity ? 5 : vanity[appearance[9] % vanity.length]) : hairstyles[appearance[10] % hairstyles.length],
             accessory ? appearance[11] : appearance[12],
-            appearance[13], appearance[12], (appearance[6] + 1 + appearance[14]) % NPC_SHIRT_COLORS.length, pants[appearance[15] % pants.length], (appearance[7] + 1 + appearance[16]) % NPC_PANTS_COLORS.length, getNpcEyeColor(appearance[17]), Number(feminine)
+            appearance[13], appearance[12], (appearance[6] + 1 + appearance[14]) % NPC_SHIRT_COLORS.length, pants[appearance[15] % pants.length], (appearance[7] + 1 + appearance[16]) % NPC_PANTS_COLORS.length, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23]
         ]
     };
 }
 
-function getNpcTexture(scene, look, direction, frame = 0) {
-    return getPersonTexture(scene, `npc-${look.join('-')}-${direction}-${frame}`, look, direction, frame);
+function getNpcTexture(scene, look, direction, frame = 0, blink = false) {
+    return getPersonTexture(scene, `npc-${look.join('-')}-${direction}-${frame}${blink ? '-blink' : ''}`, look, direction, frame, blink);
 }
 
 function getNpcAppearanceWord(tileX, tileY) {
     const seed = BigInt(WORLD_SEED_CODE), coordinate = BigInt.asUintN(32, BigInt(tileX)) << 32n | BigInt.asUintN(32, BigInt(tileY));
     const appearance = seed > BigInt(Number.MAX_SAFE_INTEGER) ? seed >> 32n : seed * 0xd6e8feb86659fd93a5a3564e27f8862bn;
-    const word = BigInt.asUintN(128, (appearance + coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn + 0x94d049bb133111ebn) * 0x9e3779b97f4a7c15d6e8feb86659fd93n);
-    return word ^ word >> 64n;
+    const word = BigInt.asUintN(256, (appearance + coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn + 0x94d049bb133111ebn) * 0x9e3779b97f4a7c15d6e8feb86659fd93n);
+    return word ^ word >> 128n;
 }
 
 function getNpcAppearanceRolls(tileX, tileY) {
@@ -4053,9 +4096,9 @@ function makeNpcAppearanceSeed(worldSeed, tileX, tileY, rolls, variant = 0n) {
     let word = BigInt(variant);
     if (word < 0n) throw new Error('Invalid appearance seed variant');
     for (let index = rolls.length - 1; index >= 0; index--) word = word * BigInt(NPC_APPEARANCE_RADICES[index]) + BigInt(rolls[index]);
-    if (word >= 1n << 128n) throw new Error('Appearance seed variant is too large');
+    if (word >= 1n << 256n) throw new Error('Appearance seed variant is too large');
     const coordinate = BigInt.asUintN(32, BigInt(tileX)) << 32n | BigInt.asUintN(32, BigInt(tileY));
-    const appearance = BigInt.asUintN(128, ((word ^ word >> 64n) * 0xe38c9d69e07658b7cfee444d8b59a89bn) - coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn - 0x94d049bb133111ebn);
+    const appearance = BigInt.asUintN(256, ((word ^ word >> 128n) * 0x24bc96887abc5d05068448c9c39a8e00e38c9d69e07658b7cfee444d8b59a89bn) - coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn - 0x94d049bb133111ebn);
     const seed = appearance << 32n | BigInt(worldSeed);
     if (seed <= BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('Use another appearance seed variant');
     return seed.toString();
@@ -4140,7 +4183,7 @@ function getSavedNpcs(time) {
 
 function restoreSavedNpcs(scene, saved) {
     if (!Array.isArray(saved)) return;
-    for (const state of saved.slice(-NPC_MEMORY_LIMIT)) if (state && Number.isFinite(state.id)) npcMemory.set(state.id, state);
+    for (const state of saved.slice(-NPC_MEMORY_LIMIT)) if (state && Number.isSafeInteger(state.id)) npcMemory.set(state.id, state);
     while (npcMemory.size > NPC_MEMORY_LIMIT) npcMemory.delete(npcMemory.keys().next().value);
     for (const chunk of loadedChunks.values()) for (const npc of chunk.npcs || []) restoreNpc(scene, npc);
 }
@@ -4150,7 +4193,7 @@ function restoreNpc(scene, npc) {
     if (!state || !Number.isFinite(state.x) || !Number.isFinite(state.y)) return;
     npcMemory.delete(npc.id);
     const time = scene.time.now;
-    Object.assign(npc, { x: Math.round(state.x), y: Math.round(state.y), rng: state.rng | 0, state: 'idle', until: time + (state.wait || 0), path: [], fishing: null, spot: null, goal: null, pausedActivity: null, blockedPlanUntil: 0, talking: false, joining: null, joinedConversation: null, greetingUntil: 0, speechFrom: 0, speechUntil: 0 });
+    Object.assign(npc, { x: Math.round(state.x), y: Math.round(state.y), rng: state.rng | 0, state: 'idle', until: time + (Number.isSafeInteger(state.wait) && state.wait >= 0 ? Math.min(state.wait, NPC_IDLE_MIN + NPC_IDLE_RANGE) : 0), path: [], fishing: null, spot: null, goal: null, pausedActivity: null, blockedPlanUntil: 0, talking: false, joining: null, joinedConversation: null, greetingUntil: 0, speechFrom: 0, speechUntil: 0 });
     npc.sprite.setVisible(true);
     npc.playerVisits = Number.isSafeInteger(state.visits) && state.visits >= 0 ? Math.min(100000, state.visits) : 0;
     npc.failedSpots = new Set(Array.isArray(state.failedSpots) ? state.failedSpots.filter(Number.isSafeInteger).slice(-NPC_FAILED_SPOT_LIMIT) : []);
@@ -4164,12 +4207,12 @@ function restoreNpc(scene, npc) {
         const water = findNpcWater(state.spot[0], state.spot[1]);
         if (water) npc.spot = { tileX: state.spot[0], tileY: state.spot[1], water };
     }
-    if (state.bobber && npc.spot) {
+    if (npc.spot && Array.isArray(state.bobber) && state.bobber.length === 3 && state.bobber.every(Number.isSafeInteger) && state.bobber[2] >= 0 && state.bobber[2] <= NPC_FISH_MIN + NPC_FISH_RANGE && Math.hypot(state.bobber[0] - npc.x, state.bobber[1] - npc.y) <= (npc.rod?.castDistance || CAST_MIN_DISTANCE + NPC_CAST_ERROR) + NPC_PART_SIZE) {
         npc.direction = npc.spot.water.direction;
         npc.state = 'fishing';
         npc.fishing = createNpcCast(npc, time, state.bobber[0], state.bobber[1], 0.5);
         Object.assign(npc.fishing, { state: 'floating', bobberX: state.bobber[0], bobberY: state.bobber[1], lureAt: time + NPC_LURE_DELAY, reelAt: time + state.bobber[2] });
-    } else if (state.goal) {
+    } else if (Array.isArray(state.goal) && state.goal.length === 3 && state.goal.slice(0, 2).every(Number.isSafeInteger) && typeof state.goal[2] === 'string' && isNpcInHomeArea(npc, state.goal[0], state.goal[1])) {
         const homeGoal = state.goal[2] === 'home';
         const path = (!homeGoal || npc.house && (getNpcDailyPlan(npc, getWorldClock()) === 'home' || getRainIntensity(getWorldClock()) >= 0.25)) && findNpcRoute(scene, npc, state.goal[0], state.goal[1]);
         const goal = homeGoal ? 'home' : state.goal[2] === 'fish' && npc.spot ? 'fish' : ['windDown', 'leaveHome'].includes(state.goal[2]) ? state.goal[2] : 'wander';
@@ -4216,7 +4259,7 @@ function setNpcPose(scene, npc, direction, frame) {
     if (npc.direction === direction && npc.frame === frame) return;
     npc.direction = direction;
     npc.frame = frame;
-    npc.sprite.setTexture(getNpcTexture(scene, npc.look, direction, frame));
+    npc.sprite.setTexture(getNpcTexture(scene, npc.look, direction, frame, npc.sprite.personBlinkState?.closed));
 }
 
 function getDirectionToward(npc, targetX, targetY) {
@@ -4512,7 +4555,7 @@ function stepNpc(scene, npc, time, delta) {
     npc.walkPhase += frameDelta * CHARACTER_ANIMATION_SPEED * pace / 1000;
     const direction = moveX ? (moveX < 0 ? 'left' : 'right') : (moveY < 0 ? 'back' : 'front');
     setNpcPose(scene, npc, direction, CHARACTER_WALK_FRAMES[Math.floor(npc.walkPhase) % 4]);
-    npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE);
+    if (npc.sprite.x !== npc.x || npc.sprite.y !== npc.y) npc.sprite.setPosition(npc.x, npc.y); if (npc.sprite.depth !== npc.y + NPC_PART_SIZE) npc.sprite.setDepth(npc.y + NPC_PART_SIZE);
     return false;
 }
 
@@ -4869,8 +4912,18 @@ function updateNpc(scene, npc, time, delta) {
     }
     drawNpcRod(scene, npc, time, delta);
     if (isNpcNearCamera(npc)) drawNpcShadow(scene, npc);
-    const speaking = npc.state === 'social' || time < (npc.greetingUntil || 0);
-    if (npc.bubble) { npc.bubble.setVisible(!npc.talking && speaking && time >= npc.speechFrom && time < npc.speechUntil && isNpcNearCamera(npc)); if (speaking) npc.bubble.setText(npc.speech || '').setPosition(Math.round(npc.x - 40), Math.round(npc.y - 30)).setDepth(npc.y + NPC_PART_SIZE + 1); }
+    updateNpcBubble(npc, time);
+}
+
+function updateNpcBubble(npc, time) {
+    const bubble = npc.bubble; if (!bubble) return;
+    const visible = !npc.talking && (npc.state === 'social' || time < (npc.greetingUntil || 0)) && time >= npc.speechFrom && time < npc.speechUntil && isNpcNearCamera(npc);
+    if (bubble.visible !== visible) bubble.setVisible(visible);
+    if (!visible) return;
+    const text = npc.speech || '', x = Math.round(npc.x - 40), y = Math.round(npc.y - 30), depth = npc.y + NPC_PART_SIZE + 1;
+    if (bubble.text !== text) bubble.setText(text);
+    if (bubble.x !== x || bubble.y !== y) bubble.setPosition(x, y);
+    if (bubble.depth !== depth) bubble.setDepth(depth);
 }
 
 function updateNpcs(scene, time, delta) {
@@ -5113,7 +5166,7 @@ const RUMOR_SPECIES = FISH_SPECIES.filter(species => species.size === 'large' ||
 const RUMOR_DIRECTIONS = ['east', 'southeast', 'south', 'southwest', 'west', 'northwest', 'north', 'northeast'];
 
 function getRumorHotspot(cellX, cellY, day) {
-    const key = `${getTileId(cellX, cellY)}:${day}`;
+    const key = `${getTileId(cellX, cellY)}:${day}:${typeof getMysteryCycle === 'function' ? getMysteryCycle() : 0}`;
     const cached = rumorCache.get(key);
     if (cached !== undefined) return cached;
 
@@ -5129,7 +5182,7 @@ function getRumorHotspot(cellX, cellY, day) {
             }
         }
         const area = waterTiles * TILE_SIZE * TILE_SIZE;
-        const options = RUMOR_SPECIES.filter(species => area >= species.minWater);
+        const mystery = typeof getCurrentMysteryBait === 'function' ? getCurrentMysteryBait()?.attracts : null, candidates = mystery && !RUMOR_SPECIES.includes(mystery) ? RUMOR_SPECIES.concat(mystery) : RUMOR_SPECIES, options = candidates.filter(species => area >= species.minWater);
         if (!options.length) continue;
         hotspot = { key, day, chunkX, chunkY, species: options[Math.min(options.length - 1, Math.floor(coordinateHash(chunkX, chunkY, salt) * options.length))] };
     }
@@ -5177,9 +5230,9 @@ let fishJumpRandom = null;
 let nextFishJumpAt = 0;
 
 function splashFishJump(scene, time, x, y) {
-    idleRipple(scene, time, x, y);
+    idleRipple(scene, time, x, y, scene.children, 1.3);
     for (let index = 0; index < FISH_JUMP_DROPLETS; index++) {
-        spawnParticle(scene, shadowLayer, time, x - 1 + index, y - 1, index - 1, -1, FISH_JUMP_DROPLET_LIFETIME, FISH_JUMP_DROPLET_COLOR);
+        spawnParticle(scene, scene.children, time, x - 1 + index, y - 1, index - 1, -1, FISH_JUMP_DROPLET_LIFETIME, FISH_JUMP_DROPLET_COLOR, 1.3);
     }
 }
 
@@ -5238,8 +5291,7 @@ function startFishJump(scene, time) {
     }
 
     const graphics = fishJumpGraphics.pop() || scene.add.graphics();
-    worldObjectLayer.add(graphics);
-    graphics.setVisible(true).setDepth(Math.max(fish.y, toY) + FISH_JUMP_DEPTH);
+    graphics.setVisible(true).setDepth(1.3);
     fish.jumping = true;
     const color = tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(fish.x, fish.y));
     fishJumps.push({ fish, graphics, color, fromX: fish.x, fromY: fish.y, toX, toY, heading, start: time, height: FISH_JUMP_HEIGHT + fish.length * 0.4 });
@@ -6150,9 +6202,9 @@ function spawnFishRise(scene, time) {
     if (fish && fish !== fishing?.targetFish) nibbleRipple(scene, time, Math.round(fish.x), Math.round(fish.y));
 }
 
-function idleRipple(scene, time, x, y) {
-    spawnParticle(scene, shadowLayer, time, x - 2, y, -1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR);
-    spawnParticle(scene, shadowLayer, time, x + 2, y, 1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR);
+function idleRipple(scene, time, x, y, layer = shadowLayer, depth = 0) {
+    spawnParticle(scene, layer, time, x - 2, y, -1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR, depth);
+    spawnParticle(scene, layer, time, x + 2, y, 1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR, depth);
 }
 
 function nibbleRipple(scene, time, x, y) {
@@ -7195,6 +7247,7 @@ function updateStartup(scene, time, delta) {
     updateChunkVisibility();
     updateTreeShadows(scene, time);
     updateActorShading(scene);
+    updateActorBlinks(scene, time);
     updateParticles(time);
     updateFish(delta);
     updateChunkWater(time);
@@ -7890,7 +7943,7 @@ function createNewGameUI(scene) {
     createUIText(text, 48, 9, '#e0f2fd', 224, 'center').textContent = 'Start a new world';
     const options = ['Seeded', 'Unseeded'].map((label, index) => createUIText(text, 48 + index * 112, 30, '#e0f2fd', 112, 'center'));
     const input = document.createElement('input');
-    input.type = 'text'; input.inputMode = 'numeric'; input.maxLength = 49; input.setAttribute('aria-label', 'World seed');
+    input.type = 'text'; input.inputMode = 'numeric'; input.maxLength = 87; input.setAttribute('aria-label', 'World seed');
     Object.assign(input.style, { position: 'absolute', left: '48px', top: '53px', width: '224px', height: '18px', boxSizing: 'border-box', background: '#230a03', color: '#e0f2fd', border: '1px solid #465989', borderRadius: '0', fontFamily: 'inherit', fontSize: '11px', padding: '2px 4px', pointerEvents: 'auto' });
     text.appendChild(input);
     const note = createUIText(text, 48, 76, '#c0a887', 224, 'center', { fontSize: '9px' });
@@ -9484,9 +9537,9 @@ const CAMERA_EASE = 2;
 const PROMPT_SLIDE = 4;
 
 function isValidWorldSeed(value) {
-    if (!/^[1-9][0-9]{0,48}$/.test(value)) return false;
+    if (!/^[1-9][0-9]{0,86}$/.test(value)) return false;
     const seed = BigInt(value);
-    return seed < (1n << 160n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n);
+    return seed < (1n << 288n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n);
 }
 
 function getRequestedWorldSeed() {
@@ -9494,7 +9547,7 @@ function getRequestedWorldSeed() {
     const value = new URLSearchParams(window.location.search).get('seed');
     if (!value || !isValidWorldSeed(value)) return null;
     const seed = BigInt(value);
-    return seed < (1n << 160n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n) ? value : null;
+    return seed < (1n << 288n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n) ? value : null;
 }
 
 function loadWorldSeed() {
@@ -9520,7 +9573,8 @@ const NPC_SHIRTS = 9;
 const NPC_ACCESSORY_CHANCE = 0.35;
 const NPC_RARE_VANITY_CHANCE = 0.0001, NPC_PASTEL_SKIN_CHANCE = 0.01, NPC_PANTS_STYLES = 5;
 const NPC_EYE_COLORS = [0x191820, 0x633d2b, 0x46758b, 0x527349, 0x77794a, 0xadcddd, 0xb18c53], NPC_EYE_WEIGHTS = [0.64, 0.16, 0.07, 0.06, 0.04, 0.02, 0.01];
-const NPC_APPEARANCE_RADICES = [10000, 100, 5, 4, 3, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536];
+const NPC_EYE_PALETTES = NPC_EYE_COLORS.map(color => [color]);
+const NPC_APPEARANCE_RADICES = [10000, 100, 65536, 65536, 3, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536, 10000, 4294967296];
 const NPC_CELL_SIZE = 10;
 const NPC_CELL_MARGIN = 2;
 const NPC_CELL_CHANCE = 0.45;
@@ -10641,6 +10695,7 @@ function updateSpawnReturn(scene, time, delta) {
     updateLoadedChunks(scene); buildPendingChunk(scene); updateChunkVisibility();
     updateTreeShadows(scene, time); updateParticles(time); updateNpcs(scene, time, delta);
     updateActorShading(scene);
+    updateActorBlinks(scene, time);
     updateFish(delta); updateSky(scene, time, delta); updateChunkWater(time);
 }
 
@@ -10703,6 +10758,7 @@ function moveCharacterBy(scene, wholeMoveX, wholeMoveY, moveX, moveY) {
 }
 
 function setCharacterTexture(key) {
+    if (character.personBlinkState?.closed && !key.endsWith('-blink') && key !== 'character-dither') key += '-blink';
     if (key === characterTextureKey) return false;
 
     characterTextureKey = key;
@@ -10824,6 +10880,7 @@ function update(time, delta) {
     spawnFishRise(this, time);
     spawnMeadowMote(this, time);
     updateNpcs(this, time, delta);
+    updateActorBlinks(this, time);
     updateActorShading(this);
     updateFishJumps(this, time);
     updateSky(this, time, delta);

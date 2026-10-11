@@ -176,7 +176,8 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
             if (!trunk.data[source + 3]) continue;
 
             const pixel = targetRow + x;
-            const [red, green, blue] = mapTrunkTone(trunk.data, source, trunkCurve, trunkShade);
+            const patternRow = Math.max(0, Math.min(trunk.height - 1, y + Math.floor(coordinateHash(x >> 2, y >> 3, seed ^ 0x762b9) * 9) - 4)), patternSource = (patternRow * trunk.width + (flip ? trunk.width - 1 - x : x)) * 4;
+            const [red, green, blue] = mapTrunkTone(trunk.data, trunkCurve === TREE_TRUNK_CURVES[1] && trunk.data[patternSource + 3] ? patternSource : source, trunkCurve, trunkShade);
             writeRGBPixel(data, pixel, (red << 16) | (green << 8) | blue);
         }
     }

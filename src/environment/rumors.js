@@ -4,7 +4,7 @@ const RUMOR_SPECIES = FISH_SPECIES.filter(species => species.size === 'large' ||
 const RUMOR_DIRECTIONS = ['east', 'southeast', 'south', 'southwest', 'west', 'northwest', 'north', 'northeast'];
 
 function getRumorHotspot(cellX, cellY, day) {
-    const key = `${getTileId(cellX, cellY)}:${day}`;
+    const key = `${getTileId(cellX, cellY)}:${day}:${typeof getMysteryCycle === 'function' ? getMysteryCycle() : 0}`;
     const cached = rumorCache.get(key);
     if (cached !== undefined) return cached;
 
@@ -20,7 +20,7 @@ function getRumorHotspot(cellX, cellY, day) {
             }
         }
         const area = waterTiles * TILE_SIZE * TILE_SIZE;
-        const options = RUMOR_SPECIES.filter(species => area >= species.minWater);
+        const mystery = typeof getCurrentMysteryBait === 'function' ? getCurrentMysteryBait()?.attracts : null, candidates = mystery && !RUMOR_SPECIES.includes(mystery) ? RUMOR_SPECIES.concat(mystery) : RUMOR_SPECIES, options = candidates.filter(species => area >= species.minWater);
         if (!options.length) continue;
         hotspot = { key, day, chunkX, chunkY, species: options[Math.min(options.length - 1, Math.floor(coordinateHash(chunkX, chunkY, salt) * options.length))] };
     }

@@ -3,6 +3,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('only large fish and the current mystery bait target enter rumor candidates', () => {
+    const run = createRumors();
+    assert.equal(run('RUMOR_SPECIES.every(species => species.size === "large" || species.size === "giant")'), true);
+    run('let cycle = 1; getMysteryCycle = () => cycle; getCurrentMysteryBait = () => ({attracts: FISH_SPECIES.find(species => species.size === "small")}); const smallHint = getRumorHotspot(0, 0, 1);');
+    assert.equal(run('smallHint.species === getCurrentMysteryBait().attracts'), true);
+    run('cycle++; getCurrentMysteryBait = () => ({attracts: FISH_SPECIES.find(species => species.size === "medium")}); const mediumHint = getRumorHotspot(0, 0, 1);');
+    assert.equal(run('mediumHint.species === getCurrentMysteryBait().attracts'), true);
+    assert.notEqual(run('smallHint.key'), run('mediumHint.key'));
+});
+
 function createRumors() {
     const context = vm.createContext({ TEST_MODE: false });
     vm.runInContext(['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'world/terrain.js', 'environment/rumors.js'].map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);

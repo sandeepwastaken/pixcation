@@ -5,6 +5,12 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
+
+test('solid pier wood is painted above shimmer sprites, not into the ground layer', () => {
+    const run = createWorld();
+    assert.equal(run('woodContexts.get("32,0") === chunk.upperTexture.getContext()'), true);
+    assert.equal(run('woodContexts.get("32,0") === chunk.groundTexture.getContext()'), false);
+});
 const source = ['runtime/settings.js', 'runtime/state.js', 'world/surfaces.js', 'world/chunks.js', 'environment/shimmers.js']
     .map(file => fs.readFileSync(path.join(ROOT, 'src', file), 'utf8')).join('\n');
 
@@ -52,9 +58,10 @@ function createWorld(includeOpenWater = true) {
         }
         const Phaser = { Math: { Between: (min, max) => min }, Animations: { Events: { ANIMATION_COMPLETE: 'complete' } } };
         const scene = {
-            textures: { addCanvas: (key, canvas) => ({ key, getContext: drawingContext, refresh() {} }) },
+            textures: { addCanvas: (key, canvas) => { const context = drawingContext(); return {key, getContext: () => context, refresh() {}}; } },
             add: { image: sprite, sprite }
         };
+        const woodContexts = new Map(), originalDraw = drawChunkTexture; drawChunkTexture = (context, scene, key, x, y, ...rest) => {if(key === 'wood') woodContexts.set(x + ',' + y, context); return originalDraw(context, scene, key, x, y, ...rest);};
         createWorldChunk(scene, 0, 0, true);
         const chunk = loadedChunks.get('0,0');
     `, context);
@@ -85,6 +92,7 @@ test('sparkles remain below decks when sprites are created and reused', () => {
     assert.equal(run('getWorldTile(Math.floor(first.x / TILE_SIZE), Math.floor(first.y / TILE_SIZE)).key'), 'water');
     run('finishShimmer(null, null, first)');
     assert.equal(run('first.active'), false);
+    run('first.depth = 999');
     run('spawnChunkShimmer(scene, chunk)');
     assert.equal(run('chunk.shimmers[0] === first'), true);
     assert.equal(run('first.depth > 1 && first.depth < chunk.upperLayer.depth'), true);

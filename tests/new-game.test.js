@@ -51,7 +51,7 @@ test('unseeded resets remove the URL seed and clear the old default world', () =
 
 test('invalid seeds cannot erase progress or navigate', () => {
     const session = createNewGame();
-    for (const seed of ['', '0', '-1', '1.2', 'abc', String(1n << 160n)]) { session.run('openNewGameChoice(); newGameChoice.input.value = ' + JSON.stringify(seed) + '; startNewGameChoice()'); }
+    for (const seed of ['', '0', '-1', '1.2', 'abc', String(1n << 288n)]) { session.run('openNewGameChoice(); newGameChoice.input.value = ' + JSON.stringify(seed) + '; startNewGameChoice()'); }
     assert.equal(session.removals.length, 0);
     assert.equal(session.navigations.length, 0);
     assert.equal(session.run('newGameResetting'), false);

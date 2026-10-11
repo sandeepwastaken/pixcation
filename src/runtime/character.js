@@ -217,6 +217,7 @@ function updateSpawnReturn(scene, time, delta) {
     updateLoadedChunks(scene); buildPendingChunk(scene); updateChunkVisibility();
     updateTreeShadows(scene, time); updateParticles(time); updateNpcs(scene, time, delta);
     updateActorShading(scene);
+    updateActorBlinks(scene, time);
     updateFish(delta); updateSky(scene, time, delta); updateChunkWater(time);
 }
 
@@ -279,6 +280,7 @@ function moveCharacterBy(scene, wholeMoveX, wholeMoveY, moveX, moveY) {
 }
 
 function setCharacterTexture(key) {
+    if (character.personBlinkState?.closed && !key.endsWith('-blink') && key !== 'character-dither') key += '-blink';
     if (key === characterTextureKey) return false;
 
     characterTextureKey = key;

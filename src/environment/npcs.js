@@ -239,7 +239,7 @@ function createNpc(tileX, tileY, water) {
     const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
     const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
-    const feminine = rareVanity || appearance[18] === 1, face = appearance[4], names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
+    const rareName = appearance[22] === 0, feminine = rareVanity || rareName || appearance[18] === 1, face = appearance[4], names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
     const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8]) : [0, 2, 4, 6, 7, 8], hairstyles = feminine ? [0, 2, 7, 8, 9] : face === 1 ? [0, 1, 5, 6, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9];
     const vanity = feminine ? [0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 6] : [0, 0, 1, 1, 2, 2, 3, 6, 6, 6, 6], pants = feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
     return {
@@ -252,26 +252,26 @@ function createNpc(tileX, tileY, water) {
         hasty: npcHash(tileX, tileY, 1318) < NPC_HASTY_CHANCE,
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),
-        name: names[appearance[19] % names.length] + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
+        name: (rareName ? 'Emz' : names[appearance[19] % names.length]) + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
         look: [
-            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 + appearance[3] : appearance[2], face, shirts[appearance[5] % shirts.length], appearance[6],
+            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 : 0, face, shirts[appearance[5] % shirts.length], appearance[6],
             appearance[7], accessory,
             accessory ? (rareVanity ? 5 : vanity[appearance[9] % vanity.length]) : hairstyles[appearance[10] % hairstyles.length],
             accessory ? appearance[11] : appearance[12],
-            appearance[13], appearance[12], (appearance[6] + 1 + appearance[14]) % NPC_SHIRT_COLORS.length, pants[appearance[15] % pants.length], (appearance[7] + 1 + appearance[16]) % NPC_PANTS_COLORS.length, getNpcEyeColor(appearance[17]), Number(feminine)
+            appearance[13], appearance[12], (appearance[6] + 1 + appearance[14]) % NPC_SHIRT_COLORS.length, pants[appearance[15] % pants.length], (appearance[7] + 1 + appearance[16]) % NPC_PANTS_COLORS.length, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23]
         ]
     };
 }
 
-function getNpcTexture(scene, look, direction, frame = 0) {
-    return getPersonTexture(scene, `npc-${look.join('-')}-${direction}-${frame}`, look, direction, frame);
+function getNpcTexture(scene, look, direction, frame = 0, blink = false) {
+    return getPersonTexture(scene, `npc-${look.join('-')}-${direction}-${frame}${blink ? '-blink' : ''}`, look, direction, frame, blink);
 }
 
 function getNpcAppearanceWord(tileX, tileY) {
     const seed = BigInt(WORLD_SEED_CODE), coordinate = BigInt.asUintN(32, BigInt(tileX)) << 32n | BigInt.asUintN(32, BigInt(tileY));
     const appearance = seed > BigInt(Number.MAX_SAFE_INTEGER) ? seed >> 32n : seed * 0xd6e8feb86659fd93a5a3564e27f8862bn;
-    const word = BigInt.asUintN(128, (appearance + coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn + 0x94d049bb133111ebn) * 0x9e3779b97f4a7c15d6e8feb86659fd93n);
-    return word ^ word >> 64n;
+    const word = BigInt.asUintN(256, (appearance + coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn + 0x94d049bb133111ebn) * 0x9e3779b97f4a7c15d6e8feb86659fd93n);
+    return word ^ word >> 128n;
 }
 
 function getNpcAppearanceRolls(tileX, tileY) {
@@ -285,9 +285,9 @@ function makeNpcAppearanceSeed(worldSeed, tileX, tileY, rolls, variant = 0n) {
     let word = BigInt(variant);
     if (word < 0n) throw new Error('Invalid appearance seed variant');
     for (let index = rolls.length - 1; index >= 0; index--) word = word * BigInt(NPC_APPEARANCE_RADICES[index]) + BigInt(rolls[index]);
-    if (word >= 1n << 128n) throw new Error('Appearance seed variant is too large');
+    if (word >= 1n << 256n) throw new Error('Appearance seed variant is too large');
     const coordinate = BigInt.asUintN(32, BigInt(tileX)) << 32n | BigInt.asUintN(32, BigInt(tileY));
-    const appearance = BigInt.asUintN(128, ((word ^ word >> 64n) * 0xe38c9d69e07658b7cfee444d8b59a89bn) - coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn - 0x94d049bb133111ebn);
+    const appearance = BigInt.asUintN(256, ((word ^ word >> 128n) * 0x24bc96887abc5d05068448c9c39a8e00e38c9d69e07658b7cfee444d8b59a89bn) - coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn - 0x94d049bb133111ebn);
     const seed = appearance << 32n | BigInt(worldSeed);
     if (seed <= BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('Use another appearance seed variant');
     return seed.toString();
@@ -372,7 +372,7 @@ function getSavedNpcs(time) {
 
 function restoreSavedNpcs(scene, saved) {
     if (!Array.isArray(saved)) return;
-    for (const state of saved.slice(-NPC_MEMORY_LIMIT)) if (state && Number.isFinite(state.id)) npcMemory.set(state.id, state);
+    for (const state of saved.slice(-NPC_MEMORY_LIMIT)) if (state && Number.isSafeInteger(state.id)) npcMemory.set(state.id, state);
     while (npcMemory.size > NPC_MEMORY_LIMIT) npcMemory.delete(npcMemory.keys().next().value);
     for (const chunk of loadedChunks.values()) for (const npc of chunk.npcs || []) restoreNpc(scene, npc);
 }
@@ -382,7 +382,7 @@ function restoreNpc(scene, npc) {
     if (!state || !Number.isFinite(state.x) || !Number.isFinite(state.y)) return;
     npcMemory.delete(npc.id);
     const time = scene.time.now;
-    Object.assign(npc, { x: Math.round(state.x), y: Math.round(state.y), rng: state.rng | 0, state: 'idle', until: time + (state.wait || 0), path: [], fishing: null, spot: null, goal: null, pausedActivity: null, blockedPlanUntil: 0, talking: false, joining: null, joinedConversation: null, greetingUntil: 0, speechFrom: 0, speechUntil: 0 });
+    Object.assign(npc, { x: Math.round(state.x), y: Math.round(state.y), rng: state.rng | 0, state: 'idle', until: time + (Number.isSafeInteger(state.wait) && state.wait >= 0 ? Math.min(state.wait, NPC_IDLE_MIN + NPC_IDLE_RANGE) : 0), path: [], fishing: null, spot: null, goal: null, pausedActivity: null, blockedPlanUntil: 0, talking: false, joining: null, joinedConversation: null, greetingUntil: 0, speechFrom: 0, speechUntil: 0 });
     npc.sprite.setVisible(true);
     npc.playerVisits = Number.isSafeInteger(state.visits) && state.visits >= 0 ? Math.min(100000, state.visits) : 0;
     npc.failedSpots = new Set(Array.isArray(state.failedSpots) ? state.failedSpots.filter(Number.isSafeInteger).slice(-NPC_FAILED_SPOT_LIMIT) : []);
@@ -396,12 +396,12 @@ function restoreNpc(scene, npc) {
         const water = findNpcWater(state.spot[0], state.spot[1]);
         if (water) npc.spot = { tileX: state.spot[0], tileY: state.spot[1], water };
     }
-    if (state.bobber && npc.spot) {
+    if (npc.spot && Array.isArray(state.bobber) && state.bobber.length === 3 && state.bobber.every(Number.isSafeInteger) && state.bobber[2] >= 0 && state.bobber[2] <= NPC_FISH_MIN + NPC_FISH_RANGE && Math.hypot(state.bobber[0] - npc.x, state.bobber[1] - npc.y) <= (npc.rod?.castDistance || CAST_MIN_DISTANCE + NPC_CAST_ERROR) + NPC_PART_SIZE) {
         npc.direction = npc.spot.water.direction;
         npc.state = 'fishing';
         npc.fishing = createNpcCast(npc, time, state.bobber[0], state.bobber[1], 0.5);
         Object.assign(npc.fishing, { state: 'floating', bobberX: state.bobber[0], bobberY: state.bobber[1], lureAt: time + NPC_LURE_DELAY, reelAt: time + state.bobber[2] });
-    } else if (state.goal) {
+    } else if (Array.isArray(state.goal) && state.goal.length === 3 && state.goal.slice(0, 2).every(Number.isSafeInteger) && typeof state.goal[2] === 'string' && isNpcInHomeArea(npc, state.goal[0], state.goal[1])) {
         const homeGoal = state.goal[2] === 'home';
         const path = (!homeGoal || npc.house && (getNpcDailyPlan(npc, getWorldClock()) === 'home' || getRainIntensity(getWorldClock()) >= 0.25)) && findNpcRoute(scene, npc, state.goal[0], state.goal[1]);
         const goal = homeGoal ? 'home' : state.goal[2] === 'fish' && npc.spot ? 'fish' : ['windDown', 'leaveHome'].includes(state.goal[2]) ? state.goal[2] : 'wander';
@@ -448,7 +448,7 @@ function setNpcPose(scene, npc, direction, frame) {
     if (npc.direction === direction && npc.frame === frame) return;
     npc.direction = direction;
     npc.frame = frame;
-    npc.sprite.setTexture(getNpcTexture(scene, npc.look, direction, frame));
+    npc.sprite.setTexture(getNpcTexture(scene, npc.look, direction, frame, npc.sprite.personBlinkState?.closed));
 }
 
 function getDirectionToward(npc, targetX, targetY) {
@@ -744,7 +744,7 @@ function stepNpc(scene, npc, time, delta) {
     npc.walkPhase += frameDelta * CHARACTER_ANIMATION_SPEED * pace / 1000;
     const direction = moveX ? (moveX < 0 ? 'left' : 'right') : (moveY < 0 ? 'back' : 'front');
     setNpcPose(scene, npc, direction, CHARACTER_WALK_FRAMES[Math.floor(npc.walkPhase) % 4]);
-    npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE);
+    if (npc.sprite.x !== npc.x || npc.sprite.y !== npc.y) npc.sprite.setPosition(npc.x, npc.y); if (npc.sprite.depth !== npc.y + NPC_PART_SIZE) npc.sprite.setDepth(npc.y + NPC_PART_SIZE);
     return false;
 }
 
@@ -1101,8 +1101,18 @@ function updateNpc(scene, npc, time, delta) {
     }
     drawNpcRod(scene, npc, time, delta);
     if (isNpcNearCamera(npc)) drawNpcShadow(scene, npc);
-    const speaking = npc.state === 'social' || time < (npc.greetingUntil || 0);
-    if (npc.bubble) { npc.bubble.setVisible(!npc.talking && speaking && time >= npc.speechFrom && time < npc.speechUntil && isNpcNearCamera(npc)); if (speaking) npc.bubble.setText(npc.speech || '').setPosition(Math.round(npc.x - 40), Math.round(npc.y - 30)).setDepth(npc.y + NPC_PART_SIZE + 1); }
+    updateNpcBubble(npc, time);
+}
+
+function updateNpcBubble(npc, time) {
+    const bubble = npc.bubble; if (!bubble) return;
+    const visible = !npc.talking && (npc.state === 'social' || time < (npc.greetingUntil || 0)) && time >= npc.speechFrom && time < npc.speechUntil && isNpcNearCamera(npc);
+    if (bubble.visible !== visible) bubble.setVisible(visible);
+    if (!visible) return;
+    const text = npc.speech || '', x = Math.round(npc.x - 40), y = Math.round(npc.y - 30), depth = npc.y + NPC_PART_SIZE + 1;
+    if (bubble.text !== text) bubble.setText(text);
+    if (bubble.x !== x || bubble.y !== y) bubble.setPosition(x, y);
+    if (bubble.depth !== depth) bubble.setDepth(depth);
 }
 
 function updateNpcs(scene, time, delta) {

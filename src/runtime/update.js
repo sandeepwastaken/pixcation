@@ -41,6 +41,7 @@ function update(time, delta) {
     spawnFishRise(this, time);
     spawnMeadowMote(this, time);
     updateNpcs(this, time, delta);
+    updateActorBlinks(this, time);
     updateActorShading(this);
     updateFishJumps(this, time);
     updateSky(this, time, delta);

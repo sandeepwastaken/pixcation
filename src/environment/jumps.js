@@ -4,9 +4,9 @@ let fishJumpRandom = null;
 let nextFishJumpAt = 0;
 
 function splashFishJump(scene, time, x, y) {
-    idleRipple(scene, time, x, y);
+    idleRipple(scene, time, x, y, scene.children, 1.3);
     for (let index = 0; index < FISH_JUMP_DROPLETS; index++) {
-        spawnParticle(scene, shadowLayer, time, x - 1 + index, y - 1, index - 1, -1, FISH_JUMP_DROPLET_LIFETIME, FISH_JUMP_DROPLET_COLOR);
+        spawnParticle(scene, scene.children, time, x - 1 + index, y - 1, index - 1, -1, FISH_JUMP_DROPLET_LIFETIME, FISH_JUMP_DROPLET_COLOR, 1.3);
     }
 }
 
@@ -65,8 +65,7 @@ function startFishJump(scene, time) {
     }
 
     const graphics = fishJumpGraphics.pop() || scene.add.graphics();
-    worldObjectLayer.add(graphics);
-    graphics.setVisible(true).setDepth(Math.max(fish.y, toY) + FISH_JUMP_DEPTH);
+    graphics.setVisible(true).setDepth(1.3);
     fish.jumping = true;
     const color = tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(fish.x, fish.y));
     fishJumps.push({ fish, graphics, color, fromX: fish.x, fromY: fish.y, toX, toY, heading, start: time, height: FISH_JUMP_HEIGHT + fish.length * 0.4 });

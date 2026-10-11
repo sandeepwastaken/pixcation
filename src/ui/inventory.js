@@ -158,7 +158,7 @@ function createNewGameUI(scene) {
     createUIText(text, 48, 9, '#e0f2fd', 224, 'center').textContent = 'Start a new world';
     const options = ['Seeded', 'Unseeded'].map((label, index) => createUIText(text, 48 + index * 112, 30, '#e0f2fd', 112, 'center'));
     const input = document.createElement('input');
-    input.type = 'text'; input.inputMode = 'numeric'; input.maxLength = 49; input.setAttribute('aria-label', 'World seed');
+    input.type = 'text'; input.inputMode = 'numeric'; input.maxLength = 87; input.setAttribute('aria-label', 'World seed');
     Object.assign(input.style, { position: 'absolute', left: '48px', top: '53px', width: '224px', height: '18px', boxSizing: 'border-box', background: '#230a03', color: '#e0f2fd', border: '1px solid #465989', borderRadius: '0', fontFamily: 'inherit', fontSize: '11px', padding: '2px 4px', pointerEvents: 'auto' });
     text.appendChild(input);
     const note = createUIText(text, 48, 76, '#c0a887', 224, 'center', { fontSize: '9px' });

@@ -49,9 +49,9 @@ function spawnFishRise(scene, time) {
     if (fish && fish !== fishing?.targetFish) nibbleRipple(scene, time, Math.round(fish.x), Math.round(fish.y));
 }
 
-function idleRipple(scene, time, x, y) {
-    spawnParticle(scene, shadowLayer, time, x - 2, y, -1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR);
-    spawnParticle(scene, shadowLayer, time, x + 2, y, 1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR);
+function idleRipple(scene, time, x, y, layer = shadowLayer, depth = 0) {
+    spawnParticle(scene, layer, time, x - 2, y, -1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR, depth);
+    spawnParticle(scene, layer, time, x + 2, y, 1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR, depth);
 }
 
 function nibbleRipple(scene, time, x, y) {

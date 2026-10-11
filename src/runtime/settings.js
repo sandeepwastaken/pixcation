@@ -361,9 +361,9 @@ const CAMERA_EASE = 2;
 const PROMPT_SLIDE = 4;
 
 function isValidWorldSeed(value) {
-    if (!/^[1-9][0-9]{0,48}$/.test(value)) return false;
+    if (!/^[1-9][0-9]{0,86}$/.test(value)) return false;
     const seed = BigInt(value);
-    return seed < (1n << 160n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n);
+    return seed < (1n << 288n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n);
 }
 
 function getRequestedWorldSeed() {
@@ -371,7 +371,7 @@ function getRequestedWorldSeed() {
     const value = new URLSearchParams(window.location.search).get('seed');
     if (!value || !isValidWorldSeed(value)) return null;
     const seed = BigInt(value);
-    return seed < (1n << 160n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n) ? value : null;
+    return seed < (1n << 288n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n) ? value : null;
 }
 
 function loadWorldSeed() {
@@ -397,7 +397,8 @@ const NPC_SHIRTS = 9;
 const NPC_ACCESSORY_CHANCE = 0.35;
 const NPC_RARE_VANITY_CHANCE = 0.0001, NPC_PASTEL_SKIN_CHANCE = 0.01, NPC_PANTS_STYLES = 5;
 const NPC_EYE_COLORS = [0x191820, 0x633d2b, 0x46758b, 0x527349, 0x77794a, 0xadcddd, 0xb18c53], NPC_EYE_WEIGHTS = [0.64, 0.16, 0.07, 0.06, 0.04, 0.02, 0.01];
-const NPC_APPEARANCE_RADICES = [10000, 100, 5, 4, 3, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536];
+const NPC_EYE_PALETTES = NPC_EYE_COLORS.map(color => [color]);
+const NPC_APPEARANCE_RADICES = [10000, 100, 65536, 65536, 3, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536, 10000, 4294967296];
 const NPC_CELL_SIZE = 10;
 const NPC_CELL_MARGIN = 2;
 const NPC_CELL_CHANCE = 0.45;

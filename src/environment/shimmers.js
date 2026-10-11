@@ -52,7 +52,7 @@ function spawnChunkShimmer(scene, chunk) {
             cells[cell] + Phaser.Math.Between(0, cells[cell + 2] - 12),
             cells[cell + 1] + Phaser.Math.Between(0, cells[cell + 3] - 1)
         )
-        .setVisible(true)
+        .setDepth(1.25).setVisible(true)
         .setActive(true);
 
     chunk.shimmers.push(shimmer);
