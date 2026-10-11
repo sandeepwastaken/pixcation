@@ -183,6 +183,7 @@ const PROMPT_Y = HOTBAR_Y - 25;
 
 const SHIMMER_RECOLOR_FROM = [0x87, 0xbe, 0xd8];
 const SHIMMER_RECOLOR_TO = [0x78, 0xaf, 0xd3];
+const SHIMMER_TINT_STEPS = 12;
 
 const OWNED_ROD_TINT = 0x8a7c6e;
 

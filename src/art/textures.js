@@ -14,20 +14,25 @@ function extractRodArtStyles(scene) {
 
 function createShimmerSheet(scene) {
     const source = getTerrainPixels(scene, 'shimmer-art');
-    const image = new ImageData(new Uint8ClampedArray(source.data), source.width, source.height);
-    const canvas = document.createElement('canvas');
     const [fromR, fromG, fromB] = SHIMMER_RECOLOR_FROM;
 
-    for (let index = 0; index < image.data.length; index += 4) {
-        if (image.data[index] === fromR && image.data[index + 1] === fromG && image.data[index + 2] === fromB) {
-            image.data.set(SHIMMER_RECOLOR_TO, index);
-        }
-    }
+    for (let step = 0; step < SHIMMER_TINT_STEPS; step++) {
+        const image = new ImageData(new Uint8ClampedArray(source.data), source.width, source.height);
+        const canvas = document.createElement('canvas');
+        const tint = blendWaterTints(step / (SHIMMER_TINT_STEPS - 1));
+        const color = SHIMMER_RECOLOR_TO.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
 
-    canvas.width = source.width;
-    canvas.height = source.height;
-    canvas.getContext('2d').putImageData(image, 0, 0);
-    scene.textures.addSpriteSheet('shimmer', canvas, { frameWidth: 12, frameHeight: 1 });
+        for (let index = 0; index < image.data.length; index += 4) {
+            if (image.data[index] === fromR && image.data[index + 1] === fromG && image.data[index + 2] === fromB) {
+                image.data.set(color, index);
+            }
+        }
+
+        canvas.width = source.width;
+        canvas.height = source.height;
+        canvas.getContext('2d').putImageData(image, 0, 0);
+        scene.textures.addSpriteSheet(`shimmer-${step}`, canvas, { frameWidth: 12, frameHeight: 1 });
+    }
 }
 
 function createCanvasTexture(scene, key, width, height, draw) {

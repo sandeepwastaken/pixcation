@@ -388,10 +388,17 @@ function waterBiomeNoise(x, y) {
 }
 
 function getWaterTint(worldX, worldY) {
+    return blendWaterTints(getWaterBiomeAmount(worldX, worldY));
+}
+
+function getWaterBiomeAmount(worldX, worldY) {
     const [offsetX, offsetY] = WATER_BIOME_OFFSET;
     const noise = waterBiomeNoise(worldX / WATER_BIOME_SCALE + offsetX, worldY / WATER_BIOME_SCALE + offsetY) * 0.75 +
         waterBiomeNoise(worldX / (WATER_BIOME_SCALE / 3) + offsetX + 17, worldY / (WATER_BIOME_SCALE / 3) + offsetY + 9) * 0.25;
-    const amount = stretchNoise(noise);
+    return stretchNoise(noise);
+}
+
+function blendWaterTints(amount) {
     const [from, to, mix] = amount < 0.5 ? [WATER_TINTS[0], WATER_TINTS[1], amount * 2] : [WATER_TINTS[1], WATER_TINTS[2], amount * 2 - 1];
     return from.map((value, channel) => value + (to[channel] - value) * mix);
 }

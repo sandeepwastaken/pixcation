@@ -42,7 +42,7 @@ function spawnChunkShimmer(scene, chunk) {
     let shimmer = shimmerPool.pop();
 
     if (!shimmer) {
-        shimmer = scene.add.sprite(0, 0, 'shimmer').setOrigin(0).setDepth(1.25);
+        shimmer = scene.add.sprite(0, 0, 'shimmer-0').setOrigin(0).setDepth(1.25);
         shimmer.on(Phaser.Animations.Events.ANIMATION_COMPLETE, finishShimmer);
     }
 
@@ -56,5 +56,5 @@ function spawnChunkShimmer(scene, chunk) {
         .setActive(true);
 
     chunk.shimmers.push(shimmer);
-    shimmer.play('shimmer');
+    shimmer.play(`shimmer-${Math.round(getWaterBiomeAmount(shimmer.x + 6, shimmer.y) * (SHIMMER_TINT_STEPS - 1))}`);
 }

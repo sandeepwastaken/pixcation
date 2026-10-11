@@ -15,12 +15,14 @@ function create() {
     extractRodArtStyles(this);
     createChestSilhouette(this);
 
-    this.anims.create({
-        key: 'shimmer',
-        frames: this.anims.generateFrameNumbers('shimmer', { start: 0, end: 15 }),
-        frameRate: 12,
-        repeat: 0
-    });
+    for (let step = 0; step < SHIMMER_TINT_STEPS; step++) {
+        this.anims.create({
+            key: `shimmer-${step}`,
+            frames: this.anims.generateFrameNumbers(`shimmer-${step}`, { start: 0, end: 15 }),
+            frameRate: 12,
+            repeat: 0
+        });
+    }
 
     createCharacterShadow(this);
     fishingLine = this.add.graphics();

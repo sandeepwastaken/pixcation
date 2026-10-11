@@ -318,20 +318,25 @@ function extractRodArtStyles(scene) {
 
 function createShimmerSheet(scene) {
     const source = getTerrainPixels(scene, 'shimmer-art');
-    const image = new ImageData(new Uint8ClampedArray(source.data), source.width, source.height);
-    const canvas = document.createElement('canvas');
     const [fromR, fromG, fromB] = SHIMMER_RECOLOR_FROM;
 
-    for (let index = 0; index < image.data.length; index += 4) {
-        if (image.data[index] === fromR && image.data[index + 1] === fromG && image.data[index + 2] === fromB) {
-            image.data.set(SHIMMER_RECOLOR_TO, index);
-        }
-    }
+    for (let step = 0; step < SHIMMER_TINT_STEPS; step++) {
+        const image = new ImageData(new Uint8ClampedArray(source.data), source.width, source.height);
+        const canvas = document.createElement('canvas');
+        const tint = blendWaterTints(step / (SHIMMER_TINT_STEPS - 1));
+        const color = SHIMMER_RECOLOR_TO.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
 
-    canvas.width = source.width;
-    canvas.height = source.height;
-    canvas.getContext('2d').putImageData(image, 0, 0);
-    scene.textures.addSpriteSheet('shimmer', canvas, { frameWidth: 12, frameHeight: 1 });
+        for (let index = 0; index < image.data.length; index += 4) {
+            if (image.data[index] === fromR && image.data[index + 1] === fromG && image.data[index + 2] === fromB) {
+                image.data.set(color, index);
+            }
+        }
+
+        canvas.width = source.width;
+        canvas.height = source.height;
+        canvas.getContext('2d').putImageData(image, 0, 0);
+        scene.textures.addSpriteSheet(`shimmer-${step}`, canvas, { frameWidth: 12, frameHeight: 1 });
+    }
 }
 
 function createCanvasTexture(scene, key, width, height, draw) {
@@ -1230,10 +1235,17 @@ function waterBiomeNoise(x, y) {
 }
 
 function getWaterTint(worldX, worldY) {
+    return blendWaterTints(getWaterBiomeAmount(worldX, worldY));
+}
+
+function getWaterBiomeAmount(worldX, worldY) {
     const [offsetX, offsetY] = WATER_BIOME_OFFSET;
     const noise = waterBiomeNoise(worldX / WATER_BIOME_SCALE + offsetX, worldY / WATER_BIOME_SCALE + offsetY) * 0.75 +
         waterBiomeNoise(worldX / (WATER_BIOME_SCALE / 3) + offsetX + 17, worldY / (WATER_BIOME_SCALE / 3) + offsetY + 9) * 0.25;
-    const amount = stretchNoise(noise);
+    return stretchNoise(noise);
+}
+
+function blendWaterTints(amount) {
     const [from, to, mix] = amount < 0.5 ? [WATER_TINTS[0], WATER_TINTS[1], amount * 2] : [WATER_TINTS[1], WATER_TINTS[2], amount * 2 - 1];
     return from.map((value, channel) => value + (to[channel] - value) * mix);
 }
@@ -2552,7 +2564,7 @@ function spawnChunkShimmer(scene, chunk) {
     let shimmer = shimmerPool.pop();
 
     if (!shimmer) {
-        shimmer = scene.add.sprite(0, 0, 'shimmer').setOrigin(0).setDepth(1.25);
+        shimmer = scene.add.sprite(0, 0, 'shimmer-0').setOrigin(0).setDepth(1.25);
         shimmer.on(Phaser.Animations.Events.ANIMATION_COMPLETE, finishShimmer);
     }
 
@@ -2566,7 +2578,7 @@ function spawnChunkShimmer(scene, chunk) {
         .setActive(true);
 
     chunk.shimmers.push(shimmer);
-    shimmer.play('shimmer');
+    shimmer.play(`shimmer-${Math.round(getWaterBiomeAmount(shimmer.x + 6, shimmer.y) * (SHIMMER_TINT_STEPS - 1))}`);
 }
 
 function canHoldProp(type, tileX, tileY) {
@@ -7071,6 +7083,7 @@ const PROMPT_Y = HOTBAR_Y - 25;
 
 const SHIMMER_RECOLOR_FROM = [0x87, 0xbe, 0xd8];
 const SHIMMER_RECOLOR_TO = [0x78, 0xaf, 0xd3];
+const SHIMMER_TINT_STEPS = 12;
 
 const OWNED_ROD_TINT = 0x8a7c6e;
 
@@ -7687,12 +7700,14 @@ function create() {
     extractRodArtStyles(this);
     createChestSilhouette(this);
 
-    this.anims.create({
-        key: 'shimmer',
-        frames: this.anims.generateFrameNumbers('shimmer', { start: 0, end: 15 }),
-        frameRate: 12,
-        repeat: 0
-    });
+    for (let step = 0; step < SHIMMER_TINT_STEPS; step++) {
+        this.anims.create({
+            key: `shimmer-${step}`,
+            frames: this.anims.generateFrameNumbers(`shimmer-${step}`, { start: 0, end: 15 }),
+            frameRate: 12,
+            repeat: 0
+        });
+    }
 
     createCharacterShadow(this);
     fishingLine = this.add.graphics();
