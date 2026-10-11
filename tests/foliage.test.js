@@ -51,7 +51,7 @@ test('tree shadows move across chunk borders and restore uncovered water', () =>
         texture.getContext = () => ({ createImageData: () => new PixelImage(new Uint8ClampedArray(base.length), size, size), putImageData: image => { texture.image = image; } });
         return texture;
     };
-    const tree = { x: 255, y: 0, baseY: 0, width: 64, shadow: [0, 0, 1, 0], shadowTop: 0, shadowHeight: 2, offset: 0 };
+    const tree = { x: 255, y: 0, baseY: 0, width: 64, shadow: [0, 0, 1, 0], contactShadow: [], shadowTop: 0, shadowHeight: 2, offset: 0 };
     const distant = { ...tree, x: 1024 };
     const left = { key: 'left', pixelX: 0, pixelY: 0, trees: [tree, tree, distant], visible: true };
     const right = { key: 'right', pixelX: 256, pixelY: 0, trees: [], visible: true, waterTexture: makeTexture(), waterShadowBase: base };

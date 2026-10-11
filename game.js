@@ -559,6 +559,17 @@ function createTreeShadow(owner, width, height, centerY, salt) {
     return points;
 }
 
+function createTreeContactShadow(left, right, height) {
+    const centerX = (left + right) / 2;
+    const radius = (right - left) / 2 + TREE_CONTACT_SHADOW_SPREAD;
+    const points = [];
+    for (let y = height - 2; y <= height; y++) {
+        const reach = Math.round(radius * (y === height - 1 ? 1 : 0.8));
+        for (let x = Math.round(centerX - reach); x < Math.round(centerX + reach); x++) points.push(x, y);
+    }
+    return points;
+}
+
 function generateTreeVariant(trunk, seed, paletteIndex) {
     const random = createSeededRandom(seed);
     const flip = random() < 0.5;
@@ -780,7 +791,7 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
         else canopyData[pixel * 4 + 3] = 0;
     }
 
-    return { width, height, data, trunkData, canopyData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, hitLeft, hitRight, color: colors[2] };
+    return { width, height, data, trunkData, canopyData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, contactShadow: createTreeContactShadow(hitLeft, hitRight, height), hitLeft, hitRight, color: colors[2] };
 }
 
 function createRoundedCliffTextures(scene) {
@@ -2262,7 +2273,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 worldObjectLayer.add([trunk, canopy]);
                 tileSprites.push(trunk, canopy);
                 const variant = getTreeVariant(tileX, tileY);
-                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-trunk`, color: variant.color, shadow: sprite.shadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
+                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-trunk`, color: variant.color, shadow: sprite.shadow, contactShadow: variant.contactShadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
             } else if (prop) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
@@ -3286,6 +3297,7 @@ function updateTreeShadows(scene, time) {
         const nextShadowSignature = (chunk.waterTexture ? 'w:' : 'land:') + shadowTrees.map(tree => `${tree.x},${tree.y},${tree.offset};`).join('');
         if (chunk.treeShadowSignature === nextShadowSignature) continue;
         const points = new Set();
+        const contact = new Set();
         for (const tree of shadowTrees) {
             const x = tree.x, y = tree.y;
             const shifts = getWindRows(tree.offset, tree.shadowHeight);
@@ -3294,6 +3306,11 @@ function updateTreeShadows(scene, time) {
                 const localX = x + tree.shadow[point] + shift - left;
                 const localY = y + shadowY - top;
                 if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) points.add(localY * CHUNK_PIXEL_SIZE + localX);
+            }
+            for (let point = 0; point < tree.contactShadow.length; point += 2) {
+                const localX = x + tree.contactShadow[point] - left;
+                const localY = y + tree.contactShadow[point + 1] - top;
+                if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) contact.add(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }
         if (!points.size && !chunk.treeShadowTexture) continue;
@@ -3307,6 +3324,7 @@ function updateTreeShadows(scene, time) {
         image.data.fill(0);
         const water = chunk.waterShadowBase ? (chunk.treeWaterShadowImage ||= new ImageData(new Uint8ClampedArray(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE * 4), CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE)) : null;
         if (water) water.data.set(chunk.waterShadowBase);
+        for (const pixel of contact) points.add(pixel);
         for (const pixel of points) {
             const worldX = left + pixel % CHUNK_PIXEL_SIZE;
             const worldY = top + Math.floor(pixel / CHUNK_PIXEL_SIZE);
@@ -3314,7 +3332,8 @@ function updateTreeShadows(scene, time) {
                 water.data[pixel * 4] = 128;
                 continue;
             }
-            const color = getGroundShadowColor(scene, worldX, worldY);
+            const ground = getGroundShadowColor(scene, worldX, worldY);
+            const color = ground && contact.has(pixel) ? shadeColor(...ground) : ground;
             if (color !== null) writeRGBPixel(image.data, pixel, (color[0] << 16) | (color[1] << 8) | color[2]);
         }
         chunk.treeShadowTexture.getContext().putImageData(image, 0, 0);
@@ -7121,6 +7140,7 @@ const TREE_SHADOW_DROP = 6;
 const TREE_SHADOW_SQUASH = 0.5;
 const TREE_SHADOW_DAPPLE = 0.03;
 const TREE_SHADOW_EDGE_DAPPLE = 0.13;
+const TREE_CONTACT_SHADOW_SPREAD = 3;
 const TREE_LEAF_PALETTES = [
     { weight: 6, colors: [0x376451, 0x4a7a52, 0x6c955d, 0x8eb067, 0xb0c579], extras: [0x7e4332, 0xc0493b] },
     { weight: 2, colors: [0x3f5f3c, 0x587a45, 0x7a9a50, 0x9fb862, 0xc3d27e], extras: [] },

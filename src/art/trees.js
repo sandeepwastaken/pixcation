@@ -137,6 +137,17 @@ function createTreeShadow(owner, width, height, centerY, salt) {
     return points;
 }
 
+function createTreeContactShadow(left, right, height) {
+    const centerX = (left + right) / 2;
+    const radius = (right - left) / 2 + TREE_CONTACT_SHADOW_SPREAD;
+    const points = [];
+    for (let y = height - 2; y <= height; y++) {
+        const reach = Math.round(radius * (y === height - 1 ? 1 : 0.8));
+        for (let x = Math.round(centerX - reach); x < Math.round(centerX + reach); x++) points.push(x, y);
+    }
+    return points;
+}
+
 function generateTreeVariant(trunk, seed, paletteIndex) {
     const random = createSeededRandom(seed);
     const flip = random() < 0.5;
@@ -358,5 +369,5 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
         else canopyData[pixel * 4 + 3] = 0;
     }
 
-    return { width, height, data, trunkData, canopyData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, hitLeft, hitRight, color: colors[2] };
+    return { width, height, data, trunkData, canopyData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, contactShadow: createTreeContactShadow(hitLeft, hitRight, height), hitLeft, hitRight, color: colors[2] };
 }

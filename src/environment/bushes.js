@@ -165,6 +165,7 @@ function updateTreeShadows(scene, time) {
         const nextShadowSignature = (chunk.waterTexture ? 'w:' : 'land:') + shadowTrees.map(tree => `${tree.x},${tree.y},${tree.offset};`).join('');
         if (chunk.treeShadowSignature === nextShadowSignature) continue;
         const points = new Set();
+        const contact = new Set();
         for (const tree of shadowTrees) {
             const x = tree.x, y = tree.y;
             const shifts = getWindRows(tree.offset, tree.shadowHeight);
@@ -173,6 +174,11 @@ function updateTreeShadows(scene, time) {
                 const localX = x + tree.shadow[point] + shift - left;
                 const localY = y + shadowY - top;
                 if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) points.add(localY * CHUNK_PIXEL_SIZE + localX);
+            }
+            for (let point = 0; point < tree.contactShadow.length; point += 2) {
+                const localX = x + tree.contactShadow[point] - left;
+                const localY = y + tree.contactShadow[point + 1] - top;
+                if (localX >= 0 && localY >= 0 && localX < CHUNK_PIXEL_SIZE && localY < CHUNK_PIXEL_SIZE) contact.add(localY * CHUNK_PIXEL_SIZE + localX);
             }
         }
         if (!points.size && !chunk.treeShadowTexture) continue;
@@ -186,6 +192,7 @@ function updateTreeShadows(scene, time) {
         image.data.fill(0);
         const water = chunk.waterShadowBase ? (chunk.treeWaterShadowImage ||= new ImageData(new Uint8ClampedArray(CHUNK_PIXEL_SIZE * CHUNK_PIXEL_SIZE * 4), CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE)) : null;
         if (water) water.data.set(chunk.waterShadowBase);
+        for (const pixel of contact) points.add(pixel);
         for (const pixel of points) {
             const worldX = left + pixel % CHUNK_PIXEL_SIZE;
             const worldY = top + Math.floor(pixel / CHUNK_PIXEL_SIZE);
@@ -193,7 +200,8 @@ function updateTreeShadows(scene, time) {
                 water.data[pixel * 4] = 128;
                 continue;
             }
-            const color = getGroundShadowColor(scene, worldX, worldY);
+            const ground = getGroundShadowColor(scene, worldX, worldY);
+            const color = ground && contact.has(pixel) ? shadeColor(...ground) : ground;
             if (color !== null) writeRGBPixel(image.data, pixel, (color[0] << 16) | (color[1] << 8) | color[2]);
         }
         chunk.treeShadowTexture.getContext().putImageData(image, 0, 0);
