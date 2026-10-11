@@ -97,6 +97,7 @@ function startNpcConversation(scene, npc, other, time) {
     if (!other || other.talking || other.fishing || !['idle', 'walk'].includes(other.state) || Math.hypot(npc.x - other.x, npc.y - other.y) > TILE_SIZE * 2) return false;
     const connection = getNpcConnection(npc), close = connection?.companion.id === other.id;
     for (const [speaker, listener] of [[npc, other], [other, npc]]) {
+        pauseNpcActivity(speaker);
         settleNpc(scene, speaker, time, 5000);
         speaker.state = 'social'; speaker.socialPartner = listener.id; speaker.nextSocialAt = time + 25000;
         speaker.lastActivity = 'social'; speaker.lastNeighbor = listener.name; saveDirty = true;
@@ -108,6 +109,9 @@ function startNpcConversation(scene, npc, other, time) {
     other.speechFrom = time + 2500; other.speechUntil = time + 4800;
     if (npc.dailyPlan === 'home' || other.dailyPlan === 'home') { npc.speech = 'Heading home soon?'; other.speech = close && npc.house?.id === other.house?.id ? "Yes, I'll see you at home." : 'Yes, it has been a long day.'; }
     else if (other.dailyPlan === 'late') { npc.speech = 'Still fishing tonight?'; other.speech = 'Just a little longer. It is peaceful out here.'; }
+    else if (npc.dailyPlan === 'evening' || other.dailyPlan === 'evening') { npc.speech = 'Taking it easy this evening?'; other.speech = 'Yes, just enjoying a little quiet time near home.'; }
+    else if (getWorldClock().hour < 10) { npc.speech = `Morning, ${other.name.split(' ')[0]}. Any plans today?`; other.speech = other.water ? 'I think I will spend some time by the water.' : other.role === 'trader' ? 'A few trades, and hopefully a little time outside.' : 'A short walk first. Then I will see where the day takes me.'; }
+    else if (other.pausedActivity?.goal === 'fish') { npc.speech = 'Off to the water?'; other.speech = 'Yes, I have a spot I wanted to try. We can catch up for a moment first.'; }
     npc.walkInvitation = close && npc.dailyPlan === 'day' && other.dailyPlan === 'day';
     return true;
 }
@@ -372,6 +376,7 @@ function getDirectionToward(npc, targetX, targetY) {
 }
 
 function pauseNpcActivity(npc) {
+    if (npc.state === 'social' && npc.pausedActivity) return;
     const preparing = npc.state === 'aim' || npc.state === 'charge';
     const destination = npc.state === 'walk' ? npc.path[npc.path.length - 1] : preparing && npc.spot ? [npc.spot.tileX, npc.spot.tileY] : null;
     const goal = preparing ? 'fish' : npc.goal;
@@ -477,6 +482,7 @@ function tryNpcSharedWalk(scene, npc, other, time) {
             const otherPath = findNpcPath(Math.round(other.x / TILE_SIZE), Math.round(other.y / TILE_SIZE), otherX, otherY, other, scene);
             if (!otherPath?.length) continue;
             for (const [walker, partner, route] of [[npc, other, path], [other, npc, otherPath]]) {
+                walker.pausedActivity = null;
                 startNpcPath(walker, route, 'stroll', time);
                 walker.walkPartner = partner.id; walker.walkEnds = time + 20000; walker.strollSpeed = Math.min(npc.speed, other.speed);
             }
@@ -892,7 +898,7 @@ function updateNpc(scene, npc, time, delta) {
     if (npc.state === 'social') {
         const other = activeNpcs.find(other => other.id === npc.socialPartner);
         if (time >= npc.until && tryNpcSharedWalk(scene, npc, other, time)) npc.lookAt = time;
-        else if (!other || other.state !== 'social' || time >= npc.until || other.talking) settleNpc(scene, npc, time, NPC_IDLE_MIN);
+        else if (!other || other.state !== 'social' || time >= npc.until || other.talking) { settleNpc(scene, npc, time, NPC_IDLE_MIN); resumeNpcActivity(scene, npc, time); }
         else setNpcPose(scene, npc, getDirectionToward(npc, other.x, other.y), 0);
     } else if (npc.state === 'talk') {
         setNpcPose(scene, npc, getDirectionToward(npc, character.x, character.y), 0);
@@ -988,9 +994,11 @@ function completeNpcTrade(scene, npc, trade) {
 
 function buildNpcDialogue(scene, npc) {
     const personality = NPC_PERSONALITIES[Math.floor(npcHash(npc.tileX, npc.tileY, 1320) * NPC_PERSONALITIES.length)];
+    const clock = getWorldClock(), raining = getRainIntensity(clock) > 0.25;
     const connection = getNpcConnection(npc);
     const pick = lines => lines[Math.floor(npcRandom(npc) * lines.length)];
-    const greeting = pick(npc.playerVisits ? personality.familiar : personality.greetings);
+    const greetingLines = raining ? personality.rainGreetings : npc.playerVisits ? personality.familiar : personality.greetings;
+    const greeting = (clock.hour < 10 ? 'Morning. ' : clock.hour >= 18 ? 'Evening. ' : '') + (raining ? greetingLines[npc.playerVisits ? 1 : 0] : pick(greetingLines));
     const companion = connection && activeNpcs.find(other => other.id === connection.companion.id);
     const first = npc.name.split(' ')[0];
     const portrait = getNpcTexture(scene, npc.look, 'front', 0);

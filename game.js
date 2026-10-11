@@ -156,6 +156,7 @@ const NPC_PERSONALITIES = [
     {
         greetings: ["Oh, hello! I'm {first}. Isn't it a gorgeous day?", "Hi there! {first}, nice to meet you. You picked a great day to be out!"],
         familiar: ["Oh, it's you again! Good to see you.","Welcome back! How has your day been?"],
+        rainGreetings: ["Oh, hello! I'm {first}. A little rain won't ruin the day.", "Oh, it's you again! We keep meeting in wet weather."],
         chatter: ["I counted three kinds of flowers on my walk this morning. I'm going for four tomorrow.", "The guide by the shop knows everything. Well, almost everything!", "Have you seen the blue flower patches? They make me so happy."],
         fishing: ["Not a nibble yet, but the sun's warm, so who's complaining?", "One almost bit! It changed its mind at the last second, the rascal."],
         tradeDone: "We already traded this hour! Come back a little later, okay?",
@@ -164,6 +165,7 @@ const NPC_PERSONALITIES = [
     {
         greetings: ["Hm? Oh. {first}. What do you want?", "{first}. If you're here to chat, make it quick."],
         familiar: ["You again. All right, what is it?","Back already? Make yourself comfortable, I suppose."],
+        rainGreetings: ["{first}. Mind the puddles, and don't drip on my gear.", "You again. At least the rain is quieter than most people."],
         chatter: ["Everyone thinks fishing is relaxing. It is not. It is war.", "The fish around here are smarter than they look. Don't let them fool you.", "Shop prices keep going up. Mark my words."],
         fishing: ["Shh. You'll scare them off. Again.", "They keep nibbling and running. I swear they're laughing at me."],
         tradeDone: "We're done for this hour. Shoo.",
@@ -172,6 +174,7 @@ const NPC_PERSONALITIES = [
     {
         greetings: ["Oh... hello. I'm {first}. I was just watching the water ripple.", "Mm, hi. {first}. Did you know clouds look like fish if you squint?"],
         familiar: ["Oh... we meet again. The water is different today.","Hello again. I was hoping our paths would cross."],
+        rainGreetings: ["I'm {first}. I like listening to the rain on the water.", "Oh... hello again. The rain makes everything sound softer."],
         chatter: ["Sometimes I think the island hums when it's quiet. Can you hear it?", "I like the way the water changes color out in the deep. Teal, then blue, then darker blue.", "I dreamt about a fish as big as a bridge. I'm still looking for it."],
         fishing: ["I'm not really trying to catch anything. The bobber is good company.", "Something swam right up and then... left. Like a thought you almost had."],
         tradeDone: "We traded already, didn't we? Time is so slippery. Maybe in an hour.",
@@ -180,6 +183,7 @@ const NPC_PERSONALITIES = [
     {
         greetings: ["Ah! Oh, sorry, you startled me. I'm {first}.", "H-hi! I'm {first}. Please don't step on my line!"],
         familiar: ["Oh, h-hi again! I recognize you now.","It's you! That is a relief. How are you?"],
+        rainGreetings: ["H-hi, I'm {first}. Do you think this rain will get worse?", "Oh, it's you again! I feel better with someone familiar around."],
         chatter: ["Do you think the cliffs ever crumble? I try not to stand too close.", "I keep a spare bobber in every pocket. Just in case. You never know.", "The chests in the deep water make me nervous. What if something's guarding them?"],
         fishing: ["I had one! Then I panicked and it swam off. Again.", "The splash always scares me more than it scares the fish."],
         tradeDone: "W-we already traded this hour. Sorry! Come back later?",
@@ -188,6 +192,7 @@ const NPC_PERSONALITIES = [
     {
         greetings: ["Well, well. The name's {first}. Best angler on the island.", "{first}, at your service. You've probably heard of me."],
         familiar: ["Welcome back. Come for more expert advice?","There you are! Ready to hear from the island's finest?"],
+        rainGreetings: ["{first}, at your service. A bit of rain is no match for experience.", "Back for more advice? Even in this weather, I see."],
         chatter: ["I once caught a bass so big the scale broke. Nobody believes me.", "A good cast is all in the wrist. And the confidence. Mostly the confidence.", "I've fished every pond on this island. Twice."],
         fishing: ["They're just warming up. Champions are patient.", "That fish was too small for me anyway. I let it go. On purpose."],
         tradeDone: "One deal an hour, friend. Even legends have rules.",
@@ -196,6 +201,7 @@ const NPC_PERSONALITIES = [
     {
         greetings: ["Hey, hey! I'm {first}! Oh, I love meeting people. Where are you from?", "Hi! {first} here! Have you been fishing? What did you catch? Tell me everything!"],
         familiar: ["Hey, you're back! What have you been up to?","My friend! Tell me everything since we last talked!"],
+        rainGreetings: ["Hey! I'm {first}. Have you noticed how different the island sounds in the rain?", "You're back! Did you get caught in the rain too?"],
         chatter: ["My cousin says the shop gets new rods sometimes. Or was it new bait? Something new, anyway!", "If you walk far enough, the grass goes from gold to green. I tested it. Twice!", "I tried to name every tree on the island. I got to forty and forgot the first one."],
         fishing: ["Nothing yet, but I've been talking the whole time, so that might be why.", "A fish came right up to my bobber and stared at me! Then it left. Rude!"],
         tradeDone: "We already traded! But I'll take more next hour, promise!",
@@ -3816,6 +3822,7 @@ function startNpcConversation(scene, npc, other, time) {
     if (!other || other.talking || other.fishing || !['idle', 'walk'].includes(other.state) || Math.hypot(npc.x - other.x, npc.y - other.y) > TILE_SIZE * 2) return false;
     const connection = getNpcConnection(npc), close = connection?.companion.id === other.id;
     for (const [speaker, listener] of [[npc, other], [other, npc]]) {
+        pauseNpcActivity(speaker);
         settleNpc(scene, speaker, time, 5000);
         speaker.state = 'social'; speaker.socialPartner = listener.id; speaker.nextSocialAt = time + 25000;
         speaker.lastActivity = 'social'; speaker.lastNeighbor = listener.name; saveDirty = true;
@@ -3827,6 +3834,9 @@ function startNpcConversation(scene, npc, other, time) {
     other.speechFrom = time + 2500; other.speechUntil = time + 4800;
     if (npc.dailyPlan === 'home' || other.dailyPlan === 'home') { npc.speech = 'Heading home soon?'; other.speech = close && npc.house?.id === other.house?.id ? "Yes, I'll see you at home." : 'Yes, it has been a long day.'; }
     else if (other.dailyPlan === 'late') { npc.speech = 'Still fishing tonight?'; other.speech = 'Just a little longer. It is peaceful out here.'; }
+    else if (npc.dailyPlan === 'evening' || other.dailyPlan === 'evening') { npc.speech = 'Taking it easy this evening?'; other.speech = 'Yes, just enjoying a little quiet time near home.'; }
+    else if (getWorldClock().hour < 10) { npc.speech = `Morning, ${other.name.split(' ')[0]}. Any plans today?`; other.speech = other.water ? 'I think I will spend some time by the water.' : other.role === 'trader' ? 'A few trades, and hopefully a little time outside.' : 'A short walk first. Then I will see where the day takes me.'; }
+    else if (other.pausedActivity?.goal === 'fish') { npc.speech = 'Off to the water?'; other.speech = 'Yes, I have a spot I wanted to try. We can catch up for a moment first.'; }
     npc.walkInvitation = close && npc.dailyPlan === 'day' && other.dailyPlan === 'day';
     return true;
 }
@@ -4091,6 +4101,7 @@ function getDirectionToward(npc, targetX, targetY) {
 }
 
 function pauseNpcActivity(npc) {
+    if (npc.state === 'social' && npc.pausedActivity) return;
     const preparing = npc.state === 'aim' || npc.state === 'charge';
     const destination = npc.state === 'walk' ? npc.path[npc.path.length - 1] : preparing && npc.spot ? [npc.spot.tileX, npc.spot.tileY] : null;
     const goal = preparing ? 'fish' : npc.goal;
@@ -4196,6 +4207,7 @@ function tryNpcSharedWalk(scene, npc, other, time) {
             const otherPath = findNpcPath(Math.round(other.x / TILE_SIZE), Math.round(other.y / TILE_SIZE), otherX, otherY, other, scene);
             if (!otherPath?.length) continue;
             for (const [walker, partner, route] of [[npc, other, path], [other, npc, otherPath]]) {
+                walker.pausedActivity = null;
                 startNpcPath(walker, route, 'stroll', time);
                 walker.walkPartner = partner.id; walker.walkEnds = time + 20000; walker.strollSpeed = Math.min(npc.speed, other.speed);
             }
@@ -4611,7 +4623,7 @@ function updateNpc(scene, npc, time, delta) {
     if (npc.state === 'social') {
         const other = activeNpcs.find(other => other.id === npc.socialPartner);
         if (time >= npc.until && tryNpcSharedWalk(scene, npc, other, time)) npc.lookAt = time;
-        else if (!other || other.state !== 'social' || time >= npc.until || other.talking) settleNpc(scene, npc, time, NPC_IDLE_MIN);
+        else if (!other || other.state !== 'social' || time >= npc.until || other.talking) { settleNpc(scene, npc, time, NPC_IDLE_MIN); resumeNpcActivity(scene, npc, time); }
         else setNpcPose(scene, npc, getDirectionToward(npc, other.x, other.y), 0);
     } else if (npc.state === 'talk') {
         setNpcPose(scene, npc, getDirectionToward(npc, character.x, character.y), 0);
@@ -4707,9 +4719,11 @@ function completeNpcTrade(scene, npc, trade) {
 
 function buildNpcDialogue(scene, npc) {
     const personality = NPC_PERSONALITIES[Math.floor(npcHash(npc.tileX, npc.tileY, 1320) * NPC_PERSONALITIES.length)];
+    const clock = getWorldClock(), raining = getRainIntensity(clock) > 0.25;
     const connection = getNpcConnection(npc);
     const pick = lines => lines[Math.floor(npcRandom(npc) * lines.length)];
-    const greeting = pick(npc.playerVisits ? personality.familiar : personality.greetings);
+    const greetingLines = raining ? personality.rainGreetings : npc.playerVisits ? personality.familiar : personality.greetings;
+    const greeting = (clock.hour < 10 ? 'Morning. ' : clock.hour >= 18 ? 'Evening. ' : '') + (raining ? greetingLines[npc.playerVisits ? 1 : 0] : pick(greetingLines));
     const companion = connection && activeNpcs.find(other => other.id === connection.companion.id);
     const first = npc.name.split(' ')[0];
     const portrait = getNpcTexture(scene, npc.look, 'front', 0);

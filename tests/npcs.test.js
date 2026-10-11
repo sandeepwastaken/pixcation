@@ -3,6 +3,48 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('morning and evening neighbor exchanges match the listener routine', () => {
+    const run = createNpcs();
+    run("first.dailyPlan = second.dailyPlan = 'day'; second.water = {}; getWorldClock = () => ({ hour: 8, day: 1 }); startNpcConversation(scene, first, second, 100)");
+    assert.ok(run('first.speech.startsWith("Morning, Eli")'));
+    assert.ok(run('second.speech.includes("by the water")'));
+    run("first.state = second.state = 'idle'; second.dailyPlan = 'evening'; startNpcConversation(scene, first, second, 6000)");
+    assert.ok(run('first.speech.includes("this evening")'));
+    assert.equal(run('first.walkInvitation'), false);
+});
+
+test('weather greetings preserve personality and familiarity without claiming sunshine', () => {
+    const run = createNpcs();
+    run('findNearestRumor = getMysteryShopRumor = () => null; getRainIntensity = () => 0.5; getWorldClock = () => ({ hour: 8, day: 1 })');
+    assert.equal(run('buildNpcDialogue(scene, first).intro.text'), 'Morning. Ada, at your service. A bit of rain is no match for experience.');
+    run('first.playerVisits = 1; getWorldClock = () => ({ hour: 19, day: 1 })');
+    assert.equal(run('buildNpcDialogue(scene, first).intro.text'), 'Evening. Back for more advice? Even in this weather, I see.');
+    run('getRainIntensity = () => 0; getWorldClock = () => ({ hour: 12, day: 1 })');
+    assert.ok(run('NPC_PERSONALITIES[4].familiar.includes(buildNpcDialogue(scene, first).intro.text)'));
+});
+
+test('a neighbor chat pauses a fishing trip and returns the listener to it afterward', () => {
+    const run = createNpcs();
+    run("homes[1].tileX = second.tileX = 4; first.dailyPlan = second.dailyPlan = 'day'; getNpcConnection = () => null; second.failedSpots = new Set(); second.spot = { tileX: 5, tileY: 3, water: { direction: 'front' } }; findNpcWater = () => ({ direction: 'front' }); canNpcOccupy = () => true; startNpcPath(second, [[5, 3]], 'fish', 100); startNpcConversation(scene, first, second, 100)");
+    assert.equal(run('second.pausedActivity.goal'), 'fish');
+    assert.equal(run('first.speech'), 'Off to the water?');
+    run('updateNpc(scene, first, 5200, 16); updateNpc(scene, second, 5200, 16)');
+    assert.equal(run('second.state'), 'walk');
+    assert.equal(run('second.goal'), 'fish');
+    assert.equal(run('second.path.at(-1)[0]'), 5);
+    assert.equal(run('second.pausedActivity'), null);
+});
+
+test('player interruption of a neighbor chat keeps the original task underneath it', () => {
+    const run = createNpcs();
+    run("startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100); startNpcConversation(scene, first, second, 100); findNearestRumor = getMysteryShopRumor = () => null; nearestNpc = first; dialogueContainer = {}; isMenuOpen = () => false; canNpcOccupy = () => true; beginDialogue = (scene, nodes, ignored, name, npc) => { dialogueNpc = npc; dialogueOpen = true; }; talkToNearestNpc(scene)");
+    assert.equal(run('first.pausedActivity.x'), 5);
+    assert.equal(run('first.pausedActivity.goal'), 'wander');
+    run('scene.time.now = 1000; releaseDialogueNpc(scene)');
+    assert.equal(run('first.goal'), 'wander');
+    assert.equal(run('first.path.at(-1)[0]'), 5);
+});
+
 test('residents wait indoors when no exit is safe and use a side exit when the front is blocked', () => {
     const run = createNpcs();
     run('first.house = { doorX: 3, doorY: 3 }; canNpcOccupy = () => true; enterNpcHouse(first); isNpcWalkableTile = () => false');
