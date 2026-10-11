@@ -10,12 +10,14 @@ function createCatchCardUI(scene) {
     catchCardImage = scene.add.image(CATCH_CARD_X + 8, 8, 'fish/placeholder').setOrigin(0);
 
     const textLayer = createTextLayer(CATCH_CARD_HEIGHT);
-    const textX = CATCH_CARD_X + 48, textWidth = CATCH_CARD_WIDTH - 54, clip = { overflow: 'hidden', textOverflow: 'ellipsis' };
+    const textX = CATCH_CARD_X + 48, textWidth = CATCH_CARD_WIDTH - 54, clip = { overflow: 'hidden', textOverflow: 'ellipsis', paddingBottom: '4px' };
 
     catchCardKicker = createUIText(textLayer, textX, 8, '#c0a887', textWidth, null, { fontSize: '11px', lineHeight: '9px', ...clip });
     catchCardTitle = createUIText(textLayer, textX, 18, '#e0f2fd', textWidth, null, clip);
     catchCardDetail = createUIText(textLayer, textX, 32, '#e8c170', textWidth, null, { fontSize: '11px', lineHeight: '9px', ...clip });
 
+    const hint = createUIText(textLayer, CATCH_CARD_X + CATCH_CARD_WIDTH - 60, 8, '#8c7358', 54, 'right', { fontSize: '11px', lineHeight: '9px' });
+    appendKeyHints(hint, [['Enter', 'OK']]).firstChild.style.marginLeft = '0';
     catchCardContainer = addPanelContainer(scene, CATCH_CARD_Y + 8, 205, [panel, catchCardImage]);
     catchCardTextLayer = addHudLayer(scene, textLayer, CATCH_CARD_Y + 8, 206);
 }
@@ -32,7 +34,7 @@ function showRewardCard(scene, time, kicker, title, detail, image, kickerColor =
     setUITextContent(catchCardTitle, title);
     setUITextContent(catchCardDetail, detail);
     catchCardImage.setTexture(image);
-    catchCardUntil = time + CATCH_CARD_DURATION;
+    catchCardUntil = Infinity;
     itemLabelUntil = 0;
 
     const card = [catchCardContainer, catchCardTextLayer], hiddenY = CATCH_CARD_Y + 8;
@@ -43,9 +45,14 @@ function showRewardCard(scene, time, kicker, title, detail, image, kickerColor =
     popIn(scene, catchCardImage, 4);
     scene.tweens.add({ targets: catchCardImage, y: 8, delay: 140, duration: 220, ease: 'Bounce.Out', onUpdate: snapTweenTarget });
 
-    catchCardHideEvent = scene.time.delayedCall(CATCH_CARD_DURATION - 180, () => {
-        slidePanel(scene, hiddenY, 180, 'Cubic.In', card, () => {
-            for (const target of card) target.setVisible(false);
-        });
+}
+
+function hideCatchCard(scene) {
+    if (catchCardUntil !== Infinity) return false;
+    catchCardUntil = 0;
+    const card = [catchCardContainer, catchCardTextLayer];
+    slidePanel(scene, CATCH_CARD_Y + 8, 180, 'Cubic.In', card, () => {
+        for (const target of card) target.setVisible(false);
     });
+    return true;
 }

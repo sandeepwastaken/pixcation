@@ -101,7 +101,7 @@ function refreshFishpediaDetail() {
     const [name, size, price, count] = inventoryDetailTexts;
     setUITextContent(name, caught ? species.name : '???');
     setUITextContent(size, caught ? FISH_SIZE_CLASSES[species.size].label : 'Not caught yet');
-    setUITextContent(price, caught ? `Sells for ${species.price}c` : '');
+    setUITextContent(price, caught ? `Value: ${species.price}c` : '');
     setUITextContent(count, caught ? `Holding ${fishInventory.get(species.id) || 0}` : '');
 }
 

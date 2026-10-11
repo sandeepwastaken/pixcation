@@ -179,6 +179,7 @@ function bindGameInput(scene) {
         if (code === 'KeyW' || code === 'ArrowUp') verticalPriority = -1;
         if (code === 'KeyS' || code === 'ArrowDown') verticalPriority = 1;
 
+        if (code === 'Enter' && !isMenuOpen() && hideCatchCard(scene)) return;
         if (statsOpen) {
             if (code === 'Escape' || code === 'Tab') closeStats();
         } else if (dialogueOpen) handleGuideDialogueKey(scene, event);
