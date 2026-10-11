@@ -48,6 +48,7 @@ function finishFishingMinigame(scene, time, caught) {
 
     fishing.targetFish = null;
     fishing.targetChunk = null;
+    catchBurst(scene, time, fishing.bobberX, fishing.bobberY);
     startReeling(time);
     showCatchCard(scene, time, species);
 }

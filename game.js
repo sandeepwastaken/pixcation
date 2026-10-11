@@ -4086,6 +4086,14 @@ function splash(scene, time, x, y) {
     }
 }
 
+function catchBurst(scene, time, x, y) {
+    splash(scene, time, x, y);
+    for (let index = 0; index < CATCH_SPARKLES; index++) {
+        const offset = index - CATCH_SPARKLES / 2;
+        spawnParticle(scene, worldObjectLayer, time, Math.round(x) + offset, Math.round(y) - 2 - (index % 2) * 2, Math.sign(offset + 0.5), -2, CATCH_SPARKLE_LIFETIME, CHEST_SPARKLE_COLORS[index % CHEST_SPARKLE_COLORS.length], Math.max(character.depth + 0.2, y));
+    }
+}
+
 function groundLandingPuff(scene, time, x, y) {
     for (let index = 0; index < 3; index++) {
         spawnParticle(scene, shadowLayer, time, x - 1 + index, y, index - 1, -1, 220, DUST_COLORS[index]);
@@ -4248,6 +4256,7 @@ function finishFishingMinigame(scene, time, caught) {
 
     fishing.targetFish = null;
     fishing.targetChunk = null;
+    catchBurst(scene, time, fishing.bobberX, fishing.bobberY);
     startReeling(time);
     showCatchCard(scene, time, species);
 }
@@ -7085,6 +7094,8 @@ const BOBBER_LAND_TIME = 180;
 const BOBBER_BOB_TIME = 450;
 
 const SPLASH_LIFETIME = 300;
+const CATCH_SPARKLES = 6;
+const CATCH_SPARKLE_LIFETIME = 420;
 
 const FISHING_LINE_COLOR = 0xf6f5e5;
 
