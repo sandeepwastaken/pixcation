@@ -24,6 +24,7 @@
     "environment/sky.js",
     "environment/rumors.js",
     "environment/jumps.js",
+    "environment/mystery.js",
     "fish/regions.js",
     "fish/spawning.js",
     "fish/movement.js",

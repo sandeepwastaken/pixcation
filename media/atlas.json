@@ -260,7 +260,7 @@
     "h": 32
    }
   },
-  "items/baits/noviceBait": {
+  "items/baits/mysteryBait": {
    "frame": {
     "x": 488,
     "y": 400,
@@ -280,7 +280,7 @@
     "h": 32
    }
   },
-  "items/baits/trainerBait": {
+  "items/baits/noviceBait": {
    "frame": {
     "x": 0,
     "y": 473,
@@ -300,7 +300,7 @@
     "h": 32
    }
   },
-  "items/chest": {
+  "items/baits/trainerBait": {
    "frame": {
     "x": 33,
     "y": 473,
@@ -320,7 +320,7 @@
     "h": 32
    }
   },
-  "items/rods/legacy": {
+  "items/chest": {
    "frame": {
     "x": 66,
     "y": 473,
@@ -340,9 +340,29 @@
     "h": 32
    }
   },
-  "items/rods/basic": {
+  "items/rods/legacy": {
    "frame": {
     "x": 99,
+    "y": 473,
+    "w": 32,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 32,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 32,
+    "h": 32
+   }
+  },
+  "items/rods/basic": {
+   "frame": {
+    "x": 132,
     "y": 473,
     "w": 31,
     "h": 32
@@ -362,7 +382,7 @@
   },
   "items/rods/intermediate": {
    "frame": {
-    "x": 131,
+    "x": 164,
     "y": 473,
     "w": 31,
     "h": 32
@@ -382,7 +402,7 @@
   },
   "items/rods/master": {
    "frame": {
-    "x": 163,
+    "x": 196,
     "y": 473,
     "w": 31,
     "h": 32
@@ -402,7 +422,7 @@
   },
   "ui/hud/selected": {
    "frame": {
-    "x": 195,
+    "x": 228,
     "y": 473,
     "w": 30,
     "h": 31
@@ -422,7 +442,7 @@
   },
   "ui/hud/hotbar": {
    "frame": {
-    "x": 226,
+    "x": 259,
     "y": 473,
     "w": 234,
     "h": 26
@@ -442,7 +462,7 @@
   },
   "environment/objects/boulder": {
    "frame": {
-    "x": 461,
+    "x": 494,
     "y": 473,
     "w": 28,
     "h": 23
@@ -462,8 +482,8 @@
   },
   "environment/objects/bush": {
    "frame": {
-    "x": 490,
-    "y": 473,
+    "x": 0,
+    "y": 506,
     "w": 32,
     "h": 22
    },
@@ -482,7 +502,7 @@
   },
   "ui/title/button": {
    "frame": {
-    "x": 0,
+    "x": 33,
     "y": 506,
     "w": 96,
     "h": 20
@@ -502,7 +522,7 @@
   },
   "ui/stats/button": {
    "frame": {
-    "x": 97,
+    "x": 130,
     "y": 506,
     "w": 48,
     "h": 16
@@ -522,7 +542,7 @@
   },
   "characters/guide/sprite": {
    "frame": {
-    "x": 146,
+    "x": 179,
     "y": 506,
     "w": 16,
     "h": 16
@@ -542,7 +562,7 @@
   },
   "environment/terrain/cornerDirt1": {
    "frame": {
-    "x": 163,
+    "x": 196,
     "y": 506,
     "w": 16,
     "h": 16
@@ -562,7 +582,7 @@
   },
   "environment/terrain/cornerDirt2": {
    "frame": {
-    "x": 180,
+    "x": 213,
     "y": 506,
     "w": 16,
     "h": 16
@@ -582,7 +602,7 @@
   },
   "environment/terrain/cornerDirt3": {
    "frame": {
-    "x": 197,
+    "x": 230,
     "y": 506,
     "w": 16,
     "h": 16
@@ -602,7 +622,7 @@
   },
   "environment/terrain/dirt1": {
    "frame": {
-    "x": 214,
+    "x": 247,
     "y": 506,
     "w": 16,
     "h": 16
@@ -622,7 +642,7 @@
   },
   "environment/terrain/dirtEdge": {
    "frame": {
-    "x": 231,
+    "x": 264,
     "y": 506,
     "w": 16,
     "h": 16
@@ -642,7 +662,7 @@
   },
   "environment/terrain/dirtEdgeInnerLeft": {
    "frame": {
-    "x": 248,
+    "x": 281,
     "y": 506,
     "w": 16,
     "h": 16
@@ -662,7 +682,7 @@
   },
   "environment/terrain/dirtEdgeInnerRight": {
    "frame": {
-    "x": 265,
+    "x": 298,
     "y": 506,
     "w": 16,
     "h": 16
@@ -682,7 +702,7 @@
   },
   "environment/terrain/dirtEdgeOuterBoth": {
    "frame": {
-    "x": 282,
+    "x": 315,
     "y": 506,
     "w": 16,
     "h": 16
@@ -702,7 +722,7 @@
   },
   "environment/terrain/dirtEdgeOuterLeft": {
    "frame": {
-    "x": 299,
+    "x": 332,
     "y": 506,
     "w": 16,
     "h": 16
@@ -722,7 +742,7 @@
   },
   "environment/terrain/dirtEdgeOuterRight": {
    "frame": {
-    "x": 316,
+    "x": 349,
     "y": 506,
     "w": 16,
     "h": 16
@@ -742,7 +762,7 @@
   },
   "environment/terrain/grass1": {
    "frame": {
-    "x": 333,
+    "x": 366,
     "y": 506,
     "w": 16,
     "h": 16
@@ -762,7 +782,7 @@
   },
   "environment/terrain/grass2": {
    "frame": {
-    "x": 350,
+    "x": 383,
     "y": 506,
     "w": 16,
     "h": 16
@@ -782,7 +802,7 @@
   },
   "environment/terrain/grass3": {
    "frame": {
-    "x": 367,
+    "x": 400,
     "y": 506,
     "w": 16,
     "h": 16
@@ -802,7 +822,7 @@
   },
   "environment/terrain/grass4": {
    "frame": {
-    "x": 384,
+    "x": 417,
     "y": 506,
     "w": 16,
     "h": 16
@@ -822,7 +842,7 @@
   },
   "environment/terrain/grassEdge": {
    "frame": {
-    "x": 401,
+    "x": 434,
     "y": 506,
     "w": 16,
     "h": 16
@@ -842,7 +862,7 @@
   },
   "environment/terrain/transition1": {
    "frame": {
-    "x": 418,
+    "x": 451,
     "y": 506,
     "w": 16,
     "h": 16
@@ -862,7 +882,7 @@
   },
   "environment/terrain/transition2": {
    "frame": {
-    "x": 435,
+    "x": 468,
     "y": 506,
     "w": 16,
     "h": 16
@@ -882,7 +902,7 @@
   },
   "environment/terrain/transition3": {
    "frame": {
-    "x": 452,
+    "x": 485,
     "y": 506,
     "w": 16,
     "h": 16
@@ -902,7 +922,7 @@
   },
   "environment/terrain/transition4": {
    "frame": {
-    "x": 469,
+    "x": 502,
     "y": 506,
     "w": 16,
     "h": 16
@@ -922,8 +942,8 @@
   },
   "environment/terrain/water": {
    "frame": {
-    "x": 486,
-    "y": 506,
+    "x": 0,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -942,8 +962,8 @@
   },
   "environment/terrain/waterDirt": {
    "frame": {
-    "x": 503,
-    "y": 506,
+    "x": 17,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -962,8 +982,8 @@
   },
   "environment/terrain/waterDirtInnerLeft": {
    "frame": {
-    "x": 0,
-    "y": 527,
+    "x": 34,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -982,8 +1002,8 @@
   },
   "environment/terrain/waterDirtInnerRight": {
    "frame": {
-    "x": 17,
-    "y": 527,
+    "x": 51,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1002,8 +1022,8 @@
   },
   "environment/terrain/waterGrass": {
    "frame": {
-    "x": 34,
-    "y": 527,
+    "x": 68,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1022,8 +1042,8 @@
   },
   "environment/terrain/wood": {
    "frame": {
-    "x": 51,
-    "y": 527,
+    "x": 85,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1042,8 +1062,8 @@
   },
   "environment/terrain/woodLeft": {
    "frame": {
-    "x": 68,
-    "y": 527,
+    "x": 102,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1062,8 +1082,8 @@
   },
   "environment/terrain/woodRight": {
    "frame": {
-    "x": 85,
-    "y": 527,
+    "x": 119,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1082,8 +1102,28 @@
   },
   "items/baits/advanced-icon": {
    "frame": {
-    "x": 102,
-    "y": 527,
+    "x": 136,
+    "y": 529,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "items/baits/mystery-icon": {
+   "frame": {
+    "x": 153,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1102,8 +1142,8 @@
   },
   "items/baits/novice-icon": {
    "frame": {
-    "x": 119,
-    "y": 527,
+    "x": 170,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1122,8 +1162,8 @@
   },
   "items/baits/trainer-icon": {
    "frame": {
-    "x": 136,
-    "y": 527,
+    "x": 187,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1142,8 +1182,8 @@
   },
   "items/rods/basic-icon": {
    "frame": {
-    "x": 153,
-    "y": 527,
+    "x": 204,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1162,8 +1202,8 @@
   },
   "items/rods/intermediate-icon": {
    "frame": {
-    "x": 170,
-    "y": 527,
+    "x": 221,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1182,8 +1222,8 @@
   },
   "items/rods/master-icon": {
    "frame": {
-    "x": 187,
-    "y": 527,
+    "x": 238,
+    "y": 529,
     "w": 16,
     "h": 16
    },
@@ -1202,8 +1242,8 @@
   },
   "environment/objects/rock": {
    "frame": {
-    "x": 204,
-    "y": 527,
+    "x": 255,
+    "y": 529,
     "w": 14,
     "h": 16
    },
@@ -1222,8 +1262,8 @@
   },
   "environment/effects/shimmer": {
    "frame": {
-    "x": 219,
-    "y": 527,
+    "x": 270,
+    "y": 529,
     "w": 12,
     "h": 16
    },
@@ -1242,8 +1282,8 @@
   },
   "ui/fishing/fish": {
    "frame": {
-    "x": 232,
-    "y": 527,
+    "x": 283,
+    "y": 529,
     "w": 11,
     "h": 8
    },
@@ -1262,8 +1302,8 @@
   },
   "ui/fishing/catch-zone": {
    "frame": {
-    "x": 244,
-    "y": 527,
+    "x": 295,
+    "y": 529,
     "w": 8,
     "h": 8
    },
@@ -1282,8 +1322,8 @@
   },
   "environment/terrain/corner": {
    "frame": {
-    "x": 253,
-    "y": 527,
+    "x": 304,
+    "y": 529,
     "w": 7,
     "h": 7
    },
@@ -1302,8 +1342,8 @@
   },
   "environment/terrain/dirtCliffCorner": {
    "frame": {
-    "x": 261,
-    "y": 527,
+    "x": 312,
+    "y": 529,
     "w": 5,
     "h": 5
    },
@@ -1322,8 +1362,8 @@
   },
   "environment/terrain/dirtEdgeCorner": {
    "frame": {
-    "x": 267,
-    "y": 527,
+    "x": 318,
+    "y": 529,
     "w": 5,
     "h": 5
    },
@@ -1344,8 +1384,8 @@
  "meta": {
   "image": "atlas.png",
   "size": {
-   "w": 527,
-   "h": 543
+   "w": 529,
+   "h": 545
   },
   "scale": 1
  }
