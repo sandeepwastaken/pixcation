@@ -3,6 +3,70 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('an inclusive world hash never selects an invalid appearance row or name', () => {
+    const run = createNpcs();
+    run(fs.readFileSync('src/game-data.js', 'utf8'));
+    run('npcHash = () => 1; const edgeResident = createNpc(3, 3, null)');
+    assert.ok(run('NPC_MASCULINE_FIRST_NAMES.includes(edgeResident.name.split(" ")[0])'));
+    assert.equal(run('edgeResident.look[1]'), run('NPC_FACES - 1'));
+    assert.equal(run('edgeResident.look[2]'), run('NPC_SHIRTS - 1'));
+    assert.equal(run('edgeResident.look[6]'), run('NPC_HAIRSTYLES - 1'));
+    assert.equal(run('edgeResident.look[8]'), 1);
+    assert.ok(run('edgeResident.rodIndex < MARKET_RODS.length'));
+});
+
+test('shared walks reconnect partial steps before taking tile-aligned routes', () => {
+    const run = createNpcs();
+    run("first.x = 56; second.x = 88; homes[1].tileX = second.tileX = 5; first.walkInvitation = true; first.dailyPlan = second.dailyPlan = 'day'; first.state = second.state = 'social'; canNpcOccupy = () => true; rollNpcTile = () => [4, 4]");
+    assert.equal(run('tryNpcSharedWalk(scene, first, second, 100)'), true);
+    assert.equal(run('first.path[0][1]'), 3);
+    assert.equal(run('second.path[0][1]'), 3);
+    assert.equal(run('first.goal'), 'stroll');
+    assert.equal(run('second.goal'), 'stroll');
+    assert.equal(run('first.path.every(([x, y], index) => { const previous = index ? first.path[index - 1].map(value => value * TILE_SIZE) : [first.x, first.y]; return previous[0] === x * TILE_SIZE || previous[1] === y * TILE_SIZE; })'), true);
+    assert.equal(run('second.path.every(([x, y], index) => { const previous = index ? second.path[index - 1].map(value => value * TILE_SIZE) : [second.x, second.y]; return previous[0] === x * TILE_SIZE || previous[1] === y * TILE_SIZE; })'), true);
+});
+
+test('new walks and fishing trips avoid occupied routes before setting off', () => {
+    for (const goal of ['wander', 'fish']) {
+        const run = createNpcs();
+        run("first.failedSpots = new Set(); tryNpcSocialPlan = () => false; rollNpcTile = () => [5, 3]; findNpcWater = () => ({ direction: 'front' }); isNpcStandingTile = () => true; canNpcOccupy = (scene, npc, x, y) => !(x >= 60 && x <= 68 && y === 48)");
+        run(`npcRandom = () => ${goal === 'fish' ? 0 : 0.99}; chooseNpcPlan(scene, first, 100)`);
+        assert.equal(run('first.goal'), goal);
+        assert.equal(run('first.state'), 'walk');
+        assert.ok(run('first.path.some(([, y]) => y !== 3)'));
+        assert.equal(run('first.path.at(-1)[0]'), 5);
+        assert.equal(run('first.path.at(-1)[1]'), 3);
+        assert.equal(run('first.path.every(([x, y], index) => { const previous = index ? first.path[index - 1].map(value => value * TILE_SIZE) : [first.x, first.y]; return canNpcTraverse(scene, first, ...previous, x * TILE_SIZE, y * TILE_SIZE); })'), true);
+    }
+});
+
+test('residents wait instead of starting a walk when every route is occupied', () => {
+    const run = createNpcs();
+    run('tryNpcSocialPlan = () => false; npcRandom = () => 0.99; rollNpcTile = () => [5, 3]; canNpcOccupy = () => false; chooseNpcPlan(scene, first, 100)');
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.path.length'), 0);
+    assert.ok(run('first.until > 100'));
+});
+
+test('idle glances notice visible neighbors without looking through obstacles or into houses', () => {
+    const run = createNpcs();
+    run("first.direction = 'left'; character.x = 32; second.x = 80; npcRandom = () => 0.5; isNpcWalkableTile = (x, y) => x !== 2");
+    assert.equal(run('getNpcIdleDirection(first)'), 'right');
+    run("second.state = 'home'");
+    assert.equal(run('getNpcIdleDirection(first)'), 'left');
+    run("isNpcWalkableTile = () => true; character.visible = false; second.state = 'idle'");
+    assert.equal(run('getNpcIdleDirection(first)'), 'right');
+    run('character.visible = true');
+    assert.equal(run('getNpcIdleDirection(first)'), 'left');
+    run('character.x = 200; second.x = 96');
+    assert.equal(run('getNpcIdleDirection(first)'), 'left');
+    run('second.x = 80; first.lookAt = 100; updateNpc(scene, first, 100, 16)');
+    assert.equal(run('first.direction'), 'right');
+    run('second.x = 32; updateNpc(scene, first, 116, 16)');
+    assert.equal(run('first.direction'), 'right');
+});
+
 test('seeded names and sprite rows stay consistent across feminine, masculine, and young looks', () => {
     const run = createNpcs();
     run(fs.readFileSync('src/game-data.js', 'utf8'));
@@ -806,7 +870,7 @@ test('close neighbors follow a daytime conversation with a bounded shared walk',
 
 test('habitual fishers revisit safe spots but abandon locations with failed casts', () => {
     const run = createNpcs();
-    run("first.spot = { tileX: 5, tileY: 3, water: { direction: 'front' } }; first.failedSpots = new Set(); tryNpcSocialPlan = () => false; npcRandom = () => 0; findNpcWater = () => ({ direction: 'front' }); isNpcStandingTile = () => true; chooseNpcPlan(scene, first, 100)");
+    run("first.spot = { tileX: 5, tileY: 3, water: { direction: 'front' } }; first.failedSpots = new Set(); canNpcOccupy = () => true; tryNpcSocialPlan = () => false; npcRandom = () => 0; findNpcWater = () => ({ direction: 'front' }); isNpcStandingTile = () => true; chooseNpcPlan(scene, first, 100)");
     assert.equal(run('first.goal'), 'fish');
     assert.equal(run('first.spot.tileX'), 5);
     assert.equal(run('first.spot.tileY'), 3);

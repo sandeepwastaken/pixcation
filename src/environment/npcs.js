@@ -236,7 +236,7 @@ function findCellNpc(cellX, cellY) {
 }
 
 function createNpc(tileX, tileY, water) {
-    const pick = (count, salt) => Math.floor(npcHash(tileX, tileY, salt) * count);
+    const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
     const accessory = npcHash(tileX, tileY, 1310) < NPC_ACCESSORY_CHANCE ? 1 : 0;
     const feminine = npcHash(tileX, tileY, 1322) < 0.5, face = pick(NPC_FACES, 1306), names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
     const shirts = feminine ? (face === 1 ? [0, 1, 2, 4] : [0, 1, 2, 3, 4]) : [0, 2, 4], hairstyles = feminine ? [2] : face === 1 ? [0, 1] : [0, 1, 3, 4];
@@ -426,6 +426,17 @@ function getDirectionToward(npc, targetX, targetY) {
     return Math.abs(x) > Math.abs(y) ? (x < 0 ? 'left' : 'right') : (y < 0 ? 'back' : 'front');
 }
 
+function getNpcIdleDirection(npc) {
+    let target = null, distance = (TILE_SIZE * 3) ** 2;
+    for (const other of [character, ...activeNpcs]) {
+        if (other === npc || other.state === 'home' || other.visible === false) continue;
+        const separation = (other.x - npc.x) ** 2 + (other.y - npc.y) ** 2;
+        if (!separation || separation >= distance || !canNpcsTalkAcross(npc, other)) continue;
+        target = other; distance = separation;
+    }
+    return target ? getDirectionToward(npc, target.x, target.y) : npcRandom(npc) < 0.65 ? npc.direction : NPC_DIRECTIONS[Math.floor(npcRandom(npc) * NPC_DIRECTIONS.length)][0];
+}
+
 function canNpcTraverse(scene, npc, x, y, targetX, targetY) {
     if (!canNpcOccupy(scene, npc, x, y)) return false;
     while (x !== targetX || y !== targetY) {
@@ -579,12 +590,12 @@ function tryNpcSharedWalk(scene, npc, other, time) {
     for (let attempt = 0; attempt < NPC_PLAN_ATTEMPTS; attempt++) {
         const [x, y] = rollNpcTile(npc, radius);
         if (!isNpcInHomeArea(other, x, y)) continue;
-        const path = findNpcPath(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE), x, y, npc, scene);
+        const path = findNpcRoute(scene, npc, x, y);
         if (!path?.length) continue;
         for (const [, dx, dy] of NPC_DIRECTIONS) {
             const otherX = x + dx, otherY = y + dy;
             if (!isNpcInHomeArea(npc, otherX, otherY) || !isNpcInHomeArea(other, otherX, otherY)) continue;
-            const otherPath = findNpcPath(Math.round(other.x / TILE_SIZE), Math.round(other.y / TILE_SIZE), otherX, otherY, other, scene);
+            const otherPath = findNpcRoute(scene, other, otherX, otherY);
             if (!otherPath?.length) continue;
             for (const [walker, partner, route] of [[npc, other, path], [other, npc, otherPath]]) {
                 walker.pausedActivity = null;
@@ -637,14 +648,13 @@ function chooseNpcPlan(scene, npc, time) {
         }
     }
     if (tryNpcSocialPlan(scene, npc, time)) return;
-    const fromX = Math.round(npc.x / TILE_SIZE), fromY = Math.round(npc.y / TILE_SIZE);
     const radius = npc.role === 'trader' ? NPC_TRADER_ROAM : NPC_ROAM_RADIUS;
     if (npc.role !== 'trader' && npcRandom(npc) < (npc.dailyPlan === 'late' ? 0.8 : NPC_FISH_CHANCE * (0.6 + npcHash(npc.tileX, npc.tileY, 1342) * 0.8))) {
         for (let attempt = 0; attempt < NPC_PLAN_ATTEMPTS; attempt++) {
             const [tileX, tileY] = !attempt && npc.spot ? [npc.spot.tileX, npc.spot.tileY] : rollNpcTile(npc, radius);
             if (npc.failedSpots.has(getTileId(tileX, tileY)) || !isNpcStandingTile(tileX, tileY)) continue;
             const water = findNpcWater(tileX, tileY);
-            const path = water && findNpcPath(fromX, fromY, tileX, tileY, npc);
+            const path = water && findNpcRoute(scene, npc, tileX, tileY);
             if (!path) continue;
             npc.spot = { tileX, tileY, water };
             startNpcPath(npc, path, 'fish', time);
@@ -653,7 +663,7 @@ function chooseNpcPlan(scene, npc, time) {
     }
     for (let attempt = 0; attempt < NPC_PLAN_ATTEMPTS; attempt++) {
         const [tileX, tileY] = rollNpcTile(npc, radius);
-        const path = findNpcPath(fromX, fromY, tileX, tileY, npc);
+        const path = findNpcRoute(scene, npc, tileX, tileY);
         if (!path || !path.length) continue;
         startNpcPath(npc, path, 'wander', time);
         return;
@@ -1020,7 +1030,7 @@ function updateNpc(scene, npc, time, delta) {
     } else if (npc.state === 'idle') {
         if (time >= npc.lookAt) {
             npc.lookAt = time + NPC_LOOK_MIN + npcRandom(npc) * NPC_LOOK_RANGE;
-            setNpcPose(scene, npc, Math.hypot(character.x - npc.x, character.y - npc.y) < TILE_SIZE * 3 ? getDirectionToward(npc, character.x, character.y) : npcRandom(npc) < 0.65 ? npc.direction : NPC_DIRECTIONS[Math.floor(npcRandom(npc) * NPC_DIRECTIONS.length)][0], 0);
+            setNpcPose(scene, npc, getNpcIdleDirection(npc), 0);
         }
         if (time >= npc.until) chooseNpcPlan(scene, npc, time);
     } else if (npc.state === 'walk') {
