@@ -115,7 +115,7 @@ const MARKET_ITEM_ROWS = Math.max(MARKET_RODS.length, MARKET_BAITS.length);
 const MARKET_SELL_INDEX = MARKET_ITEM_ROWS;
 const MARKET_EXIT_INDEX = MARKET_SELL_INDEX + 1;
 const MARKET_ROW_COUNT = MARKET_ITEM_ROWS + 2;
-const SAVE_KEY = 'pixcation-save-v1';
+const SAVE_KEY = 'pixcation-save-v1' + (typeof getRequestedWorldSeed === 'function' && getRequestedWorldSeed() ? ':' + getRequestedWorldSeed() : '');
 
 const NPC_FIRST_NAMES = [
     'Ada', 'Abe', 'Agnes', 'Alba', 'Alder', 'Alma', 'Alvin', 'Amos', 'Anika', 'Ansel', 'April', 'Arlo', 'Arden', 'Ashby', 'Aster', 'Astrid',
@@ -1028,8 +1028,10 @@ function getPersonPalette(look) {
     const [skin, , , shirtColor, pants, accessory, , topColor] = look;
     return {
         skin: NPC_SKIN_TONES[skin],
+        hair: NPC_HAIR_COLORS[look[9] ?? (accessory ? 0 : topColor)], eye: NPC_EYE_COLORS[look[13] ?? 0],
         pants: NPC_PANTS_COLORS[pants],
         shirt: NPC_SHIRT_COLORS[shirtColor],
+        shirtAccent: NPC_SHIRT_COLORS[look[10] ?? shirtColor][1], pantsAccent: NPC_PANTS_COLORS[look[12] ?? pants],
         top: accessory ? NPC_ACCESSORY_COLORS[topColor] : NPC_HAIR_COLORS[topColor]
     };
 }
@@ -1042,20 +1044,22 @@ function composePersonPixels(scene, look, direction) {
     const colors = new Map();
     const assign = (sources, targets) => sources.forEach((source, index) => colors.set(source, targets[index]));
     assign(NPC_PART_COLORS.skin, palette.skin);
-    assign(NPC_PART_COLORS.pants, palette.pants.slice(1));
+    assign(NPC_PART_COLORS.pants, [palette.pants[1], palette.pantsAccent[1]]);
     assign(NPC_PART_COLORS.shirt, palette.shirt);
+    assign(NPC_PART_COLORS.shirtAccent, [palette.shirtAccent]); assign(NPC_PART_COLORS.pantsAccent, [palette.pantsAccent[2]]);
+    assign(NPC_PART_COLORS.hair, palette.hair);
     assign(accessory ? NPC_PART_COLORS.accessory : NPC_PART_COLORS.hair, palette.top);
-    const layers = [[face * 3 + column, 0], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
+    const layers = [[face * 3 + column, 0], [9 + column, 2 + (look[11] ?? 0), 8], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
     const sheet = getTerrainPixels(scene, 'character-parts');
     const pixels = new Array(NPC_PART_SIZE * NPC_PART_SIZE).fill(null);
 
-    for (const [cellX, cellY] of layers) {
+    for (const [cellX, cellY, offsetY = 0] of layers) {
         for (let y = 0; y < NPC_PART_SIZE; y++) {
             for (let x = 0; x < NPC_PART_SIZE; x++) {
                 const source = ((cellY * NPC_PART_SIZE + y) * sheet.width + cellX * NPC_PART_SIZE + (mirror ? NPC_PART_SIZE - 1 - x : x)) * 4;
                 if (!sheet.data[source + 3]) continue;
-                const color = colors.get((sheet.data[source] << 16) | (sheet.data[source + 1] << 8) | sheet.data[source + 2]);
-                if (color !== undefined) pixels[y * NPC_PART_SIZE + x] = color;
+                const sourceColor = (sheet.data[source] << 16) | (sheet.data[source + 1] << 8) | sheet.data[source + 2], color = cellY === 0 && sourceColor === 0x660000 && y >= 6 && y <= 7 ? palette.eye : colors.get(sourceColor);
+                if (color !== undefined && y + offsetY < NPC_PART_SIZE) pixels[(y + offsetY) * NPC_PART_SIZE + x] = color;
             }
         }
     }
@@ -3970,10 +3974,11 @@ function findCellNpc(cellX, cellY) {
 }
 
 function createNpc(tileX, tileY, water) {
+    const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
-    const accessory = npcHash(tileX, tileY, 1310) < NPC_ACCESSORY_CHANCE ? 1 : 0;
-    const feminine = npcHash(tileX, tileY, 1322) < 0.5, face = pick(NPC_FACES, 1306), names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
-    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4] : [0, 1, 2, 3, 4]) : [0, 2, 4], hairstyles = feminine ? [2] : face === 1 ? [0, 1] : [0, 1, 3, 4];
+    const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
+    const feminine = appearance[18] === 1, face = appearance[4], names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
+    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8, 9] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) : [0, 2, 4, 5, 6, 7, 8, 9], hairstyles = feminine ? [2, 5, 7, 8, 9] : face === 1 ? [0, 1, 5, 7, 8, 9] : [0, 1, 3, 4, 5, 6, 7, 8, 9];
     return {
         id: getTileId(tileX, tileY),
         tileX,
@@ -3986,17 +3991,43 @@ function createNpc(tileX, tileY, water) {
         rodIndex: pick(MARKET_RODS.length, 1315),
         name: `${names[pick(names.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
         look: [
-            pick(NPC_SKIN_TONES.length, 1305), face, shirts[pick(shirts.length, 1307)], pick(NPC_SHIRT_COLORS.length, 1308),
-            pick(NPC_PANTS_COLORS.length, 1309), accessory,
-            accessory ? pick(NPC_ACCESSORIES, 1311) : hairstyles[pick(hairstyles.length, 1312)],
-            accessory ? pick(NPC_ACCESSORY_COLORS.length, 1313) : pick(NPC_HAIR_COLORS.length, 1314),
-            pick(2, 1321)
+            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 + appearance[3] : appearance[2], face, shirts[appearance[5] % shirts.length], appearance[6],
+            appearance[7], accessory,
+            accessory ? (rareVanity ? 5 : [0, 1, 2, 3, 4, 6, 7][appearance[9]]) : hairstyles[appearance[10] % hairstyles.length],
+            accessory ? appearance[11] : appearance[12],
+            appearance[13], appearance[12], (appearance[6] + 1 + appearance[14]) % NPC_SHIRT_COLORS.length, appearance[15], (appearance[7] + 1 + appearance[16]) % NPC_PANTS_COLORS.length, getNpcEyeColor(appearance[17]), Number(feminine)
         ]
     };
 }
 
 function getNpcTexture(scene, look, direction, frame = 0) {
     return getPersonTexture(scene, `npc-${look.join('-')}-${direction}-${frame}`, look, direction, frame);
+}
+
+function getNpcAppearanceWord(tileX, tileY) {
+    const seed = BigInt(WORLD_SEED_CODE), coordinate = BigInt.asUintN(32, BigInt(tileX)) << 32n | BigInt.asUintN(32, BigInt(tileY));
+    const appearance = seed > BigInt(Number.MAX_SAFE_INTEGER) ? seed >> 32n : seed * 0xd6e8feb86659fd93a5a3564e27f8862bn;
+    const word = BigInt.asUintN(128, (appearance + coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn + 0x94d049bb133111ebn) * 0x9e3779b97f4a7c15d6e8feb86659fd93n);
+    return word ^ word >> 64n;
+}
+
+function getNpcAppearanceRolls(tileX, tileY) {
+    let word = getNpcAppearanceWord(tileX, tileY);
+    return NPC_APPEARANCE_RADICES.map(radix => { const value = Number(word % BigInt(radix)); word /= BigInt(radix); return value; });
+}
+function getNpcEyeColor(roll) { let limit = 0; return NPC_EYE_WEIGHTS.findIndex(weight => roll < (limit += Math.round(weight * 100))); }
+
+function makeNpcAppearanceSeed(worldSeed, tileX, tileY, rolls, variant = 0n) {
+    if (!Number.isSafeInteger(worldSeed) || worldSeed <= 0 || worldSeed > 0xffffffff || !Number.isSafeInteger(tileX) || !Number.isSafeInteger(tileY) || rolls.length !== NPC_APPEARANCE_RADICES.length || rolls.some((value, index) => !Number.isSafeInteger(value) || value < 0 || value >= NPC_APPEARANCE_RADICES[index])) throw new Error('Invalid appearance seed inputs');
+    let word = BigInt(variant);
+    if (word < 0n) throw new Error('Invalid appearance seed variant');
+    for (let index = rolls.length - 1; index >= 0; index--) word = word * BigInt(NPC_APPEARANCE_RADICES[index]) + BigInt(rolls[index]);
+    if (word >= 1n << 128n) throw new Error('Appearance seed variant is too large');
+    const coordinate = BigInt.asUintN(32, BigInt(tileX)) << 32n | BigInt.asUintN(32, BigInt(tileY));
+    const appearance = BigInt.asUintN(128, ((word ^ word >> 64n) * 0xe38c9d69e07658b7cfee444d8b59a89bn) - coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn - 0x94d049bb133111ebn);
+    const seed = appearance << 32n | BigInt(worldSeed);
+    if (seed <= BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('Use another appearance seed variant');
+    return seed.toString();
 }
 
 function spawnChunkNpcs(scene, chunkX, chunkY, sprites) {
@@ -9025,6 +9056,7 @@ const CHUNK_DISCOVERY_RADIUS = 2;
 const DEFAULT_WORLD_SEED = 6767676767676;
 const WORLD_SEED_KEY = 'pixcation-seed';
 const WORLD_SEED = loadWorldSeed();
+const WORLD_SEED_CODE = getRequestedWorldSeed() || String(WORLD_SEED);
 const WORLD_HASH_MULTIPLIER = 1442695040888963407;
 const WORLD_FEATURE_SCALE = 0.42;
 const MIN_BRIDGE_WATER_LENGTH = 2;
@@ -9352,7 +9384,17 @@ const CAMERA_EASE = 2;
 
 const PROMPT_SLIDE = 4;
 
+function getRequestedWorldSeed() {
+    if (typeof window === 'undefined' || !window.location?.search) return null;
+    const value = new URLSearchParams(window.location.search).get('seed');
+    if (!value || !/^[1-9][0-9]{0,48}$/.test(value)) return null;
+    const seed = BigInt(value);
+    return seed < (1n << 160n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n) ? value : null;
+}
+
 function loadWorldSeed() {
+    const requested = getRequestedWorldSeed();
+    if (requested) return BigInt(requested) > BigInt(Number.MAX_SAFE_INTEGER) ? Number(BigInt(requested) & 0xffffffffn) : Number(requested);
     try {
         if (TEST_MODE) return DEFAULT_WORLD_SEED;
         const saved = Number(localStorage.getItem(WORLD_SEED_KEY));
@@ -9367,10 +9409,13 @@ function loadWorldSeed() {
 
 const NPC_PART_SIZE = 16;
 const NPC_FACES = 3;
-const NPC_ACCESSORIES = 4;
-const NPC_HAIRSTYLES = 5;
-const NPC_SHIRTS = 5;
+const NPC_ACCESSORIES = 8;
+const NPC_HAIRSTYLES = 10;
+const NPC_SHIRTS = 10;
 const NPC_ACCESSORY_CHANCE = 0.35;
+const NPC_RARE_VANITY_CHANCE = 0.0001, NPC_PASTEL_SKIN_CHANCE = 0.01, NPC_PANTS_STYLES = 5;
+const NPC_EYE_COLORS = [0x191820, 0x633d2b, 0x46758b, 0x527349, 0x77794a, 0xadcddd, 0xb18c53], NPC_EYE_WEIGHTS = [0.64, 0.16, 0.07, 0.06, 0.04, 0.02, 0.01];
+const NPC_APPEARANCE_RADICES = [10000, 100, 5, 4, 3, 10, 9, 7, 100, 7, 10, 6, 7, 2, 8, 5, 6, 100, 2];
 const NPC_CELL_SIZE = 10;
 const NPC_CELL_MARGIN = 2;
 const NPC_CELL_CHANCE = 0.45;
@@ -9384,7 +9429,8 @@ const NPC_SKIN_TONES = [
     [0xb07a62, 0xd3a383, 0xe8c4a0, 0x4a3530],
     [0x8c5a3c, 0xb07a52, 0xc99a6c, 0x3a2620],
     [0x5e3a2a, 0x7d4f37, 0x9a6a4a, 0x2a1a16],
-    [0x3e2620, 0x58372a, 0x744b38, 0x1e1412]
+    [0x3e2620, 0x58372a, 0x744b38, 0x1e1412],
+    [0x9c7abd, 0xc9ace7, 0xebdcff, 0x64477d], [0x80a2bf, 0xafd2eb, 0xd6edf9, 0x506a85], [0x91ad91, 0xbad8b9, 0xe0f0dc, 0x587558], [0xbd93a2, 0xe4bfcd, 0xf8e1ea, 0x805d6c]
 ];
 const NPC_HAIR_COLORS = [
     [0x1f1a1d, 0x2f282c, 0x463c40],
@@ -9392,7 +9438,8 @@ const NPC_HAIR_COLORS = [
     [0x6b2f22, 0x8f4430, 0xb06040],
     [0xa07a3a, 0xc9a052, 0xe6c878],
     [0x6e6a6a, 0x969090, 0xbdb7b2],
-    [0x9a4a20, 0xc0682c, 0xdc8c44]
+    [0x9a4a20, 0xc0682c, 0xdc8c44],
+    [0x590c85, 0x9215c9, 0xcf3bed]
 ];
 const NPC_SHIRT_COLORS = [
     [0x505aa2, 0x6b88b8],
@@ -9401,14 +9448,16 @@ const NPC_SHIRT_COLORS = [
     [0xa07a30, 0xc9a04a],
     [0x2f6f6f, 0x4a9090],
     [0x5e4a7a, 0x7a669a],
-    [0xb0a080, 0xd2c4a2]
+    [0xb0a080, 0xd2c4a2],
+    [0xb51f70, 0xf63f9b], [0x392348, 0x624078]
 ];
 const NPC_PANTS_COLORS = [
     [0x5c2525, 0x773333, 0x9a4444],
     [0x222840, 0x2e3550, 0x434c70],
     [0x3a2b1f, 0x4e3a2a, 0x6b5240],
     [0x363b25, 0x4a5032, 0x666e46],
-    [0x36363c, 0x4a4a52, 0x66666e]
+    [0x36363c, 0x4a4a52, 0x66666e],
+    [0x9b7965, 0xc9a48e, 0xecd0b8], [0x261334, 0x3f1d54, 0x623580]
 ];
 const PLAYER_LOOK = [0, 0, 0, 0, 0, 1, 0, 0];
 const PERSON_ARM_TOP = 8;
@@ -9426,9 +9475,11 @@ const NPC_ACCESSORY_COLORS = [
     [0x1c2340, 0x2e3a66, 0x43558a, 0x6276ab],
     [0x1e3320, 0x2f4f33, 0x426b46, 0x5e8c60],
     [0x5a4420, 0x8a6a34, 0xb08c48, 0xd2b06a],
-    [0x6e6a64, 0xa8a49c, 0xcdc9c0, 0xeceae4]
+    [0x6e6a64, 0xa8a49c, 0xcdc9c0, 0xeceae4],
+    [0x9b7965, 0xc2a08a, 0xdfc0aa, 0xf4ddca]
 ];
 const NPC_PART_COLORS = {
+    shirtAccent: [0x00d9ff], pantsAccent: [0xdf8fff],
     skin: [0xa40000, 0xd20000, 0xff0000, 0x660000],
     pants: [0x4a0067, 0xb700ff],
     accessory: [0x004a16, 0x00ac34, 0x00ff4d, 0x8affad],

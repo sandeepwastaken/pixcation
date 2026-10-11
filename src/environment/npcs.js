@@ -236,10 +236,11 @@ function findCellNpc(cellX, cellY) {
 }
 
 function createNpc(tileX, tileY, water) {
+    const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
-    const accessory = npcHash(tileX, tileY, 1310) < NPC_ACCESSORY_CHANCE ? 1 : 0;
-    const feminine = npcHash(tileX, tileY, 1322) < 0.5, face = pick(NPC_FACES, 1306), names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
-    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4] : [0, 1, 2, 3, 4]) : [0, 2, 4], hairstyles = feminine ? [2] : face === 1 ? [0, 1] : [0, 1, 3, 4];
+    const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
+    const feminine = appearance[18] === 1, face = appearance[4], names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
+    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8, 9] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) : [0, 2, 4, 5, 6, 7, 8, 9], hairstyles = feminine ? [2, 5, 7, 8, 9] : face === 1 ? [0, 1, 5, 7, 8, 9] : [0, 1, 3, 4, 5, 6, 7, 8, 9];
     return {
         id: getTileId(tileX, tileY),
         tileX,
@@ -252,17 +253,43 @@ function createNpc(tileX, tileY, water) {
         rodIndex: pick(MARKET_RODS.length, 1315),
         name: `${names[pick(names.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
         look: [
-            pick(NPC_SKIN_TONES.length, 1305), face, shirts[pick(shirts.length, 1307)], pick(NPC_SHIRT_COLORS.length, 1308),
-            pick(NPC_PANTS_COLORS.length, 1309), accessory,
-            accessory ? pick(NPC_ACCESSORIES, 1311) : hairstyles[pick(hairstyles.length, 1312)],
-            accessory ? pick(NPC_ACCESSORY_COLORS.length, 1313) : pick(NPC_HAIR_COLORS.length, 1314),
-            pick(2, 1321)
+            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 + appearance[3] : appearance[2], face, shirts[appearance[5] % shirts.length], appearance[6],
+            appearance[7], accessory,
+            accessory ? (rareVanity ? 5 : [0, 1, 2, 3, 4, 6, 7][appearance[9]]) : hairstyles[appearance[10] % hairstyles.length],
+            accessory ? appearance[11] : appearance[12],
+            appearance[13], appearance[12], (appearance[6] + 1 + appearance[14]) % NPC_SHIRT_COLORS.length, appearance[15], (appearance[7] + 1 + appearance[16]) % NPC_PANTS_COLORS.length, getNpcEyeColor(appearance[17]), Number(feminine)
         ]
     };
 }
 
 function getNpcTexture(scene, look, direction, frame = 0) {
     return getPersonTexture(scene, `npc-${look.join('-')}-${direction}-${frame}`, look, direction, frame);
+}
+
+function getNpcAppearanceWord(tileX, tileY) {
+    const seed = BigInt(WORLD_SEED_CODE), coordinate = BigInt.asUintN(32, BigInt(tileX)) << 32n | BigInt.asUintN(32, BigInt(tileY));
+    const appearance = seed > BigInt(Number.MAX_SAFE_INTEGER) ? seed >> 32n : seed * 0xd6e8feb86659fd93a5a3564e27f8862bn;
+    const word = BigInt.asUintN(128, (appearance + coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn + 0x94d049bb133111ebn) * 0x9e3779b97f4a7c15d6e8feb86659fd93n);
+    return word ^ word >> 64n;
+}
+
+function getNpcAppearanceRolls(tileX, tileY) {
+    let word = getNpcAppearanceWord(tileX, tileY);
+    return NPC_APPEARANCE_RADICES.map(radix => { const value = Number(word % BigInt(radix)); word /= BigInt(radix); return value; });
+}
+function getNpcEyeColor(roll) { let limit = 0; return NPC_EYE_WEIGHTS.findIndex(weight => roll < (limit += Math.round(weight * 100))); }
+
+function makeNpcAppearanceSeed(worldSeed, tileX, tileY, rolls, variant = 0n) {
+    if (!Number.isSafeInteger(worldSeed) || worldSeed <= 0 || worldSeed > 0xffffffff || !Number.isSafeInteger(tileX) || !Number.isSafeInteger(tileY) || rolls.length !== NPC_APPEARANCE_RADICES.length || rolls.some((value, index) => !Number.isSafeInteger(value) || value < 0 || value >= NPC_APPEARANCE_RADICES[index])) throw new Error('Invalid appearance seed inputs');
+    let word = BigInt(variant);
+    if (word < 0n) throw new Error('Invalid appearance seed variant');
+    for (let index = rolls.length - 1; index >= 0; index--) word = word * BigInt(NPC_APPEARANCE_RADICES[index]) + BigInt(rolls[index]);
+    if (word >= 1n << 128n) throw new Error('Appearance seed variant is too large');
+    const coordinate = BigInt.asUintN(32, BigInt(tileX)) << 32n | BigInt.asUintN(32, BigInt(tileY));
+    const appearance = BigInt.asUintN(128, ((word ^ word >> 64n) * 0xe38c9d69e07658b7cfee444d8b59a89bn) - coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn - 0x94d049bb133111ebn);
+    const seed = appearance << 32n | BigInt(worldSeed);
+    if (seed <= BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('Use another appearance seed variant');
+    return seed.toString();
 }
 
 function spawnChunkNpcs(scene, chunkX, chunkY, sprites) {

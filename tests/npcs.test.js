@@ -90,10 +90,10 @@ test('an inclusive world hash never selects an invalid appearance row or name', 
     run(fs.readFileSync('src/game-data.js', 'utf8'));
     run('npcHash = () => 1; const edgeResident = createNpc(3, 3, null)');
     assert.ok(run('NPC_MASCULINE_FIRST_NAMES.includes(edgeResident.name.split(" ")[0])'));
-    assert.equal(run('edgeResident.look[1]'), run('NPC_FACES - 1'));
-    assert.equal(run('edgeResident.look[2]'), run('NPC_SHIRTS - 1'));
-    assert.equal(run('edgeResident.look[6]'), run('NPC_HAIRSTYLES - 1'));
-    assert.equal(run('edgeResident.look[8]'), 1);
+    assert.ok(run('edgeResident.look[1] >= 0 && edgeResident.look[1] < NPC_FACES'));
+    assert.ok(run('edgeResident.look[2] >= 0 && edgeResident.look[2] < NPC_SHIRTS'));
+    assert.ok(run('edgeResident.look[6] >= 0 && edgeResident.look[6] < (edgeResident.look[5] ? NPC_ACCESSORIES : NPC_HAIRSTYLES)'));
+    assert.ok(run('[0, 1].includes(edgeResident.look[8])'));
     assert.ok(run('edgeResident.rodIndex < MARKET_RODS.length'));
 });
 
@@ -154,9 +154,9 @@ test('seeded names and sprite rows stay consistent across feminine, masculine, a
     run(fs.readFileSync('src/game-data.js', 'utf8'));
     run(fs.readFileSync('src/world/terrain.js', 'utf8'));
     run('const generatedResidents = []; for (let y = -30; y < 30; y++) for (let x = -30; x < 30; x++) generatedResidents.push(createNpc(x, y, null))');
-    assert.equal(run('generatedResidents.every(npc => { const feminine = npcHash(npc.tileX, npc.tileY, 1322) < 0.5; return (feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES).includes(npc.name.split(" ")[0]); })'), true);
-    assert.equal(run('generatedResidents.every(npc => npc.look[5] || (npcHash(npc.tileX, npc.tileY, 1322) < 0.5 ? npc.look[6] === 2 : npc.look[6] !== 2))'), true);
-    assert.equal(run('generatedResidents.every(npc => npcHash(npc.tileX, npc.tileY, 1322) < 0.5 || ![1, 3].includes(npc.look[2]))'), true);
+    assert.equal(run('generatedResidents.every(npc => (npc.look[14] ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES).includes(npc.name.split(" ")[0]))'), true);
+    assert.equal(run('generatedResidents.every(npc => npc.look[5] || (npc.look[14] ? [2, 5, 7, 8, 9].includes(npc.look[6]) : npc.look[6] !== 2))'), true);
+    assert.equal(run('generatedResidents.every(npc => npc.look[14] || ![1, 3].includes(npc.look[2]))'), true);
     assert.equal(run('generatedResidents.every(npc => npc.look[1] !== 1 || npc.look[2] !== 3 && (npc.look[5] || ![3, 4].includes(npc.look[6])))'), true);
     assert.ok(run('generatedResidents.some(npc => npc.look[1] === 2 && !npc.look[5] && npc.look[6] === 4)'));
     assert.ok(run('generatedResidents.some(npc => npc.look[2] === 3)'));

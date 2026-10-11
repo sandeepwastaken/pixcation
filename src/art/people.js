@@ -2,8 +2,10 @@ function getPersonPalette(look) {
     const [skin, , , shirtColor, pants, accessory, , topColor] = look;
     return {
         skin: NPC_SKIN_TONES[skin],
+        hair: NPC_HAIR_COLORS[look[9] ?? (accessory ? 0 : topColor)], eye: NPC_EYE_COLORS[look[13] ?? 0],
         pants: NPC_PANTS_COLORS[pants],
         shirt: NPC_SHIRT_COLORS[shirtColor],
+        shirtAccent: NPC_SHIRT_COLORS[look[10] ?? shirtColor][1], pantsAccent: NPC_PANTS_COLORS[look[12] ?? pants],
         top: accessory ? NPC_ACCESSORY_COLORS[topColor] : NPC_HAIR_COLORS[topColor]
     };
 }
@@ -16,20 +18,22 @@ function composePersonPixels(scene, look, direction) {
     const colors = new Map();
     const assign = (sources, targets) => sources.forEach((source, index) => colors.set(source, targets[index]));
     assign(NPC_PART_COLORS.skin, palette.skin);
-    assign(NPC_PART_COLORS.pants, palette.pants.slice(1));
+    assign(NPC_PART_COLORS.pants, [palette.pants[1], palette.pantsAccent[1]]);
     assign(NPC_PART_COLORS.shirt, palette.shirt);
+    assign(NPC_PART_COLORS.shirtAccent, [palette.shirtAccent]); assign(NPC_PART_COLORS.pantsAccent, [palette.pantsAccent[2]]);
+    assign(NPC_PART_COLORS.hair, palette.hair);
     assign(accessory ? NPC_PART_COLORS.accessory : NPC_PART_COLORS.hair, palette.top);
-    const layers = [[face * 3 + column, 0], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
+    const layers = [[face * 3 + column, 0], [9 + column, 2 + (look[11] ?? 0), 8], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
     const sheet = getTerrainPixels(scene, 'character-parts');
     const pixels = new Array(NPC_PART_SIZE * NPC_PART_SIZE).fill(null);
 
-    for (const [cellX, cellY] of layers) {
+    for (const [cellX, cellY, offsetY = 0] of layers) {
         for (let y = 0; y < NPC_PART_SIZE; y++) {
             for (let x = 0; x < NPC_PART_SIZE; x++) {
                 const source = ((cellY * NPC_PART_SIZE + y) * sheet.width + cellX * NPC_PART_SIZE + (mirror ? NPC_PART_SIZE - 1 - x : x)) * 4;
                 if (!sheet.data[source + 3]) continue;
-                const color = colors.get((sheet.data[source] << 16) | (sheet.data[source + 1] << 8) | sheet.data[source + 2]);
-                if (color !== undefined) pixels[y * NPC_PART_SIZE + x] = color;
+                const sourceColor = (sheet.data[source] << 16) | (sheet.data[source + 1] << 8) | sheet.data[source + 2], color = cellY === 0 && sourceColor === 0x660000 && y >= 6 && y <= 7 ? palette.eye : colors.get(sourceColor);
+                if (color !== undefined && y + offsetY < NPC_PART_SIZE) pixels[(y + offsetY) * NPC_PART_SIZE + x] = color;
             }
         }
     }

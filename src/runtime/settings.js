@@ -32,6 +32,7 @@ const CHUNK_DISCOVERY_RADIUS = 2;
 const DEFAULT_WORLD_SEED = 6767676767676;
 const WORLD_SEED_KEY = 'pixcation-seed';
 const WORLD_SEED = loadWorldSeed();
+const WORLD_SEED_CODE = getRequestedWorldSeed() || String(WORLD_SEED);
 const WORLD_HASH_MULTIPLIER = 1442695040888963407;
 const WORLD_FEATURE_SCALE = 0.42;
 const MIN_BRIDGE_WATER_LENGTH = 2;
@@ -359,7 +360,17 @@ const CAMERA_EASE = 2;
 
 const PROMPT_SLIDE = 4;
 
+function getRequestedWorldSeed() {
+    if (typeof window === 'undefined' || !window.location?.search) return null;
+    const value = new URLSearchParams(window.location.search).get('seed');
+    if (!value || !/^[1-9][0-9]{0,48}$/.test(value)) return null;
+    const seed = BigInt(value);
+    return seed < (1n << 160n) && (seed <= BigInt(Number.MAX_SAFE_INTEGER) || (seed & 0xffffffffn) !== 0n) ? value : null;
+}
+
 function loadWorldSeed() {
+    const requested = getRequestedWorldSeed();
+    if (requested) return BigInt(requested) > BigInt(Number.MAX_SAFE_INTEGER) ? Number(BigInt(requested) & 0xffffffffn) : Number(requested);
     try {
         if (TEST_MODE) return DEFAULT_WORLD_SEED;
         const saved = Number(localStorage.getItem(WORLD_SEED_KEY));
@@ -374,10 +385,13 @@ function loadWorldSeed() {
 
 const NPC_PART_SIZE = 16;
 const NPC_FACES = 3;
-const NPC_ACCESSORIES = 4;
-const NPC_HAIRSTYLES = 5;
-const NPC_SHIRTS = 5;
+const NPC_ACCESSORIES = 8;
+const NPC_HAIRSTYLES = 10;
+const NPC_SHIRTS = 10;
 const NPC_ACCESSORY_CHANCE = 0.35;
+const NPC_RARE_VANITY_CHANCE = 0.0001, NPC_PASTEL_SKIN_CHANCE = 0.01, NPC_PANTS_STYLES = 5;
+const NPC_EYE_COLORS = [0x191820, 0x633d2b, 0x46758b, 0x527349, 0x77794a, 0xadcddd, 0xb18c53], NPC_EYE_WEIGHTS = [0.64, 0.16, 0.07, 0.06, 0.04, 0.02, 0.01];
+const NPC_APPEARANCE_RADICES = [10000, 100, 5, 4, 3, 10, 9, 7, 100, 7, 10, 6, 7, 2, 8, 5, 6, 100, 2];
 const NPC_CELL_SIZE = 10;
 const NPC_CELL_MARGIN = 2;
 const NPC_CELL_CHANCE = 0.45;
@@ -391,7 +405,8 @@ const NPC_SKIN_TONES = [
     [0xb07a62, 0xd3a383, 0xe8c4a0, 0x4a3530],
     [0x8c5a3c, 0xb07a52, 0xc99a6c, 0x3a2620],
     [0x5e3a2a, 0x7d4f37, 0x9a6a4a, 0x2a1a16],
-    [0x3e2620, 0x58372a, 0x744b38, 0x1e1412]
+    [0x3e2620, 0x58372a, 0x744b38, 0x1e1412],
+    [0x9c7abd, 0xc9ace7, 0xebdcff, 0x64477d], [0x80a2bf, 0xafd2eb, 0xd6edf9, 0x506a85], [0x91ad91, 0xbad8b9, 0xe0f0dc, 0x587558], [0xbd93a2, 0xe4bfcd, 0xf8e1ea, 0x805d6c]
 ];
 const NPC_HAIR_COLORS = [
     [0x1f1a1d, 0x2f282c, 0x463c40],
@@ -399,7 +414,8 @@ const NPC_HAIR_COLORS = [
     [0x6b2f22, 0x8f4430, 0xb06040],
     [0xa07a3a, 0xc9a052, 0xe6c878],
     [0x6e6a6a, 0x969090, 0xbdb7b2],
-    [0x9a4a20, 0xc0682c, 0xdc8c44]
+    [0x9a4a20, 0xc0682c, 0xdc8c44],
+    [0x590c85, 0x9215c9, 0xcf3bed]
 ];
 const NPC_SHIRT_COLORS = [
     [0x505aa2, 0x6b88b8],
@@ -408,14 +424,16 @@ const NPC_SHIRT_COLORS = [
     [0xa07a30, 0xc9a04a],
     [0x2f6f6f, 0x4a9090],
     [0x5e4a7a, 0x7a669a],
-    [0xb0a080, 0xd2c4a2]
+    [0xb0a080, 0xd2c4a2],
+    [0xb51f70, 0xf63f9b], [0x392348, 0x624078]
 ];
 const NPC_PANTS_COLORS = [
     [0x5c2525, 0x773333, 0x9a4444],
     [0x222840, 0x2e3550, 0x434c70],
     [0x3a2b1f, 0x4e3a2a, 0x6b5240],
     [0x363b25, 0x4a5032, 0x666e46],
-    [0x36363c, 0x4a4a52, 0x66666e]
+    [0x36363c, 0x4a4a52, 0x66666e],
+    [0x9b7965, 0xc9a48e, 0xecd0b8], [0x261334, 0x3f1d54, 0x623580]
 ];
 const PLAYER_LOOK = [0, 0, 0, 0, 0, 1, 0, 0];
 const PERSON_ARM_TOP = 8;
@@ -433,9 +451,11 @@ const NPC_ACCESSORY_COLORS = [
     [0x1c2340, 0x2e3a66, 0x43558a, 0x6276ab],
     [0x1e3320, 0x2f4f33, 0x426b46, 0x5e8c60],
     [0x5a4420, 0x8a6a34, 0xb08c48, 0xd2b06a],
-    [0x6e6a64, 0xa8a49c, 0xcdc9c0, 0xeceae4]
+    [0x6e6a64, 0xa8a49c, 0xcdc9c0, 0xeceae4],
+    [0x9b7965, 0xc2a08a, 0xdfc0aa, 0xf4ddca]
 ];
 const NPC_PART_COLORS = {
+    shirtAccent: [0x00d9ff], pantsAccent: [0xdf8fff],
     skin: [0xa40000, 0xd20000, 0xff0000, 0x660000],
     pants: [0x4a0067, 0xb700ff],
     accessory: [0x004a16, 0x00ac34, 0x00ff4d, 0x8affad],

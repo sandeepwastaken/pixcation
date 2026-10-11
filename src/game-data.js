@@ -115,4 +115,4 @@ const MARKET_ITEM_ROWS = Math.max(MARKET_RODS.length, MARKET_BAITS.length);
 const MARKET_SELL_INDEX = MARKET_ITEM_ROWS;
 const MARKET_EXIT_INDEX = MARKET_SELL_INDEX + 1;
 const MARKET_ROW_COUNT = MARKET_ITEM_ROWS + 2;
-const SAVE_KEY = 'pixcation-save-v1';
+const SAVE_KEY = 'pixcation-save-v1' + (typeof getRequestedWorldSeed === 'function' && getRequestedWorldSeed() ? ':' + getRequestedWorldSeed() : '');
