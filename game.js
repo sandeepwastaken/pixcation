@@ -3365,20 +3365,21 @@ function updateBushRustle(scene, time, isWalking) {
     }
 }
 
+let treeShadowChunkCount = 0;
+
 function updateTreeShadows(scene, time) {
     if (time < (scene.nextTreeShadowAt || 0)) return;
     scene.nextTreeShadowAt = time + 80;
     const trees = scene.treeShadowTrees ||= [];
     trees.length = 0;
-    let signature = '';
+    let signature = 17;
     for (const chunk of loadedChunks.values()) {
-        signature += `${chunk.key}:`;
+        signature = Math.imul(signature, 31) + (chunk.shadowId ||= ++treeShadowChunkCount) | 0;
         for (const tree of chunk.trees) {
             trees.push(tree);
-            signature += `${tree.offset},`;
+            signature = Math.imul(signature, 31) + (tree.offset ?? 97) | 0;
         }
-        signature += chunk.waterTexture ? 'w' : '';
-        signature += chunk.visible ? 'v' : '';
+        signature = Math.imul(signature, 31) + (chunk.waterTexture ? 2 : 0) + (chunk.visible ? 1 : 0) | 0;
     }
     if (signature === scene.treeShadowSignature) return;
     scene.treeShadowSignature = signature;
