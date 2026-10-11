@@ -5068,6 +5068,7 @@ let skyColor = -1;
 let rainGraphics = null;
 let rainRandom = null;
 let rainSpawnCarry = 0;
+let lightningFlash = null, lightningAt = -Infinity;
 let worldClockText = null, worldClockLayer = null;
 
 function getWorldClock(now = Date.now()) {
@@ -5103,13 +5104,15 @@ function createSky(scene) {
         .setDepth(SKY_DEPTH)
         .setBlendMode(Phaser.BlendModes.MULTIPLY);
     rainGraphics = scene.add.graphics().setDepth(RAIN_DEPTH);
+    lightningFlash = scene.add.rectangle(0, 0, mainCamera.width, mainCamera.height, RAIN_COLOR).setOrigin(0).setScrollFactor(0).setDepth(SKY_DEPTH + 0.5).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0);
     rainRandom = createSeededRandom(Math.imul(WORLD_SEED + 1402, WORLD_HASH_MULTIPLIER));
 }
 
 function landRainDrop(scene, time, x, y) {
     if (isWaterPixel(scene, x, y)) {
-        spawnParticle(scene, shadowLayer, time, x - 1, y, -1, 0, RAIN_RIPPLE_LIFETIME, RAIN_RIPPLE_COLOR);
-        spawnParticle(scene, shadowLayer, time, x + 1, y, 1, 0, RAIN_RIPPLE_LIFETIME, RAIN_RIPPLE_COLOR);
+        spawnParticle(scene, shadowLayer, time, x, y, 0, 0, RAIN_RIPPLE_LIFETIME, RAIN_RIPPLE_COLOR, 0, -1, 0, true);
+        spawnParticle(scene, shadowLayer, time, x, y, 0, 0, RAIN_RIPPLE_LIFETIME, RAIN_RIPPLE_COLOR, 0, 1, 0, true);
+        spawnParticle(scene, shadowLayer, time, x, y, 0, 0, RAIN_RIPPLE_LIFETIME, RAIN_RIPPLE_COLOR, 0, 0, Math.random() < 0.5 ? -1 : 1, true);
     } else {
         spawnParticle(scene, shadowLayer, time, x, y, 0, -1, RAIN_FLECK_LIFETIME, RAIN_COLOR);
     }
@@ -5122,12 +5125,12 @@ function updateRain(scene, time, delta, intensity) {
         const landX = Math.round(mainCamera.scrollX + rainRandom() * (mainCamera.width + RAIN_DRIFT));
         const landY = Math.round(mainCamera.scrollY + rainRandom() * mainCamera.height);
         const duration = (RAIN_FALL_MIN + rainRandom() * RAIN_FALL_RANGE) / RAIN_SPEED * 1000;
-        rainDrops.push({ landX, landY, born: time, duration });
+        rainDrops.push({ landX, landY, born: time, duration, near: rainRandom() < RAIN_NEAR_SHARE });
     }
 
     rainGraphics.clear();
     if (!rainDrops.length) return;
-    rainGraphics.fillStyle(RAIN_COLOR, RAIN_ALPHA);
+    const drift = RAIN_DRIFT * (1 + Math.sin(time * RAIN_GUST_RATE) * RAIN_GUST);
     for (let index = rainDrops.length - 1; index >= 0; index--) {
         const drop = rainDrops[index];
         const remaining = 1 - (time - drop.born) / drop.duration;
@@ -5138,8 +5141,17 @@ function updateRain(scene, time, delta, intensity) {
             continue;
         }
         const seconds = remaining * drop.duration / 1000;
-        rainGraphics.fillRect(Math.round(drop.landX - RAIN_DRIFT * seconds), Math.round(drop.landY - RAIN_SPEED * seconds) - RAIN_STREAK, 1, RAIN_STREAK);
+        rainGraphics.fillStyle(RAIN_COLOR, drop.near ? RAIN_ALPHA : RAIN_ALPHA * RAIN_FAR_ALPHA).fillRect(Math.round(drop.landX - drift * seconds), Math.round(drop.landY - RAIN_SPEED * seconds) - (drop.near ? RAIN_NEAR_STREAK : RAIN_STREAK), 1, drop.near ? RAIN_NEAR_STREAK : RAIN_STREAK);
     }
+}
+
+function updateLightning(time, delta, clock, rain) {
+    if (!lightningFlash) return;
+    if (rain > 0.8 && getWeatherHash(clock.day, 3, 1401) < STORM_CHANCE && rainRandom() < LIGHTNING_PER_SECOND * Math.min(delta, 50) / 1000) lightningAt = time;
+    const age = time - lightningAt;
+    const alpha = age < LIGHTNING_TIME ? Math.round((1 - age / LIGHTNING_TIME) * (age % 140 < 70 ? 1 : 0.3) * LIGHTNING_ALPHA * 8) / 8 : 0;
+    if (lightningFlash.alpha !== alpha) lightningFlash.setAlpha(alpha);
+    if (lightningFlash.width !== mainCamera.width || lightningFlash.height !== mainCamera.height) lightningFlash.setSize(mainCamera.width, mainCamera.height);
 }
 
 function updateSky(scene, time, delta) {
@@ -5150,14 +5162,15 @@ function updateSky(scene, time, delta) {
     const rain = getRainIntensity(clock);
     const light = blendBiomeStops(SKY_LIGHT_STOPS, clock.hour);
     const dim = 1 - rain * RAIN_DIM;
-    const color = light.reduce((total, value, channel) => total | Math.round(255 * Phaser.Math.Clamp(value * dim, 0, 1)) << (16 - channel * 8), 0);
+    const color = light.reduce((total, value, channel) => total | Math.round(255 * Phaser.Math.Clamp(value * (dim + rain * RAIN_COOL * (channel - 1)), 0, 1)) << (16 - channel * 8), 0);
 
     if (color !== skyColor) {
         skyColor = color;
         skyOverlay.setFillStyle(color);
     }
     if (skyOverlay.width !== mainCamera.width || skyOverlay.height !== mainCamera.height) skyOverlay.setSize(mainCamera.width, mainCamera.height);
-    updateRain(scene, time, delta, rain);
+    updateRain(scene, time, delta, rain * (getWeatherHash(clock.day, 3, 1401) < STORM_CHANCE ? STORM_RAIN : 1));
+    updateLightning(time, delta, clock, rain);
 }
 
 const fireflies = [];
@@ -9752,7 +9765,7 @@ const RAIN_MIN_HOURS = 1.5;
 const RAIN_HOUR_RANGE = 2.5;
 const RAIN_FADE_HOURS = 0.35;
 const RAIN_DIM = 0.16;
-const RAIN_DROPS_PER_SECOND = 140;
+const RAIN_DROPS_PER_SECOND = 200;
 const RAIN_SPEED = 230;
 const RAIN_DRIFT = 40;
 const RAIN_FALL_MIN = 40;
@@ -9763,6 +9776,17 @@ const RAIN_COLOR = 0xc8dcf0;
 const RAIN_RIPPLE_COLOR = 0x9bd2e1;
 const RAIN_RIPPLE_LIFETIME = 240;
 const RAIN_FLECK_LIFETIME = 150;
+const RAIN_NEAR_SHARE = 0.3;
+const RAIN_NEAR_STREAK = 6;
+const RAIN_FAR_ALPHA = 0.55;
+const RAIN_GUST = 0.6;
+const RAIN_GUST_RATE = 0.0004;
+const RAIN_COOL = 0.05;
+const STORM_CHANCE = 0.5;
+const STORM_RAIN = 1.8;
+const LIGHTNING_PER_SECOND = 0.08;
+const LIGHTNING_TIME = 520;
+const LIGHTNING_ALPHA = 0.35;
 const FIREFLY_COUNT = 12;
 const FIREFLY_MARGIN = 24;
 const FIREFLY_WATER_TILES = 3;
