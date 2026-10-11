@@ -3,6 +3,88 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('new residents start at staggered times while restored routines keep their saved delay', () => {
+    const run = createNpcs();
+    run(fs.readFileSync('src/game-data.js', 'utf8'));
+    run(fs.readFileSync('src/world/terrain.js', 'utf8'));
+    run('const phasedHomes = [createNpc(3, 3, null), createNpc(4, 3, null)]; getNpcAt = (x, y) => phasedHomes.find(home => home.tileX === x && home.tileY === y); getNpcHouse = () => null');
+    run('const spriteStub = () => ({ setOrigin() { return this; }, setDepth() { return this; }, setVisible() { return this; }, setPosition() { return this; }, setTexture() { return this; } }); scene.add = { image: spriteStub, text: spriteStub, graphics: spriteStub }; worldObjectLayer = shadowLayer = { add() {} }; const freshResidents = spawnChunkNpcs(scene, 0, 0, [])');
+    assert.equal(run('freshResidents.length'), 2);
+    assert.ok(run('freshResidents.every(npc => npc.until >= scene.time.now && npc.until <= scene.time.now + NPC_IDLE_MIN)'));
+    assert.ok(run('freshResidents.every(npc => npc.lookAt >= scene.time.now && npc.lookAt <= scene.time.now + NPC_LOOK_MIN)'));
+    assert.notEqual(run('freshResidents[0].until'), run('freshResidents[1].until'));
+    assert.notEqual(run('freshResidents[0].lookAt'), run('freshResidents[1].lookAt'));
+    run('npcMemory.set(phasedHomes[0].id, { id: phasedHomes[0].id, x: 48, y: 48, rng: 1, wait: 2400 }); const restoredResidents = spawnChunkNpcs(scene, 0, 0, [])');
+    assert.equal(run('restoredResidents[0].until'), run('scene.time.now + 2400'));
+});
+
+test('residents remember a break at home instead of claiming their old greeting just happened', () => {
+    const run = createNpcs();
+    run("findNearestRumor = getMysteryShopRumor = () => null; first.lastActivity = 'greeting'; first.lastNeighbor = second.name; enterNpcHouse(first)");
+    assert.equal(run('first.lastActivity'), 'rest');
+    run('npcMemory.set(first.id, { ...serializeNpc(first, 100), home: false }); restoreNpc(scene, first)');
+    assert.equal(run('first.lastActivity'), 'rest');
+    assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("quiet break at home")'));
+    assert.equal(run('buildNpcDialogue(scene, first).chat.text.includes("just said hello")'), false);
+});
+
+test('restoring fishing memories does not reuse stale or invalid spots', () => {
+    for (const spot of [null, [30, 30], [NaN, 3], 'bad', [5, 3]]) {
+        const run = createNpcs();
+        run("first.spot = { tileX: 5, tileY: 3, water: { direction: 'front' } }; findNpcWater = () => null");
+        run(`npcMemory.set(first.id, { ...serializeNpc(first, 100), spot: ${JSON.stringify(spot)}, bobber: [80, 64, 1000] }); restoreNpc(scene, first)`);
+        assert.equal(run('first.spot'), null);
+        assert.equal(run('first.fishing'), null);
+        assert.equal(run('first.state'), 'idle');
+    }
+});
+
+test('a remembered failed spot is not restored as a usable fishing location', () => {
+    const run = createNpcs();
+    run("first.spot = { tileX: 5, tileY: 3, water: { direction: 'front' } }; first.failedSpots = new Set([getTileId(5, 3)]); findNpcWater = () => ({ direction: 'front' }); npcMemory.set(first.id, serializeNpc(first, 100)); restoreNpc(scene, first)");
+    assert.equal(run('first.spot'), null);
+    assert.equal(run('first.failedSpots.has(getTileId(5, 3))'), true);
+});
+
+test('social approaches have a deadline and finish the current walk when a neighbor keeps moving', () => {
+    const run = createNpcs();
+    run("second.x = 112; second.state = 'walk'; second.goal = 'wander'; canNpcOccupy = () => true; npcRandom = () => 0; tryNpcSocialPlan(scene, first, 100)");
+    assert.equal(run('first.goal'), 'follow');
+    assert.equal(run('first.socialApproachUntil'), run('100 + NPC_SOCIAL_APPROACH_TIME'));
+    run("first.x = 56; first.walkPhase = 1; first.path = [[4, 3], [5, 3]]; first.stuckSince = first.socialApproachUntil; updateNpc(scene, first, first.socialApproachUntil + 1, 16)");
+    assert.equal(run('first.goal'), 'wander');
+    assert.equal(run('first.socialPartner'), null);
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.path.at(-1)[0]'), 5);
+});
+
+test('fishers sometimes explore a new spot while still preferring familiar water', () => {
+    const run = createNpcs();
+    run("first.spot = { tileX: 5, tileY: 3, water: { direction: 'front' } }; first.failedSpots = new Set(); canNpcOccupy = () => true; tryNpcSocialPlan = () => false; findNpcWater = () => ({ direction: 'front' }); isNpcStandingTile = () => true; rollNpcTile = () => [6, 3]; let choices = [0, 0.99]; npcRandom = () => choices.shift() ?? 0; chooseNpcPlan(scene, first, 100)");
+    assert.equal(run('first.goal'), 'fish');
+    assert.equal(run('first.spot.tileX'), 6);
+    run("first.spot = { tileX: 5, tileY: 3, water: { direction: 'front' } }; npcRandom = () => 0; chooseNpcPlan(scene, first, 1000)");
+    assert.equal(run('first.spot.tileX'), 5);
+});
+
+test('failed fishing spots survive a save and reload without growing unbounded', () => {
+    const run = createNpcs();
+    run('first.failedSpots = new Set(Array.from({ length: 40 }, (_, index) => getTileId(index, 3))); const savedFisher = JSON.parse(JSON.stringify(serializeNpc(first, 100))); npcMemory.set(first.id, savedFisher); first.failedSpots.clear(); restoreNpc(scene, first)');
+    assert.equal(run('savedFisher.failedSpots.length'), run('NPC_FAILED_SPOT_LIMIT'));
+    assert.equal(run('first.failedSpots.size'), run('NPC_FAILED_SPOT_LIMIT'));
+    assert.equal(run('first.failedSpots.has(getTileId(39, 3))'), true);
+    assert.equal(run('first.failedSpots.has(getTileId(0, 3))'), false);
+});
+
+test('old saves and malformed fishing memories restore safely', () => {
+    const run = createNpcs();
+    run('npcMemory.set(first.id, { ...serializeNpc(first, 100), failedSpots: [NaN, Infinity, null, "bad", {}, 1.5, getTileId(5, 3)] }); restoreNpc(scene, first)');
+    assert.equal(run('first.failedSpots.size'), 1);
+    assert.equal(run('first.failedSpots.has(getTileId(5, 3))'), true);
+    run('const oldMemory = serializeNpc(first, 100); delete oldMemory.failedSpots; npcMemory.set(first.id, oldMemory); restoreNpc(scene, first)');
+    assert.equal(run('first.failedSpots.size'), 0);
+});
+
 test('an inclusive world hash never selects an invalid appearance row or name', () => {
     const run = createNpcs();
     run(fs.readFileSync('src/game-data.js', 'utf8'));
