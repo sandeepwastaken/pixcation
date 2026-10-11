@@ -42,6 +42,17 @@ function dropLeaves(scene, time, bush) {
     }
 }
 
+let nextMoteAt = 0;
+
+function spawnMeadowMote(scene, time) {
+    if (time < nextMoteAt) return;
+    nextMoteAt = time + MOTE_INTERVAL;
+    const x = Math.round(mainCamera.scrollX + Math.random() * mainCamera.width);
+    const y = Math.round(mainCamera.scrollY + Math.random() * mainCamera.height);
+    if (getTerrainType(Math.floor(x / TILE_SIZE), Math.floor(y / TILE_SIZE)) !== 'grass') return;
+    spawnParticle(scene, worldObjectLayer, time, x, y, Math.random() < 0.5 ? -1 : 1, -1, MOTE_LIFETIME, MOTE_COLORS[Math.floor(Math.random() * MOTE_COLORS.length)], y + 24);
+}
+
 function goldSparkle(scene, time, x, y) {
     for (let index = 0; index < CHEST_SPARKLE_COLORS.length * 2; index++) {
         spawnParticle(
