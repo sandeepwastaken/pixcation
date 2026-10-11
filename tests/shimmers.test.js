@@ -27,6 +27,7 @@ function createWorld(includeOpenWater = true) {
         function getChunkKey(x, y) { return x + ',' + y; }
         function getWorldTile(x, y) { return tiles.get(x + ',' + y) || { key: 'grass1' }; }
         function getTerrainTile() { return { key: 'water' }; }
+        function getGroundTile(x, y) { const tile = getWorldTile(x, y); return tile.bridge ? getTerrainTile(x, y) : tile; }
         function getTextureSource() { return { width: 16, height: 16 }; }
         function getShorelineTile() { return { textureKey: 'shoreline', waterCells: [{ x: 0, y: 0, width: 16, height: 16 }], edgeCells: [] }; }
         function getPropAt() { return null; }

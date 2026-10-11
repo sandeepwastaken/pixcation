@@ -1082,6 +1082,11 @@ function getWorldTile(tileX, tileY) {
     return worldTiles(tileX, tileY, generateWorldTile);
 }
 
+function getGroundTile(tileX, tileY) {
+    const tile = getWorldTile(tileX, tileY);
+    return tile.bridge ? getTerrainTile(tileX, tileY) : tile;
+}
+
 function generateWorldTile(tileX, tileY) {
     const tile = getBridgeTile(tileX, tileY) || getPierTile(tileX, tileY) || getTerrainTile(tileX, tileY);
     const name = tile.key.toLowerCase();
@@ -2187,15 +2192,14 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             const tileX = originTileX + localX;
 
             const worldTile = getWorldTile(tileX, tileY);
-            const terrainTile = worldTile.bridge ? getTerrainTile(tileX, tileY) : worldTile;
+            const terrainTile = getGroundTile(tileX, tileY);
             const tileKey = terrainTile.key;
             const isWater = tileKey.startsWith('water');
             const drawX = localX * TILE_SIZE;
             let shoreline = null;
 
             if (isWater || terrainTile.baseKey === 'water') {
-                const northWorldTile = getWorldTile(tileX, tileY - 1);
-                const northTile = northWorldTile.bridge ? getTerrainTile(tileX, tileY - 1) : northWorldTile;
+                const northTile = getGroundTile(tileX, tileY - 1);
                 shoreline = getShorelineTile(scene, terrainTile, northTile);
                 shorelineTiles.push(localX, localY, shoreline.textureKey);
             }

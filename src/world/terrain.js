@@ -251,6 +251,11 @@ function getWorldTile(tileX, tileY) {
     return worldTiles(tileX, tileY, generateWorldTile);
 }
 
+function getGroundTile(tileX, tileY) {
+    const tile = getWorldTile(tileX, tileY);
+    return tile.bridge ? getTerrainTile(tileX, tileY) : tile;
+}
+
 function generateWorldTile(tileX, tileY) {
     const tile = getBridgeTile(tileX, tileY) || getPierTile(tileX, tileY) || getTerrainTile(tileX, tileY);
     const name = tile.key.toLowerCase();
