@@ -3,6 +3,46 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('residents wait indoors when no exit is safe and use a side exit when the front is blocked', () => {
+    const run = createNpcs();
+    run('first.house = { doorX: 3, doorY: 3 }; canNpcOccupy = () => true; enterNpcHouse(first); isNpcWalkableTile = () => false');
+    assert.equal(run('updateNpcHome(scene, first, 1000)'), true);
+    assert.equal(run('first.state'), 'home');
+    assert.equal(run('first.sprite.visible'), false);
+    run('isNpcWalkableTile = (x, y) => x !== 3 || y < 4 || y > 5; updateNpcHome(scene, first, 2000)');
+    assert.equal(run('first.goal'), 'leaveHome');
+    assert.equal(run('first.path.at(-1)[1]'), 3);
+    assert.ok(run('first.path.at(-1)[0] < 3'));
+});
+
+test('home exits keep their purpose through interruption and stay within the home boundary', () => {
+    const run = createNpcs();
+    run('first.house = { doorX: 3, doorY: 7 }; first.x = 48; first.y = 112; canNpcOccupy = () => true; enterNpcHouse(first); updateNpcHome(scene, first, 1000)');
+    assert.ok(run('first.path.every(([x, y]) => isNpcInHomeArea(first, x, y))'));
+    assert.equal(run('first.path.at(-1)[1]'), 7);
+    run('pauseNpcActivity(first); settleNpc(scene, first, 1000, 0)');
+    assert.ok(run('describeNpcPlans(first).includes("stepping outside")'));
+    assert.equal(run('resumeNpcActivity(scene, first, 2000)'), true);
+    assert.equal(run('first.goal'), 'leaveHome');
+    run('npcMemory.set(first.id, serializeNpc(first, 2000)); restoreNpc(scene, first)');
+    assert.equal(run('first.goal'), 'leaveHome');
+});
+
+test('housemates leave in sequence without overlapping or choosing the same exit destination', () => {
+    const run = createNpcs();
+    run('homes[1].tileX = second.tileX = 4; first.house = second.house = { id: 1, x: 2, y: 1, doorX: 3, doorY: 3, residents: [1, 2] }; first.x = second.x = 48; first.y = second.y = 48; first.walkPhase = second.walkPhase = 1; character.x = character.y = -100; enterNpcHouse(first); enterNpcHouse(second)');
+    run('canCharacterOccupy = (scene, x, y, ignore) => !isBlockedByNpc(x + CHARACTER_HITBOX_X, y + CHARACTER_HITBOX_Y, x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, ignore)');
+    run('updateNpc(scene, first, 100, 16); updateNpc(scene, second, 100, 16)');
+    assert.equal(run('first.goal'), 'leaveHome');
+    assert.equal(run('second.state'), 'home');
+    run('let overlap = false; for (let time = 116; time < 10000; time += 16) { updateNpc(scene, first, time, 16); updateNpc(scene, second, time, 16); if (first.state !== "home" && second.state !== "home") overlap ||= isBlockedByNpc(first.x + CHARACTER_HITBOX_X, first.y + CHARACTER_HITBOX_Y, first.x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, first.y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, first); if (first.state === "idle" && second.state === "idle") break; }');
+    assert.equal(run('overlap'), false);
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('second.state'), 'idle');
+    assert.notEqual(run('first.y'), run('second.y'));
+    assert.ok(run('Number.isInteger(first.x) && Number.isInteger(second.y)'));
+});
+
 test('night fishers tolerate light rain but take shelter in a heavy shower', () => {
     const run = createNpcs();
     run('first.water = {}; first.house = { doorX: 5, doorY: 3 }; npcHash = () => 0.1; getWorldClock = () => ({ hour: 23, day: 1 }); getRainIntensity = () => 0.4; updateNpcHome(scene, first, 100)');
@@ -26,10 +66,11 @@ test('residents shelter from heavy rain and stay indoors until it eases', () => 
     assert.equal(run('updateNpcHome(scene, first, 1000)'), true);
     assert.equal(run('first.state'), 'home');
     run('getRainIntensity = () => 0.2; updateNpcHome(scene, first, 2000)');
-    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.goal'), 'leaveHome');
     assert.equal(run('first.needsShelter'), false);
     run('getRainIntensity = () => 0.4; updateNpcHome(scene, first, 3000)');
-    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.state'), 'walk');
 });
 
 test('rain changes interrupted plans and canceled shelter trips do not enter an empty house', () => {
@@ -435,7 +476,8 @@ test('residents enter at night, restore indoors, and wait for a clear doorway in
     run('getWorldClock = () => ({ hour: 12, day: 5 }); canNpcOccupy = () => false; updateNpcHome(scene, first, 200)');
     assert.equal(run('first.state'), 'home');
     run('canNpcOccupy = () => true; updateNpcHome(scene, first, 216)');
-    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.goal'), 'leaveHome');
     assert.equal(run('first.sprite.visible'), true);
 });
 

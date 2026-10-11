@@ -320,7 +320,7 @@ function restoreNpc(scene, npc) {
     } else if (state.goal) {
         const homeGoal = state.goal[2] === 'home';
         const path = (!homeGoal || npc.house && (getNpcDailyPlan(npc, getWorldClock()) === 'home' || getRainIntensity(getWorldClock()) >= 0.25)) && findNpcPath(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE), state.goal[0], state.goal[1], npc);
-        const goal = homeGoal ? 'home' : state.goal[2] === 'fish' && npc.spot ? 'fish' : state.goal[2] === 'windDown' ? 'windDown' : 'wander';
+        const goal = homeGoal ? 'home' : state.goal[2] === 'fish' && npc.spot ? 'fish' : ['windDown', 'leaveHome'].includes(state.goal[2]) ? state.goal[2] : 'wander';
         if (path) startNpcPath(npc, path, goal, time);
     }
     npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE).setTexture(getNpcTexture(scene, npc.look, npc.direction));
@@ -375,7 +375,7 @@ function pauseNpcActivity(npc) {
     const preparing = npc.state === 'aim' || npc.state === 'charge';
     const destination = npc.state === 'walk' ? npc.path[npc.path.length - 1] : preparing && npc.spot ? [npc.spot.tileX, npc.spot.tileY] : null;
     const goal = preparing ? 'fish' : npc.goal;
-    npc.pausedActivity = destination && ['wander', 'fish', 'home', 'stroll', 'windDown'].includes(goal) ? { x: destination[0], y: destination[1], goal } : null;
+    npc.pausedActivity = destination && ['wander', 'fish', 'home', 'stroll', 'windDown', 'leaveHome'].includes(goal) ? { x: destination[0], y: destination[1], goal } : null;
 }
 
 function describeNpcPlans(npc) {
@@ -383,6 +383,7 @@ function describeNpcPlans(npc) {
     if (npc.needsShelter) return 'I am getting out of the rain for a while. I will come back out when it eases up.';
     if (goal === 'home' || npc.dailyPlan === 'home') return 'I was heading home. It is getting late, but I have a moment to talk.';
     if (goal === 'windDown' || npc.dailyPlan === 'evening') return 'I am winding down for the evening. I like staying near home before it gets too late.';
+    if (goal === 'leaveHome') return 'I was just stepping outside. It is nice to get a little fresh air before deciding what to do.';
     if (goal === 'stroll') return 'We were taking a walk together. There is no hurry - it is nice just to spend some time outside.';
     if (goal === 'fish') return 'I was getting ready to fish. I have a spot nearby that I wanted to try.';
     if (npc.fishing || npc.dailyPlan === 'late') return 'I am staying by the water for a while. I like taking my time with it.';
@@ -844,6 +845,18 @@ function enterNpcHouse(npc) {
     saveDirty = true;
 }
 
+function findNpcExitPath(scene, npc) {
+    const directions = [NPC_DIRECTIONS[2], ...NPC_DIRECTIONS.filter(([direction]) => direction !== 'front')];
+    for (const [, dx, dy] of directions) for (const distance of [2, 1]) {
+        const x = npc.house.doorX + dx * distance, y = npc.house.doorY + dy * distance;
+        if (!isNpcInHomeArea(npc, x, y)) continue;
+        if (activeNpcs.some(other => other !== npc && other.state === 'walk' && other.path.at(-1)?.[0] === x && other.path.at(-1)?.[1] === y)) continue;
+        const path = findNpcPath(npc.house.doorX, npc.house.doorY, x, y, npc, scene);
+        if (path?.length) return path;
+    }
+    return null;
+}
+
 function updateNpcHome(scene, npc, time) {
     const clock = getWorldClock();
     npc.dailyPlan = getNpcDailyPlan(npc, clock);
@@ -853,7 +866,10 @@ function updateNpcHome(scene, npc, time) {
     if (!wantsHome && npc.state === 'walk' && npc.goal === 'home') { settleNpc(scene, npc, time, NPC_IDLE_MIN); npc.goal = null; }
     if (npc.state === 'home') {
         if (wantsHome || !canNpcOccupy(scene, npc, npc.x, npc.y)) return true;
+        const path = findNpcExitPath(scene, npc);
+        if (!path) return true;
         npc.sprite.setVisible(true); settleNpc(scene, npc, time, NPC_IDLE_MIN + npcRandom(npc) * NPC_IDLE_RANGE);
+        startNpcPath(npc, path, 'leaveHome', time);
         saveDirty = true;
         npc.lookAt = npc.until;
         return false;
