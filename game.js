@@ -5941,7 +5941,11 @@ function refreshMarketOptions() {
     const rowColor = index => index === selectedMarketOption ? '#e0f2fd' : '#c0a887';
 
     setUITextContent(marketMessageText, `${Math.round(coinDisplay.value)}c`);
-    const highlightY = MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT; if (marketHighlight.y !== highlightY) marketHighlight.setY(highlightY);
+    const highlightY = MARKET_LIST_Y + selectedMarketOption * MARKET_ROW_HEIGHT;
+    if (marketHighlight.y !== highlightY) {
+        marketHighlight.scene.tweens.killTweensOf(marketHighlight);
+        marketHighlight.scene.tweens.add({ targets: marketHighlight, y: highlightY, duration: 90, ease: 'Quad.Out', onUpdate: snapTweenTarget });
+    }
     marketTabTexts.forEach((tab, index) => tab.style.color = index === marketPage ? '#acccf9' : '#6f5b49');
 
     for (let index = 0; index < MARKET_ITEM_ROWS; index++) {
@@ -5982,7 +5986,7 @@ function refreshMarketOptions() {
         const status = getMarketItemStatus(item, owned);
         const held = baitInventory.get(item.id);
 
-        if (marketDetailImage.texture.key !== item.texture) marketDetailImage.setTexture(item.texture);
+        if (marketDetailImage.texture.key !== item.texture) popIn(marketDetailImage.scene, marketDetailImage.setTexture(item.texture), MARKET_LIST_Y + 4);
         const tint = owned ? OWNED_ROD_TINT : 0xffffff;
         if (marketDetailImage.tintTopLeft !== tint) marketDetailImage.setTint(tint);
         setMarketDetail(
