@@ -4202,6 +4202,23 @@ function groundLandingPuff(scene, time, x, y) {
     }
 }
 
+let nextFishRiseAt = 0;
+
+function spawnFishRise(scene, time) {
+    if (time < nextFishRiseAt) return;
+    nextFishRiseAt = time + FISH_RISE_MIN + Math.random() * FISH_RISE_RANGE;
+    const left = mainCamera.scrollX, top = mainCamera.scrollY;
+    const candidates = [];
+    for (const chunk of loadedWaterChunks) {
+        if (!chunk.visible) continue;
+        for (const fish of chunk.fish) {
+            if (fish.state !== 'flee' && fish.x > left && fish.x < left + mainCamera.width && fish.y > top && fish.y < top + mainCamera.height) candidates.push(fish);
+        }
+    }
+    const fish = candidates[Math.floor(Math.random() * candidates.length)];
+    if (fish && fish !== fishing?.targetFish) nibbleRipple(scene, time, Math.round(fish.x), Math.round(fish.y));
+}
+
 function nibbleRipple(scene, time, x, y) {
     for (let index = 0; index < 4; index++) {
         const horizontal = index < 2;
@@ -7196,6 +7213,8 @@ const BOBBER_BOB_TIME = 450;
 
 const SPLASH_LIFETIME = 300;
 const CATCH_SPARKLES = 6;
+const FISH_RISE_MIN = 1800;
+const FISH_RISE_RANGE = 2600;
 const CATCH_SPARKLE_LIFETIME = 420;
 
 const FISHING_LINE_COLOR = 0xf6f5e5;
@@ -8374,6 +8393,7 @@ function update(time, delta) {
     updateChunkVisibility();
     updateTreeShadows(this, time);
     updateFish(delta);
+    spawnFishRise(this, time);
     updateChunkWater(time);
 }
 

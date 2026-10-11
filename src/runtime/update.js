@@ -37,5 +37,6 @@ function update(time, delta) {
     updateChunkVisibility();
     updateTreeShadows(this, time);
     updateFish(delta);
+    spawnFishRise(this, time);
     updateChunkWater(time);
 }
