@@ -107,6 +107,8 @@ function generateMapTileColor(tileX, tileY) {
             color = tree[1] === 'canopy' ? tree[0] : shadeMapColor(tree[0]);
         } else if (terrain === 'water') {
             color = palette.water[getMapWaterDepth(tileX, tileY)];
+            const tint = getWaterTint(tileX * TILE_SIZE + TILE_SIZE / 2, tileY * TILE_SIZE + TILE_SIZE / 2);
+            color = tint.reduce((total, value, channel) => total | Math.min(255, Math.round((color >> (16 - channel * 8) & 255) * value)) << (16 - channel * 8), 0);
         } else if (tile.blocking === 'lower' || tree || getTerrainType(tileX, tileY + 1) === 'water') {
             color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;
         } else {

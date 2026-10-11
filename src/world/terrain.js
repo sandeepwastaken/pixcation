@@ -305,3 +305,30 @@ function tintChunkGrass(context, originTileX, originTileY) {
     }
     context.putImageData(image, 0, 0);
 }
+
+function waterBiomeHash(x, y) {
+    const f = Math.fround, fract = value => f(value - Math.floor(value));
+    let a = fract(f(x * 0.1031)), b = fract(f(y * 0.1031)), c = a;
+    const dot = f(f(f(a * f(b + 33.33)) + f(b * f(c + 33.33))) + f(c * f(a + 33.33)));
+    a = f(a + dot);
+    b = f(b + dot);
+    c = f(c + dot);
+    return fract(f(f(a + b) * c));
+}
+
+function waterBiomeNoise(x, y) {
+    const left = Math.floor(x), top = Math.floor(y);
+    const amountX = smoothNoiseAmount(x - left), amountY = smoothNoiseAmount(y - top);
+    const upper = waterBiomeHash(left, top) + (waterBiomeHash(left + 1, top) - waterBiomeHash(left, top)) * amountX;
+    const lower = waterBiomeHash(left, top + 1) + (waterBiomeHash(left + 1, top + 1) - waterBiomeHash(left, top + 1)) * amountX;
+    return upper + (lower - upper) * amountY;
+}
+
+function getWaterTint(worldX, worldY) {
+    const [offsetX, offsetY] = WATER_BIOME_OFFSET;
+    const noise = waterBiomeNoise(worldX / WATER_BIOME_SCALE + offsetX, worldY / WATER_BIOME_SCALE + offsetY) * 0.75 +
+        waterBiomeNoise(worldX / (WATER_BIOME_SCALE / 3) + offsetX + 17, worldY / (WATER_BIOME_SCALE / 3) + offsetY + 9) * 0.25;
+    const amount = Math.min(1, Math.max(0, (noise - 0.5) * 1.9 + 0.5));
+    const [from, to, mix] = amount < 0.5 ? [WATER_TINTS[0], WATER_TINTS[1], amount * 2] : [WATER_TINTS[1], WATER_TINTS[2], amount * 2 - 1];
+    return from.map((value, channel) => value + (to[channel] - value) * mix);
+}

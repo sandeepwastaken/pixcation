@@ -111,6 +111,7 @@ function updateChunkWater(time) {
     waterPipeline.set1f('uTime', time / 1000);
     waterPipeline.set2f('uScroll', mainCamera.scrollX, mainCamera.scrollY);
     waterPipeline.set1f('uViewHeight', mainCamera.height);
+    waterPipeline.set2f('uBiomeOffset', WATER_BIOME_OFFSET[0], WATER_BIOME_OFFSET[1]);
 
     const left = mainCamera.scrollX - FISH_VIEW_MARGIN;
     const top = mainCamera.scrollY - FISH_VIEW_MARGIN;

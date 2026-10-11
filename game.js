@@ -121,6 +121,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                 uniform vec4 uFish[${FISH_MAX_VISIBLE}];
                 uniform vec4 uFishShape[${FISH_MAX_VISIBLE}];
                 uniform float uFishCount;
+                uniform vec2 uBiomeOffset;
                 varying vec2 outTexCoord;
                 varying vec4 outTint;
 
@@ -143,6 +144,25 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                 float fbm(vec2 x) {
                     vec2 r = mat2(0.8, -0.6, 0.6, 0.8) * x;
                     return noise(r) * 0.65 + noise(mat2(0.8, 0.6, -0.6, 0.8) * x * 2.03 + vec2(7.3, 2.9)) * 0.35;
+                }
+
+                float biomeHash(vec2 p) {
+                    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+                    p3 += dot(p3, p3.yzx + 33.33);
+                    return fract((p3.x + p3.y) * p3.z);
+                }
+
+                float biomeNoise(vec2 x) {
+                    vec2 i = floor(x);
+                    vec2 f = fract(x);
+                    f = f * f * (3.0 - 2.0 * f);
+                    return mix(mix(biomeHash(i), biomeHash(i + vec2(1.0, 0.0)), f.x), mix(biomeHash(i + vec2(0.0, 1.0)), biomeHash(i + vec2(1.0, 1.0)), f.x), f.y);
+                }
+
+                vec3 waterTint(vec2 p) {
+                    float noise = biomeNoise(p / ${WATER_BIOME_SCALE.toFixed(1)} + uBiomeOffset) * 0.75 + biomeNoise(p / ${(WATER_BIOME_SCALE / 3).toFixed(1)} + uBiomeOffset + vec2(17.0, 9.0)) * 0.25;
+                    float amount = clamp((noise - 0.5) * 1.9 + 0.5, 0.0, 1.0);
+                    return amount < 0.5 ? mix(vec3(${WATER_TINTS[0].join(', ')}), vec3(${WATER_TINTS[1].join(', ')}), amount * 2.0) : mix(vec3(${WATER_TINTS[1].join(', ')}), vec3(${WATER_TINTS[2].join(', ')}), amount * 2.0 - 1.0);
                 }
 
                 vec3 tone(float index) {
@@ -278,7 +298,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         }
                     }
 
-                    gl_FragColor = vec4(tone(index) * (fishShaded < 0.5 && shaded > 0.5 && edgeCode > 4.5 && edgeCode < 5.5 ? 0.9 : 1.0), 1.0);
+                    gl_FragColor = vec4(tone(index) * (fishShaded < 0.5 && shaded > 0.5 && edgeCode > 4.5 && edgeCode < 5.5 ? 0.9 : 1.0) * (index < 7.5 ? waterTint(p) : vec3(1.0)), 1.0);
                 }
             `
         });
@@ -1114,6 +1134,33 @@ function tintChunkGrass(context, originTileX, originTileY) {
         }
     }
     context.putImageData(image, 0, 0);
+}
+
+function waterBiomeHash(x, y) {
+    const f = Math.fround, fract = value => f(value - Math.floor(value));
+    let a = fract(f(x * 0.1031)), b = fract(f(y * 0.1031)), c = a;
+    const dot = f(f(f(a * f(b + 33.33)) + f(b * f(c + 33.33))) + f(c * f(a + 33.33)));
+    a = f(a + dot);
+    b = f(b + dot);
+    c = f(c + dot);
+    return fract(f(f(a + b) * c));
+}
+
+function waterBiomeNoise(x, y) {
+    const left = Math.floor(x), top = Math.floor(y);
+    const amountX = smoothNoiseAmount(x - left), amountY = smoothNoiseAmount(y - top);
+    const upper = waterBiomeHash(left, top) + (waterBiomeHash(left + 1, top) - waterBiomeHash(left, top)) * amountX;
+    const lower = waterBiomeHash(left, top + 1) + (waterBiomeHash(left + 1, top + 1) - waterBiomeHash(left, top + 1)) * amountX;
+    return upper + (lower - upper) * amountY;
+}
+
+function getWaterTint(worldX, worldY) {
+    const [offsetX, offsetY] = WATER_BIOME_OFFSET;
+    const noise = waterBiomeNoise(worldX / WATER_BIOME_SCALE + offsetX, worldY / WATER_BIOME_SCALE + offsetY) * 0.75 +
+        waterBiomeNoise(worldX / (WATER_BIOME_SCALE / 3) + offsetX + 17, worldY / (WATER_BIOME_SCALE / 3) + offsetY + 9) * 0.25;
+    const amount = Math.min(1, Math.max(0, (noise - 0.5) * 1.9 + 0.5));
+    const [from, to, mix] = amount < 0.5 ? [WATER_TINTS[0], WATER_TINTS[1], amount * 2] : [WATER_TINTS[1], WATER_TINTS[2], amount * 2 - 1];
+    return from.map((value, channel) => value + (to[channel] - value) * mix);
 }
 
 const bridgeCandidateCache = new Map();
@@ -2351,6 +2398,7 @@ function updateChunkWater(time) {
     waterPipeline.set1f('uTime', time / 1000);
     waterPipeline.set2f('uScroll', mainCamera.scrollX, mainCamera.scrollY);
     waterPipeline.set1f('uViewHeight', mainCamera.height);
+    waterPipeline.set2f('uBiomeOffset', WATER_BIOME_OFFSET[0], WATER_BIOME_OFFSET[1]);
 
     const left = mainCamera.scrollX - FISH_VIEW_MARGIN;
     const top = mainCamera.scrollY - FISH_VIEW_MARGIN;
@@ -5278,6 +5326,8 @@ function generateMapTileColor(tileX, tileY) {
             color = tree[1] === 'canopy' ? tree[0] : shadeMapColor(tree[0]);
         } else if (terrain === 'water') {
             color = palette.water[getMapWaterDepth(tileX, tileY)];
+            const tint = getWaterTint(tileX * TILE_SIZE + TILE_SIZE / 2, tileY * TILE_SIZE + TILE_SIZE / 2);
+            color = tint.reduce((total, value, channel) => total | Math.min(255, Math.round((color >> (16 - channel * 8) & 255) * value)) << (16 - channel * 8), 0);
         } else if (tile.blocking === 'lower' || tree || getTerrainType(tileX, tileY + 1) === 'water') {
             color = terrain === 'grass' ? palette.grassEdge : palette.dirtEdge;
         } else {
@@ -6976,6 +7026,9 @@ const MAP_FOG_EDGE = 3;
 const MAP_FOG_SALT = 9137;
 const MAP_FLECK_SALT = 4421;
 const MAP_FLECK_CHANCE = 0.35;
+const WATER_BIOME_SCALE = 900;
+const WATER_BIOME_OFFSET = [WORLD_SEED % 997, Math.floor(WORLD_SEED / 997) % 991];
+const WATER_TINTS = [[0.8, 1.08, 0.95], [1, 1, 1], [0.76, 0.82, 0.95]];
 const GRASS_BIOME_SCALE = 70;
 const GRASS_BIOME_CONTRAST = 1.9;
 const GRASS_TINTS = [
