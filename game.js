@@ -159,6 +159,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["Oh, hello! I'm {first}. A little rain won't ruin the day.", "Oh, it's you again! We keep meeting in wet weather."],
         chatter: ["I counted three kinds of flowers on my walk this morning. I'm going for four tomorrow.", "The guide by the shop knows everything. Well, almost everything!", "Have you seen the blue flower patches? They make me so happy."],
         fishing: ["Not a nibble yet, but the sun's warm, so who's complaining?", "One almost bit! It changed its mind at the last second, the rascal."],
+        rainFishing: ["A few raindrops will not spoil a quiet moment by the water.", "The rain keeps making little rings around my bobber. I nearly mistake them for bites!"],
         tradeDone: "We already traded this hour! Come back a little later, okay?",
         thanks: "Wonderful! Here's {coins}c. You're a natural!"
     },
@@ -168,6 +169,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["{first}. Mind the puddles, and don't drip on my gear.", "You again. At least the rain is quieter than most people."],
         chatter: ["Everyone thinks fishing is relaxing. It is not. It is war.", "The fish around here are smarter than they look. Don't let them fool you.", "Shop prices keep going up. Mark my words."],
         fishing: ["Shh. You'll scare them off. Again.", "They keep nibbling and running. I swear they're laughing at me."],
+        rainFishing: ["Now the rain is tapping the water too. As if the fish were not enough trouble.", "I am watching the bobber, not every raindrop. There is a difference."],
         tradeDone: "We're done for this hour. Shoo.",
         thanks: "Fine. {coins}c. Don't spend it all at once."
     },
@@ -177,6 +179,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["I'm {first}. I like listening to the rain on the water.", "Oh... hello again. The rain makes everything sound softer."],
         chatter: ["Sometimes I think the island hums when it's quiet. Can you hear it?", "I like the way the water changes color out in the deep. Teal, then blue, then darker blue.", "I dreamt about a fish as big as a bridge. I'm still looking for it."],
         fishing: ["I'm not really trying to catch anything. The bobber is good company.", "Something swam right up and then... left. Like a thought you almost had."],
+        rainFishing: ["The bobber and the rain make their own little rhythm.", "It is harder to see the fish in the rain. I like listening while I wait."],
         tradeDone: "We traded already, didn't we? Time is so slippery. Maybe in an hour.",
         thanks: "Oh, how lovely. Here, {coins}c. Thank you, truly."
     },
@@ -186,6 +189,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["H-hi, I'm {first}. Do you think this rain will get worse?", "Oh, it's you again! I feel better with someone familiar around."],
         chatter: ["Do you think the cliffs ever crumble? I try not to stand too close.", "I keep a spare bobber in every pocket. Just in case. You never know.", "The chests in the deep water make me nervous. What if something's guarding them?"],
         fishing: ["I had one! Then I panicked and it swam off. Again.", "The splash always scares me more than it scares the fish."],
+        rainFishing: ["Every raindrop looks like a nibble. I am trying not to jump at all of them.", "If it rains much harder, I think I will put my rod away for a while."],
         tradeDone: "W-we already traded this hour. Sorry! Come back later?",
         thanks: "Th-thank you! Here's {coins}c. I counted it twice."
     },
@@ -195,6 +199,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["{first}, at your service. A bit of rain is no match for experience.", "Back for more advice? Even in this weather, I see."],
         chatter: ["I once caught a bass so big the scale broke. Nobody believes me.", "A good cast is all in the wrist. And the confidence. Mostly the confidence.", "I've fished every pond on this island. Twice."],
         fishing: ["They're just warming up. Champions are patient.", "That fish was too small for me anyway. I let it go. On purpose."],
+        rainFishing: ["A little rain just makes the challenge more interesting. I can wait.", "Rain or not, patience is part of the technique. I am demonstrating it."],
         tradeDone: "One deal an hour, friend. Even legends have rules.",
         thanks: "A fine haul. {coins}c, as promised. Tell your friends who paid you."
     },
@@ -204,6 +209,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["Hey! I'm {first}. Have you noticed how different the island sounds in the rain?", "You're back! Did you get caught in the rain too?"],
         chatter: ["My cousin says the shop gets new rods sometimes. Or was it new bait? Something new, anyway!", "If you walk far enough, the grass goes from gold to green. I tested it. Twice!", "I tried to name every tree on the island. I got to forty and forgot the first one."],
         fishing: ["Nothing yet, but I've been talking the whole time, so that might be why.", "A fish came right up to my bobber and stared at me! Then it left. Rude!"],
+        rainFishing: ["Have you noticed how many little ripples the rain makes? I keep losing count!", "I am still waiting for a bite. The rain is keeping me company in the meantime."],
         tradeDone: "We already traded! But I'll take more next hour, promise!",
         thanks: "Yes! Perfect! Here's {coins}c! Pleasure doing business!"
     }
@@ -3814,21 +3820,36 @@ function updateNpcHouses(scene) {
     for (const [id, sprite] of npcHouseSprites) if (!homes.has(id)) { sprite.destroy(); npcHouseSprites.delete(id); }
 }
 
-function findNpcMeetingPath(npc, target) {
+function findNpcMeetingPath(npc, target, scene) {
     const tileX = Math.round(target.x / TILE_SIZE), tileY = Math.round(target.y / TILE_SIZE);
     const spots = NPC_DIRECTIONS.map(([, x, y]) => [tileX + x, tileY + y]);
     spots.sort((a, b) => Math.abs(a[0] * TILE_SIZE - npc.x) + Math.abs(a[1] * TILE_SIZE - npc.y) - Math.abs(b[0] * TILE_SIZE - npc.x) - Math.abs(b[1] * TILE_SIZE - npc.y));
     for (const [x, y] of spots) {
         if (!isNpcInHomeArea(npc, x, y)) continue;
         if (activeNpcs.some(other => other !== npc && Math.abs(other.x - x * TILE_SIZE) < TILE_SIZE / 2 && Math.abs(other.y - y * TILE_SIZE) < TILE_SIZE / 2)) continue;
-        const path = findNpcPath(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE), x, y, npc);
+        const path = findNpcRoute(scene, npc, x, y);
         if (path) return path;
     }
     return null;
 }
 
+function canNpcsTalkAcross(npc, other) {
+    const steps = Math.ceil(Math.max(Math.abs(other.x - npc.x), Math.abs(other.y - npc.y)));
+    let previousX = Math.round(npc.x / TILE_SIZE), previousY = Math.round(npc.y / TILE_SIZE);
+    for (let step = 1; step <= steps; step++) {
+        const x = Math.round((npc.x + (other.x - npc.x) * step / steps) / TILE_SIZE);
+        const y = Math.round((npc.y + (other.y - npc.y) * step / steps) / TILE_SIZE);
+        if (!isNpcWalkableTile(x, y)) return false;
+        if (x !== previousX && y !== previousY && (!isNpcWalkableTile(x, previousY) || !isNpcWalkableTile(previousX, y))) return false;
+        previousX = x; previousY = y;
+    }
+    return true;
+}
+
 function startNpcConversation(scene, npc, other, time) {
     if (!other || other.talking || other.fishing || !['idle', 'walk'].includes(other.state) || Math.hypot(npc.x - other.x, npc.y - other.y) > TILE_SIZE * 2) return false;
+    if (npc.talking || npc.fishing || npc.needsShelter || other.needsShelter || [npc, other].some(resident => resident.state === 'walk' && resident.goal === 'home')) return false;
+    if (!canNpcsTalkAcross(npc, other)) return false;
     const connection = getNpcConnection(npc), close = connection?.companion.id === other.id;
     for (const [speaker, listener] of [[npc, other], [other, npc]]) {
         pauseNpcActivity(speaker);
@@ -4264,7 +4285,7 @@ function tryNpcSharedWalk(scene, npc, other, time) {
 
 function waitForNpcWalkPartner(scene, npc, time) {
     const other = activeNpcs.find(other => other.id === npc.walkPartner);
-    if (!other || other.talking || other.fishing || other.state === 'home' || other.goal !== 'stroll' || time >= npc.walkEnds) { settleNpc(scene, npc, time, NPC_IDLE_MIN); return true; }
+    if (!other || other.talking || other.fishing || other.state === 'home' || other.goal !== 'stroll' || time >= npc.walkEnds) { npc.goal = 'wander'; npc.walkPartner = null; return false; }
     if (other.state !== 'walk' || npc.path.length >= other.path.length || Math.hypot(npc.x - other.x, npc.y - other.y) <= TILE_SIZE * 3) return false;
     npc.walkSpeed = 0; npc.stuckSince = time;
     return true;
@@ -4277,7 +4298,7 @@ function tryNpcSocialPlan(scene, npc, time) {
     candidates.sort((a, b) => (a.id === connection?.companion.id ? -1 : b.id === connection?.companion.id ? 1 : Math.hypot(a.x - npc.x, a.y - npc.y) - Math.hypot(b.x - npc.x, b.y - npc.y)));
     for (const other of candidates) {
         if (Math.hypot(npc.x - other.x, npc.y - other.y) > TILE_SIZE * 8) continue;
-        const path = findNpcMeetingPath(npc, other);
+        const path = findNpcMeetingPath(npc, other, scene);
         if (!path) continue;
         npc.socialPartner = other.id; npc.nextSocialAt = time + 15000;
         if (!path.length) return startNpcConversation(scene, npc, other, time);
@@ -4682,9 +4703,10 @@ function updateNpc(scene, npc, time, delta) {
         }
         if (time >= npc.until) chooseNpcPlan(scene, npc, time);
     } else if (npc.state === 'walk') {
-        if (npc.goal === 'follow' && time >= (npc.followRefreshAt || 0)) {
+        if (['visit', 'follow'].includes(npc.goal) && time >= (npc.followRefreshAt || 0)) {
             const other = activeNpcs.find(other => other.id === npc.socialPartner);
-            const path = other && !other.talking && !other.fishing && findNpcMeetingPath(npc, other);
+            if (!other || other.talking || other.fishing || other.needsShelter || !['idle', 'walk'].includes(other.state) || other.house && (other.dailyPlan === 'home' || other.goal === 'home')) { npc.goal = 'wander'; npc.socialPartner = null; }
+            const path = ['visit', 'follow'].includes(npc.goal) && findNpcMeetingPath(npc, other, scene);
             if (path) npc.path = path;
             npc.followRefreshAt = time + 1200;
         }
@@ -4783,7 +4805,7 @@ function buildNpcDialogue(scene, npc) {
         plans: node(describeNpcPlans(npc), [back, bye]),
         waiting: node('They might join us when they have a moment. We can keep chatting.', [back, bye]),
         rumor: node(shopRumor ? pick(shopRumor === 'now' ? NPC_RARE_BAIT_NOW_LINES : NPC_RARE_BAIT_SOON_LINES) : rumor ? describeRumor(rumor, pick(NPC_RUMOR_LINES)) : pick(NPC_NO_RUMOR_LINES), [back, bye]),
-        tips: node(pick(npc.fishing ? personality.fishing : NPC_FISHING_TIPS), [back, bye])
+        tips: node(pick(npc.fishing ? raining ? personality.rainFishing : personality.fishing : NPC_FISHING_TIPS), [back, bye])
     };
     if (connection) nodes.chat.options[1] = { label: 'Your company?', action: () => (nodes.company.text = describeNpcConnection(npc, connection), 'company') };
     nodes.chat.options.splice(nodes.chat.options.length - 1, 0, { label: 'Your plans?', next: 'plans' });
@@ -4791,6 +4813,7 @@ function buildNpcDialogue(scene, npc) {
     else if (!npc.fishing && npc.lastActivity === 'fishing') nodes.chat.text = 'I put my rod away for a bit. Sometimes a quiet break is better than another cast.';
     else if (!npc.fishing && npc.lastActivity === 'walk') nodes.chat.text = 'I took a walk around the neighborhood earlier. ' + nodes.chat.text;
     if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
+    if (npc.fishing?.state === 'reeling') nodes.tips.text = npc.needsShelter ? 'I am bringing my line in and getting out of this rain for a while.' : 'I am bringing my line in. I will try another cast after a short break.';
     if (companion?.joining === npc.id) nodes.company.options.unshift({ label: 'Say hello', action: () => companion.joinedConversation === npc.id && companion.talking ? 'companion' : 'waiting' });
     if (companion) nodes.companion = { portrait: getNpcTexture(scene, companion.look, 'front', 0), portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: `Hi! ${connection.kind === 'close' ? "I'm close to " + first : first + ' is my ' + connection.kind}. How is your fishing going?`, options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'Back', next: 'intro' }, bye] };
     if (companion) nodes.companionReply = { ...nodes.companion, text: 'Glad to hear it. Maybe we will see you around the water later!', options: [back, bye] };
@@ -4823,7 +4846,7 @@ function talkToNearestNpc(scene) {
     const connection = nearestNpc && getNpcConnection(nearestNpc);
     const companion = connection && activeNpcs.find(other => other.id === connection.companion.id);
     if (companion && !companion.talking && !companion.fishing && !companion.needsShelter && !(companion.house && (companion.dailyPlan === 'home' || companion.goal === 'home')) && ['idle', 'walk', 'social'].includes(companion.state) && Math.hypot(companion.x - character.x, companion.y - character.y) <= TILE_SIZE * 8) {
-        const path = findNpcMeetingPath(companion, character);
+        const path = findNpcMeetingPath(companion, character, scene);
         if (path) { pauseNpcActivity(companion); companion.joining = nearestNpc.id; companion.hasSpoken = false; startNpcPath(companion, path, 'join', scene.time.now); }
     }
     const npc = nearestNpc;

@@ -5,6 +5,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["Oh, hello! I'm {first}. A little rain won't ruin the day.", "Oh, it's you again! We keep meeting in wet weather."],
         chatter: ["I counted three kinds of flowers on my walk this morning. I'm going for four tomorrow.", "The guide by the shop knows everything. Well, almost everything!", "Have you seen the blue flower patches? They make me so happy."],
         fishing: ["Not a nibble yet, but the sun's warm, so who's complaining?", "One almost bit! It changed its mind at the last second, the rascal."],
+        rainFishing: ["A few raindrops will not spoil a quiet moment by the water.", "The rain keeps making little rings around my bobber. I nearly mistake them for bites!"],
         tradeDone: "We already traded this hour! Come back a little later, okay?",
         thanks: "Wonderful! Here's {coins}c. You're a natural!"
     },
@@ -14,6 +15,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["{first}. Mind the puddles, and don't drip on my gear.", "You again. At least the rain is quieter than most people."],
         chatter: ["Everyone thinks fishing is relaxing. It is not. It is war.", "The fish around here are smarter than they look. Don't let them fool you.", "Shop prices keep going up. Mark my words."],
         fishing: ["Shh. You'll scare them off. Again.", "They keep nibbling and running. I swear they're laughing at me."],
+        rainFishing: ["Now the rain is tapping the water too. As if the fish were not enough trouble.", "I am watching the bobber, not every raindrop. There is a difference."],
         tradeDone: "We're done for this hour. Shoo.",
         thanks: "Fine. {coins}c. Don't spend it all at once."
     },
@@ -23,6 +25,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["I'm {first}. I like listening to the rain on the water.", "Oh... hello again. The rain makes everything sound softer."],
         chatter: ["Sometimes I think the island hums when it's quiet. Can you hear it?", "I like the way the water changes color out in the deep. Teal, then blue, then darker blue.", "I dreamt about a fish as big as a bridge. I'm still looking for it."],
         fishing: ["I'm not really trying to catch anything. The bobber is good company.", "Something swam right up and then... left. Like a thought you almost had."],
+        rainFishing: ["The bobber and the rain make their own little rhythm.", "It is harder to see the fish in the rain. I like listening while I wait."],
         tradeDone: "We traded already, didn't we? Time is so slippery. Maybe in an hour.",
         thanks: "Oh, how lovely. Here, {coins}c. Thank you, truly."
     },
@@ -32,6 +35,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["H-hi, I'm {first}. Do you think this rain will get worse?", "Oh, it's you again! I feel better with someone familiar around."],
         chatter: ["Do you think the cliffs ever crumble? I try not to stand too close.", "I keep a spare bobber in every pocket. Just in case. You never know.", "The chests in the deep water make me nervous. What if something's guarding them?"],
         fishing: ["I had one! Then I panicked and it swam off. Again.", "The splash always scares me more than it scares the fish."],
+        rainFishing: ["Every raindrop looks like a nibble. I am trying not to jump at all of them.", "If it rains much harder, I think I will put my rod away for a while."],
         tradeDone: "W-we already traded this hour. Sorry! Come back later?",
         thanks: "Th-thank you! Here's {coins}c. I counted it twice."
     },
@@ -41,6 +45,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["{first}, at your service. A bit of rain is no match for experience.", "Back for more advice? Even in this weather, I see."],
         chatter: ["I once caught a bass so big the scale broke. Nobody believes me.", "A good cast is all in the wrist. And the confidence. Mostly the confidence.", "I've fished every pond on this island. Twice."],
         fishing: ["They're just warming up. Champions are patient.", "That fish was too small for me anyway. I let it go. On purpose."],
+        rainFishing: ["A little rain just makes the challenge more interesting. I can wait.", "Rain or not, patience is part of the technique. I am demonstrating it."],
         tradeDone: "One deal an hour, friend. Even legends have rules.",
         thanks: "A fine haul. {coins}c, as promised. Tell your friends who paid you."
     },
@@ -50,6 +55,7 @@ const NPC_PERSONALITIES = [
         rainGreetings: ["Hey! I'm {first}. Have you noticed how different the island sounds in the rain?", "You're back! Did you get caught in the rain too?"],
         chatter: ["My cousin says the shop gets new rods sometimes. Or was it new bait? Something new, anyway!", "If you walk far enough, the grass goes from gold to green. I tested it. Twice!", "I tried to name every tree on the island. I got to forty and forgot the first one."],
         fishing: ["Nothing yet, but I've been talking the whole time, so that might be why.", "A fish came right up to my bobber and stared at me! Then it left. Rude!"],
+        rainFishing: ["Have you noticed how many little ripples the rain makes? I keep losing count!", "I am still waiting for a bite. The rain is keeping me company in the meantime."],
         tradeDone: "We already traded! But I'll take more next hour, promise!",
         thanks: "Yes! Perfect! Here's {coins}c! Pleasure doing business!"
     }

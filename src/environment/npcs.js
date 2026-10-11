@@ -89,21 +89,36 @@ function updateNpcHouses(scene) {
     for (const [id, sprite] of npcHouseSprites) if (!homes.has(id)) { sprite.destroy(); npcHouseSprites.delete(id); }
 }
 
-function findNpcMeetingPath(npc, target) {
+function findNpcMeetingPath(npc, target, scene) {
     const tileX = Math.round(target.x / TILE_SIZE), tileY = Math.round(target.y / TILE_SIZE);
     const spots = NPC_DIRECTIONS.map(([, x, y]) => [tileX + x, tileY + y]);
     spots.sort((a, b) => Math.abs(a[0] * TILE_SIZE - npc.x) + Math.abs(a[1] * TILE_SIZE - npc.y) - Math.abs(b[0] * TILE_SIZE - npc.x) - Math.abs(b[1] * TILE_SIZE - npc.y));
     for (const [x, y] of spots) {
         if (!isNpcInHomeArea(npc, x, y)) continue;
         if (activeNpcs.some(other => other !== npc && Math.abs(other.x - x * TILE_SIZE) < TILE_SIZE / 2 && Math.abs(other.y - y * TILE_SIZE) < TILE_SIZE / 2)) continue;
-        const path = findNpcPath(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE), x, y, npc);
+        const path = findNpcRoute(scene, npc, x, y);
         if (path) return path;
     }
     return null;
 }
 
+function canNpcsTalkAcross(npc, other) {
+    const steps = Math.ceil(Math.max(Math.abs(other.x - npc.x), Math.abs(other.y - npc.y)));
+    let previousX = Math.round(npc.x / TILE_SIZE), previousY = Math.round(npc.y / TILE_SIZE);
+    for (let step = 1; step <= steps; step++) {
+        const x = Math.round((npc.x + (other.x - npc.x) * step / steps) / TILE_SIZE);
+        const y = Math.round((npc.y + (other.y - npc.y) * step / steps) / TILE_SIZE);
+        if (!isNpcWalkableTile(x, y)) return false;
+        if (x !== previousX && y !== previousY && (!isNpcWalkableTile(x, previousY) || !isNpcWalkableTile(previousX, y))) return false;
+        previousX = x; previousY = y;
+    }
+    return true;
+}
+
 function startNpcConversation(scene, npc, other, time) {
     if (!other || other.talking || other.fishing || !['idle', 'walk'].includes(other.state) || Math.hypot(npc.x - other.x, npc.y - other.y) > TILE_SIZE * 2) return false;
+    if (npc.talking || npc.fishing || npc.needsShelter || other.needsShelter || [npc, other].some(resident => resident.state === 'walk' && resident.goal === 'home')) return false;
+    if (!canNpcsTalkAcross(npc, other)) return false;
     const connection = getNpcConnection(npc), close = connection?.companion.id === other.id;
     for (const [speaker, listener] of [[npc, other], [other, npc]]) {
         pauseNpcActivity(speaker);
@@ -539,7 +554,7 @@ function tryNpcSharedWalk(scene, npc, other, time) {
 
 function waitForNpcWalkPartner(scene, npc, time) {
     const other = activeNpcs.find(other => other.id === npc.walkPartner);
-    if (!other || other.talking || other.fishing || other.state === 'home' || other.goal !== 'stroll' || time >= npc.walkEnds) { settleNpc(scene, npc, time, NPC_IDLE_MIN); return true; }
+    if (!other || other.talking || other.fishing || other.state === 'home' || other.goal !== 'stroll' || time >= npc.walkEnds) { npc.goal = 'wander'; npc.walkPartner = null; return false; }
     if (other.state !== 'walk' || npc.path.length >= other.path.length || Math.hypot(npc.x - other.x, npc.y - other.y) <= TILE_SIZE * 3) return false;
     npc.walkSpeed = 0; npc.stuckSince = time;
     return true;
@@ -552,7 +567,7 @@ function tryNpcSocialPlan(scene, npc, time) {
     candidates.sort((a, b) => (a.id === connection?.companion.id ? -1 : b.id === connection?.companion.id ? 1 : Math.hypot(a.x - npc.x, a.y - npc.y) - Math.hypot(b.x - npc.x, b.y - npc.y)));
     for (const other of candidates) {
         if (Math.hypot(npc.x - other.x, npc.y - other.y) > TILE_SIZE * 8) continue;
-        const path = findNpcMeetingPath(npc, other);
+        const path = findNpcMeetingPath(npc, other, scene);
         if (!path) continue;
         npc.socialPartner = other.id; npc.nextSocialAt = time + 15000;
         if (!path.length) return startNpcConversation(scene, npc, other, time);
@@ -957,9 +972,10 @@ function updateNpc(scene, npc, time, delta) {
         }
         if (time >= npc.until) chooseNpcPlan(scene, npc, time);
     } else if (npc.state === 'walk') {
-        if (npc.goal === 'follow' && time >= (npc.followRefreshAt || 0)) {
+        if (['visit', 'follow'].includes(npc.goal) && time >= (npc.followRefreshAt || 0)) {
             const other = activeNpcs.find(other => other.id === npc.socialPartner);
-            const path = other && !other.talking && !other.fishing && findNpcMeetingPath(npc, other);
+            if (!other || other.talking || other.fishing || other.needsShelter || !['idle', 'walk'].includes(other.state) || other.house && (other.dailyPlan === 'home' || other.goal === 'home')) { npc.goal = 'wander'; npc.socialPartner = null; }
+            const path = ['visit', 'follow'].includes(npc.goal) && findNpcMeetingPath(npc, other, scene);
             if (path) npc.path = path;
             npc.followRefreshAt = time + 1200;
         }
@@ -1058,7 +1074,7 @@ function buildNpcDialogue(scene, npc) {
         plans: node(describeNpcPlans(npc), [back, bye]),
         waiting: node('They might join us when they have a moment. We can keep chatting.', [back, bye]),
         rumor: node(shopRumor ? pick(shopRumor === 'now' ? NPC_RARE_BAIT_NOW_LINES : NPC_RARE_BAIT_SOON_LINES) : rumor ? describeRumor(rumor, pick(NPC_RUMOR_LINES)) : pick(NPC_NO_RUMOR_LINES), [back, bye]),
-        tips: node(pick(npc.fishing ? personality.fishing : NPC_FISHING_TIPS), [back, bye])
+        tips: node(pick(npc.fishing ? raining ? personality.rainFishing : personality.fishing : NPC_FISHING_TIPS), [back, bye])
     };
     if (connection) nodes.chat.options[1] = { label: 'Your company?', action: () => (nodes.company.text = describeNpcConnection(npc, connection), 'company') };
     nodes.chat.options.splice(nodes.chat.options.length - 1, 0, { label: 'Your plans?', next: 'plans' });
@@ -1066,6 +1082,7 @@ function buildNpcDialogue(scene, npc) {
     else if (!npc.fishing && npc.lastActivity === 'fishing') nodes.chat.text = 'I put my rod away for a bit. Sometimes a quiet break is better than another cast.';
     else if (!npc.fishing && npc.lastActivity === 'walk') nodes.chat.text = 'I took a walk around the neighborhood earlier. ' + nodes.chat.text;
     if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
+    if (npc.fishing?.state === 'reeling') nodes.tips.text = npc.needsShelter ? 'I am bringing my line in and getting out of this rain for a while.' : 'I am bringing my line in. I will try another cast after a short break.';
     if (companion?.joining === npc.id) nodes.company.options.unshift({ label: 'Say hello', action: () => companion.joinedConversation === npc.id && companion.talking ? 'companion' : 'waiting' });
     if (companion) nodes.companion = { portrait: getNpcTexture(scene, companion.look, 'front', 0), portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: `Hi! ${connection.kind === 'close' ? "I'm close to " + first : first + ' is my ' + connection.kind}. How is your fishing going?`, options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'Back', next: 'intro' }, bye] };
     if (companion) nodes.companionReply = { ...nodes.companion, text: 'Glad to hear it. Maybe we will see you around the water later!', options: [back, bye] };
@@ -1098,7 +1115,7 @@ function talkToNearestNpc(scene) {
     const connection = nearestNpc && getNpcConnection(nearestNpc);
     const companion = connection && activeNpcs.find(other => other.id === connection.companion.id);
     if (companion && !companion.talking && !companion.fishing && !companion.needsShelter && !(companion.house && (companion.dailyPlan === 'home' || companion.goal === 'home')) && ['idle', 'walk', 'social'].includes(companion.state) && Math.hypot(companion.x - character.x, companion.y - character.y) <= TILE_SIZE * 8) {
-        const path = findNpcMeetingPath(companion, character);
+        const path = findNpcMeetingPath(companion, character, scene);
         if (path) { pauseNpcActivity(companion); companion.joining = nearestNpc.id; companion.hasSpoken = false; startNpcPath(companion, path, 'join', scene.time.now); }
     }
     const npc = nearestNpc;

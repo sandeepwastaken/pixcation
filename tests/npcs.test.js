@@ -3,6 +3,111 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('neighbors do not chat through an obstacle or lose the walk it interrupted', () => {
+    const run = createNpcs();
+    run("second.x = 80; isNpcWalkableTile = (x, y) => x !== 4 || y !== 3; startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100)");
+    assert.equal(run('startNpcConversation(scene, first, second, 100)'), false);
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.path.length'), 2);
+    assert.equal(run('first.pausedActivity'), undefined);
+    run('isNpcWalkableTile = () => true');
+    assert.equal(run('startNpcConversation(scene, first, second, 200)'), true);
+    assert.equal(run('first.pausedActivity.goal'), 'wander');
+});
+
+test('diagonally placed residents do not talk through a blocked corner', () => {
+    const run = createNpcs();
+    run('second.x = second.y = 64; isNpcWalkableTile = (x, y) => !(x === 4 && y === 3) && !(x === 3 && y === 4)');
+    assert.equal(run('startNpcConversation(scene, first, second, 100)'), false);
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('second.state'), 'idle');
+});
+
+test('all resident personalities keep their own rainy and dry fishing voice', () => {
+    for (let index = 0; index < 6; index++) {
+        const run = createNpcs();
+        run(`npcHash = () => (${index} + 0.1) / 6; npcRandom = () => 0; findNearestRumor = getMysteryShopRumor = () => null; first.fishing = { state: 'floating' }; getRainIntensity = () => 0.5`);
+        assert.equal(run('buildNpcDialogue(scene, first).tips.text'), run(`NPC_PERSONALITIES[${index}].rainFishing[0]`));
+        run('getRainIntensity = () => 0');
+        assert.equal(run('buildNpcDialogue(scene, first).tips.text'), run(`NPC_PERSONALITIES[${index}].fishing[0]`));
+    }
+});
+
+test('fishing dialogue notices rain and distinguishes bringing a line in from waiting for bites', () => {
+    const run = createNpcs();
+    run("findNearestRumor = getMysteryShopRumor = () => null; npcRandom = () => 0; getRainIntensity = () => 0.5; first.fishing = { state: 'floating' }");
+    assert.equal(run('buildNpcDialogue(scene, first).tips.text'), 'A little rain just makes the challenge more interesting. I can wait.');
+    run("first.fishing.state = 'reeling'; first.needsShelter = true; first.dailyPlan = 'late'");
+    assert.equal(run('buildNpcDialogue(scene, first).tips.text'), 'I am bringing my line in and getting out of this rain for a while.');
+    run('first.needsShelter = false');
+    assert.equal(run('buildNpcDialogue(scene, first).tips.text'), 'I am bringing my line in. I will try another cast after a short break.');
+});
+
+test('a neighbor exchange does not interrupt either resident sheltering or already walking home', () => {
+    for (const resident of ['first', 'second']) for (const routine of ['shelter', 'home']) {
+        const run = createNpcs();
+        run(routine === 'shelter' ? `${resident}.needsShelter = true` : `startNpcPath(${resident}, [[4, 3]], 'home', 100)`);
+        const before = run(`${resident}.state`);
+        assert.equal(run('startNpcConversation(scene, first, second, 100)'), false);
+        assert.equal(run(`${resident}.state`), before);
+        assert.equal(run('first.lastActivity'), undefined);
+        assert.equal(run('second.lastActivity'), undefined);
+    }
+});
+
+test('a visit updates its meeting spot for a moving listener without replanning every frame', () => {
+    const run = createNpcs();
+    run("first.walkPhase = 1; first.socialPartner = 2; second.x = 112; canNpcOccupy = () => true; startNpcPath(first, [[4, 3], [5, 3]], 'visit', 100); updateNpc(scene, first, 116, 16)");
+    assert.equal(run('first.path.at(-1)[0]'), 6);
+    assert.equal(run('first.followRefreshAt'), 1316);
+    run('second.x = 128; updateNpc(scene, first, 500, 16)');
+    assert.equal(run('first.path.at(-1)[0]'), 6);
+    run('updateNpc(scene, first, 1317, 16)');
+    assert.equal(run('first.path.at(-1)[0]'), 7);
+    assert.ok(run('first.path.every(([x, y]) => isNpcInHomeArea(first, x, y))'));
+});
+
+test('visitors and followers respect a neighbor becoming busy or going indoors', () => {
+    for (const goal of ['visit', 'follow']) for (const reason of ['talking', 'fishing', 'home', 'shelter', 'gone']) {
+        const run = createNpcs();
+        run("first.walkPhase = 1; first.socialPartner = 2; canNpcOccupy = () => true; npcRandom = () => 0.75");
+        run(`startNpcPath(first, [[4, 3], [5, 3]], '${goal}', 100)`);
+        run({ talking: 'second.talking = true', fishing: 'second.fishing = {}', home: "second.state = 'home'", shelter: 'second.needsShelter = true', gone: 'activeNpcs.pop()' }[reason]);
+        run('updateNpc(scene, first, 116, 16)');
+        assert.equal(run('first.goal'), 'wander');
+        assert.equal(run('first.socialPartner'), null);
+        assert.equal(run('first.state'), 'walk');
+        assert.equal(run('first.path.at(-1)[0]'), 5);
+    }
+});
+
+test('a chat approach completes a partial step and chooses a reachable spot beside its listener', () => {
+    const run = createNpcs();
+    run('first.x = 56; second.x = 80; second.y = 48; character.x = character.y = -100; canNpcOccupy = () => true');
+    assert.equal(run('findNpcMeetingPath(first, second, scene)[0]?.[0]'), 4);
+    run('canNpcOccupy = (scene, npc, x, y) => x !== 64 || y !== 48');
+    assert.ok(run('findNpcMeetingPath(first, second, scene)?.length > 0'));
+    assert.ok(run('findNpcMeetingPath(first, second, scene).every(([x, y]) => x !== 4 || y !== 3)'));
+});
+
+test('friends part by finishing their current walk rather than abandoning a partial step', () => {
+    for (const ending of ['timeout', 'talking', 'gone', 'home', 'fishing', 'plans']) {
+        const run = createNpcs();
+        run("first.x = 56; first.walkPhase = 1; first.walkPartner = 2; first.walkEnds = 10000; second.goal = 'stroll'; second.state = 'walk'; canNpcOccupy = () => true; npcRandom = () => 0.75; startNpcPath(first, [[4, 3], [5, 3]], 'stroll', 100)");
+        run({ timeout: 'first.walkEnds = 200', talking: 'second.talking = true', gone: 'activeNpcs.pop()', home: "second.state = 'home'", fishing: 'second.fishing = {}', plans: "second.goal = 'wander'" }[ending]);
+        run('updateNpc(scene, first, 216, 16)');
+        assert.equal(run('first.state'), 'walk');
+        assert.equal(run('first.goal'), 'wander');
+        assert.equal(run('first.walkPartner'), null);
+        assert.equal(run('first.path.at(-1)[0]'), 5);
+        run('for (let time = 232; time < 5000 && first.state === "walk"; time += 16) updateNpc(scene, first, time, 16)');
+        assert.equal(run('first.x'), 80);
+        assert.equal(run('first.y'), 48);
+        assert.equal(run('first.state'), 'idle');
+        assert.equal(run('first.lastActivity'), 'walk');
+    }
+});
+
 test('restoring an outdoor routine makes a previously indoor resident visible again', () => {
     const run = createNpcs();
     run("first.house = { doorX: 4, doorY: 3 }; canNpcOccupy = () => true; enterNpcHouse(first); npcMemory.set(first.id, { ...serializeNpc(first, 100), home: false, x: 56, y: 48, goal: [4, 3, 'leaveHome'] }); restoreNpc(scene, first)");
@@ -466,8 +571,8 @@ test('shared walkers wait for a lagging friend without both waiting on equal rou
     run('first.path = [...second.path]');
     assert.equal(run('waitForNpcWalkPartner(scene, first, 1016)'), false);
     run('second.talking = true');
-    assert.equal(run('waitForNpcWalkPartner(scene, first, 1032)'), true);
-    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('waitForNpcWalkPartner(scene, first, 1032)'), false);
+    assert.equal(run('first.state'), 'walk');
 });
 
 test('shared walks do not start at night or when every possible route is blocked', () => {
