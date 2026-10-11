@@ -4991,6 +4991,10 @@ function createStartup(scene) {
     startup = { phase: 'title', start: scene.time.now, hud, logo, logoShadow, button, textLayer, hint, spawnX: character.x, spawnY: character.y };
 }
 
+function isStartButtonAt(x, y) {
+    return x >= 112 && x < 208 && y >= 124 && y < 144;
+}
+
 function beginStartup(time) {
     if (!startup || startup.phase !== 'title') return;
     startup.phase = 'closing';
@@ -7425,7 +7429,7 @@ function bindGameInput(scene) {
     };
     scene.input.on('pointermove', pointer => {
         if (startup) {
-            setCursor(startup.phase === 'title' && pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144 ? 'pointer' : 'default');
+            setCursor(startup.phase === 'title' && isStartButtonAt(pointer.x, pointer.y) ? 'pointer' : 'default');
             return;
         }
         const menuOpen = isMenuOpen();
@@ -7501,7 +7505,7 @@ function bindGameInput(scene) {
     scene.input.on('pointerdown', pointer => {
         if (pointer.button !== 0) return;
         if (startup) {
-            if (pointer.x >= 112 && pointer.x < 208 && pointer.y >= 124 && pointer.y < 144) { setCursor('default'); beginStartup(scene.time.now); }
+            if (isStartButtonAt(pointer.x, pointer.y)) { setCursor('default'); beginStartup(scene.time.now); }
             return;
         }
         if (statsOpen) {

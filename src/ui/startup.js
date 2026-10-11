@@ -15,6 +15,10 @@ function createStartup(scene) {
     startup = { phase: 'title', start: scene.time.now, hud, logo, logoShadow, button, textLayer, hint, spawnX: character.x, spawnY: character.y };
 }
 
+function isStartButtonAt(x, y) {
+    return x >= 112 && x < 208 && y >= 124 && y < 144;
+}
+
 function beginStartup(time) {
     if (!startup || startup.phase !== 'title') return;
     startup.phase = 'closing';
