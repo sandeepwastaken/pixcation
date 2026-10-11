@@ -3010,11 +3010,17 @@ function getGroundShadowColor(scene, worldX, worldY) {
     const { upper, ground } = getChunkPixels(chunk);
     const index = pixel * 4;
 
-    if (upper && upper[index + 3]) return shadeColor(upper[index], upper[index + 1], upper[index + 2]);
+    if (upper && upper[index + 3]) return tintWaterShadow(shadeColor(upper[index], upper[index + 1], upper[index + 2]), worldX, worldY);
     if (!ground[index + 3]) return null;
     if (tile.key.startsWith('grass')) return tintGrassColor(getTileShadowColor(scene, tile), tileX, tileY);
 
-    return shadeColor(ground[index], ground[index + 1], ground[index + 2]);
+    return tintWaterShadow(shadeColor(ground[index], ground[index + 1], ground[index + 2]), worldX, worldY);
+}
+
+function tintWaterShadow(color, worldX, worldY) {
+    if (color[2] <= color[0] || color[2] <= color[1]) return color;
+    const tint = getWaterTint(worldX, worldY);
+    return color.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
 }
 
 function getTileShadowColor(scene, tile) {
@@ -4408,10 +4414,10 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
             water = getTerrainSurface(scene, getWorldTile(nextTileX, nextTileY)).water;
             tileX = nextTileX; tileOriginX = tileX * TILE_SIZE;
             tileY = nextTileY; tileOriginY = tileY * TILE_SIZE;
+            fishingWaterShadow.fillStyle(tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(tileOriginX + TILE_SIZE / 2, tileOriginY + TILE_SIZE / 2)), 1);
         }
         if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] === 1) fishingWaterShadow.fillRect(x, y, 1, 1);
     };
-    fishingWaterShadow.fillStyle(0x4770b0, 1);
     for (let index = 0; index < pixelPathLength; index++) {
         const amount = index / lastIndex;
         const height = Math.max(0, fromHeight + heightRange * amount);
@@ -7084,6 +7090,7 @@ const PROMPT_Y = HOTBAR_Y - 25;
 const SHIMMER_RECOLOR_FROM = [0x87, 0xbe, 0xd8];
 const SHIMMER_RECOLOR_TO = [0x78, 0xaf, 0xd3];
 const SHIMMER_TINT_STEPS = 12;
+const FISHING_WATER_SHADOW_COLOR = 0x4770b0;
 
 const OWNED_ROD_TINT = 0x8a7c6e;
 

@@ -73,10 +73,10 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
             water = getTerrainSurface(scene, getWorldTile(nextTileX, nextTileY)).water;
             tileX = nextTileX; tileOriginX = tileX * TILE_SIZE;
             tileY = nextTileY; tileOriginY = tileY * TILE_SIZE;
+            fishingWaterShadow.fillStyle(tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(tileOriginX + TILE_SIZE / 2, tileOriginY + TILE_SIZE / 2)), 1);
         }
         if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] === 1) fishingWaterShadow.fillRect(x, y, 1, 1);
     };
-    fishingWaterShadow.fillStyle(0x4770b0, 1);
     for (let index = 0; index < pixelPathLength; index++) {
         const amount = index / lastIndex;
         const height = Math.max(0, fromHeight + heightRange * amount);

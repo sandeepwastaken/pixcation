@@ -180,11 +180,17 @@ function getGroundShadowColor(scene, worldX, worldY) {
     const { upper, ground } = getChunkPixels(chunk);
     const index = pixel * 4;
 
-    if (upper && upper[index + 3]) return shadeColor(upper[index], upper[index + 1], upper[index + 2]);
+    if (upper && upper[index + 3]) return tintWaterShadow(shadeColor(upper[index], upper[index + 1], upper[index + 2]), worldX, worldY);
     if (!ground[index + 3]) return null;
     if (tile.key.startsWith('grass')) return tintGrassColor(getTileShadowColor(scene, tile), tileX, tileY);
 
-    return shadeColor(ground[index], ground[index + 1], ground[index + 2]);
+    return tintWaterShadow(shadeColor(ground[index], ground[index + 1], ground[index + 2]), worldX, worldY);
+}
+
+function tintWaterShadow(color, worldX, worldY) {
+    if (color[2] <= color[0] || color[2] <= color[1]) return color;
+    const tint = getWaterTint(worldX, worldY);
+    return color.map((value, channel) => Math.min(255, Math.round(value * tint[channel])));
 }
 
 function getTileShadowColor(scene, tile) {

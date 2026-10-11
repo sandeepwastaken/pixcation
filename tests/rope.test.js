@@ -11,6 +11,8 @@ function createRenderer() {
     vm.runInContext(source + `
         const rectangles = [];
         const pixels = new Map();
+        function getWaterTint() { return [1, 1, 1]; }
+        function tintMapColor(color) { return color; }
         fishingLine = {
             defaultFillColor: 0xffffff,
             fillStyle(color) { this.defaultFillColor = color; },
