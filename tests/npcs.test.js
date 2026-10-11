@@ -3,6 +3,64 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('habitual fishers revisit safe spots but abandon locations with failed casts', () => {
+    const run = createNpcs();
+    run("first.spot = { tileX: 5, tileY: 3, water: { direction: 'front' } }; first.failedSpots = new Set(); tryNpcSocialPlan = () => false; npcRandom = () => 0; findNpcWater = () => ({ direction: 'front' }); isNpcStandingTile = () => true; chooseNpcPlan(scene, first, 100)");
+    assert.equal(run('first.goal'), 'fish');
+    assert.equal(run('first.spot.tileX'), 5);
+    assert.equal(run('first.spot.tileY'), 3);
+    run('first.failedSpots.add(getTileId(5, 3)); chooseNpcPlan(scene, first, 1000)');
+    assert.ok(run('first.spot.tileX !== 5 || first.spot.tileY !== 3'));
+    assert.ok(run('first.path.every(([x, y]) => isNpcInHomeArea(first, x, y))'));
+});
+
+test('residents without a safe house still follow their night fishing preference', () => {
+    const run = createNpcs();
+    run('first.water = {}; npcHash = () => 0.1; getWorldClock = () => ({ hour: 23, day: 4 }); updateNpcHome(scene, first, 100)');
+    assert.equal(run('first.dailyPlan'), 'late');
+});
+
+test('saved memories are bounded with active residents taking priority', () => {
+    const run = createNpcs();
+    run('restoreSavedNpcs(scene, Array.from({ length: 300 }, (_, id) => ({ id: id + 10, x: 0, y: 0 }))); loadedChunks.set(1, { npcs: [first] })');
+    assert.equal(run('npcMemory.size'), 200);
+    run('restoreSavedNpcs(scene, Array.from({ length: 300 }, (_, id) => ({ id: id + 1000, x: 0, y: 0 })))');
+    assert.equal(run('npcMemory.size'), 200);
+    assert.equal(run('getSavedNpcs(100).length'), 200);
+    assert.equal(run('getSavedNpcs(100).at(-1).id'), 1);
+});
+
+test('NPCs recognize repeat visits and recall the neighbor they spoke with', () => {
+    const run = createNpcs();
+    run('findNearestRumor = getMysteryShopRumor = () => null; nearestNpc = first; dialogueContainer = {}; isMenuOpen = () => false; const encounters = []; beginDialogue = (scene, nodes) => encounters.push(nodes.intro.text)');
+    run('talkToNearestNpc(scene); first.talking = false; talkToNearestNpc(scene)');
+    assert.equal(run('first.playerVisits'), 2);
+    assert.ok(run('encounters[0] !== encounters[1]'));
+    assert.ok(run('NPC_PERSONALITIES[4].familiar.includes(encounters[1])'));
+    run("first.talking = false; first.state = second.state = 'idle'; startNpcConversation(scene, first, second, 100)");
+    assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("Eli")'));
+    run("first.lastActivity = 'fishing'");
+    assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("rod away")'));
+    run("first.lastActivity = 'walk'");
+    assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("walk around the neighborhood")'));
+});
+
+test('NPC memories survive unloading and saving without duplicating active residents', () => {
+    const run = createNpcs();
+    run("first.playerVisits = 3; first.lastActivity = 'social'; first.lastNeighbor = second.name; rememberChunkNpcs({ npcs: [first] }, 100); loadedChunks.clear()");
+    assert.equal(run('getSavedNpcs(100)[0].visits'), 3);
+    run('first.playerVisits = 4; loadedChunks.set(1, { npcs: [first] })');
+    assert.equal(run('getSavedNpcs(100).length'), 1);
+    assert.equal(run('getSavedNpcs(100)[0].visits'), 4);
+    run('first.playerVisits = 0; first.lastNeighbor = null; restoreSavedNpcs(scene, [{ ...serializeNpc(first, 100), visits: 5, activity: "social", neighbor: "Eli Moss" }])');
+    assert.equal(run('first.playerVisits'), 5);
+    assert.equal(run('first.lastNeighbor'), 'Eli Moss');
+    run('npcMemory.set(first.id, { ...serializeNpc(first, 100), visits: Infinity, activity: "bogus", neighbor: {} }); restoreNpc(scene, first)');
+    assert.equal(run('first.playerVisits'), 0);
+    assert.equal(run('first.lastActivity'), null);
+    assert.equal(run('first.lastNeighbor'), null);
+});
+
 test('neighbors speak in turns and acknowledge a shared evening routine', () => {
     const run = createNpcs();
     run("first.dailyPlan = second.dailyPlan = 'home'; first.house = second.house = { id: 1 }; startNpcConversation(scene, first, second, 100)");
@@ -57,13 +115,14 @@ test('blocked routes go around occupied tiles without losing their purpose or ho
 
 function createNpcs() {
     const context = vm.createContext({ TEST_MODE: true, getTileId: (x, y) => (x + 1000) * 10000 + y, coordinateHash: () => 0.7, cacheWorldValue: (cache, key, value) => (cache.set(key, value), value), getPersonTexture: () => 'portrait' });
-    const files = ['runtime/settings.js', 'runtime/state.js', 'environment/npcs.js', 'runtime/character.js', 'art/trees.js'];
+    const files = ['runtime/settings.js', 'runtime/state.js', 'npc-dialogue.js', 'environment/npcs.js', 'runtime/character.js', 'art/trees.js'];
     vm.runInContext(files.map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);
     vm.runInContext(`
         const homes = [{ id: 1, tileX: 3, tileY: 3, name: 'Ada Reed' }, { id: 2, tileX: 13, tileY: 3, name: 'Eli Moss' }];
         findCellNpc = (x, y) => y === 0 && x < 2 && x >= 0 ? homes[x] : null;
         isNpcWalkableTile = () => true;
         getTerrainType = () => 'grass';
+        getWorldClock = () => ({ hour: 12, day: 1 });
         drawNpcRod = drawNpcShadow = () => {};
         mainCamera = { scrollX: 0, scrollY: 0, width: 320, height: 192 };
         character = { x: 48, y: 48 };
