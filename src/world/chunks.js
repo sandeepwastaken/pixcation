@@ -225,6 +225,7 @@ function destroyWorldChunk(key) {
     if (!chunk) return;
 
     while (chunk.shimmers.length) poolShimmer(chunk.shimmers.pop());
+    rememberChunkNpcs(chunk, mainCamera ? mainCamera.scene.time.now : 0);
     for (const sprite of chunk.tileSprites) sprite.destroy();
 
     for (const [layer, texture] of [[chunk.groundLayer, chunk.groundTexture], [chunk.upperLayer, chunk.upperTexture], [chunk.overlay, chunk.waterTexture], [chunk.treeShadowLayer, chunk.treeShadowTexture]]) {

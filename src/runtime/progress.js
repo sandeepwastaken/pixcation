@@ -109,6 +109,7 @@ function loadProgress(scene) {
     restoreSavedBait(saved.bait);
     activeBaitId = baitInventory.has(saved.activeBait) ? saved.activeBait : null;
     restoreSavedTileIds(openedChests, saved.chests);
+    restoreSavedNpcs(scene, saved.npcs);
 
     for (const chunk of loadedWaterChunks) {
         if (chunk.chest && openedChests.has(chunk.chest.id)) eraseChestSilhouette(chunk);
@@ -135,6 +136,7 @@ function saveProgress() {
             chests: [...openedChests],
             guideMet: guideHasMetPlayer,
             position: character ? [Math.round(character.x), Math.round(character.y)] : null,
+            npcs: mainCamera ? getSavedNpcs(mainCamera.scene.time.now) : [],
             stats: Object.fromEntries(Object.entries(playerStats).map(([key, value]) => [key, Math.floor(value)]))
         }));
         saveDirty = false;
