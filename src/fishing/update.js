@@ -20,6 +20,11 @@ function updateWaterFishing(scene, time, delta) {
     fishing.bobberX = drifts ? candidateX : fishing.toX;
     fishing.bobberY = (drifts ? candidateY : fishing.toY) + (Math.floor(age / BOBBER_BOB_TIME) % 2);
 
+    if ((state === 'floating' || state === 'approaching' || state === 'inspecting') && time >= (fishing.nextRippleAt ||= time + BOBBER_RIPPLE_INTERVAL)) {
+        fishing.nextRippleAt = time + BOBBER_RIPPLE_INTERVAL;
+        idleRipple(scene, time, fishing.bobberX, fishing.bobberY + 1);
+    }
+
     if (state === 'floating' && time >= (fishing.nextFishScanAt || 0)) {
         startFishApproach(time);
     } else if (state === 'approaching') {

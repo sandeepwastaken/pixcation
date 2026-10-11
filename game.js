@@ -4236,6 +4236,11 @@ function spawnFishRise(scene, time) {
     if (fish && fish !== fishing?.targetFish) nibbleRipple(scene, time, Math.round(fish.x), Math.round(fish.y));
 }
 
+function idleRipple(scene, time, x, y) {
+    spawnParticle(scene, shadowLayer, time, x - 2, y, -1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR);
+    spawnParticle(scene, shadowLayer, time, x + 2, y, 1, 0, BOBBER_RIPPLE_LIFETIME, BOBBER_RIPPLE_COLOR);
+}
+
 function nibbleRipple(scene, time, x, y) {
     for (let index = 0; index < 4; index++) {
         const horizontal = index < 2;
@@ -4679,6 +4684,11 @@ function updateWaterFishing(scene, time, delta) {
 
     fishing.bobberX = drifts ? candidateX : fishing.toX;
     fishing.bobberY = (drifts ? candidateY : fishing.toY) + (Math.floor(age / BOBBER_BOB_TIME) % 2);
+
+    if ((state === 'floating' || state === 'approaching' || state === 'inspecting') && time >= (fishing.nextRippleAt ||= time + BOBBER_RIPPLE_INTERVAL)) {
+        fishing.nextRippleAt = time + BOBBER_RIPPLE_INTERVAL;
+        idleRipple(scene, time, fishing.bobberX, fishing.bobberY + 1);
+    }
 
     if (state === 'floating' && time >= (fishing.nextFishScanAt || 0)) {
         startFishApproach(time);
@@ -7238,6 +7248,9 @@ const FLOWER_PETAL_COLOR = 0xf6f5e5;
 const PETAL_KICK_CHANCE = 0.6;
 const PETAL_LIFETIME = 520;
 const WOOD_DUST_CHANCE = 0.45;
+const BOBBER_RIPPLE_INTERVAL = 1400;
+const BOBBER_RIPPLE_LIFETIME = 420;
+const BOBBER_RIPPLE_COLOR = 0x9bd2e1;
 const WOOD_DUST_COLORS = [0xb88b61, 0xae7d57];
 const FISH_RISE_RANGE = 2600;
 const CATCH_SPARKLE_LIFETIME = 420;
