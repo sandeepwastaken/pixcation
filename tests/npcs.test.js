@@ -3,6 +3,104 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('saved journeys home resume at night but expire when loaded during the day', () => {
+    const run = createNpcs();
+    run("first.house = { doorX: 5, doorY: 3 }; startNpcPath(first, [[4, 3], [5, 3]], 'home', 100); pauseNpcActivity(first); const journeyHome = serializeNpc(first, 100); npcMemory.set(first.id, journeyHome); getWorldClock = () => ({ hour: 23, day: 1 }); restoreNpc(scene, first)");
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.goal'), 'home');
+    run('npcMemory.set(first.id, journeyHome); getWorldClock = () => ({ hour: 12, day: 2 }); restoreNpc(scene, first)');
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('first.goal'), null);
+});
+
+test('NPCs explain the task interrupted by the player through the plans dialogue', () => {
+    const run = createNpcs();
+    run('findNearestRumor = getMysteryShopRumor = () => null; first.pausedActivity = { x: 5, y: 3, goal: "wander" }; const plansDialogue = buildNpcDialogue(scene, first)');
+    assert.ok(run('plansDialogue.plans.text.includes("finish my walk after we chat")'));
+    assert.ok(run('plansDialogue.chat.options.some(option => option.label === "Your plans?" && option.next === "plans")'));
+    run('first.pausedActivity.goal = "stroll"');
+    assert.ok(run('describeNpcPlans(first).includes("walk together")'));
+    run('first.pausedActivity.goal = "fish"');
+    assert.ok(run('describeNpcPlans(first).includes("ready to fish")'));
+    run('first.pausedActivity.goal = "home"');
+    assert.ok(run('describeNpcPlans(first).includes("heading home")'));
+});
+
+test('both friends resume their shared walk after group dialogue closes', () => {
+    const run = createNpcs();
+    run("homes[1].tileX = second.tileX = 4; nearestNpc = first; dialogueContainer = {}; isMenuOpen = () => false; findNearestRumor = getMysteryShopRumor = () => null; canNpcOccupy = () => true; beginDialogue = (scene, nodes, ignored, name, npc) => { dialogueNpc = npc; dialogueOpen = true; }");
+    run("startNpcPath(first, [[4, 3], [5, 3]], 'stroll', 100); startNpcPath(second, [[4, 4], [5, 4]], 'stroll', 100); first.walkPartner = 2; second.walkPartner = 1; first.strollSpeed = second.strollSpeed = 0.35; first.walkEnds = second.walkEnds = 20000; talkToNearestNpc(scene)");
+    assert.equal(run('first.pausedActivity.goal'), 'stroll');
+    assert.equal(run('second.pausedActivity.goal'), 'stroll');
+    run('scene.time.now = 1000; releaseDialogueNpc(scene)');
+    assert.equal(run('first.goal'), 'stroll');
+    assert.equal(run('second.goal'), 'stroll');
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('second.state'), 'walk');
+    assert.equal(run('first.walkEnds'), 21000);
+    run('pauseNpcActivity(first); settleNpc(scene, first, 1000, 0); activeNpcs.pop()');
+    assert.equal(run('resumeNpcActivity(scene, first, 1500)'), true);
+    assert.equal(run('first.goal'), 'wander');
+});
+
+test('saving during a conversation restores the remembered destination without reopening dialogue', () => {
+    const run = createNpcs();
+    run("startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100); pauseNpcActivity(first); settleNpc(scene, first, 100, 0); first.state = 'talk'; npcMemory.set(first.id, serializeNpc(first, 100)); restoreNpc(scene, first)");
+    assert.equal(run('first.pausedActivity'), null);
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.goal'), 'wander');
+    assert.equal(run('first.path.at(-1)[0]'), 5);
+    assert.equal(run('dialogueOpen'), false);
+});
+
+test('interrupted casting restarts aiming safely at a still-valid fishing spot', () => {
+    const run = createNpcs();
+    run("first.state = 'charge'; first.charge = { start: 50 }; first.spot = { tileX: 3, tileY: 3, water: { direction: 'front' } }; first.failedSpots = new Set(); findNpcWater = () => ({ direction: 'front' }); canNpcOccupy = () => true; pauseNpcActivity(first); settleNpc(scene, first, 100, 0)");
+    assert.equal(run('JSON.stringify(serializeNpc(first, 100).goal)'), '[3,3,"fish"]');
+    assert.equal(run('resumeNpcActivity(scene, first, 1000)'), true);
+    run('updateNpc(scene, first, 1016, 16)');
+    assert.equal(run('first.state'), 'aim');
+    assert.equal(run('first.pausedActivity'), null);
+});
+
+test('resuming respects blocked routes and a bedtime reached during the chat', () => {
+    const run = createNpcs();
+    run("startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100); pauseNpcActivity(first); settleNpc(scene, first, 100, 0); isNpcWalkableTile = () => false; canNpcOccupy = () => true");
+    assert.equal(run('resumeNpcActivity(scene, first, 1000)'), false);
+    assert.equal(run('first.state'), 'idle');
+    run("isNpcWalkableTile = () => true; first.house = { doorX: 3, doorY: 3 }; startNpcPath(first, [[4, 3]], 'wander', 1000); pauseNpcActivity(first); settleNpc(scene, first, 1000, 0); getWorldClock = () => ({ hour: 23, day: 1 })");
+    assert.equal(run('resumeNpcActivity(scene, first, 2000)'), false);
+    run('updateNpcHome(scene, first, 2016)');
+    assert.equal(run('first.state'), 'home');
+});
+
+test('a player conversation pauses a destination and resumes it on a fresh bounded route', () => {
+    const run = createNpcs();
+    run('findNearestRumor = getMysteryShopRumor = () => null; nearestNpc = first; dialogueContainer = {}; isMenuOpen = () => false; canNpcOccupy = () => true; beginDialogue = (scene, nodes, ignored, name, npc) => { dialogueNpc = npc; dialogueOpen = true; }');
+    run("startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100); talkToNearestNpc(scene)");
+    assert.equal(run('first.state'), 'talk');
+    assert.equal(run('first.pausedActivity.x'), 5);
+    assert.equal(run('JSON.stringify(serializeNpc(first, 100).goal)'), '[5,3,"wander"]');
+    run('first.x = 64; scene.time.now = 5000; releaseDialogueNpc(scene)');
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('first.goal'), 'wander');
+    assert.equal(run('JSON.stringify(first.path)'), '[[5,3]]');
+    assert.equal(run('first.pausedActivity'), null);
+    assert.equal(run('first.talking'), false);
+});
+
+test('joining friends remember their old task rather than saving their dialogue approach', () => {
+    const run = createNpcs();
+    run("homes[1].tileX = second.tileX = 4; findNearestRumor = getMysteryShopRumor = () => null; nearestNpc = first; dialogueContainer = {}; isMenuOpen = () => false; canNpcOccupy = () => true; beginDialogue = (scene, nodes, ignored, name, npc) => { dialogueNpc = npc; dialogueOpen = true; }; startNpcPath(second, [[5, 3], [6, 3]], 'wander', 100); talkToNearestNpc(scene)");
+    assert.equal(run('second.goal'), 'join');
+    assert.equal(run('second.pausedActivity.x'), 6);
+    assert.equal(run('JSON.stringify(serializeNpc(second, 100).goal)'), '[6,3,"wander"]');
+    run('scene.time.now = 1000; releaseDialogueNpc(scene)');
+    assert.equal(run('second.goal'), 'wander');
+    assert.equal(run('second.state'), 'walk');
+    assert.equal(run('second.path.at(-1)[0]'), 6);
+});
+
 test('walkers brake for corners and arrival without slowing at straight tile boundaries', () => {
     const run = createNpcs();
     run("startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100); first.x = 63; first.travelDirection = 'right'; first.turnUntil = 0; first.walkPhase = 1; first.walkSpeed = 0.5; canNpcOccupy = () => true; stepNpc(scene, first, 116, 16)");
