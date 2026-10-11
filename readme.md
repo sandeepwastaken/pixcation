@@ -16,9 +16,9 @@ Now comes the waiting.
 
 Once a fish bites, you'll notice your bobber start splashing up and down. When the fish is fully hooked, the bobber will go down and you'll see some small indicator lines.
 
-Press M to open the map and see the layout of your tiny world
+Press M to open the map and see the layout of your tiny world.
 
-# Press Space again to reel it in.
+Press Space again to reel it in.
 
 You'll then have to play a small minigame to actually catch the fish. The harder the fish is to catch, the faster it moves during the minigame, so stay on your toes.
 
