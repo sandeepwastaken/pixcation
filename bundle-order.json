@@ -1,5 +1,6 @@
 [
     "game-data.js",
+    "npc-names.js",
     "water-pipeline.js",
     "art/textures.js",
     "art/trees.js",
@@ -17,6 +18,7 @@
     "environment/shadows.js",
     "environment/particles.js",
     "environment/bushes.js",
+    "environment/npcs.js",
     "fish/regions.js",
     "fish/spawning.js",
     "fish/movement.js",
