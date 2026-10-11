@@ -7169,9 +7169,9 @@ const MAP_PAN_SPEED = 90;
 const MAP_MAX_ZOOM = 3;
 const MAP_FOG_EDGE = 3;
 const MAP_FOG_SALT = 9137;
-const WATER_BIOME_SCALE = 900;
+const WATER_BIOME_SCALE = 600;
 const WATER_BIOME_OFFSET = [WORLD_SEED % 997, Math.floor(WORLD_SEED / 997) % 991];
-const WATER_TINTS = [[0.8, 1.08, 0.95], [1, 1, 1], [0.76, 0.82, 0.95]];
+const WATER_TINTS = [[0.85, 1.05, 0.96], [1, 1, 1], [0.82, 0.93, 1]];
 const FLOWER_COLORS = new Set([0xf6f5e5, 0xe1dc7a, 0xe69d66]);
 const FLOWER_PATCH_SOURCE = 0xb46044;
 const FLOWER_PATCH_SCALE = 10;
@@ -7187,14 +7187,14 @@ const TREE_PALETTE_WEIGHTS = [
     [0.5, [6, 2, 1, 0.3, 0, 0]],
     [1, [3, 0.5, 4, 0, 0, 2]]
 ];
-const GRASS_BIOME_SCALE = 70;
+const GRASS_BIOME_SCALE = 50;
 const GRASS_BIOME_CONTRAST = 1.9;
 const GRASS_TINTS = [
-    [0, 1.13, 0.95, 0.8],
-    [0.28, 1.09, 1.02, 0.8],
+    [0, 1.1, 0.98, 1.03],
+    [0.28, 1.05, 1.01, 1.02],
     [0.5, 1, 1, 1],
-    [0.76, 0.9, 1, 0.94],
-    [1, 0.82, 0.95, 0.9]
+    [0.76, 0.88, 0.98, 0.97],
+    [1, 0.75, 0.92, 0.94]
 ];
 const MAP_TREE_SHAPE = [
     [3, 0, 1, 'canopy'],
