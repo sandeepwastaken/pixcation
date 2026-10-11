@@ -95,6 +95,7 @@ function findNpcMeetingPath(npc, target, scene) {
     spots.sort((a, b) => Math.abs(a[0] * TILE_SIZE - npc.x) + Math.abs(a[1] * TILE_SIZE - npc.y) - Math.abs(b[0] * TILE_SIZE - npc.x) - Math.abs(b[1] * TILE_SIZE - npc.y));
     for (const [x, y] of spots) {
         if (!isNpcInHomeArea(npc, x, y)) continue;
+        if (Math.hypot(x * TILE_SIZE - target.x, y * TILE_SIZE - target.y) < NPC_CHAT_DISTANCE_MIN) continue;
         if (activeNpcs.some(other => other !== npc && Math.abs(other.x - x * TILE_SIZE) < TILE_SIZE / 2 && Math.abs(other.y - y * TILE_SIZE) < TILE_SIZE / 2)) continue;
         const path = findNpcRoute(scene, npc, x, y);
         if (path) return path;
@@ -117,6 +118,7 @@ function canNpcsTalkAcross(npc, other) {
 
 function startNpcConversation(scene, npc, other, time) {
     if (!other || other.talking || other.fishing || !['idle', 'walk'].includes(other.state) || Math.hypot(npc.x - other.x, npc.y - other.y) > TILE_SIZE * 2) return false;
+    if (Math.hypot(npc.x - other.x, npc.y - other.y) < NPC_CHAT_DISTANCE_MIN) return false;
     if (npc.talking || npc.fishing || npc.needsShelter || other.needsShelter || [npc, other].some(resident => resident.state === 'walk' && resident.goal === 'home')) return false;
     if (!canNpcsTalkAcross(npc, other)) return false;
     const connection = getNpcConnection(npc), close = connection?.companion.id === other.id;
@@ -137,6 +139,21 @@ function startNpcConversation(scene, npc, other, time) {
     else if (getWorldClock().hour < 10) { npc.speech = `Morning, ${other.name.split(' ')[0]}. Any plans today?`; other.speech = other.water ? 'I think I will spend some time by the water.' : other.role === 'trader' ? 'A few trades, and hopefully a little time outside.' : 'A short walk first. Then I will see where the day takes me.'; }
     else if (other.pausedActivity?.goal === 'fish') { npc.speech = 'Off to the water?'; other.speech = 'Yes, I have a spot I wanted to try. We can catch up for a moment first.'; }
     npc.walkInvitation = close && npc.dailyPlan === 'day' && other.dailyPlan === 'day';
+    return true;
+}
+
+function tryNpcPassingGreeting(npc, time) {
+    if (npc.state !== 'walk' || npc.talking || npc.needsShelter || !['wander', 'windDown', 'leaveHome'].includes(npc.goal) || time < (npc.nextGreetingAt || 0)) return false;
+    npc.nextGreetingAt = time + 1000;
+    const other = activeNpcs.find(resident => resident !== npc && !resident.talking && !resident.needsShelter && resident.fishing?.state === 'floating' && time >= (resident.nextGreetingAt || 0) && Math.hypot(npc.x - resident.x, npc.y - resident.y) >= NPC_CHAT_DISTANCE_MIN && Math.hypot(npc.x - resident.x, npc.y - resident.y) <= TILE_SIZE * 2 && canNpcsTalkAcross(npc, resident));
+    if (!other) return false;
+    const hour = getWorldClock().hour, greeting = hour < 10 ? 'Morning' : hour >= 18 ? 'Evening' : 'Hi';
+    for (const [speaker, listener, delay] of [[npc, other, 0], [other, npc, 1600]]) {
+        speaker.speech = `${greeting}, ${listener.name.split(' ')[0]}.`;
+        speaker.speechFrom = time + delay; speaker.speechUntil = time + delay + 1400;
+        speaker.greetingUntil = speaker.speechUntil; speaker.nextGreetingAt = time + 30000;
+        speaker.lastActivity = 'greeting'; speaker.lastNeighbor = listener.name; saveDirty = true;
+    }
     return true;
 }
 
@@ -329,10 +346,11 @@ function restoreNpc(scene, npc) {
     if (!state || !Number.isFinite(state.x) || !Number.isFinite(state.y)) return;
     npcMemory.delete(npc.id);
     const time = scene.time.now;
-    Object.assign(npc, { x: Math.round(state.x), y: Math.round(state.y), rng: state.rng | 0, state: 'idle', until: time + (state.wait || 0), path: [], fishing: null, goal: null, pausedActivity: null, talking: false, joining: null, joinedConversation: null });
+    Object.assign(npc, { x: Math.round(state.x), y: Math.round(state.y), rng: state.rng | 0, state: 'idle', until: time + (state.wait || 0), path: [], fishing: null, goal: null, pausedActivity: null, blockedPlanUntil: 0, talking: false, joining: null, joinedConversation: null, greetingUntil: 0, speechFrom: 0, speechUntil: 0 });
     npc.sprite.setVisible(true);
     npc.playerVisits = Number.isSafeInteger(state.visits) && state.visits >= 0 ? Math.min(100000, state.visits) : 0;
-    npc.lastActivity = ['fishing', 'walk', 'social'].includes(state.activity) ? state.activity : null;
+    if (npc.bubble) npc.bubble.setVisible(false);
+    npc.lastActivity = ['fishing', 'walk', 'social', 'greeting'].includes(state.activity) ? state.activity : null;
     npc.lastNeighbor = typeof state.neighbor === 'string' ? state.neighbor.slice(0, 80) : null;
     if (!isNpcInHomeArea(npc, npc.x / TILE_SIZE, npc.y / TILE_SIZE)) { npc.x = npc.tileX * TILE_SIZE; npc.y = npc.tileY * TILE_SIZE; npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE); return; }
     if (state.home === true && npc.house) { npc.x = npc.house.doorX * TILE_SIZE; npc.y = npc.house.doorY * TILE_SIZE; npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE); enterNpcHouse(npc); return; }
@@ -351,6 +369,7 @@ function restoreNpc(scene, npc) {
         const path = (!homeGoal || npc.house && (getNpcDailyPlan(npc, getWorldClock()) === 'home' || getRainIntensity(getWorldClock()) >= 0.25)) && findNpcRoute(scene, npc, state.goal[0], state.goal[1]);
         const goal = homeGoal ? 'home' : state.goal[2] === 'fish' && npc.spot ? 'fish' : ['windDown', 'leaveHome'].includes(state.goal[2]) ? state.goal[2] : 'wander';
         if (path) startNpcPath(npc, path, goal, time);
+        else if (path === null) { npc.pausedActivity = { x: state.goal[0], y: state.goal[1], goal }; npc.blockedPlanUntil = time + NPC_BLOCKED_PLAN_WAIT; npc.until = time + NPC_BLOCKED_PLAN_RETRY; }
     }
     npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE).setTexture(getNpcTexture(scene, npc.look, npc.direction));
 }
@@ -411,7 +430,7 @@ function canNpcTraverse(scene, npc, x, y, targetX, targetY) {
 }
 
 function getNpcBlockingNeighbor(npc) {
-    const next = npc.path[0];
+    const next = npc.path[0] || (npc.pausedActivity && [npc.pausedActivity.x, npc.pausedActivity.y]);
     if (!next) return null;
     const stepX = Math.sign(next[0] * TILE_SIZE - npc.x), stepY = stepX ? 0 : Math.sign(next[1] * TILE_SIZE - npc.y);
     const left = npc.x + stepX + CHARACTER_HITBOX_X, top = npc.y + stepY + CHARACTER_HITBOX_Y;
@@ -419,7 +438,7 @@ function getNpcBlockingNeighbor(npc) {
 }
 
 function pauseNpcActivity(npc) {
-    if (npc.state === 'social' && npc.pausedActivity) return;
+    if ((npc.goal === 'yield' || npc.state === 'social' || npc.state === 'idle' && npc.blockedPlanUntil) && npc.pausedActivity) return;
     const preparing = npc.state === 'aim' || npc.state === 'charge';
     const destination = npc.state === 'walk' ? npc.path[npc.path.length - 1] : preparing && npc.spot ? [npc.spot.tileX, npc.spot.tileY] : null;
     const goal = preparing ? 'fish' : npc.goal;
@@ -454,7 +473,7 @@ function resumeNpcActivity(scene, npc, time) {
         npc.spot = { tileX: x, tileY: y, water };
     }
     const path = findNpcRoute(scene, npc, x, y);
-    if (!path) return false;
+    if (!path) { npc.pausedActivity = activity; npc.blockedPlanUntil ||= time + NPC_BLOCKED_PLAN_WAIT; npc.until = time + NPC_BLOCKED_PLAN_RETRY; return tryNpcStepAside(scene, npc, time); }
     const partner = activity.goal === 'stroll' && activeNpcs.find(other => other.id === npc.walkPartner);
     const goal = activity.goal === 'stroll' && (!partner || partner.goal !== 'stroll' && partner.pausedActivity?.goal !== 'stroll') ? 'wander' : activity.goal;
     startNpcPath(npc, path, goal, time);
@@ -488,6 +507,8 @@ function findNpcPath(fromX, fromY, toX, toY, npc, scene) {
 }
 
 function startNpcPath(npc, path, goal, time) {
+    if (npc.blockedPlanUntil && goal !== 'join' && goal !== 'yield') npc.pausedActivity = null;
+    npc.blockedPlanUntil = 0;
     npc.state = 'walk';
     npc.goal = goal;
     npc.path = path;
@@ -509,6 +530,23 @@ function findNpcRoute(scene, npc, toX, toY) {
         distance = length;
     }
     return route;
+}
+
+function tryNpcStepAside(scene, npc, time) {
+    const other = getNpcBlockingNeighbor(npc);
+    if (!npc.pausedActivity || !other || npc.id <= other.id || other.talking || other.fishing || !(other.state === 'walk' || other.blockedPlanUntil && other.pausedActivity)) return false;
+    const centerX = Math.round(npc.x / TILE_SIZE), centerY = Math.round(npc.y / TILE_SIZE);
+    const horizontal = Math.abs(other.x - npc.x) >= Math.abs(other.y - npc.y);
+    for (let y = centerY - 2; y <= centerY + 2; y++) for (let x = centerX - 2; x <= centerX + 2; x++) {
+        if (horizontal ? y === centerY : x === centerX) continue;
+        if (!isNpcInHomeArea(npc, x, y)) continue;
+        if ([other.path.at(-1), other.pausedActivity && [other.pausedActivity.x, other.pausedActivity.y]].some(destination => destination?.[0] === x && destination?.[1] === y)) continue;
+        const path = findNpcRoute(scene, npc, x, y);
+        if (!path?.length) continue;
+        startNpcPath(npc, path, 'yield', time);
+        return true;
+    }
+    return false;
 }
 
 function rerouteNpc(scene, npc, time) {
@@ -578,6 +616,10 @@ function tryNpcSocialPlan(scene, npc, time) {
 }
 
 function chooseNpcPlan(scene, npc, time) {
+    if (npc.blockedPlanUntil) {
+        if (time < npc.blockedPlanUntil && npc.pausedActivity) { resumeNpcActivity(scene, npc, time); return; }
+        npc.blockedPlanUntil = 0; npc.pausedActivity = null;
+    }
     if ((npc.dailyPlan === 'home' || npc.needsShelter) && npc.house) { npc.until = time + 1000; return; }
     if (npc.dailyPlan === 'evening' && npc.house && npcRandom(npc) < 0.65) {
         const path = findNpcRoute(scene, npc, npc.house.doorX, npc.house.doorY);
@@ -931,7 +973,9 @@ function updateNpcHome(scene, npc, time) {
     if (!npc.house) return false;
     if (!wantsHome && npc.state === 'walk' && npc.goal === 'home') { settleNpc(scene, npc, time, NPC_IDLE_MIN); npc.goal = null; }
     if (npc.state === 'home') {
-        if (wantsHome || !canNpcOccupy(scene, npc, npc.x, npc.y)) return true;
+        if (wantsHome || time < (npc.exitRetryAt || 0)) return true;
+        npc.exitRetryAt = time + NPC_HOME_EXIT_RETRY;
+        if (!canNpcOccupy(scene, npc, npc.x, npc.y)) return true;
         const path = findNpcExitPath(scene, npc);
         if (!path) return true;
         npc.sprite.setVisible(true); settleNpc(scene, npc, time, NPC_IDLE_MIN + npcRandom(npc) * NPC_IDLE_RANGE);
@@ -964,6 +1008,7 @@ function updateNpc(scene, npc, time, delta) {
         setNpcPose(scene, npc, getDirectionToward(npc, character.x, character.y), 0);
         if (npc.joinedConversation === dialogueNpc?.id && !npc.hasSpoken && !dialogueTypingEvent && dialogueNodes?.companion) { npc.hasSpoken = true; showGuideDialogueNode(scene, 'companion'); }
     } else if (npc.talking) {
+        if (npc.bubble) npc.bubble.setVisible(false);
         return drawNpcRod(scene, npc, time, delta);
     } else if (npc.state === 'idle') {
         if (time >= npc.lookAt) {
@@ -972,6 +1017,7 @@ function updateNpc(scene, npc, time, delta) {
         }
         if (time >= npc.until) chooseNpcPlan(scene, npc, time);
     } else if (npc.state === 'walk') {
+        tryNpcPassingGreeting(npc, time);
         if (['visit', 'follow'].includes(npc.goal) && time >= (npc.followRefreshAt || 0)) {
             const other = activeNpcs.find(other => other.id === npc.socialPartner);
             if (!other || other.talking || other.fishing || other.needsShelter || !['idle', 'walk'].includes(other.state) || other.house && (other.dailyPlan === 'home' || other.goal === 'home')) { npc.goal = 'wander'; npc.socialPartner = null; }
@@ -987,15 +1033,18 @@ function updateNpc(scene, npc, time, delta) {
             settleNpc(scene, npc, time, NPC_IDLE_MIN + npcRandom(npc) * NPC_IDLE_RANGE);
             npc.lookAt = npc.until;
             if (goal === 'home') { enterNpcHouse(npc); return; }
+            if (goal === 'yield') resumeNpcActivity(scene, npc, time);
             if (goal === 'visit' || goal === 'follow') startNpcConversation(scene, npc, activeNpcs.find(other => other.id === npc.socialPartner), time);
             if (goal === 'join' && dialogueOpen && dialogueNpc?.id === npc.joining) { npc.talking = true; npc.state = 'talk'; npc.joinedConversation = npc.joining; }
-            if (npc.goal === 'fish') {
+            if (goal === 'fish') {
                 setNpcPose(scene, npc, npc.spot.water.direction, 0);
                 npc.state = 'aim';
                 npc.until = time + NPC_AIM_MIN + npcRandom(npc) * NPC_AIM_RANGE;
             }
         } else if (time - npc.stuckSince > NPC_STUCK_TIME && !rerouteNpc(scene, npc, time)) {
-            settleNpc(scene, npc, time, NPC_IDLE_MIN);
+            pauseNpcActivity(npc);
+            npc.blockedPlanUntil = npc.pausedActivity ? time + NPC_BLOCKED_PLAN_WAIT : 0;
+            settleNpc(scene, npc, time, NPC_BLOCKED_PLAN_RETRY);
         }
     } else if (npc.state === 'aim') {
         if (time >= npc.until) startNpcCharge(npc, time);
@@ -1004,7 +1053,8 @@ function updateNpc(scene, npc, time, delta) {
     }
     drawNpcRod(scene, npc, time, delta);
     if (isNpcNearCamera(npc)) drawNpcShadow(scene, npc);
-    if (npc.bubble) { npc.bubble.setVisible(npc.state === 'social' && time >= npc.speechFrom && time < npc.speechUntil && isNpcNearCamera(npc)); if (npc.state === 'social') npc.bubble.setText(npc.speech || '').setPosition(Math.round(npc.x - 40), Math.round(npc.y - 30)).setDepth(npc.y + NPC_PART_SIZE + 1); }
+    const speaking = npc.state === 'social' || time < (npc.greetingUntil || 0);
+    if (npc.bubble) { npc.bubble.setVisible(!npc.talking && speaking && time >= npc.speechFrom && time < npc.speechUntil && isNpcNearCamera(npc)); if (speaking) npc.bubble.setText(npc.speech || '').setPosition(Math.round(npc.x - 40), Math.round(npc.y - 30)).setDepth(npc.y + NPC_PART_SIZE + 1); }
 }
 
 function updateNpcs(scene, time, delta) {
@@ -1078,6 +1128,7 @@ function buildNpcDialogue(scene, npc) {
     };
     if (connection) nodes.chat.options[1] = { label: 'Your company?', action: () => (nodes.company.text = describeNpcConnection(npc, connection), 'company') };
     nodes.chat.options.splice(nodes.chat.options.length - 1, 0, { label: 'Your plans?', next: 'plans' });
+    if (npc.lastActivity === 'greeting' && npc.lastNeighbor) nodes.chat.text = `I just said hello to ${npc.lastNeighbor.split(' ')[0]}. It is nice to see a familiar face.`;
     if (!npc.fishing && npc.lastActivity === 'social' && npc.lastNeighbor) nodes.chat.text = `I was just catching up with ${npc.lastNeighbor.split(' ')[0]}. It is good to have company nearby.`;
     else if (!npc.fishing && npc.lastActivity === 'fishing') nodes.chat.text = 'I put my rod away for a bit. Sometimes a quiet break is better than another cast.';
     else if (!npc.fishing && npc.lastActivity === 'walk') nodes.chat.text = 'I took a walk around the neighborhood earlier. ' + nodes.chat.text;
