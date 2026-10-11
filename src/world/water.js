@@ -65,6 +65,23 @@ function shadeWaterShorelines(scene, data, shorelineTiles) {
     }
 }
 
+function shadeWaterBanks(scene, data, pixelX, pixelY) {
+    for (let y = CHUNK_PIXEL_SIZE - 1; y >= 0; y--) {
+        for (let x = CHUNK_PIXEL_SIZE - 1; x >= 0; x--) {
+            const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
+            if (data[index] !== 255) continue;
+            for (const [offsetX, offsetY] of WATER_BANK_OFFSETS) {
+                const nextX = x + offsetX, nextY = y + offsetY;
+                const land = nextX >= 0 && nextY >= 0 ? !data[(nextY * CHUNK_PIXEL_SIZE + nextX) * 4] : !isWaterPixel(scene, pixelX + nextX, pixelY + nextY);
+                if (land) {
+                    data[index] = 128;
+                    break;
+                }
+            }
+        }
+    }
+}
+
 function shadeWaterWood(data, woodMask) {
     const maskOffset = WOOD_MASK_MARGIN - WOOD_SHADOW_OFFSET;
     for (let y = 0; woodMask && y < CHUNK_PIXEL_SIZE; y++) {
@@ -108,6 +125,7 @@ function buildChunkWater(scene, chunk) {
 
     shadeWaterDepth(data, shoreDistances, shadowMask);
     shadeWaterShorelines(scene, data, shorelineTiles);
+    shadeWaterBanks(scene, data, pixelX, pixelY);
     shadeWaterWood(data, getChunkWoodMask(scene, gatherNearbyWoodTiles(chunkX, chunkY, woodTiles)));
     bakeChestSilhouette(chunk, data);
     markWaterEdges(data, edgeCells, pixelX, pixelY);
