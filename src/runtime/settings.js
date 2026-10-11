@@ -292,6 +292,7 @@ const TREE_VARIANT_COUNT = 24;
 const TREE_TONE_SHARES = [0.09, 0.42, 0.75, 0.97];
 const TREE_DITHER_SHARE = 0.015;
 const TREE_TRUNK_SHADES = [0.8, 0.88, 0.94, 1, 1.07];
+const TREE_TRUNK_CURVES = [[0x553527, 0x674430, 0x75543c, 0x846549, 0x8e7352], [0x454643, 0x92978e, 0xc6cabe, 0xe0e4d8, 0xf2f1e4], [0x3d3834, 0x554e46, 0x716859, 0x8b826e, 0xa69c85], [0x343030, 0x47403d, 0x5b514c, 0x71635b, 0x87776b]];
 const TREE_PAD_X = 14;
 const TREE_PAD_TOP = 8;
 const TREE_SHADOW_SHIFT = 7;
@@ -306,7 +307,7 @@ const TREE_LEAF_PALETTES = [
     { weight: 1, colors: [0x2c5348, 0x3a6a55, 0x4f8260, 0x6c9a6a, 0x8db47c], extras: [] },
     { weight: 1, colors: [0x7a4030, 0x9c5634, 0xbd7640, 0xd69a55, 0xe8bd72], extras: [] },
     { weight: 0.8, colors: [0x6b3a3a, 0x8c4a40, 0xae6249, 0xc9825a, 0xdea675], extras: [] },
-    { weight: 0.6, colors: [0x8a5a6e, 0xab7085, 0xc98e9e, 0xe0aeb6, 0xf2cdcc], extras: [] }
+    { weight: 0.6, colors: [0x8a5a6e, 0xab7085, 0xc98e9e, 0xe0aeb6, 0xf2cdcc], extras: [], trunk: 3 }
 ];
 
 const DUST_PER_STEP = 3;
@@ -442,14 +443,14 @@ const NPC_PART_COLORS = {
     shirt: [0x00129e, 0x001eff]
 };
 const NPC_CAST_REACH = 2;
-const NPC_SPEED_MIN = 0.65;
-const NPC_SPEED_RANGE = 0.5;
-const NPC_ROAM_RADIUS = 6;
+const NPC_SPEED_MIN = 0.35;
+const NPC_SPEED_RANGE = 0.2;
+const NPC_ROAM_RADIUS = 4;
 const NPC_TRADER_ROAM = 2;
 const NPC_FISH_CHANCE = 0.55;
 const NPC_PLAN_ATTEMPTS = 12;
-const NPC_IDLE_MIN = 1500;
-const NPC_IDLE_RANGE = 3500;
+const NPC_IDLE_MIN = 3000;
+const NPC_IDLE_RANGE = 5000;
 const NPC_STUCK_TIME = 600;
 const NPC_AIM_MIN = 300;
 const NPC_AIM_RANGE = 700;

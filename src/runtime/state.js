@@ -64,6 +64,7 @@ let fishingUiParts = [];
 let fishingActionHeld = false;
 
 let castCharge = null;
+let spawnReturn = null;
 let store;
 let guideWasNear = false;
 let guideHasMetPlayer = false;

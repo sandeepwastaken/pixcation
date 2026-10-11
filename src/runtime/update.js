@@ -1,5 +1,6 @@
 function update(time, delta) {
     if (!character) return;
+    if (spawnReturn) { updateSpawnReturn(this, time, delta); return; }
     if (startup) {
         lastPlayTime = null;
         updateStartup(this, time, delta);

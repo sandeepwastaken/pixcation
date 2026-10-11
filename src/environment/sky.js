@@ -4,6 +4,7 @@ let skyColor = -1;
 let rainGraphics = null;
 let rainRandom = null;
 let rainSpawnCarry = 0;
+let worldClockText = null, worldClockLayer = null;
 
 function getWorldClock(now = Date.now()) {
     const days = now / (DAY_LENGTH_MINUTES * 60000) + (WORLD_SEED % 997) / 997;
@@ -28,6 +29,10 @@ function getRainIntensity(clock) {
 }
 
 function createSky(scene) {
+    const clockLayer = createTextLayer(28, { fontSize: '11px', color: '#e0f2fd', textShadow: '1px 1px rgba(0, 0, 0, 0.65)' });
+    worldClockText = createUIText(clockLayer, 8, 8, '#e0f2fd', 144);
+    createUIText(clockLayer, 8, 20, '#e0f2fd', 144).textContent = 'H - return to spawn';
+    worldClockLayer = addHudLayer(scene, clockLayer, 0, 211).setVisible(true);
     skyOverlay = scene.add.rectangle(0, 0, mainCamera.width, mainCamera.height, 0xffffff)
         .setOrigin(0)
         .setScrollFactor(0)
@@ -75,7 +80,9 @@ function updateRain(scene, time, delta, intensity) {
 
 function updateSky(scene, time, delta) {
     if (!skyOverlay) return;
+    if (worldClockLayer) worldClockLayer.setVisible(!startup && !isMenuOpen() && !spawnReturn);
     const clock = getWorldClock();
+    if (worldClockText) setUITextContent(worldClockText, `${String(Math.floor(clock.hour)).padStart(2, '0')}:${String(Math.floor(clock.hour * 60) % 60).padStart(2, '0')}`);
     const rain = getRainIntensity(clock);
     const light = blendBiomeStops(SKY_LIGHT_STOPS, clock.hour);
     const dim = 1 - rain * RAIN_DIM;

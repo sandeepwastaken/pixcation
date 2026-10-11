@@ -112,6 +112,7 @@ function showDialogueOptions(visible) {
 
 function showGuideDialogueNode(scene, nodeKey) {
     const node = dialogueNodes[nodeKey];
+    if (dialogueNpc) setUITextContent(dialogueName, node.speaker || dialogueNpc.name);
     let characterIndex = 0;
 
     stopDialogueTyping();

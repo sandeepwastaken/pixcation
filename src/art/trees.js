@@ -31,6 +31,15 @@ function readTreePixel(data, pixel) {
     return (data[index] << 16) | (data[index + 1] << 8) | data[index + 2];
 }
 
+function mapTrunkTone(data, source, curve, shade) {
+    const value = data[source] * 0.299 + data[source + 1] * 0.587 + data[source + 2] * 0.114;
+    const stops = [61, 77, 91, 108, 119];
+    let band = 0;
+    while (band < stops.length - 2 && value > stops[band + 1]) band++;
+    const amount = Math.max(0, Math.min(1, (value - stops[band]) / (stops[band + 1] - stops[band])));
+    return [16, 8, 0].map(shift => Math.min(255, Math.round((((curve[band] >> shift) & 255) * (1 - amount) + ((curve[band + 1] >> shift) & 255) * amount) * shade)));
+}
+
 function createTreeCanopyMask(puffs, width, height, edgeSalt) {
     const edgeHash = createLeafHash(edgeSalt);
     const owner = new Int16Array(width * height).fill(-1);
@@ -155,6 +164,9 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
     const height = trunk.height + TREE_PAD_TOP;
     const data = new Uint8ClampedArray(width * height * 4);
     const trunkShade = TREE_TRUNK_SHADES[Math.floor(createSeededRandom(seed ^ 0x5bd1e995)() * TREE_TRUNK_SHADES.length)];
+    const picked = pickTreePalette(random);
+    const palette = TREE_LEAF_PALETTES[paletteIndex] ?? picked;
+    const trunkCurve = TREE_TRUNK_CURVES[palette.trunk ?? Math.floor(createSeededRandom(seed ^ 0x27d4eb2d)() * TREE_TRUNK_CURVES.length)];
 
     for (let y = 0; y < trunk.height; y++) {
         const sourceRow = y * trunk.width;
@@ -164,13 +176,11 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
             if (!trunk.data[source + 3]) continue;
 
             const pixel = targetRow + x;
-            const [red, green, blue] = [0, 1, 2].map(channel => Math.min(255, Math.round(trunk.data[source + channel] * trunkShade)));
+            const [red, green, blue] = mapTrunkTone(trunk.data, source, trunkCurve, trunkShade);
             writeRGBPixel(data, pixel, (red << 16) | (green << 8) | blue);
         }
     }
 
-    const picked = pickTreePalette(random);
-    const palette = TREE_LEAF_PALETTES[paletteIndex] ?? picked;
     const colors = palette.colors;
     const radiusX = 23 + random() * 5;
     const radiusY = 17 + random() * 3;

@@ -48,6 +48,7 @@ function bindGameInput(scene) {
     };
 
     const pressAction = source => {
+        if (catchCardUntil === Infinity) hideCatchCard(scene);
         const wasHeld = heldActions.size > 0;
         heldActions.add(source);
         fishingActionHeld = true;
@@ -84,6 +85,7 @@ function bindGameInput(scene) {
 
     scene.input.on('pointerdown', pointer => {
         if (pointer.button !== 0) return;
+        if (spawnReturn) return;
         if (startup) {
             if (isStartButtonAt(pointer.x, pointer.y)) { setCursor('default'); beginStartup(scene.time.now); }
             return;
@@ -165,6 +167,7 @@ function bindGameInput(scene) {
     scene.input.keyboard.on('keydown', event => {
         if (event.code === 'Tab' || event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
         if (event.repeat) return;
+        if (spawnReturn) return;
         if (startup) {
             if (event.code === 'Enter' || event.code === 'Space') { setCursor('default'); beginStartup(scene.time.now); }
             return;
@@ -191,6 +194,7 @@ function bindGameInput(scene) {
         else if (code === 'Space') pressAction('keyboard');
         else if (key === 'm') openMenu(() => openMap(scene));
         else if (key === 'b') cycleBait(scene);
+        else if (code === 'KeyH') { resetActions(); returnToSpawn(scene); }
         else if (key === 'e') openMenu(() => openInteraction(scene, getInteractionTarget(true)));
         else if (CHEATS_ENABLED && key === 's') spawnSturgeonAtCursor(scene);
         else if (slot >= 0 && slot < 9) selectHotbarSlot(scene, slot);

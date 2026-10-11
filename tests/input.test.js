@@ -40,6 +40,25 @@ function createInput() {
 
 const space = { key: ' ', code: 'Space', repeat: false, preventDefault() {} };
 const left = { button: 0, x: 0, y: 180 };
+test('casting with either Space or a click dismisses the reveal card and starts charging', () => {
+    for (const source of ['keyboard', 'pointer']) {
+        const { input, run } = createInput();
+        run('catchCardUntil = Infinity; function hideCatchCard() { catchCardUntil = 0; return true; }');
+        if (source === 'keyboard') input.keyboard.emit('keydown', space);
+        else input.emit('pointerdown', left);
+        assert.equal(run('catchCardUntil'), 0);
+        assert.equal(run('presses'), 1);
+    }
+});
+
+test('the spawn transition blocks keyboard and pointer actions', () => {
+    const { input, run } = createInput();
+    run("spawnReturn = { phase: 'out' }");
+    input.keyboard.emit('keydown', space);
+    input.emit('pointerdown', left);
+    assert.equal(run('presses'), 0);
+    assert.equal(run('fishingActionHeld'), false);
+});
 test('cursor updates follow button boundaries and menu visibility without repeated writes', () => {
     const { input, run, cursorUpdates } = createInput();
     run("startup = { phase: 'title' }");

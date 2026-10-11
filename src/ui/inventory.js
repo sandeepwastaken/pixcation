@@ -61,7 +61,7 @@ function refreshInventoryUI(time) {
 
         setUITextContent(rowText, caught ? species.name : '???');
         rowText.style.color = caught ? '#e0f2fd' : '#6f5b49';
-        setUITextContent(countText, caught ? `x${count}` : '—');
+        setUITextContent(countText, caught ? `x${count}` : '-');
         countText.style.color = count ? '#8fbf7a' : caught ? '#8c7358' : '#6f5b49';
         if (index === selectedFishIndex) rowText.style.color = caught ? '#acccf9' : '#8c7358';
     }

@@ -163,6 +163,25 @@ function moveCharacterAxis(scene, amountX, amountY, allowNudge) {
 }
 
 let characterSlide = null;
+function returnToSpawn(scene) {
+    let destination = null;
+    for (let radius = 0; radius <= 8 && !destination; radius++) {
+        for (let y = -radius; y <= radius && !destination; y++) for (let x = -radius; x <= radius; x++) {
+            if (canCharacterOccupy(scene, x * TILE_SIZE, y * TILE_SIZE)) { destination = [x * TILE_SIZE || 0, y * TILE_SIZE || 0]; break; }
+        }
+    }
+    if (!destination) return;
+    if (fishing?.hauling) { showItemLabel(scene, 'Finish hauling before returning'); return; }
+    if (fishing) releaseTargetFish(true);
+    fishing = null; castCharge = null; fishingActionHeld = false; characterSlide = null;
+    stopCharacterForMenu();
+    spawnReturn = { phase: 'out', start: scene.time.now, destination, from: [mainCamera.scrollX, mainCamera.scrollY] };
+    saveDirty = true;
+    itemLabelUntil = 0;
+    if (catchCardUntil === Infinity) hideCatchCard(scene);
+    fishingLine.clear(); fishingWaterShadow.clear(); drawFishingMinigame();
+    if (interactionPromptLayer) { scene.tweens.killTweensOf(promptMotion); promptMotion.value = 0; promptState = 0; interactionPromptLayer.setVisible(false); }
+}
 
 function canCharacterRun(scene, x, y, stepX, stepY) {
     for (let step = 1; step <= CHARACTER_CORNER_NUDGE * 2; step++) {
@@ -170,6 +189,34 @@ function canCharacterRun(scene, x, y, stepX, stepY) {
     }
 
     return true;
+}
+
+function updateSpawnReturn(scene, time, delta) {
+    const transition = spawnReturn;
+    const age = time - transition.start;
+    if (transition.phase === 'out') {
+        ditherInCharacter(scene, Math.max(0, 16 - Math.round(age / 250 * 16)));
+        if (age >= 250) {
+            character.setPosition(...transition.destination);
+            updateCharacterShadow(scene);
+            ditherInCharacter(scene, 0);
+            transition.phase = 'pan'; transition.start = time;
+        }
+    } else if (transition.phase === 'pan') {
+        const amount = Math.min(1, age / 650), eased = amount * amount * (3 - 2 * amount);
+        const targetX = character.x + CHARACTER_SIZE / 2 - mainCamera.width / 2, targetY = character.y + CHARACTER_SIZE / 2 - mainCamera.height / 2;
+        mainCamera.setScroll(Math.round(transition.from[0] + (targetX - transition.from[0]) * eased), Math.round(transition.from[1] + (targetY - transition.from[1]) * eased));
+        if (amount >= 1) {
+            cameraScrollX = targetX; cameraScrollY = targetY; cameraOffsetX = cameraOffsetY = 0;
+            transition.phase = 'in'; transition.start = time;
+        }
+    } else {
+        ditherInCharacter(scene, Math.min(16, Math.round(age / 250 * 16)));
+        if (age >= 250) { spawnReturn = null; saveDirty = true; }
+    }
+    updateLoadedChunks(scene); buildPendingChunk(scene); updateChunkVisibility();
+    updateTreeShadows(scene, time); updateParticles(time); updateNpcs(scene, time, delta);
+    updateFish(delta); updateSky(scene, time, delta); updateChunkWater(time);
 }
 
 function findCharacterSlide(scene, moveX, moveY) {

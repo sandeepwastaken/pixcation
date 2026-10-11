@@ -66,7 +66,7 @@ function updateStartup(scene, time, delta) {
         if (mainCamera.scrollX !== scrollX || mainCamera.scrollY !== scrollY) mainCamera.setScroll(scrollX, scrollY);
         const hover = Math.round(Math.sin(age / 1000) * 2);
         if (startup.logo.y !== 40 + hover) startup.logoShadow.y = (startup.logo.y = 40 + hover) + 2;
-        const hintVisibility = age % 1600 < 1200 ? '' : 'hidden';
+        const hintVisibility = '';
         if (startup.hint && startup.hint.style.visibility !== hintVisibility) startup.hint.style.visibility = hintVisibility;
     } else if (startup.phase === 'closing') {
         const t = Math.min(1, age / 900);
