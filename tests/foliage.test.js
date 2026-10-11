@@ -12,6 +12,7 @@ test('wind stays on the pixel grid and rustling keeps tree trunks anchored', () 
     const context = vm.createContext({ Math: math, character: { x: -16, y: -16 }, loadedChunks: new Map([['0', { trees: [tree], bushes: [bush] }]]), dropLeaves() {}, store: null });
     vm.runInContext(fs.readFileSync('src/runtime/settings.js', 'utf8') + fs.readFileSync('src/environment/bushes.js', 'utf8'), context);
     context.getWindTexture = (scene, key, offset) => `${offset}`;
+    context.getSeeThroughTexture = (scene, key, level) => `${key}-see${level}`;
     const positions = new Set();
     const scene = {};
     for (let time = 0; time < 20000; time += 17) {

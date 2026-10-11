@@ -34,17 +34,31 @@ function getWindTexture(scene, key, offset) {
     return name;
 }
 
-function getSeeThroughTexture(scene, key) {
-    const name = `${key}-see`;
+function getSeeThroughTexture(scene, key, level) {
+    const name = `${key}-see${level}`;
     if (scene.textures.exists(name)) return name;
     const source = getTextureSource(scene, key);
     createCanvasTexture(scene, name, source.width, source.height, context => {
         context.drawImage(source, 0, 0);
+        const image = context.getImageData(0, 0, source.width, source.height);
         for (let y = 0; y < source.height; y++) {
-            for (let x = y & 1; x < source.width; x += 2) context.clearRect(x, y, 1, 1);
+            for (let x = 0; x < source.width; x++) if (SEE_THROUGH_RANKS[(y & 3) * 4 + (x & 3)] < level) image.data[(y * source.width + x) * 4 + 3] = 0;
         }
+        context.putImageData(image, 0, 0);
     });
     return name;
+}
+
+function stepSeeThrough(target, hiding, time) {
+    const goal = hiding ? SEE_THROUGH_LEVEL : 0;
+    if ((target.seeLevel ??= 0) === goal || time < (target.seeStepAt ?? 0)) return false;
+    target.seeLevel += Math.sign(goal - target.seeLevel);
+    target.seeStepAt = time + SEE_THROUGH_STEP;
+    return true;
+}
+
+function seeThrough(scene, key, level) {
+    return level ? getSeeThroughTexture(scene, key, level) : key;
 }
 
 function getBushWindTextures(scene, offset, count) {
@@ -75,6 +89,7 @@ function updateBushRustle(scene, time, isWalking) {
             }
 
             bush.touching = touching;
+            if (stepSeeThrough(bush, right > bush.x + 4 && left < bush.x + 28 && bottom > bush.y - 20 && bottom < bush.y + 1, time)) bush.offset = null;
 
             const age = time - bush.rustleStart;
             const rustle = age < BUSH_RUSTLE_DURATION
@@ -89,7 +104,7 @@ function updateBushRustle(scene, time, isWalking) {
             const x = bush.x - 3;
 
             for (let index = 0; index < bush.slices.length; index++) {
-                bush.slices[index].setTexture(textures[index]);
+                bush.slices[index].setTexture(seeThrough(scene, textures[index], bush.seeLevel));
                 bush.slices[index].x = x;
             }
         }
@@ -104,10 +119,9 @@ function updateBushRustle(scene, time, isWalking) {
                 spawnParticle(scene, worldObjectLayer, time, tree.x + 14 + Math.floor(Math.random() * (tree.width - 28)), tree.y + 40 + Math.floor(Math.random() * 8), Math.random() < 0.5 ? -1 : 1, 2, TREE_LEAF_LIFETIME, tree.color, tree.baseY + 0.2);
             }
             const hiding = right > tree.x + 10 && left < tree.x + tree.width - 10 && bottom > tree.y + 12 && bottom < tree.baseY - 2;
-            if (tree.trunk && hiding !== Boolean(tree.see)) {
-                tree.see = hiding;
+            if (tree.trunk && stepSeeThrough(tree, hiding, time)) {
                 tree.offset = null;
-                tree.trunk.setTexture(hiding ? getSeeThroughTexture(scene, tree.trunkTexture) : tree.trunkTexture);
+                tree.trunk.setTexture(seeThrough(scene, tree.trunkTexture, tree.seeLevel));
             }
             const age = time - tree.rustleStart;
             const rustle = age < BUSH_RUSTLE_DURATION
@@ -116,16 +130,13 @@ function updateBushRustle(scene, time, isWalking) {
             if (tree.offset === offset) continue;
             tree.offset = offset;
             const windTexture = getWindTexture(scene, tree.texture, offset);
-            tree.canopy.setTexture(tree.see ? getSeeThroughTexture(scene, windTexture) : windTexture);
+            tree.canopy.setTexture(seeThrough(scene, windTexture, tree.seeLevel));
             tree.canopy.x = tree.x - 3;
         }
     }
     if (store) {
         const hiding = right > store.x + 4 && left < store.x + STORE_WIDTH - 4 && bottom > store.y + 4 && bottom < store.y + STORE_HITBOX_Y;
-        if (hiding !== Boolean(store.see)) {
-            store.see = hiding;
-            store.setTexture(hiding ? getSeeThroughTexture(scene, 'store') : 'store');
-        }
+        if (stepSeeThrough(store, hiding, time)) store.setTexture(seeThrough(scene, 'store', store.seeLevel));
     }
 }
 
