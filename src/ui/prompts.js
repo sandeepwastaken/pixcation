@@ -1,3 +1,6 @@
+const PROMPT_DITHER_RANKS = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const promptDitherMasks = [];
+
 function createInteractionPromptUI(scene) {
     const wrapper = document.createElement('div');
     const row = document.createElement('div');
@@ -81,7 +84,7 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
         scene.tweens.add({
             targets: promptMotion,
             value: 0,
-            duration: 90,
+            duration: 160,
             onUpdate: applyPromptMotion,
             onComplete: () => promptState === 0 && interactionPromptLayer.setVisible(false)
         });
@@ -94,11 +97,26 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
     interactionPromptLayer.setVisible(true);
     if (!wasShowing) promptMotion.value = 0;
     applyPromptMotion();
-    scene.tweens.add({ targets: promptMotion, value: 1, duration: 140, ease: 'Cubic.Out', onUpdate: applyPromptMotion });
+    scene.tweens.add({ targets: promptMotion, value: 1, duration: 240, ease: 'Linear', onUpdate: applyPromptMotion });
 }
 
 function applyPromptMotion() {
     interactionPromptLayer
         .setY(PROMPT_Y + Math.round((1 - promptMotion.value) * PROMPT_SLIDE))
         .setVisible(promptMotion.value > 0.05);
+    const level = Math.round(promptMotion.value * 16);
+    const style = interactionPromptLayer.node.style;
+    const mask = level >= 16 ? '' : getPromptDitherMask(level);
+    if (style.maskImage === mask) return;
+    style.maskImage = style.webkitMaskImage = mask;
+    style.maskSize = style.webkitMaskSize = '4px 4px';
+}
+
+function getPromptDitherMask(level) {
+    if (promptDitherMasks[level]) return promptDitherMasks[level];
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 4;
+    const context = canvas.getContext('2d');
+    for (let index = 0; index < 16; index++) if (PROMPT_DITHER_RANKS[index] < level) context.fillRect(index % 4, index >> 2, 1, 1);
+    return promptDitherMasks[level] = `url(${canvas.toDataURL()})`;
 }

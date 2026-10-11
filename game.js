@@ -1899,6 +1899,19 @@ function markWaterFoam(scene, data, pixelX, pixelY) {
     }
 }
 
+function shadeWaterUndersides(scene, data, pixelX, pixelY) {
+    for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
+        for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
+            const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
+            if (!data[index]) continue;
+            const land = y + 1 < CHUNK_PIXEL_SIZE ? !data[index + CHUNK_PIXEL_SIZE * 4] : !isWaterPixel(scene, pixelX + x, pixelY + y + 1);
+            if (!land || getWorldTile(Math.floor((pixelX + x) / TILE_SIZE), Math.floor((pixelY + y + 1) / TILE_SIZE)).key.startsWith('wood')) continue;
+            data[index] = 128;
+            data[index + 2] = 0;
+        }
+    }
+}
+
 function buildChunkWater(scene, chunk) {
     const { chunkX, chunkY, shadowMask } = chunk;
     const { waterMaskCells, edgeCells, woodTiles, shorelineTiles } = chunk.waterBuild;
@@ -1929,6 +1942,7 @@ function buildChunkWater(scene, chunk) {
     bakeChestSilhouette(chunk, data);
     markWaterEdges(data, edgeCells, pixelX, pixelY);
     markWaterFoam(scene, data, pixelX, pixelY);
+    shadeWaterUndersides(scene, data, pixelX, pixelY);
 
     context.putImageData(image, 0, 0);
     chunk.waterShadowBase = new Uint8ClampedArray(data);
@@ -5541,6 +5555,9 @@ function showRewardCard(scene, time, title, detail) {
     });
 }
 
+const PROMPT_DITHER_RANKS = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const promptDitherMasks = [];
+
 function createInteractionPromptUI(scene) {
     const wrapper = document.createElement('div');
     const row = document.createElement('div');
@@ -5624,7 +5641,7 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
         scene.tweens.add({
             targets: promptMotion,
             value: 0,
-            duration: 90,
+            duration: 160,
             onUpdate: applyPromptMotion,
             onComplete: () => promptState === 0 && interactionPromptLayer.setVisible(false)
         });
@@ -5637,13 +5654,28 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
     interactionPromptLayer.setVisible(true);
     if (!wasShowing) promptMotion.value = 0;
     applyPromptMotion();
-    scene.tweens.add({ targets: promptMotion, value: 1, duration: 140, ease: 'Cubic.Out', onUpdate: applyPromptMotion });
+    scene.tweens.add({ targets: promptMotion, value: 1, duration: 240, ease: 'Linear', onUpdate: applyPromptMotion });
 }
 
 function applyPromptMotion() {
     interactionPromptLayer
         .setY(PROMPT_Y + Math.round((1 - promptMotion.value) * PROMPT_SLIDE))
         .setVisible(promptMotion.value > 0.05);
+    const level = Math.round(promptMotion.value * 16);
+    const style = interactionPromptLayer.node.style;
+    const mask = level >= 16 ? '' : getPromptDitherMask(level);
+    if (style.maskImage === mask) return;
+    style.maskImage = style.webkitMaskImage = mask;
+    style.maskSize = style.webkitMaskSize = '4px 4px';
+}
+
+function getPromptDitherMask(level) {
+    if (promptDitherMasks[level]) return promptDitherMasks[level];
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 4;
+    const context = canvas.getContext('2d');
+    for (let index = 0; index < 16; index++) if (PROMPT_DITHER_RANKS[index] < level) context.fillRect(index % 4, index >> 2, 1, 1);
+    return promptDitherMasks[level] = `url(${canvas.toDataURL()})`;
 }
 
 function createMarketUI(scene) {
@@ -6622,7 +6654,7 @@ const WOOD_SHADOW_OFFSET = 2;
 const SHORE_DISTANCE_MARGIN_TILES = 2;
 const SHORE_DISTANCE_MAX = 24;
 const WATER_BASE_COLOR = [0x68, 0x90, 0xca];
-const WATER_FOAM_OFFSETS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+const WATER_FOAM_OFFSETS = [[0, -1], [-1, 0], [1, 0]];
 const WATER_BANK_OFFSETS = [[0, -1], [0, -2], [0, -3], [-1, -1], [-1, 0]];
 const CHUNK_LOAD_RADIUS = 1;
 const CHUNK_DISCOVERY_RADIUS = 2;
