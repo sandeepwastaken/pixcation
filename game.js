@@ -907,7 +907,13 @@ function getTerrainType(tileX, tileY) {
 }
 
 function generateTerrainCode(tileX, tileY) {
-    return TERRAIN_TYPES.indexOf(generateTerrainType(tileX, tileY));
+    const terrain = generateTerrainType(tileX, tileY);
+    return TERRAIN_TYPES.indexOf(terrain === 'dirt' && isThinDirt(tileX, tileY) ? 'grass' : terrain);
+}
+
+function isThinDirt(tileX, tileY) {
+    const grass = (offsetX, offsetY) => generateTerrainType(tileX + offsetX, tileY + offsetY) === 'grass';
+    return grass(-1, 0) && grass(1, 0) || grass(0, -1) && grass(0, 1);
 }
 
 function generateTerrainType(tileX, tileY) {
