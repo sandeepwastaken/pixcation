@@ -540,7 +540,7 @@
     "h": 16
    }
   },
-  "characters/player/back": {
+  "environment/terrain/cornerDirt1": {
    "frame": {
     "x": 163,
     "y": 506,
@@ -560,7 +560,7 @@
     "h": 16
    }
   },
-  "characters/player/backwalk1": {
+  "environment/terrain/cornerDirt2": {
    "frame": {
     "x": 180,
     "y": 506,
@@ -580,7 +580,7 @@
     "h": 16
    }
   },
-  "characters/player/backwalk2": {
+  "environment/terrain/cornerDirt3": {
    "frame": {
     "x": 197,
     "y": 506,
@@ -600,7 +600,7 @@
     "h": 16
    }
   },
-  "characters/player/front": {
+  "environment/terrain/dirt1": {
    "frame": {
     "x": 214,
     "y": 506,
@@ -620,7 +620,7 @@
     "h": 16
    }
   },
-  "characters/player/frontwalk1": {
+  "environment/terrain/dirtEdge": {
    "frame": {
     "x": 231,
     "y": 506,
@@ -640,7 +640,7 @@
     "h": 16
    }
   },
-  "characters/player/frontwalk2": {
+  "environment/terrain/dirtEdgeInnerLeft": {
    "frame": {
     "x": 248,
     "y": 506,
@@ -660,7 +660,7 @@
     "h": 16
    }
   },
-  "characters/player/left": {
+  "environment/terrain/dirtEdgeInnerRight": {
    "frame": {
     "x": 265,
     "y": 506,
@@ -680,7 +680,7 @@
     "h": 16
    }
   },
-  "characters/player/leftwalk1": {
+  "environment/terrain/dirtEdgeOuterBoth": {
    "frame": {
     "x": 282,
     "y": 506,
@@ -700,7 +700,7 @@
     "h": 16
    }
   },
-  "characters/player/leftwalk2": {
+  "environment/terrain/dirtEdgeOuterLeft": {
    "frame": {
     "x": 299,
     "y": 506,
@@ -720,7 +720,7 @@
     "h": 16
    }
   },
-  "characters/player/right": {
+  "environment/terrain/dirtEdgeOuterRight": {
    "frame": {
     "x": 316,
     "y": 506,
@@ -740,7 +740,7 @@
     "h": 16
    }
   },
-  "characters/player/rightwalk1": {
+  "environment/terrain/grass1": {
    "frame": {
     "x": 333,
     "y": 506,
@@ -760,7 +760,7 @@
     "h": 16
    }
   },
-  "characters/player/rightwalk2": {
+  "environment/terrain/grass2": {
    "frame": {
     "x": 350,
     "y": 506,
@@ -780,7 +780,7 @@
     "h": 16
    }
   },
-  "environment/terrain/cornerDirt1": {
+  "environment/terrain/grass3": {
    "frame": {
     "x": 367,
     "y": 506,
@@ -800,7 +800,7 @@
     "h": 16
    }
   },
-  "environment/terrain/cornerDirt2": {
+  "environment/terrain/grass4": {
    "frame": {
     "x": 384,
     "y": 506,
@@ -820,7 +820,7 @@
     "h": 16
    }
   },
-  "environment/terrain/cornerDirt3": {
+  "environment/terrain/grassEdge": {
    "frame": {
     "x": 401,
     "y": 506,
@@ -840,7 +840,7 @@
     "h": 16
    }
   },
-  "environment/terrain/dirt1": {
+  "environment/terrain/transition1": {
    "frame": {
     "x": 418,
     "y": 506,
@@ -860,7 +860,7 @@
     "h": 16
    }
   },
-  "environment/terrain/dirtEdge": {
+  "environment/terrain/transition2": {
    "frame": {
     "x": 435,
     "y": 506,
@@ -880,7 +880,7 @@
     "h": 16
    }
   },
-  "environment/terrain/dirtEdgeInnerLeft": {
+  "environment/terrain/transition3": {
    "frame": {
     "x": 452,
     "y": 506,
@@ -900,7 +900,7 @@
     "h": 16
    }
   },
-  "environment/terrain/dirtEdgeInnerRight": {
+  "environment/terrain/transition4": {
    "frame": {
     "x": 469,
     "y": 506,
@@ -920,7 +920,7 @@
     "h": 16
    }
   },
-  "environment/terrain/dirtEdgeOuterBoth": {
+  "environment/terrain/water": {
    "frame": {
     "x": 486,
     "y": 506,
@@ -940,7 +940,7 @@
     "h": 16
    }
   },
-  "environment/terrain/dirtEdgeOuterLeft": {
+  "environment/terrain/waterDirt": {
    "frame": {
     "x": 503,
     "y": 506,
@@ -960,249 +960,9 @@
     "h": 16
    }
   },
-  "environment/terrain/dirtEdgeOuterRight": {
-   "frame": {
-    "x": 0,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/grass1": {
-   "frame": {
-    "x": 17,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/grass2": {
-   "frame": {
-    "x": 34,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/grass3": {
-   "frame": {
-    "x": 51,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/grass4": {
-   "frame": {
-    "x": 68,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/grassEdge": {
-   "frame": {
-    "x": 85,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/transition1": {
-   "frame": {
-    "x": 102,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/transition2": {
-   "frame": {
-    "x": 119,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/transition3": {
-   "frame": {
-    "x": 136,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/transition4": {
-   "frame": {
-    "x": 153,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/water": {
-   "frame": {
-    "x": 170,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
-  "environment/terrain/waterDirt": {
-   "frame": {
-    "x": 187,
-    "y": 527,
-    "w": 16,
-    "h": 16
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 16,
-    "h": 16
-   },
-   "sourceSize": {
-    "w": 16,
-    "h": 16
-   }
-  },
   "environment/terrain/waterDirtInnerLeft": {
    "frame": {
-    "x": 204,
+    "x": 0,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1222,7 +982,7 @@
   },
   "environment/terrain/waterDirtInnerRight": {
    "frame": {
-    "x": 221,
+    "x": 17,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1242,7 +1002,7 @@
   },
   "environment/terrain/waterGrass": {
    "frame": {
-    "x": 238,
+    "x": 34,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1262,7 +1022,7 @@
   },
   "environment/terrain/wood": {
    "frame": {
-    "x": 255,
+    "x": 51,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1282,7 +1042,7 @@
   },
   "environment/terrain/woodLeft": {
    "frame": {
-    "x": 272,
+    "x": 68,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1302,7 +1062,7 @@
   },
   "environment/terrain/woodRight": {
    "frame": {
-    "x": 289,
+    "x": 85,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1322,7 +1082,7 @@
   },
   "items/baits/advanced-icon": {
    "frame": {
-    "x": 306,
+    "x": 102,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1342,7 +1102,7 @@
   },
   "items/baits/novice-icon": {
    "frame": {
-    "x": 323,
+    "x": 119,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1362,7 +1122,7 @@
   },
   "items/baits/trainer-icon": {
    "frame": {
-    "x": 340,
+    "x": 136,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1382,7 +1142,7 @@
   },
   "items/rods/basic-icon": {
    "frame": {
-    "x": 357,
+    "x": 153,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1402,7 +1162,7 @@
   },
   "items/rods/intermediate-icon": {
    "frame": {
-    "x": 374,
+    "x": 170,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1422,7 +1182,7 @@
   },
   "items/rods/master-icon": {
    "frame": {
-    "x": 391,
+    "x": 187,
     "y": 527,
     "w": 16,
     "h": 16
@@ -1442,7 +1202,7 @@
   },
   "environment/objects/rock": {
    "frame": {
-    "x": 408,
+    "x": 204,
     "y": 527,
     "w": 14,
     "h": 16
@@ -1462,7 +1222,7 @@
   },
   "environment/effects/shimmer": {
    "frame": {
-    "x": 423,
+    "x": 219,
     "y": 527,
     "w": 12,
     "h": 16
@@ -1482,7 +1242,7 @@
   },
   "ui/fishing/fish": {
    "frame": {
-    "x": 436,
+    "x": 232,
     "y": 527,
     "w": 11,
     "h": 8
@@ -1502,7 +1262,7 @@
   },
   "ui/fishing/catch-zone": {
    "frame": {
-    "x": 448,
+    "x": 244,
     "y": 527,
     "w": 8,
     "h": 8
@@ -1522,7 +1282,7 @@
   },
   "environment/terrain/corner": {
    "frame": {
-    "x": 457,
+    "x": 253,
     "y": 527,
     "w": 7,
     "h": 7
@@ -1542,7 +1302,7 @@
   },
   "environment/terrain/dirtCliffCorner": {
    "frame": {
-    "x": 465,
+    "x": 261,
     "y": 527,
     "w": 5,
     "h": 5
@@ -1562,7 +1322,7 @@
   },
   "environment/terrain/dirtEdgeCorner": {
    "frame": {
-    "x": 471,
+    "x": 267,
     "y": 527,
     "w": 5,
     "h": 5
@@ -1584,7 +1344,7 @@
  "meta": {
   "image": "atlas.png",
   "size": {
-   "w": 532,
+   "w": 527,
    "h": 543
   },
   "scale": 1

@@ -50,37 +50,7 @@ function findNpc(tileX, tileY) {
 }
 
 function getNpcTexture(scene, look, direction) {
-    const key = `npc-${look.join('-')}-${direction}`;
-    if (scene.textures.exists(key)) return key;
-
-    const [skin, face, shirt, shirtColor, pants, accessory, top, topColor] = look;
-    const column = direction === 'back' ? 0 : direction === 'front' ? 1 : 2;
-    const mirror = direction === 'right';
-    const colors = new Map();
-    const assign = (sources, targets) => sources.forEach((source, index) => colors.set(source, targets[index]));
-    assign(NPC_PART_COLORS.skin, NPC_SKIN_TONES[skin]);
-    assign(NPC_PART_COLORS.pants, NPC_PANTS_COLORS[pants]);
-    assign(NPC_PART_COLORS.shirt, NPC_SHIRT_COLORS[shirtColor]);
-    if (accessory) assign(NPC_PART_COLORS.accessory, NPC_ACCESSORY_COLORS[topColor]);
-    else assign(NPC_PART_COLORS.hair, NPC_HAIR_COLORS[topColor]);
-    const layers = [[face * 3 + column, 0], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
-    const sheet = getTerrainPixels(scene, 'character-parts');
-
-    createCanvasTexture(scene, key, NPC_PART_SIZE, NPC_PART_SIZE, context => {
-        const image = context.createImageData(NPC_PART_SIZE, NPC_PART_SIZE);
-        for (const [cellX, cellY] of layers) {
-            for (let y = 0; y < NPC_PART_SIZE; y++) {
-                for (let x = 0; x < NPC_PART_SIZE; x++) {
-                    const source = ((cellY * NPC_PART_SIZE + y) * sheet.width + cellX * NPC_PART_SIZE + (mirror ? NPC_PART_SIZE - 1 - x : x)) * 4;
-                    if (!sheet.data[source + 3]) continue;
-                    const color = colors.get((sheet.data[source] << 16) | (sheet.data[source + 1] << 8) | sheet.data[source + 2]);
-                    if (color !== undefined) writeRGBPixel(image.data, y * NPC_PART_SIZE + x, color);
-                }
-            }
-        }
-        context.putImageData(image, 0, 0);
-    });
-    return key;
+    return getPersonTexture(scene, `npc-${look.join('-')}-${direction}`, look, direction);
 }
 
 function plotNpcLine(graphics, fromX, fromY, toX, toY, color) {

@@ -16,12 +16,6 @@ function getTextureAliases() {
         'wood', 'woodLeft', 'woodRight', 'transition1', 'transition2', 'transition3', 'transition4'
     ];
 
-    for (const direction of ['front', 'back', 'left', 'right']) {
-        for (const step of ['', 'walk1', 'walk2']) {
-            alias(`character-${direction}${step}`, `characters/player/${direction}${step}`);
-        }
-    }
-
     for (const tileKey of tileKeys) {
         alias(tileKey, `environment/terrain/${tileKey}`);
     }

@@ -401,12 +401,23 @@ const NPC_SHIRT_COLORS = [
     [0xb0a080, 0xd2c4a2]
 ];
 const NPC_PANTS_COLORS = [
-    [0x773333, 0x9a4444],
-    [0x2e3550, 0x434c70],
-    [0x4e3a2a, 0x6b5240],
-    [0x4a5032, 0x666e46],
-    [0x4a4a52, 0x66666e]
+    [0x5c2525, 0x773333, 0x9a4444],
+    [0x222840, 0x2e3550, 0x434c70],
+    [0x3a2b1f, 0x4e3a2a, 0x6b5240],
+    [0x363b25, 0x4a5032, 0x666e46],
+    [0x36363c, 0x4a4a52, 0x66666e]
 ];
+const PLAYER_LOOK = [0, 0, 0, 0, 0, 1, 0, 0];
+const PERSON_ARM_TOP = 8;
+const PERSON_ARM_BOTTOM = 13;
+const PERSON_FOREARM_TOP = 11;
+const PERSON_HAND_ROW = 12;
+const PERSON_LEG_TOP = 13;
+const PERSON_LEFT_ARM = [3, 4];
+const PERSON_RIGHT_ARM = [11, 12];
+const PERSON_LEFT_LEG = [5, 6, 7];
+const PERSON_RIGHT_LEG = [8, 9, 10];
+const PERSON_INNER_LEG_COLUMNS = [7, 8];
 const NPC_ACCESSORY_COLORS = [
     [0x3f1919, 0x5c2525, 0x773333, 0x9a4444],
     [0x1c2340, 0x2e3a66, 0x43558a, 0x6276ab],

@@ -12,6 +12,7 @@ function create() {
     createBushSlices(this);
     createRoundedCliffTextures(this);
     createBridgeEdgeTexture(this);
+    createPlayerTextures(this);
     createShimmerSheet(this);
     extractRodArtStyles(this);
     createChestSilhouette(this);
