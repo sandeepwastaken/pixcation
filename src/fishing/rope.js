@@ -76,7 +76,7 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
         }
         if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] === 1) fishingWaterShadow.fillRect(x, y, 1, 1);
     };
-    fishingWaterShadow.fillStyle(0x3466b2, 1);
+    fishingWaterShadow.fillStyle(0x4770b0, 1);
     for (let index = 0; index < pixelPathLength; index++) {
         const amount = index / lastIndex;
         const height = Math.max(0, fromHeight + heightRange * amount);

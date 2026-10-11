@@ -146,17 +146,17 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                 }
 
                 vec3 tone(float index) {
-                    if (index < 0.5) return vec3(0.157, 0.306, 0.580);
-                    if (index < 1.5) return vec3(0.180, 0.353, 0.643);
-                    if (index < 2.5) return vec3(0.204, 0.400, 0.698);
-                    if (index < 3.5) return vec3(0.227, 0.447, 0.745);
-                    if (index < 4.5) return vec3(0.259, 0.510, 0.792);
-                    if (index < 5.5) return vec3(0.306, 0.588, 0.839);
-                    if (index < 6.5) return vec3(0.376, 0.675, 0.871);
-                    if (index < 7.5) return vec3(0.478, 0.769, 0.894);
-                    if (index < 8.5) return vec3(0.659, 0.871, 0.925);
-                    if (index < 9.5) return vec3(0.800, 0.933, 0.949);
-                    return vec3(0.925, 0.980, 0.980);
+                    if (index < 0.5) return vec3(0.255, 0.400, 0.647);
+                    if (index < 1.5) return vec3(0.278, 0.439, 0.690);
+                    if (index < 2.5) return vec3(0.298, 0.471, 0.733);
+                    if (index < 3.5) return vec3(0.318, 0.506, 0.769);
+                    if (index < 4.5) return vec3(0.341, 0.549, 0.796);
+                    if (index < 5.5) return vec3(0.369, 0.608, 0.827);
+                    if (index < 6.5) return vec3(0.416, 0.667, 0.839);
+                    if (index < 7.5) return vec3(0.482, 0.733, 0.851);
+                    if (index < 8.5) return vec3(0.608, 0.824, 0.882);
+                    if (index < 9.5) return vec3(0.737, 0.902, 0.922);
+                    return vec3(0.875, 0.953, 0.961);
                 }
 
                 float code(float channel) {
@@ -214,11 +214,11 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                     float waveLine = 2.0 + (1.0 - wave) * 5.0;
                     if (abs(shore + wobble * 0.35 - waveLine) < 0.5 && wave < 0.85) index = max(index, 7.0 + (wave > 0.5 ? 1.0 : 0.0));
 
-                    vec2 sparkleA = p * vec2(0.16, 0.22) + vec2(floor(t * 5.0) * 0.12, 0.0) + warp * 0.6;
-                    vec2 sparkleB = p * vec2(0.19, 0.25) + vec2(-floor(t * 4.0) * 0.12, 9.7) - warp * 0.6;
-                    float sparkle = noise(sparkleA) * noise(sparkleB) - noise(p * 0.03 + vec2(t * 0.02, 3.3)) * 0.35;
-                    if (reach > 6.0 && sparkle > 0.4) index = min(index + 2.0, 8.0);
-                    else if (reach > 6.0 && sparkle > 0.34) index = min(index + 1.0, 7.0);
+                    float glintStep = floor(t * 3.0);
+                    float glintShape = noise(p * vec2(0.19, 0.75) + vec2(t * 0.04, 0.0));
+                    float glintOn = hash(floor(p / vec2(8.0, 4.0)) + vec2(glintStep * 1.7, glintStep * 0.3));
+                    if (reach > 6.0 && glintOn > 0.55 && glintShape > 0.9) index = 8.0;
+                    else if (reach > 6.0 && glintOn > 0.55 && glintShape > 0.82) index = 6.0;
 
                     float first = caustic(floor(p + offset + vec2(t * 4.0, t * 1.6) + 0.5));
                     float second = caustic(floor(p * 0.75 - offset * 0.8 + vec2(-t * 2.6, t * 3.1) + 0.5) + vec2(13.0, 7.0));
@@ -3865,11 +3865,11 @@ function splash(scene, time, x, y) {
 
     for (let index = 0; index < SPLASH_PARTICLES; index++) {
         const [directionX, directionY] = splashDirections[index];
-        if (index % 3 === 0) spawnParticle(scene, shadowLayer, time, centerX + Math.round(directionX * 2), centerY - 1, Math.sign(directionX), -1, 260, 0xccebf2);
+        if (index % 3 === 0) spawnParticle(scene, shadowLayer, time, centerX + Math.round(directionX * 2), centerY - 1, Math.sign(directionX), -1, 260, 0xbce6eb);
 
         spawnParticle(
             scene, shadowLayer, time, centerX, centerY, 0, 0, SPLASH_LIFETIME,
-            index % 2 ? 0x7ac4e4 : 0x60acde, 0, directionX, directionY, true
+            index % 2 ? 0x7bbbd9 : 0x6aaad6, 0, directionX, directionY, true
         );
     }
 }
@@ -3888,7 +3888,7 @@ function nibbleRipple(scene, time, x, y) {
         spawnParticle(
             scene, shadowLayer, time,
             x + (horizontal ? side * 2 : 0), y + (horizontal ? 0 : side),
-            horizontal ? side : 0, 0, 180, index % 2 ? 0x60acde : 0x7ac4e4
+            horizontal ? side : 0, 0, 180, index % 2 ? 0x6aaad6 : 0x7bbbd9
         );
     }
 }
@@ -4165,7 +4165,7 @@ function drawFishingWaterShadow(scene, fromHeight, toHeight) {
         }
         if (water[(y - tileOriginY) * TILE_SIZE + x - tileOriginX] === 1) fishingWaterShadow.fillRect(x, y, 1, 1);
     };
-    fishingWaterShadow.fillStyle(0x3466b2, 1);
+    fishingWaterShadow.fillStyle(0x4770b0, 1);
     for (let index = 0; index < pixelPathLength; index++) {
         const amount = index / lastIndex;
         const height = Math.max(0, fromHeight + heightRange * amount);
@@ -5130,7 +5130,7 @@ function getMapPalette(scene) {
         wood: pack(getDominantColor(scene, 'wood')),
         store: pack(getDominantColor(scene, 'store')),
         trunk: pack(getDominantColor(scene, 'tree-bare')),
-        water: [0x7ac4e4, 0x4e96d6, 0x3a72be],
+        water: [0x7bbbd9, 0x5e9bd3, 0x5181c4],
         fog: [0x1a1a1a, 0x2a2a2a],
         guide: 0xacccf9,
         player: 0xf6f5e5,

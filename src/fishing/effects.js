@@ -9,11 +9,11 @@ function splash(scene, time, x, y) {
 
     for (let index = 0; index < SPLASH_PARTICLES; index++) {
         const [directionX, directionY] = splashDirections[index];
-        if (index % 3 === 0) spawnParticle(scene, shadowLayer, time, centerX + Math.round(directionX * 2), centerY - 1, Math.sign(directionX), -1, 260, 0xccebf2);
+        if (index % 3 === 0) spawnParticle(scene, shadowLayer, time, centerX + Math.round(directionX * 2), centerY - 1, Math.sign(directionX), -1, 260, 0xbce6eb);
 
         spawnParticle(
             scene, shadowLayer, time, centerX, centerY, 0, 0, SPLASH_LIFETIME,
-            index % 2 ? 0x7ac4e4 : 0x60acde, 0, directionX, directionY, true
+            index % 2 ? 0x7bbbd9 : 0x6aaad6, 0, directionX, directionY, true
         );
     }
 }
@@ -32,7 +32,7 @@ function nibbleRipple(scene, time, x, y) {
         spawnParticle(
             scene, shadowLayer, time,
             x + (horizontal ? side * 2 : 0), y + (horizontal ? 0 : side),
-            horizontal ? side : 0, 0, 180, index % 2 ? 0x60acde : 0x7ac4e4
+            horizontal ? side : 0, 0, 180, index % 2 ? 0x6aaad6 : 0x7bbbd9
         );
     }
 }

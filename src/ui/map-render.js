@@ -21,7 +21,7 @@ function getMapPalette(scene) {
         wood: pack(getDominantColor(scene, 'wood')),
         store: pack(getDominantColor(scene, 'store')),
         trunk: pack(getDominantColor(scene, 'tree-bare')),
-        water: [0x7ac4e4, 0x4e96d6, 0x3a72be],
+        water: [0x7bbbd9, 0x5e9bd3, 0x5181c4],
         fog: [0x1a1a1a, 0x2a2a2a],
         guide: 0xacccf9,
         player: 0xf6f5e5,
