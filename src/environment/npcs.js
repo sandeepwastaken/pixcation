@@ -375,6 +375,24 @@ function getDirectionToward(npc, targetX, targetY) {
     return Math.abs(x) > Math.abs(y) ? (x < 0 ? 'left' : 'right') : (y < 0 ? 'back' : 'front');
 }
 
+function canNpcTraverse(scene, npc, x, y, targetX, targetY) {
+    if (!canNpcOccupy(scene, npc, x, y)) return false;
+    while (x !== targetX || y !== targetY) {
+        if (x !== targetX) x += Math.sign(targetX - x) * Math.min(1, Math.abs(targetX - x));
+        else y += Math.sign(targetY - y) * Math.min(1, Math.abs(targetY - y));
+        if (!canNpcOccupy(scene, npc, x, y)) return false;
+    }
+    return true;
+}
+
+function getNpcBlockingNeighbor(npc) {
+    const next = npc.path[0];
+    if (!next) return null;
+    const stepX = Math.sign(next[0] * TILE_SIZE - npc.x), stepY = stepX ? 0 : Math.sign(next[1] * TILE_SIZE - npc.y);
+    const left = npc.x + stepX + CHARACTER_HITBOX_X, top = npc.y + stepY + CHARACTER_HITBOX_Y;
+    return activeNpcs.find(other => other !== npc && other.state !== 'home' && actorBlocksRect(other, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, left + CHARACTER_HITBOX_WIDTH, top + CHARACTER_HITBOX_HEIGHT));
+}
+
 function pauseNpcActivity(npc) {
     if (npc.state === 'social' && npc.pausedActivity) return;
     const preparing = npc.state === 'aim' || npc.state === 'charge';
@@ -431,7 +449,7 @@ function findNpcPath(fromX, fromY, toX, toY, npc, scene) {
             const nextX = x + stepX, nextY = y + stepY, key = getTileId(nextX, nextY);
             if (npc && !isNpcInHomeArea(npc, nextX, nextY)) continue;
             if (previous.has(key) || !isNpcWalkableTile(nextX, nextY)) continue;
-            if (scene && !canNpcOccupy(scene, npc, nextX * TILE_SIZE, nextY * TILE_SIZE)) continue;
+            if (scene && !canNpcTraverse(scene, npc, x * TILE_SIZE, y * TILE_SIZE, nextX * TILE_SIZE, nextY * TILE_SIZE)) continue;
             previous.set(key, [x, y]);
             if (key === goal) {
                 const path = [[nextX, nextY]];
@@ -456,10 +474,20 @@ function startNpcPath(npc, path, goal, time) {
 function rerouteNpc(scene, npc, time) {
     const destination = npc.path[npc.path.length - 1];
     if (!destination) return false;
-    const path = findNpcPath(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE), destination[0], destination[1], npc, scene);
-    if (!path?.length) return false;
-    startNpcPath(npc, path, npc.goal, time);
-    return true;
+    const blocker = getNpcBlockingNeighbor(npc);
+    if (blocker?.state === 'walk' && npc.id > blocker.id && time - npc.stuckSince < NPC_STUCK_TIME + 1500) return true;
+    const anchors = [Math.floor(npc.x / TILE_SIZE), Math.ceil(npc.x / TILE_SIZE)].flatMap(x => [Math.floor(npc.y / TILE_SIZE), Math.ceil(npc.y / TILE_SIZE)].map(y => [x, y]));
+    anchors.sort((a, b) => Math.abs(a[0] * TILE_SIZE - npc.x) + Math.abs(a[1] * TILE_SIZE - npc.y) - Math.abs(b[0] * TILE_SIZE - npc.x) - Math.abs(b[1] * TILE_SIZE - npc.y));
+    for (const [x, y] of anchors) {
+        if (!isNpcInHomeArea(npc, x, y) || !canNpcTraverse(scene, npc, npc.x, npc.y, x * TILE_SIZE, y * TILE_SIZE)) continue;
+        const path = findNpcPath(x, y, destination[0], destination[1], npc, scene);
+        if (!path) continue;
+        const route = npc.x === x * TILE_SIZE && npc.y === y * TILE_SIZE ? path : [[x, y], ...path];
+        if (!route.length) continue;
+        startNpcPath(npc, route, npc.goal, time);
+        return true;
+    }
+    return false;
 }
 
 function rollNpcTile(npc, radius) {

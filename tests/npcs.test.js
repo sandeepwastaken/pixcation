@@ -3,6 +3,45 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('dynamic routes check the whole segment even when its endpoint is clear', () => {
+    const run = createNpcs();
+    run('first.x = 64; second.x = 72; character.x = character.y = -100; isNpcWalkableTile = (x, y) => x >= 2 && x <= 7 && (y === 3 || y === 4)');
+    run('canCharacterOccupy = (scene, x, y, ignore) => !isBlockedByNpc(x + CHARACTER_HITBOX_X, y + CHARACTER_HITBOX_Y, x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, ignore)');
+    assert.equal(run('canNpcOccupy(scene, first, 80, 48)'), true);
+    assert.equal(run('canNpcTraverse(scene, first, 64, 48, 80, 48)'), false);
+    assert.equal(run('canNpcTraverse(scene, first, 64, 48, 64, 64)'), true);
+    assert.equal(run('findNpcPath(4, 3, 6, 3, first, scene)[0][1]'), 4);
+});
+
+test('yielding to a moving neighbor is brief and falls back to a safe route', () => {
+    const run = createNpcs();
+    run('first.x = 64; second.x = 72; character.x = character.y = -100; isNpcWalkableTile = (x, y) => x >= 2 && x <= 7 && (y === 3 || y === 4)');
+    run('canCharacterOccupy = (scene, x, y, ignore) => !isBlockedByNpc(x + CHARACTER_HITBOX_X, y + CHARACTER_HITBOX_Y, x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, ignore)');
+    run("homes[1].tileX = second.tileX = 6; startNpcPath(first, [[5, 3]], 'wander', 100); startNpcPath(second, [[4, 3], [3, 3]], 'wander', 100)");
+    assert.equal(run('getNpcBlockingNeighbor(second).id'), 1);
+    assert.equal(run('rerouteNpc(scene, second, 800)'), true);
+    assert.equal(run('second.path[0][0]'), 4);
+    assert.equal(run('second.stuckSince'), 100);
+    assert.equal(run('rerouteNpc(scene, second, 2400)'), true);
+    assert.equal(run('second.path[0][0]'), 5);
+    assert.equal(run('second.stuckSince'), 2400);
+});
+
+test('walkers pass head-on through a nearby clear lane instead of replanning into each other forever', () => {
+    const run = createNpcs();
+    run('homes[1].tileX = second.tileX = 6; second.x = 96; first.walkPhase = second.walkPhase = 1; character.x = character.y = -100; npcRandom = () => 0.75; isNpcWalkableTile = (x, y) => x >= 2 && x <= 7 && (y === 3 || y === 4)');
+    run('canCharacterOccupy = (scene, x, y, ignore) => !isBlockedByNpc(x + CHARACTER_HITBOX_X, y + CHARACTER_HITBOX_Y, x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, ignore)');
+    run("startNpcPath(first, [[4, 3], [5, 3], [6, 3]], 'wander', 100); startNpcPath(second, [[5, 3], [4, 3], [3, 3]], 'wander', 100)");
+    run('let overlap = false; for (let time = 116; time < 20000; time += 16) { updateNpc(scene, first, time, 16); updateNpc(scene, second, time, 16); overlap ||= isBlockedByNpc(first.x + CHARACTER_HITBOX_X, first.y + CHARACTER_HITBOX_Y, first.x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, first.y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, first); if (first.state === "idle" && second.state === "idle") break; }');
+    assert.equal(run('overlap'), false);
+    assert.equal(run('first.x'), 96);
+    assert.equal(run('second.x'), 48);
+    assert.equal(run('first.y'), 48);
+    assert.equal(run('second.y'), 48);
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('second.state'), 'idle');
+});
+
 test('morning and evening neighbor exchanges match the listener routine', () => {
     const run = createNpcs();
     run("first.dailyPlan = second.dailyPlan = 'day'; second.water = {}; getWorldClock = () => ({ hour: 8, day: 1 }); startNpcConversation(scene, first, second, 100)");
