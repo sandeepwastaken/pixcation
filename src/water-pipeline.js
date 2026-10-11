@@ -101,11 +101,13 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         index = 5.0;
                     } else if (reach < 15.0) {
                         index = 4.0;
-                    } else if (depth < 0.34) {
-                        index = 1.0;
-                    } else if (depth < 0.44) {
+                    } else if (depth < 0.4) {
                         index = 2.0;
                     }
+
+                    float wave = fract(t * 0.22 + noise(p * 0.02) * 0.6);
+                    float waveLine = 2.0 + (1.0 - wave) * 5.0;
+                    if (abs(shore + wobble * 0.35 - waveLine) < 0.5 && wave < 0.85) index = max(index, 7.0 + (wave > 0.5 ? 1.0 : 0.0));
 
                     float cluster = fbm(p * 0.012 + vec2(t * 0.004, -t * 0.007) + warp * 0.8);
                     float crestA = noise(p * vec2(0.055, 0.2) + vec2(t * 0.55, t * 0.06) + warp * 4.0);
@@ -169,7 +171,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
 
                         if (edge >= 0.58 || edge >= 0.39 && edge < 0.42) {
                             index = 10.0;
-                        } else if (edge >= 0.46) {
+                        } else {
                             index = 8.0;
                         }
                     }

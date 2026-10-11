@@ -206,11 +206,13 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         index = 5.0;
                     } else if (reach < 15.0) {
                         index = 4.0;
-                    } else if (depth < 0.34) {
-                        index = 1.0;
-                    } else if (depth < 0.44) {
+                    } else if (depth < 0.4) {
                         index = 2.0;
                     }
+
+                    float wave = fract(t * 0.22 + noise(p * 0.02) * 0.6);
+                    float waveLine = 2.0 + (1.0 - wave) * 5.0;
+                    if (abs(shore + wobble * 0.35 - waveLine) < 0.5 && wave < 0.85) index = max(index, 7.0 + (wave > 0.5 ? 1.0 : 0.0));
 
                     float cluster = fbm(p * 0.012 + vec2(t * 0.004, -t * 0.007) + warp * 0.8);
                     float crestA = noise(p * vec2(0.055, 0.2) + vec2(t * 0.55, t * 0.06) + warp * 4.0);
@@ -274,7 +276,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
 
                         if (edge >= 0.58 || edge >= 0.39 && edge < 0.42) {
                             index = 10.0;
-                        } else if (edge >= 0.46) {
+                        } else {
                             index = 8.0;
                         }
                     }
@@ -1875,6 +1877,23 @@ function markWaterEdges(data, edgeCells, pixelX, pixelY) {
     }
 }
 
+function markWaterFoam(scene, data, pixelX, pixelY) {
+    for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
+        for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
+            const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
+            if (!data[index]) continue;
+            for (const [offsetX, offsetY] of WATER_FOAM_OFFSETS) {
+                const nextX = x + offsetX, nextY = y + offsetY;
+                const inside = nextX >= 0 && nextY >= 0 && nextX < CHUNK_PIXEL_SIZE && nextY < CHUNK_PIXEL_SIZE;
+                if (inside ? !data[(nextY * CHUNK_PIXEL_SIZE + nextX) * 4] : !isWaterPixel(scene, pixelX + nextX, pixelY + nextY)) {
+                    data[index + 2] = 255;
+                    break;
+                }
+            }
+        }
+    }
+}
+
 function buildChunkWater(scene, chunk) {
     const { chunkX, chunkY, shadowMask } = chunk;
     const { waterMaskCells, edgeCells, woodTiles, shorelineTiles } = chunk.waterBuild;
@@ -1903,6 +1922,7 @@ function buildChunkWater(scene, chunk) {
     shadeWaterWood(data, getChunkWoodMask(scene, gatherNearbyWoodTiles(chunkX, chunkY, woodTiles)));
     bakeChestSilhouette(chunk, data);
     markWaterEdges(data, edgeCells, pixelX, pixelY);
+    markWaterFoam(scene, data, pixelX, pixelY);
 
     context.putImageData(image, 0, 0);
     chunk.waterShadowBase = new Uint8ClampedArray(data);
@@ -6567,6 +6587,7 @@ const WOOD_SHADOW_OFFSET = 2;
 const SHORE_DISTANCE_MARGIN_TILES = 2;
 const SHORE_DISTANCE_MAX = 24;
 const WATER_BASE_COLOR = [0x68, 0x90, 0xca];
+const WATER_FOAM_OFFSETS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 const WATER_BANK_OFFSETS = [[0, -1], [0, -2], [0, -3], [-1, -1], [-1, 0]];
 const CHUNK_LOAD_RADIUS = 1;
 const CHUNK_DISCOVERY_RADIUS = 2;
