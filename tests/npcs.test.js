@@ -3,6 +3,79 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('walkers brake for corners and arrival without slowing at straight tile boundaries', () => {
+    const run = createNpcs();
+    run("startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100); first.x = 63; first.travelDirection = 'right'; first.turnUntil = 0; first.walkPhase = 1; first.walkSpeed = 0.5; canNpcOccupy = () => true; stepNpc(scene, first, 116, 16)");
+    assert.equal(run('first.walkSpeed'), 0.5);
+    run('first.path = [[4, 3], [4, 4]]; first.x = 63; first.walkSpeed = 0.5; stepNpc(scene, first, 132, 16)');
+    assert.ok(run('first.walkSpeed > 0 && first.walkSpeed < 0.5'));
+    run('first.path = [[4, 3]]; first.x = 63; first.walkSpeed = 0.5; stepNpc(scene, first, 148, 16)');
+    assert.ok(run('first.walkSpeed > 0 && first.walkSpeed < 0.5'));
+    run('let arrived = false; for (let time = 164; time < 1000; time += 16) { arrived = stepNpc(scene, first, time, 16); if (arrived) break; }');
+    assert.equal(run('arrived'), true);
+    assert.equal(run('first.x'), 64);
+    assert.equal(run('first.y'), 48);
+});
+
+test('a full shared walk respects both NPC hitboxes while reaching adjacent destinations', () => {
+    const run = createNpcs();
+    run("homes[1].tileX = second.tileX = 4; first.dailyPlan = second.dailyPlan = 'day'; character.x = character.y = -100; first.walkPhase = second.walkPhase = 1; npcRandom = () => 0.75");
+    run('canCharacterOccupy = (scene, x, y, ignore) => !isBlockedByNpc(x + CHARACTER_HITBOX_X, y + CHARACTER_HITBOX_Y, x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, ignore)');
+    run('startNpcConversation(scene, first, second, 100)');
+    assert.equal(run('tryNpcSharedWalk(scene, first, second, 5200)'), true);
+    run('let overlap = false; for (let time = 5216; time < 24000; time += 16) { updateNpc(scene, first, time, 16); updateNpc(scene, second, time, 16); overlap ||= isBlockedByNpc(first.x + CHARACTER_HITBOX_X, first.y + CHARACTER_HITBOX_Y, first.x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, first.y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, first); if (first.state === "idle" && second.state === "idle") break; }');
+    assert.equal(run('overlap'), false);
+    assert.equal(run('first.lastActivity'), 'walk');
+    assert.equal(run('second.lastActivity'), 'walk');
+    assert.equal(run('Math.abs(first.x - second.x) + Math.abs(first.y - second.y)'), 16);
+});
+
+test('shared walkers wait for a lagging friend without both waiting on equal routes', () => {
+    const run = createNpcs();
+    run("first.goal = second.goal = 'stroll'; first.state = second.state = 'walk'; first.walkPartner = 2; first.walkEnds = 10000; first.path = [[5, 3]]; second.path = [[4, 3], [5, 3], [6, 3]]; second.x = 112; first.walkSpeed = 0.5");
+    assert.equal(run('waitForNpcWalkPartner(scene, first, 1000)'), true);
+    assert.equal(run('first.walkSpeed'), 0);
+    assert.equal(run('first.stuckSince'), 1000);
+    run('first.path = [...second.path]');
+    assert.equal(run('waitForNpcWalkPartner(scene, first, 1016)'), false);
+    run('second.talking = true');
+    assert.equal(run('waitForNpcWalkPartner(scene, first, 1032)'), true);
+    assert.equal(run('first.state'), 'idle');
+});
+
+test('shared walks do not start at night or when every possible route is blocked', () => {
+    const run = createNpcs();
+    run("homes[1].tileX = second.tileX = 4; first.dailyPlan = 'home'; second.dailyPlan = 'day'; canNpcOccupy = () => true; startNpcConversation(scene, first, second, 100)");
+    assert.equal(run('first.walkInvitation'), false);
+    assert.equal(run('tryNpcSharedWalk(scene, first, second, 5100)'), false);
+    run("first.dailyPlan = 'day'; first.walkInvitation = true; canNpcOccupy = () => false");
+    assert.equal(run('tryNpcSharedWalk(scene, first, second, 5200)'), false);
+    assert.equal(run('first.state'), 'social');
+    assert.equal(run('second.state'), 'social');
+    assert.equal(run('first.walkInvitation'), false);
+});
+
+test('close neighbors follow a daytime conversation with a bounded shared walk', () => {
+    const run = createNpcs();
+    run("homes[1].tileX = second.tileX = 4; first.dailyPlan = second.dailyPlan = 'day'; first.speed = 0.5; second.speed = 0.35; canNpcOccupy = () => true; npcRandom = () => 0.75; startNpcConversation(scene, first, second, 100)");
+    assert.equal(run('first.walkInvitation'), true);
+    run('updateNpc(scene, second, 5200, 16); updateNpc(scene, first, 5200, 16)');
+    assert.equal(run('first.goal'), 'stroll');
+    assert.equal(run('second.goal'), 'stroll');
+    assert.equal(run('first.walkPartner'), 2);
+    assert.equal(run('second.walkPartner'), 1);
+    assert.equal(run('first.strollSpeed'), 0.35);
+    assert.equal(run('second.strollSpeed'), 0.35);
+    assert.ok(run('first.path.every(([x, y]) => isNpcInHomeArea(first, x, y)) && second.path.every(([x, y]) => isNpcInHomeArea(second, x, y))'));
+    assert.equal(run('Math.abs(first.path.at(-1)[0] - second.path.at(-1)[0]) + Math.abs(first.path.at(-1)[1] - second.path.at(-1)[1])'), 1);
+    run('first.walkPhase = second.walkPhase = 1; for (let time = 5216; time < 22000; time += 16) { updateNpc(scene, first, time, 16); updateNpc(scene, second, time, 16); if (first.state === "idle" && second.state === "idle") break; }');
+    assert.equal(run('first.state'), 'idle');
+    assert.equal(run('second.state'), 'idle');
+    assert.equal(run('first.lastActivity'), 'walk');
+    assert.equal(run('second.lastActivity'), 'walk');
+    assert.ok(run('Number.isInteger(first.x) && Number.isInteger(second.x)'));
+});
+
 test('habitual fishers revisit safe spots but abandon locations with failed casts', () => {
     const run = createNpcs();
     run("first.spot = { tileX: 5, tileY: 3, water: { direction: 'front' } }; first.failedSpots = new Set(); tryNpcSocialPlan = () => false; npcRandom = () => 0; findNpcWater = () => ({ direction: 'front' }); isNpcStandingTile = () => true; chooseNpcPlan(scene, first, 100)");

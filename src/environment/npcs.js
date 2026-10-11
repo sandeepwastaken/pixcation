@@ -108,6 +108,7 @@ function startNpcConversation(scene, npc, other, time) {
     other.speechFrom = time + 2500; other.speechUntil = time + 4800;
     if (npc.dailyPlan === 'home' || other.dailyPlan === 'home') { npc.speech = 'Heading home soon?'; other.speech = close && npc.house?.id === other.house?.id ? "Yes, I'll see you at home." : 'Yes, it has been a long day.'; }
     else if (other.dailyPlan === 'late') { npc.speech = 'Still fishing tonight?'; other.speech = 'Just a little longer. It is peaceful out here.'; }
+    npc.walkInvitation = close && npc.dailyPlan === 'day' && other.dailyPlan === 'day';
     return true;
 }
 
@@ -415,6 +416,39 @@ function rollNpcTile(npc, radius) {
     return [npc.tileX + Math.round((npcRandom(npc) * 2 - 1) * radius), npc.tileY + Math.round((npcRandom(npc) * 2 - 1) * radius)];
 }
 
+function tryNpcSharedWalk(scene, npc, other, time) {
+    if (!npc.walkInvitation || !other || other.talking || other.fishing || !['social', 'idle'].includes(other.state)) return false;
+    npc.walkInvitation = false;
+    if (npc.dailyPlan !== 'day' || other.dailyPlan !== 'day') return false;
+    const radius = npc.role === 'trader' || other.role === 'trader' ? NPC_TRADER_ROAM : NPC_ROAM_RADIUS;
+    for (let attempt = 0; attempt < NPC_PLAN_ATTEMPTS; attempt++) {
+        const [x, y] = rollNpcTile(npc, radius);
+        if (!isNpcInHomeArea(other, x, y)) continue;
+        const path = findNpcPath(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE), x, y, npc, scene);
+        if (!path?.length) continue;
+        for (const [, dx, dy] of NPC_DIRECTIONS) {
+            const otherX = x + dx, otherY = y + dy;
+            if (!isNpcInHomeArea(npc, otherX, otherY) || !isNpcInHomeArea(other, otherX, otherY)) continue;
+            const otherPath = findNpcPath(Math.round(other.x / TILE_SIZE), Math.round(other.y / TILE_SIZE), otherX, otherY, other, scene);
+            if (!otherPath?.length) continue;
+            for (const [walker, partner, route] of [[npc, other, path], [other, npc, otherPath]]) {
+                startNpcPath(walker, route, 'stroll', time);
+                walker.walkPartner = partner.id; walker.walkEnds = time + 20000; walker.strollSpeed = Math.min(npc.speed, other.speed);
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+function waitForNpcWalkPartner(scene, npc, time) {
+    const other = activeNpcs.find(other => other.id === npc.walkPartner);
+    if (!other || other.talking || other.fishing || other.state === 'home' || other.goal !== 'stroll' || time >= npc.walkEnds) { settleNpc(scene, npc, time, NPC_IDLE_MIN); return true; }
+    if (other.state !== 'walk' || npc.path.length >= other.path.length || Math.hypot(npc.x - other.x, npc.y - other.y) <= TILE_SIZE * 3) return false;
+    npc.walkSpeed = 0; npc.stuckSince = time;
+    return true;
+}
+
 function tryNpcSocialPlan(scene, npc, time) {
     if (time < (npc.nextSocialAt || 0) || npcRandom(npc) >= 0.2 + npcHash(npc.tileX, npc.tileY, 1341) * 0.5) return false;
     const connection = getNpcConnection(npc);
@@ -473,7 +507,10 @@ function stepNpc(scene, npc, time, delta) {
     if (npc.travelDirection !== travelDirection) { npc.travelDirection = travelDirection; npc.turnUntil = time + 80 + npcRandom(npc) * 100; npc.walkSpeed = 0; }
     if (time < npc.turnUntil) { setNpcPose(scene, npc, travelDirection, 0); return false; }
     if (!canNpcOccupy(scene, npc, npc.x + moveX, npc.y + moveY)) { npc.walkSpeed = 0; npc.remainderX = npc.remainderY = 0; setNpcPose(scene, npc, travelDirection, 0); return false; }
-    const pace = npc.walkSpeed = Math.min(npc.speed, (npc.walkSpeed || 0) + Math.min(delta, 50) / 1000);
+    const after = npc.path[1], turning = !after || after[0] - next[0] !== moveX || after[1] - next[1] !== moveY;
+    const speedLimit = npc.goal === 'stroll' ? npc.strollSpeed || npc.speed : npc.speed;
+    const approachLimit = turning ? Math.min(speedLimit, Math.sqrt(2 * Math.hypot(distanceX, distanceY) / CHARACTER_SPEED)) : speedLimit;
+    const pace = npc.walkSpeed = Math.min(approachLimit, (npc.walkSpeed || 0) + Math.min(delta, 50) / 1000);
     const frameDelta = Math.min(delta, 50);
     const distance = CHARACTER_SPEED * pace * frameDelta / 1000;
     npc.remainderX += moveX * Math.min(distance, Math.abs(distanceX));
@@ -780,7 +817,8 @@ function updateNpc(scene, npc, time, delta) {
     if (updateNpcHome(scene, npc, time)) return;
     if (npc.state === 'social') {
         const other = activeNpcs.find(other => other.id === npc.socialPartner);
-        if (!other || other.state !== 'social' || time >= npc.until || other.talking) settleNpc(scene, npc, time, NPC_IDLE_MIN);
+        if (time >= npc.until && tryNpcSharedWalk(scene, npc, other, time)) npc.lookAt = time;
+        else if (!other || other.state !== 'social' || time >= npc.until || other.talking) settleNpc(scene, npc, time, NPC_IDLE_MIN);
         else setNpcPose(scene, npc, getDirectionToward(npc, other.x, other.y), 0);
     } else if (npc.state === 'talk') {
         setNpcPose(scene, npc, getDirectionToward(npc, character.x, character.y), 0);
@@ -800,10 +838,11 @@ function updateNpc(scene, npc, time, delta) {
             if (path) npc.path = path;
             npc.followRefreshAt = time + 1200;
         }
-        if (stepNpc(scene, npc, time, delta)) {
+        if (npc.goal === 'stroll' && waitForNpcWalkPartner(scene, npc, time)) setNpcPose(scene, npc, npc.direction, 0);
+        else if (stepNpc(scene, npc, time, delta)) {
             npc.followRefreshAt = 0;
             const goal = npc.goal;
-            if (goal === 'wander') npc.lastActivity = 'walk';
+            if (goal === 'wander' || goal === 'stroll') npc.lastActivity = 'walk';
             settleNpc(scene, npc, time, NPC_IDLE_MIN + npcRandom(npc) * NPC_IDLE_RANGE);
             npc.lookAt = npc.until;
             if (goal === 'home') { enterNpcHouse(npc); return; }
