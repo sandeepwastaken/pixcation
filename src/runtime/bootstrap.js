@@ -69,8 +69,10 @@ const config = {
 let game;
 
 function startGame() {
+    if (game) return;
     config.scale.zoom = getPixelPerfectZoom();
     game = new Phaser.Game(config);
 }
 
 document.fonts.load('16px m6x11').then(startGame, startGame);
+setTimeout(startGame, 3000);

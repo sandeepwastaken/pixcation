@@ -8,6 +8,7 @@ function createWindow(fontLoad) {
     const listeners = new Map();
     const documentListeners = new Map();
     const frames = [];
+    const timers = [];
     let start;
     let zoomWrites = 0;
     let starts = 0;
@@ -26,6 +27,7 @@ function createWindow(fontLoad) {
         window, document, URLSearchParams,
         lastPlayTime: 123,
         requestAnimationFrame(callback) { frames.push(callback); return frames.length; },
+        setTimeout(callback) { timers.push(callback); return timers.length; },
         saveProgress() { saves++; }, preload() {}, create() {}, update() {},
         Phaser: { AUTO: 0, Scale: { NONE: 0, NO_CENTER: 0 }, Game: class {
             constructor(config) {
@@ -46,6 +48,7 @@ function createWindow(fontLoad) {
             listeners.get('resize')();
         },
         flush: () => frames.splice(0).forEach(callback => callback()),
+        timeout: () => timers.shift()?.(),
         queued: () => frames.length,
         writes: () => zoomWrites,
         starts: () => starts,
@@ -109,4 +112,12 @@ test('tab visibility pauses play time and saves hidden progress', () => {
     screen.visibility('hidden');
     assert.equal(screen.clock(), null);
     assert.equal(screen.saves(), 1);
+});
+
+test('a stalled font load falls back without starting the game twice', () => {
+    const screen = createWindow();
+    screen.timeout();
+    assert.equal(screen.starts(), 1);
+    screen.start();
+    assert.equal(screen.starts(), 1);
 });
