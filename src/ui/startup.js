@@ -104,6 +104,7 @@ function updateStartup(scene, time, delta) {
     }
     updateLoadedChunks(scene);
     buildPendingChunk(scene);
+    updateNpcHouses(scene, time);
     updateCharacterShadow(scene);
     if (startup.phase !== 'title' && startup.dither !== startup.ditherShown) ditherInCharacter(scene, startup.ditherShown = startup.dither);
     updateBushRustle(scene, time, false);

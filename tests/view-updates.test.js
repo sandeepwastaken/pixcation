@@ -11,6 +11,7 @@ function createView() {
     vm.runInContext(source + `
         let redraws = 0;
         let scrolls = 0;
+        let houseDraws = 0; function updateNpcHouses() { houseDraws++; }
         function redrawMap() { redraws++; }
         characterKeys = Object.fromEntries(['left', 'right', 'up', 'down', 'leftArrow', 'rightArrow', 'upArrow', 'downArrow'].map(key => [key, { isDown: false }]));
         character = { x: 152, y: 88 };
@@ -54,6 +55,7 @@ test('logo animation skips unchanged pixels and restores altered positions witho
     run('let logoWrites = 0; let logoY = 40');
     run("startup = { phase: 'title', start: 0, spawnX: 0, spawnY: 0, logoShadow: { y: 0 }, logo: { get y() { return logoY; }, set y(value) { logoWrites++; logoY = value; } } }");
     run('updateStartup({}, 0, 16); updateStartup({}, 16, 16)');
+    assert.equal(run('houseDraws'), 2);
     assert.equal(run('scrolls'), 1);
     assert.equal(run('logoWrites'), 0);
     run('updateStartup({}, 400, 16); updateStartup({}, 401, 16)');

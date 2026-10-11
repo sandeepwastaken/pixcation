@@ -135,6 +135,9 @@ const NPC_FIRST_NAMES = [
     'Tilly', 'Toby', 'Tomas', 'Tova', 'Tuck', 'Uma', 'Una', 'Vera', 'Vic', 'Vida', 'Viggo', 'Vince', 'Wade', 'Walt', 'Wren', 'Wes',
     'Willa', 'Willow', 'Winnie', 'Wyatt', 'Xavi', 'Yara', 'Yuki', 'Yusuf', 'Zadie', 'Zane', 'Zara', 'Zeke', 'Zion', 'Zoe', 'Zora', 'Zuri'
 ];
+const NPC_NEUTRAL_FIRST_NAMES = ['Arden', 'Avery', 'Blair', 'Briar', 'Brook', 'Cass', 'Cedar', 'Clem', 'Dale', 'Darby', 'Drew', 'Ellis', 'Frankie', 'Gale', 'Harlow', 'Hollis', 'Indy', 'Jo', 'Jude', 'Kai', 'Kit', 'Lark', 'Lou', 'Marlo', 'Noor', 'Quinn', 'Remy', 'River', 'Robin', 'Rowan', 'Sage', 'Sasha', 'Scout', 'Shay', 'Sky', 'Sunny', 'Wren', 'Yuki'];
+const NPC_FEMININE_FIRST_NAMES = NPC_FIRST_NAMES.filter(name => NPC_NEUTRAL_FIRST_NAMES.includes(name) || ['Ada', 'Agnes', 'Alba', 'Alma', 'Anika', 'April', 'Astrid', 'Ava', 'Bea', 'Bess', 'Birdie', 'Calla', 'Camille', 'Carmen', 'Celia', 'Clara', 'Cleo', 'Clover', 'Cora', 'Dahlia', 'Daisy', 'Dawn', 'Della', 'Dina', 'Dot', 'Edie', 'Effie', 'Eliza', 'Elsie', 'Esme', 'Etta', 'Fawn', 'Fern', 'Fiona', 'Flo', 'Ginger', 'Hana', 'Hattie', 'Hazel', 'Holly', 'Ida', 'Imani', 'Ines', 'Iris', 'Ivy', 'Jada', 'Joni', 'June', 'Juno', 'Kat', 'Keiko', 'Laurel', 'Lena', 'Lila', 'Lola', 'Lucy', 'Lulu', 'Mabel', 'Mae', 'Maggie', 'Malia', 'Maple', 'Margo', 'Maude', 'Mavis', 'Meadow', 'Mei', 'Mila', 'Mina', 'Nadia', 'Nell', 'Nina', 'Nora', 'Odette', 'Olive', 'Opal', 'Orla', 'Paloma', 'Peg', 'Pepper', 'Piper', 'Poppy', 'Priya', 'Ramona', 'Rhea', 'Rosa', 'Ruby', 'Selma', 'Stella', 'Suki', 'Tali', 'Tess', 'Thea', 'Tilly', 'Tova', 'Uma', 'Una', 'Vera', 'Vida', 'Willa', 'Willow', 'Winnie', 'Yara', 'Zadie', 'Zara', 'Zoe', 'Zora', 'Zuri'].includes(name));
+const NPC_MASCULINE_FIRST_NAMES = NPC_FIRST_NAMES.filter(name => NPC_NEUTRAL_FIRST_NAMES.includes(name) || !NPC_FEMININE_FIRST_NAMES.includes(name));
 
 const NPC_LAST_NAMES = [
     'Abbott', 'Acorn', 'Alder', 'Ames', 'Ashdown', 'Baker', 'Banks', 'Barlow', 'Barnes', 'Bay', 'Beck', 'Bell', 'Birch', 'Bishop', 'Black', 'Bloom',
@@ -3807,15 +3810,20 @@ function getNpcHouse(npc) {
     return null;
 }
 
-function updateNpcHouses(scene) {
+function updateNpcHouses(scene, time = scene.time.now) {
     const homes = new Set();
-    for (const npc of activeNpcs) {
+    for (const npc of [...loadedChunks.values()].flatMap(chunk => chunk.npcs || [])) {
         const house = npc.house;
         if (!house || homes.has(house.id)) continue;
         homes.add(house.id);
-        if (npcHouseSprites.has(house.id)) continue;
-        const sprite = scene.add.image(house.x * TILE_SIZE, house.y * TILE_SIZE, 'house').setOrigin(0).setDepth((house.y + 2) * TILE_SIZE);
-        worldObjectLayer.add(sprite); npcHouseSprites.set(house.id, sprite);
+        let sprite = npcHouseSprites.get(house.id);
+        if (!sprite) {
+            sprite = scene.add.image(house.x * TILE_SIZE, house.y * TILE_SIZE, 'house').setOrigin(0).setDepth((house.y + 2) * TILE_SIZE);
+            worldObjectLayer.add(sprite); npcHouseSprites.set(house.id, sprite);
+        }
+        const left = character.x + CHARACTER_HITBOX_X, right = left + CHARACTER_HITBOX_WIDTH, bottom = character.y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT;
+        const hiding = character.visible !== false && right > sprite.x && left < sprite.x + 2 * TILE_SIZE && bottom > sprite.y && bottom < sprite.y + 2 * TILE_SIZE;
+        if (stepSeeThrough(sprite, hiding, time)) sprite.setTexture(seeThrough(scene, 'house', sprite.seeLevel));
     }
     for (const [id, sprite] of npcHouseSprites) if (!homes.has(id)) { sprite.destroy(); npcHouseSprites.delete(id); }
 }
@@ -3964,6 +3972,8 @@ function findCellNpc(cellX, cellY) {
 function createNpc(tileX, tileY, water) {
     const pick = (count, salt) => Math.floor(npcHash(tileX, tileY, salt) * count);
     const accessory = npcHash(tileX, tileY, 1310) < NPC_ACCESSORY_CHANCE ? 1 : 0;
+    const feminine = npcHash(tileX, tileY, 1322) < 0.5, face = pick(NPC_FACES, 1306), names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
+    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4] : [0, 1, 2, 3, 4]) : [0, 2, 4], hairstyles = feminine ? [2] : face === 1 ? [0, 1] : [0, 1, 3, 4];
     return {
         id: getTileId(tileX, tileY),
         tileX,
@@ -3974,11 +3984,11 @@ function createNpc(tileX, tileY, water) {
         hasty: npcHash(tileX, tileY, 1318) < NPC_HASTY_CHANCE,
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),
-        name: `${NPC_FIRST_NAMES[pick(NPC_FIRST_NAMES.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
+        name: `${names[pick(names.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
         look: [
-            pick(NPC_SKIN_TONES.length, 1305), pick(NPC_FACES, 1306), pick(NPC_SHIRTS, 1307), pick(NPC_SHIRT_COLORS.length, 1308),
+            pick(NPC_SKIN_TONES.length, 1305), face, shirts[pick(shirts.length, 1307)], pick(NPC_SHIRT_COLORS.length, 1308),
             pick(NPC_PANTS_COLORS.length, 1309), accessory,
-            accessory ? pick(NPC_ACCESSORIES, 1311) : pick(NPC_HAIRSTYLES, 1312),
+            accessory ? pick(NPC_ACCESSORIES, 1311) : hairstyles[pick(hairstyles.length, 1312)],
             accessory ? pick(NPC_ACCESSORY_COLORS.length, 1313) : pick(NPC_HAIR_COLORS.length, 1314),
             pick(2, 1321)
         ]
@@ -4794,7 +4804,7 @@ function updateNpcs(scene, time, delta) {
     let moved = false;
     activeNpcs.length = 0;
     for (const chunk of loadedChunks.values()) for (const npc of chunk.npcs || []) activeNpcs.push(npc);
-    updateNpcHouses(scene);
+    updateNpcHouses(scene, time);
 
     for (const chunk of loadedChunks.values()) {
         for (const npc of chunk.npcs || []) {
@@ -7103,6 +7113,7 @@ function updateStartup(scene, time, delta) {
     }
     updateLoadedChunks(scene);
     buildPendingChunk(scene);
+    updateNpcHouses(scene, time);
     updateCharacterShadow(scene);
     if (startup.phase !== 'title' && startup.dither !== startup.ditherShown) ditherInCharacter(scene, startup.ditherShown = startup.dither);
     updateBushRustle(scene, time, false);

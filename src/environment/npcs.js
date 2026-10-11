@@ -76,15 +76,20 @@ function getNpcHouse(npc) {
     return null;
 }
 
-function updateNpcHouses(scene) {
+function updateNpcHouses(scene, time = scene.time.now) {
     const homes = new Set();
-    for (const npc of activeNpcs) {
+    for (const npc of [...loadedChunks.values()].flatMap(chunk => chunk.npcs || [])) {
         const house = npc.house;
         if (!house || homes.has(house.id)) continue;
         homes.add(house.id);
-        if (npcHouseSprites.has(house.id)) continue;
-        const sprite = scene.add.image(house.x * TILE_SIZE, house.y * TILE_SIZE, 'house').setOrigin(0).setDepth((house.y + 2) * TILE_SIZE);
-        worldObjectLayer.add(sprite); npcHouseSprites.set(house.id, sprite);
+        let sprite = npcHouseSprites.get(house.id);
+        if (!sprite) {
+            sprite = scene.add.image(house.x * TILE_SIZE, house.y * TILE_SIZE, 'house').setOrigin(0).setDepth((house.y + 2) * TILE_SIZE);
+            worldObjectLayer.add(sprite); npcHouseSprites.set(house.id, sprite);
+        }
+        const left = character.x + CHARACTER_HITBOX_X, right = left + CHARACTER_HITBOX_WIDTH, bottom = character.y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT;
+        const hiding = character.visible !== false && right > sprite.x && left < sprite.x + 2 * TILE_SIZE && bottom > sprite.y && bottom < sprite.y + 2 * TILE_SIZE;
+        if (stepSeeThrough(sprite, hiding, time)) sprite.setTexture(seeThrough(scene, 'house', sprite.seeLevel));
     }
     for (const [id, sprite] of npcHouseSprites) if (!homes.has(id)) { sprite.destroy(); npcHouseSprites.delete(id); }
 }
@@ -233,6 +238,8 @@ function findCellNpc(cellX, cellY) {
 function createNpc(tileX, tileY, water) {
     const pick = (count, salt) => Math.floor(npcHash(tileX, tileY, salt) * count);
     const accessory = npcHash(tileX, tileY, 1310) < NPC_ACCESSORY_CHANCE ? 1 : 0;
+    const feminine = npcHash(tileX, tileY, 1322) < 0.5, face = pick(NPC_FACES, 1306), names = feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES;
+    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4] : [0, 1, 2, 3, 4]) : [0, 2, 4], hairstyles = feminine ? [2] : face === 1 ? [0, 1] : [0, 1, 3, 4];
     return {
         id: getTileId(tileX, tileY),
         tileX,
@@ -243,11 +250,11 @@ function createNpc(tileX, tileY, water) {
         hasty: npcHash(tileX, tileY, 1318) < NPC_HASTY_CHANCE,
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),
-        name: `${NPC_FIRST_NAMES[pick(NPC_FIRST_NAMES.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
+        name: `${names[pick(names.length, 1303)]} ${NPC_LAST_NAMES[pick(NPC_LAST_NAMES.length, 1304)]}`,
         look: [
-            pick(NPC_SKIN_TONES.length, 1305), pick(NPC_FACES, 1306), pick(NPC_SHIRTS, 1307), pick(NPC_SHIRT_COLORS.length, 1308),
+            pick(NPC_SKIN_TONES.length, 1305), face, shirts[pick(shirts.length, 1307)], pick(NPC_SHIRT_COLORS.length, 1308),
             pick(NPC_PANTS_COLORS.length, 1309), accessory,
-            accessory ? pick(NPC_ACCESSORIES, 1311) : pick(NPC_HAIRSTYLES, 1312),
+            accessory ? pick(NPC_ACCESSORIES, 1311) : hairstyles[pick(hairstyles.length, 1312)],
             accessory ? pick(NPC_ACCESSORY_COLORS.length, 1313) : pick(NPC_HAIR_COLORS.length, 1314),
             pick(2, 1321)
         ]
@@ -1063,7 +1070,7 @@ function updateNpcs(scene, time, delta) {
     let moved = false;
     activeNpcs.length = 0;
     for (const chunk of loadedChunks.values()) for (const npc of chunk.npcs || []) activeNpcs.push(npc);
-    updateNpcHouses(scene);
+    updateNpcHouses(scene, time);
 
     for (const chunk of loadedChunks.values()) {
         for (const npc of chunk.npcs || []) {

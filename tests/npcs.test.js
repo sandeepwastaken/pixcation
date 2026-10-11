@@ -3,6 +3,40 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('seeded names and sprite rows stay consistent across feminine, masculine, and young looks', () => {
+    const run = createNpcs();
+    run(fs.readFileSync('src/game-data.js', 'utf8'));
+    run(fs.readFileSync('src/world/terrain.js', 'utf8'));
+    run('const generatedResidents = []; for (let y = -30; y < 30; y++) for (let x = -30; x < 30; x++) generatedResidents.push(createNpc(x, y, null))');
+    assert.equal(run('generatedResidents.every(npc => { const feminine = npcHash(npc.tileX, npc.tileY, 1322) < 0.5; return (feminine ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES).includes(npc.name.split(" ")[0]); })'), true);
+    assert.equal(run('generatedResidents.every(npc => npc.look[5] || (npcHash(npc.tileX, npc.tileY, 1322) < 0.5 ? npc.look[6] === 2 : npc.look[6] !== 2))'), true);
+    assert.equal(run('generatedResidents.every(npc => npcHash(npc.tileX, npc.tileY, 1322) < 0.5 || ![1, 3].includes(npc.look[2]))'), true);
+    assert.equal(run('generatedResidents.every(npc => npc.look[1] !== 1 || npc.look[2] !== 3 && (npc.look[5] || ![3, 4].includes(npc.look[6])))'), true);
+    assert.ok(run('generatedResidents.some(npc => npc.look[1] === 2 && !npc.look[5] && npc.look[6] === 4)'));
+    assert.ok(run('generatedResidents.some(npc => npc.look[2] === 3)'));
+    assert.ok(run('generatedResidents.some(npc => npc.look[5] && npc.look[6] === 3)'));
+    assert.equal(run('generatedResidents.every(npc => JSON.stringify(npc) === JSON.stringify(createNpc(npc.tileX, npc.tileY, null)))'), true);
+});
+
+test('loaded houses appear before NPC simulation and dither only while hiding the visible player', () => {
+    const run = createNpcs();
+    run(fs.readFileSync('src/environment/bushes.js', 'utf8'));
+    run("getSeeThroughTexture = (scene, key, level) => key + '-see' + level; first.house = second.house = { id: 1, x: 2, y: 1 }; loadedChunks.set('0', { npcs: [first, second] }); activeNpcs.length = 0; let houseAdds = 0; worldObjectLayer = { add() { houseAdds++; } }; scene.add = { image(x, y, key) { return { x, y, key, setOrigin() { return this; }, setDepth() { return this; }, setTexture(key) { this.key = key; }, destroy() { this.destroyed = true; } }; } }");
+    run('character.visible = false; updateNpcHouses(scene, 100)');
+    assert.equal(run('houseAdds'), 1);
+    assert.equal(run('npcHouseSprites.get(1).key'), 'house');
+    run('character.visible = true; character.x = 40; character.y = 16; for (let time = 200; time < 1200; time += 50) updateNpcHouses(scene, time)');
+    assert.equal(run('npcHouseSprites.get(1).seeLevel'), run('SEE_THROUGH_LEVEL'));
+    assert.equal(run('npcHouseSprites.get(1).key'), run("'house-see' + SEE_THROUGH_LEVEL"));
+    run('character.y = 32; for (let time = 1200; time < 2200; time += 50) updateNpcHouses(scene, time)');
+    assert.equal(run('npcHouseSprites.get(1).key'), 'house');
+    run('character.x = 80; character.y = 16; for (let time = 2200; time < 3200; time += 50) updateNpcHouses(scene, time)');
+    assert.equal(run('npcHouseSprites.get(1).key'), 'house');
+    run('const oldHouse = npcHouseSprites.get(1); loadedChunks.clear(); updateNpcHouses(scene, 3200)');
+    assert.equal(run('npcHouseSprites.size'), 0);
+    assert.equal(run('oldHouse.destroyed'), true);
+});
+
 test('finishing a step aside resumes a fishing trip without aiming before reaching the water', () => {
     const run = createNpcs();
     run("first.x = 64; first.failedSpots = new Set(); first.pausedActivity = { x: 5, y: 3, goal: 'fish' }; canNpcOccupy = () => true; findNpcWater = () => ({ direction: 'front' }); startNpcPath(first, [], 'yield', 100); updateNpc(scene, first, 116, 16)");
@@ -882,7 +916,7 @@ test('blocked routes go around occupied tiles without losing their purpose or ho
 
 function createNpcs() {
     const context = vm.createContext({ TEST_MODE: true, getTileId: (x, y) => (x + 1000) * 10000 + y, coordinateHash: () => 0.7, cacheWorldValue: (cache, key, value) => (cache.set(key, value), value), getPersonTexture: () => 'portrait' });
-    const files = ['runtime/settings.js', 'runtime/state.js', 'npc-dialogue.js', 'environment/npcs.js', 'runtime/character.js', 'art/trees.js'];
+    const files = ['runtime/settings.js', 'runtime/state.js', 'npc-names.js', 'npc-dialogue.js', 'environment/npcs.js', 'runtime/character.js', 'art/trees.js'];
     vm.runInContext(files.map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);
     vm.runInContext(`
         const homes = [{ id: 1, tileX: 3, tileY: 3, name: 'Ada Reed' }, { id: 2, tileX: 13, tileY: 3, name: 'Eli Moss' }];
