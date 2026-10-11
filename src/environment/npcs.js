@@ -5,6 +5,7 @@ const NPC_DIRECTIONS = [['left', -1, 0], ['right', 1, 0], ['front', 0, 1], ['bac
 const NPC_DIRECTION_STEPS = new Map(NPC_DIRECTIONS.map(([direction, stepX, stepY]) => [direction, [stepX, stepY]]));
 let npcShadowPoints = null;
 let nearestNpc = null;
+const activeNpcs = [];
 
 function npcHash(tileX, tileY, salt) {
     return coordinateHash(tileX, tileY, Math.imul(WORLD_SEED + salt, WORLD_HASH_MULTIPLIER));
@@ -206,12 +207,15 @@ function restoreNpc(scene, npc) {
 }
 
 function isBlockedByNpc(left, top, right, bottom, ignore) {
-    for (const chunk of loadedChunks.values()) {
-        for (const npc of chunk.npcs || []) {
-            if (npc !== ignore && actorBlocksRect(npc, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) return true;
-        }
+    for (const npc of activeNpcs) {
+        if (npc !== ignore && actorBlocksRect(npc, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) return true;
     }
     return false;
+}
+
+function isNpcNearCamera(npc) {
+    return npc.x > mainCamera.scrollX - NPC_DRAW_MARGIN && npc.x < mainCamera.scrollX + mainCamera.width + NPC_DRAW_MARGIN &&
+        npc.y > mainCamera.scrollY - NPC_DRAW_MARGIN && npc.y < mainCamera.scrollY + mainCamera.height + NPC_DRAW_MARGIN;
 }
 
 function canNpcOccupy(scene, npc, x, y) {
@@ -549,6 +553,14 @@ function updateNpcFishing(scene, npc, time) {
 }
 
 function drawNpcRod(scene, npc, time, delta) {
+    if (!isNpcNearCamera(npc)) {
+        if (npc.lineDrawn) {
+            npc.line.clear();
+            npc.waterShadow.clear();
+            npc.lineDrawn = false;
+        }
+        return;
+    }
     const charging = npc.state === 'charge';
     if (!npc.fishing && !charging && !npc.lineDrawn) return;
     npc.line.clear();
@@ -603,13 +615,15 @@ function updateNpc(scene, npc, time, delta) {
         if (time >= npc.charge.releaseAt) startNpcCast(npc, time);
     }
     drawNpcRod(scene, npc, time, delta);
-    drawNpcShadow(scene, npc);
+    if (isNpcNearCamera(npc)) drawNpcShadow(scene, npc);
 }
 
 function updateNpcs(scene, time, delta) {
     let nearest = null;
     let nearestDistance = NPC_TALK_DISTANCE_SQUARED;
     let moved = false;
+    activeNpcs.length = 0;
+    for (const chunk of loadedChunks.values()) for (const npc of chunk.npcs || []) activeNpcs.push(npc);
 
     for (const chunk of loadedChunks.values()) {
         for (const npc of chunk.npcs || []) {
