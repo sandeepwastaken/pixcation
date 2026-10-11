@@ -45,7 +45,7 @@ function createBridgeEdgeTexture(scene) {
     let legRow = beamRow;
     while (legRow < TILE_SIZE && rowOpaque(legRow)) legRow++;
 
-    createCanvasTexture(scene, 'woodEdge', TILE_SIZE, TILE_SIZE, context => {
+    createCanvasTexture(scene, 'woodLip', TILE_SIZE, TILE_SIZE, context => {
         const image = context.createImageData(TILE_SIZE, TILE_SIZE);
         for (let y = 0; y < legRow; y++) {
             for (let x = 0; x < TILE_SIZE; x++) {

@@ -33,7 +33,7 @@ function composePersonPixels(scene, look, direction) {
             }
         }
     }
-    return pixels;
+    return look[8] && direction !== 'left' && direction !== 'right' ? mirrorPersonPixels(pixels) : pixels;
 }
 
 function mirrorPersonPixels(pixels) {

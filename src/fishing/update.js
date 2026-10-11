@@ -171,15 +171,15 @@ function updateFishing(scene, time, delta, isWalking) {
 
     [tipX, tipY] = getRodTip(time);
     const [handX, handY] = getRodHand();
-    drawAnglerLine(scene, fishing, { handX, handY, tipX, tipY, bodyY: character.y, bodyDepth: character.depth, line: fishingLine, waterShadow: fishingWaterShadow }, delta);
+    drawAnglerLine(scene, fishing, { handX, handY, tipX, tipY, bodyY: character.y, bodyDepth: character.depth, line: fishingLine, waterShadow: fishingWaterShadow, behind: getCastDirection()[1] < 0 }, delta);
 }
 
 function drawAnglerLine(scene, cast, angler, delta) {
-    const { handX, handY, tipX, tipY, bodyY, bodyDepth, line, waterShadow } = angler;
+    const { handX, handY, tipX, tipY, bodyY, bodyDepth, line, waterShadow, behind } = angler;
     const { polePalette, linePalette, bobberPalette } = cast.rod;
     const taut = tautFishingStates.has(cast.state);
 
-    const depth = cast.state === 'flying' || cast.state === 'casting' ? bodyDepth + 1 : Math.max(bodyDepth + 0.2, cast.bobberY);
+    const depth = behind ? bodyDepth - 0.1 : cast.state === 'flying' || cast.state === 'casting' ? bodyDepth + 1 : Math.max(bodyDepth + 0.2, cast.bobberY);
     if (line.depth !== depth) line.setDepth(depth);
     plotFishingLine(handX, handY, tipX, tipY, 0, polePalette, line);
     const tipHeight = Math.max(0, bodyY + CHARACTER_SIZE - tipY);
