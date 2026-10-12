@@ -18,7 +18,7 @@ function createGuideDialogueUI(scene) {
 
     dialogueName = createUIText(textLayer, 64, 10, '#acccf9');
     dialogueName.textContent = 'Guide';
-    dialogueText = createUIText(textLayer, 64, 26, '#e0f2fd', 146, null, { whiteSpace: 'normal' });
+    dialogueText = createUIText(textLayer, 64, 26, '#e0f2fd', 146, null, { whiteSpace: 'normal', fontSize: '11px', lineHeight: '10px' });
     dialogueOptionTexts = [0, 1, 2].map(index => {
         return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 2 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });
@@ -29,7 +29,7 @@ function createGuideDialogueUI(scene) {
 
 function layoutDialogueText() {
     dialogueText.textContent = dialogueFullText;
-    const lines = Math.max(1, Math.round(dialogueText.offsetHeight / 11)), top = Math.max(3, Math.floor((78 - 16 - lines * 11) / 2));
+    const lines = Math.max(1, Math.round(dialogueText.offsetHeight / 10)), top = Math.max(3, Math.floor((78 - 14 - lines * 10) / 2));
     dialogueName.style.top = `${top}px`;
-    dialogueText.style.top = `${top + 16}px`;
+    dialogueText.style.top = `${top + 14}px`;
 }

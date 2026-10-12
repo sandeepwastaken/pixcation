@@ -1532,14 +1532,16 @@ function tintChunkGrass(scene, context, originTileX, originTileY) {
     const woodColors = getWoodColors(scene);
     const image = context.getImageData(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
     const data = image.data;
+    const grassTints = Array.from({ length: CHUNK_SIZE * CHUNK_SIZE }, (_, tile) => getGrassTint(originTileX + tile % CHUNK_SIZE, originTileY + Math.floor(tile / CHUNK_SIZE)));
+    const dirtTints = Array.from({ length: CHUNK_SIZE * CHUNK_SIZE }, (_, tile) => getDirtTint(originTileX + tile % CHUNK_SIZE, originTileY + Math.floor(tile / CHUNK_SIZE)));
     for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
         let tint = null;
         let dirtTint = null;
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
             const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
             if (x % TILE_SIZE === 0) {
-                tint = getGrassTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
-                dirtTint = getDirtTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+                tint = grassTints[Math.floor(y / TILE_SIZE) * CHUNK_SIZE + x / TILE_SIZE];
+                dirtTint = dirtTints[Math.floor(y / TILE_SIZE) * CHUNK_SIZE + x / TILE_SIZE];
             }
             const red = data[index], green = data[index + 1], blue = data[index + 2];
             if (!data[index + 3]) continue;
@@ -7663,7 +7665,7 @@ function createGuideDialogueUI(scene) {
 
     dialogueName = createUIText(textLayer, 64, 10, '#acccf9');
     dialogueName.textContent = 'Guide';
-    dialogueText = createUIText(textLayer, 64, 26, '#e0f2fd', 146, null, { whiteSpace: 'normal' });
+    dialogueText = createUIText(textLayer, 64, 26, '#e0f2fd', 146, null, { whiteSpace: 'normal', fontSize: '11px', lineHeight: '10px' });
     dialogueOptionTexts = [0, 1, 2].map(index => {
         return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 2 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });
@@ -7674,9 +7676,9 @@ function createGuideDialogueUI(scene) {
 
 function layoutDialogueText() {
     dialogueText.textContent = dialogueFullText;
-    const lines = Math.max(1, Math.round(dialogueText.offsetHeight / 11)), top = Math.max(3, Math.floor((78 - 16 - lines * 11) / 2));
+    const lines = Math.max(1, Math.round(dialogueText.offsetHeight / 10)), top = Math.max(3, Math.floor((78 - 14 - lines * 10) / 2));
     dialogueName.style.top = `${top}px`;
-    dialogueText.style.top = `${top + 16}px`;
+    dialogueText.style.top = `${top + 14}px`;
 }
 
 function createMapUI(scene) {
