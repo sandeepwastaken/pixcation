@@ -35,9 +35,8 @@ const getSnowWindow = clock => isSnowDay(clock.day) ? getRainWindow(clock.day) :
 const getSnowfall = (clock, window = getSnowWindow(clock)) => window ? Phaser.Math.Clamp(Math.min(clock.hour - window[0], window[1] - clock.hour) / RAIN_FADE_HOURS, 0, 1) : 0;
 
 function createSky(scene) {
-    const clockLayer = createTextLayer(28, { fontSize: '11px', color: '#e0f2fd', textShadow: '1px 1px rgba(0, 0, 0, 0.65)' });
-    worldClockText = createUIText(clockLayer, 8, 8, '#e0f2fd', 144);
-    createUIText(clockLayer, 8, 20, '#e0f2fd', 144).textContent = 'H - return to spawn';
+    const clockLayer = createTextLayer(28, { fontSize: '11px', color: '#f5f1e8', textShadow: '1px 1px rgba(0, 0, 0, 0.65)' });
+    worldClockText = createUIText(clockLayer, 8, 8, '#f5f1e8', 144);
     worldClockLayer = addHudLayer(scene, clockLayer, 0, 211).setVisible(true);
     skyOverlay = scene.add.rectangle(0, 0, mainCamera.width, mainCamera.height, 0xffffff)
         .setOrigin(0)

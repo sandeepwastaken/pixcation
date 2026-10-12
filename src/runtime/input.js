@@ -191,14 +191,14 @@ function bindGameInput(scene) {
             if (code === 'Escape' || code === 'Tab') closeStats();
         } else if (dialogueOpen) handleGuideDialogueKey(scene, event);
         else if (inventoryOpen) handleInventoryKey(scene, event);
-        else if (mapOpen) handleMapKey(scene, event);
+        else if (mapOpen && code !== 'KeyH') handleMapKey(scene, event);
         else if (marketOpen) handleMarketKey(scene, event);
         else if (key === 'i') openMenu(() => openInventory(scene));
         else if (code === 'Tab') openMenu(openStats);
         else if (code === 'Space') pressAction('keyboard');
         else if (key === 'm') openMenu(() => openMap(scene));
         else if (key === 'b') cycleBait(scene);
-        else if (code === 'KeyH') { resetActions(); returnToSpawn(scene); }
+        else if (code === 'KeyH') { closeMap(scene); resetActions(); returnToSpawn(scene); }
         else if (key === 'e') openMenu(() => openInteraction(scene, getInteractionTarget(true)));
         else if (CHEATS_ENABLED && key === 's') spawnSturgeonAtCursor(scene);
         else if (slot >= 0 && slot < 9) selectHotbarSlot(scene, slot);

@@ -5102,9 +5102,8 @@ const getSnowWindow = clock => isSnowDay(clock.day) ? getRainWindow(clock.day) :
 const getSnowfall = (clock, window = getSnowWindow(clock)) => window ? Phaser.Math.Clamp(Math.min(clock.hour - window[0], window[1] - clock.hour) / RAIN_FADE_HOURS, 0, 1) : 0;
 
 function createSky(scene) {
-    const clockLayer = createTextLayer(28, { fontSize: '11px', color: '#e0f2fd', textShadow: '1px 1px rgba(0, 0, 0, 0.65)' });
-    worldClockText = createUIText(clockLayer, 8, 8, '#e0f2fd', 144);
-    createUIText(clockLayer, 8, 20, '#e0f2fd', 144).textContent = 'H - return to spawn';
+    const clockLayer = createTextLayer(28, { fontSize: '11px', color: '#f5f1e8', textShadow: '1px 1px rgba(0, 0, 0, 0.65)' });
+    worldClockText = createUIText(clockLayer, 8, 8, '#f5f1e8', 144);
     worldClockLayer = addHudLayer(scene, clockLayer, 0, 211).setVisible(true);
     skyOverlay = scene.add.rectangle(0, 0, mainCamera.width, mainCamera.height, 0xffffff)
         .setOrigin(0)
@@ -7597,7 +7596,7 @@ function createMapUI(scene) {
     createUIText(textLayer, 14, 5, '#acccf9').textContent = 'World Map';
     appendKeyHints(
         createUIText(textLayer, 0, 6, '#8c7358', null, null, { left: 'auto', right: '14px', fontSize: '11px' }),
-        [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['M', 'Close']]
+        [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['H', 'Spawn'], ['M', 'Close']]
     );
 
     mapTextLayer = addHudLayer(scene, textLayer, MAP_HIDDEN_Y, 203);
@@ -10355,14 +10354,14 @@ function bindGameInput(scene) {
             if (code === 'Escape' || code === 'Tab') closeStats();
         } else if (dialogueOpen) handleGuideDialogueKey(scene, event);
         else if (inventoryOpen) handleInventoryKey(scene, event);
-        else if (mapOpen) handleMapKey(scene, event);
+        else if (mapOpen && code !== 'KeyH') handleMapKey(scene, event);
         else if (marketOpen) handleMarketKey(scene, event);
         else if (key === 'i') openMenu(() => openInventory(scene));
         else if (code === 'Tab') openMenu(openStats);
         else if (code === 'Space') pressAction('keyboard');
         else if (key === 'm') openMenu(() => openMap(scene));
         else if (key === 'b') cycleBait(scene);
-        else if (code === 'KeyH') { resetActions(); returnToSpawn(scene); }
+        else if (code === 'KeyH') { closeMap(scene); resetActions(); returnToSpawn(scene); }
         else if (key === 'e') openMenu(() => openInteraction(scene, getInteractionTarget(true)));
         else if (CHEATS_ENABLED && key === 's') spawnSturgeonAtCursor(scene);
         else if (slot >= 0 && slot < 9) selectHotbarSlot(scene, slot);

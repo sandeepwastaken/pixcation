@@ -19,7 +19,7 @@ function createMapUI(scene) {
     createUIText(textLayer, 14, 5, '#acccf9').textContent = 'World Map';
     appendKeyHints(
         createUIText(textLayer, 0, 6, '#8c7358', null, null, { left: 'auto', right: '14px', fontSize: '11px' }),
-        [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['M', 'Close']]
+        [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['H', 'Spawn'], ['M', 'Close']]
     );
 
     mapTextLayer = addHudLayer(scene, textLayer, MAP_HIDDEN_Y, 203);
