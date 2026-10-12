@@ -1187,7 +1187,7 @@ function buildNpcDialogue(scene, npc) {
     if (npc.lastActivity === 'greeting' && npc.lastNeighbor) nodes.chat.text = `I just said hello to ${npc.lastNeighbor.split(' ')[0]}. It is nice to see a familiar face.`;
     if (!npc.fishing && npc.lastActivity === 'social' && npc.lastNeighbor) nodes.chat.text = `I was just catching up with ${npc.lastNeighbor.split(' ')[0]}. It is good to have company nearby.`;
     else if (!npc.fishing && npc.lastActivity === 'fishing') nodes.chat.text = 'I put my rod away for a bit. Sometimes a quiet break is better than another cast.';
-    else if (!npc.fishing && npc.lastActivity === 'walk') nodes.chat.text = 'I took a walk around the neighborhood earlier. ' + nodes.chat.text;
+    else if (!npc.fishing && npc.lastActivity === 'walk') nodes.chat.text = 'Nice walk earlier. ' + nodes.chat.text;
     else if (!npc.fishing && npc.lastActivity === 'rest') nodes.chat.text = "I had a quiet break at home. It's good to be outside again.";
     if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
     if (npc.fishing?.state === 'reeling') nodes.tips.text = npc.needsShelter ? 'I am bringing my line in and getting out of this rain for a while.' : 'I am bringing my line in. I will try another cast after a short break.';

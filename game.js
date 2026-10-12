@@ -5002,7 +5002,7 @@ function buildNpcDialogue(scene, npc) {
     if (npc.lastActivity === 'greeting' && npc.lastNeighbor) nodes.chat.text = `I just said hello to ${npc.lastNeighbor.split(' ')[0]}. It is nice to see a familiar face.`;
     if (!npc.fishing && npc.lastActivity === 'social' && npc.lastNeighbor) nodes.chat.text = `I was just catching up with ${npc.lastNeighbor.split(' ')[0]}. It is good to have company nearby.`;
     else if (!npc.fishing && npc.lastActivity === 'fishing') nodes.chat.text = 'I put my rod away for a bit. Sometimes a quiet break is better than another cast.';
-    else if (!npc.fishing && npc.lastActivity === 'walk') nodes.chat.text = 'I took a walk around the neighborhood earlier. ' + nodes.chat.text;
+    else if (!npc.fishing && npc.lastActivity === 'walk') nodes.chat.text = 'Nice walk earlier. ' + nodes.chat.text;
     else if (!npc.fishing && npc.lastActivity === 'rest') nodes.chat.text = "I had a quiet break at home. It's good to be outside again.";
     if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
     if (npc.fishing?.state === 'reeling') nodes.tips.text = npc.needsShelter ? 'I am bringing my line in and getting out of this rain for a while.' : 'I am bringing my line in. I will try another cast after a short break.';
@@ -7575,6 +7575,13 @@ function createGuideDialogueUI(scene) {
     dialogueTextLayer = addHudLayer(scene, textLayer, DIALOGUE_HIDDEN_Y, 201);
 }
 
+function layoutDialogueText() {
+    dialogueText.textContent = dialogueFullText;
+    const lines = Math.max(1, Math.round(dialogueText.offsetHeight / 11)), top = Math.max(3, Math.floor((78 - 16 - lines * 11) / 2));
+    dialogueName.style.top = `${top}px`;
+    dialogueText.style.top = `${top + 16}px`;
+}
+
 function createMapUI(scene) {
     const panel = scene.add.graphics();
 
@@ -8877,6 +8884,7 @@ function showGuideDialogueNode(scene, nodeKey) {
     dialogueNode = nodeKey;
     selectedDialogueOption = 0;
     dialogueFullText = node.text;
+    layoutDialogueText();
     if (dialoguePortrait.texture.key !== node.portrait) dialoguePortrait.setTexture(node.portrait);
     dialoguePortrait.setScale(node.portraitScale || 1);
     const typingText = document.createTextNode('');

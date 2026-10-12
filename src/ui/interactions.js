@@ -119,6 +119,7 @@ function showGuideDialogueNode(scene, nodeKey) {
     dialogueNode = nodeKey;
     selectedDialogueOption = 0;
     dialogueFullText = node.text;
+    layoutDialogueText();
     if (dialoguePortrait.texture.key !== node.portrait) dialoguePortrait.setTexture(node.portrait);
     dialoguePortrait.setScale(node.portraitScale || 1);
     const typingText = document.createTextNode('');

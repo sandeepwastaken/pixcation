@@ -1078,7 +1078,7 @@ test('NPCs recognize repeat visits and recall the neighbor they spoke with', () 
     run("first.lastActivity = 'fishing'");
     assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("rod away")'));
     run("first.lastActivity = 'walk'");
-    assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("walk around the neighborhood")'));
+    assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("Nice walk earlier.")'));
 });
 
 test('NPC memories survive unloading and saving without duplicating active residents', () => {

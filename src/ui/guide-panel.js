@@ -26,3 +26,10 @@ function createGuideDialogueUI(scene) {
     dialogueContainer = addPanelContainer(scene, DIALOGUE_HIDDEN_Y, 200, [panel, dialogueHighlight, dialoguePortrait]);
     dialogueTextLayer = addHudLayer(scene, textLayer, DIALOGUE_HIDDEN_Y, 201);
 }
+
+function layoutDialogueText() {
+    dialogueText.textContent = dialogueFullText;
+    const lines = Math.max(1, Math.round(dialogueText.offsetHeight / 11)), top = Math.max(3, Math.floor((78 - 16 - lines * 11) / 2));
+    dialogueName.style.top = `${top}px`;
+    dialogueText.style.top = `${top + 16}px`;
+}
