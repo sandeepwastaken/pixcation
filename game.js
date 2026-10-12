@@ -903,8 +903,10 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
         levels[pixel] = level;
     }
 
+    const columnBottom = new Int16Array(width).fill(-1), stemRow = (bottom - 3) * width;
+    for (const pixel of filled) columnBottom[pixel % width] = Math.max(columnBottom[pixel % width], Math.floor(pixel / width));
     for (let pixel = 0; pixel < (bottom - 3) * width; pixel++) {
-        if (owner[pixel] < 0) data[pixel * 4 + 3] = 0;
+        if (owner[pixel] < 0 && (!data[(stemRow + pixel % width) * 4 + 3] || Math.floor(pixel / width) < columnBottom[pixel % width])) data[pixel * 4 + 3] = 0;
     }
 
     for (const pixel of filled) writeRGBPixel(data, pixel, colors[levels[pixel]]);
