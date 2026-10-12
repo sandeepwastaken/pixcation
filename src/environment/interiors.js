@@ -29,17 +29,18 @@ function buildInterior(scene, house) {
     const place = (key, x, y, depth, flip = false) => room.layer.add(scene.add.image(x, y, key).setOrigin(0).setDepth(depth).setFlipX(flip));
     room.layer.add(scene.add.rectangle(-2000, -2000, 6000, 6000, 0x000000).setOrigin(0).setScrollFactor(0).setDepth(-1e9));
     for (let row = 0; row <= height; row++) for (let column = 0; column < width; column++) if (row < height || column === exit) place('insideFloor', left + column * TILE_SIZE, top + row * TILE_SIZE, -1e8);
-    const rugX = left + TILE_SIZE / 2 + Math.floor(random() * (width * TILE_SIZE - 64)), rugY = top + TILE_SIZE + 4 + Math.floor(random() * (height * TILE_SIZE - 60));
+    const couchLength = 3 + Math.floor(random() * 2), couchLeft = random() < 0.5, couchColumn = couchLeft ? Math.floor(random() * 2) : width - couchLength - Math.floor(random() * 2), couchPalette = Math.floor(random() * INTERIOR_COUCH_PALETTES.length);
+    const rugX = left + couchColumn * TILE_SIZE + couchLength * TILE_SIZE / 2 - 24, rugY = top + 2 * TILE_SIZE + 2;
     place(getInteriorTexture(scene, `rug-${house.id}`, 'recolorableRug', INTERIOR_RUG_SLOTS, getRugColors(house, random)), rugX, rugY, -1e7);
-    const couchLength = 3 + Math.floor(random() * 2), couchColumn = Math.floor(random() * (width - couchLength + 1)), couchPalette = Math.floor(random() * INTERIOR_COUCH_PALETTES.length);
-    for (let index = 0; index < couchLength; index++) place(getInteriorTexture(scene, `couch-${index % (couchLength - 1) ? 'mid' : 'side'}-${couchPalette}`, index % (couchLength - 1) ? 'couchMid' : 'couchSide', INTERIOR_COUCH_SHADES, INTERIOR_COUCH_PALETTES[couchPalette]), left + (couchColumn + index) * TILE_SIZE, top - TILE_SIZE, top + TILE_SIZE, index === couchLength - 1);
-    room.blocked.push([left + couchColumn * TILE_SIZE, top, left + (couchColumn + couchLength) * TILE_SIZE, top + TILE_SIZE]);
-    const tableLength = 2 + Math.floor(random() * 2), tableRow = 2 + Math.floor(random() * (height - 4)), tableColumn = 1 + Math.floor(random() * (width - tableLength - 1)), tableY = top + tableRow * TILE_SIZE;
+    for (let index = 0; index < couchLength; index++) place(getInteriorTexture(scene, `couch-${index % (couchLength - 1) ? 'mid' : 'side'}-${couchPalette}`, index % (couchLength - 1) ? 'couchMid' : 'couchSide', INTERIOR_COUCH_SHADES, INTERIOR_COUCH_PALETTES[couchPalette]), left + (couchColumn + index) * TILE_SIZE, top, top + 2 * TILE_SIZE, index === couchLength - 1);
+    room.blocked.push([left + couchColumn * TILE_SIZE, top, left + (couchColumn + couchLength) * TILE_SIZE, top + 2 * TILE_SIZE - 4]);
+    const zoneStart = couchLeft ? Math.ceil((rugX + 48 - left) / TILE_SIZE) : 0, zoneEnd = couchLeft ? width : Math.floor((rugX - left) / TILE_SIZE);
+    const tableLength = Math.min(3, Math.max(2, zoneEnd - zoneStart - 2)), tableRow = 2 + Math.floor(random() * (height - 4)), tableColumn = zoneStart + Math.floor((zoneEnd - zoneStart - tableLength) / 2), tableY = top + tableRow * TILE_SIZE;
     for (let index = 0; index < tableLength; index++) place(index ? index === tableLength - 1 ? 'woodRight' : 'wood' : 'woodLeft', left + (tableColumn + index) * TILE_SIZE, tableY, tableY + TILE_SIZE);
     room.blocked.push([left + tableColumn * TILE_SIZE, tableY, left + (tableColumn + tableLength) * TILE_SIZE, tableY + TILE_SIZE]);
     const chair = (key, column, row, flip) => { place(key, left + column * TILE_SIZE, top + (row + 1) * TILE_SIZE - 29, top + (row + 1) * TILE_SIZE - 0.5, flip); room.blocked.push([left + column * TILE_SIZE + 2, top + row * TILE_SIZE + 8, left + (column + 1) * TILE_SIZE - 2, top + (row + 1) * TILE_SIZE]); };
-    if (random() < 0.75) chair('chairSide', tableColumn - 1, tableRow, false);
-    if (random() < 0.75) chair('chairSide', tableColumn + tableLength, tableRow, true);
+    if (tableColumn > zoneStart && random() < 0.75) chair('chairSide', tableColumn - 1, tableRow, false);
+    if (tableColumn + tableLength < zoneEnd && random() < 0.75) chair('chairSide', tableColumn + tableLength, tableRow, true);
     if (random() < 0.6) chair('chairFront', tableColumn + Math.floor(random() * tableLength), tableRow - 1, false);
     return Object.assign(room, { startX: room.doorLeft, startY: room.bottom - CHARACTER_SIZE });
 }
