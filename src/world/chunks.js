@@ -142,13 +142,13 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
                 bushes.push(bush);
             } else if (prop === 'tree') {
-                const sprite = getPropSprite(tileX, tileY);
-                const trunk = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-trunk`).setOrigin(0).setDepth(baseY);
-                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1).setTint(getTintColor(getGrassTint(tileX, tileY), 0.5));
+                const sprite = getPropSprite(tileX, tileY), bare = worldHash(tileX, tileY, 769) < TREE_BARE_CHANCE;
+                const trunk = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-${bare ? 'bare' : 'trunk'}`).setOrigin(0).setDepth(baseY);
+                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1).setTint(getTintColor(getGrassTint(tileX, tileY), 0.5)).setAlpha(bare ? 0 : 1);
                 worldObjectLayer.add([trunk, canopy]);
                 tileSprites.push(trunk, canopy);
                 const variant = getTreeVariant(tileX, tileY);
-                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-trunk`, color: variant.color, shadow: sprite.shadow, contactShadow: variant.contactShadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
+                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-${bare ? 'bare' : 'trunk'}`, color: bare ? null : variant.color, shadow: sprite.shadow, contactShadow: variant.contactShadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
             } else if (prop) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)

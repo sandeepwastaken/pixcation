@@ -182,6 +182,7 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
         }
     }
 
+    const bareData = new Uint8ClampedArray(data);
     const colors = palette.colors;
     const radiusX = 23 + random() * 5;
     const radiusY = 17 + random() * 3;
@@ -384,5 +385,5 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
         else canopyData[pixel * 4 + 3] = 0;
     }
 
-    return { width, height, data, trunkData, canopyData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, contactShadow: createTreeContactShadow(hitLeft, hitRight, height), hitLeft, hitRight, color: colors[2] };
+    return { width, height, data, trunkData, canopyData, bareData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, contactShadow: createTreeContactShadow(hitLeft, hitRight, height), hitLeft, hitRight, color: colors[2] };
 }

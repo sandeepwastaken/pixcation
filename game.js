@@ -556,7 +556,7 @@ function createPropArt(scene) {
         createCanvasTexture(scene, variant.key, variant.width, variant.height, context => {
             context.putImageData(new ImageData(variant.data, variant.width, variant.height), 0, 0);
         });
-        for (const part of ['trunk', 'canopy']) {
+        for (const part of ['trunk', 'canopy', 'bare']) {
             createCanvasTexture(scene, `${variant.key}-${part}`, variant.width, variant.height, context => {
                 context.putImageData(new ImageData(variant[`${part}Data`], variant.width, variant.height), 0, 0);
             });
@@ -778,6 +778,7 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
         }
     }
 
+    const bareData = new Uint8ClampedArray(data);
     const colors = palette.colors;
     const radiusX = 23 + random() * 5;
     const radiusY = 17 + random() * 3;
@@ -980,7 +981,7 @@ function generateTreeVariant(trunk, seed, paletteIndex) {
         else canopyData[pixel * 4 + 3] = 0;
     }
 
-    return { width, height, data, trunkData, canopyData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, contactShadow: createTreeContactShadow(hitLeft, hitRight, height), hitLeft, hitRight, color: colors[2] };
+    return { width, height, data, trunkData, canopyData, bareData, shadowTop, shadowHeight: shadowBottom - shadowTop + 1, flip, shadowPoints, contactShadow: createTreeContactShadow(hitLeft, hitRight, height), hitLeft, hitRight, color: colors[2] };
 }
 
 function createRoundedCliffTextures(scene) {
@@ -2626,13 +2627,13 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
 
                 bushes.push(bush);
             } else if (prop === 'tree') {
-                const sprite = getPropSprite(tileX, tileY);
-                const trunk = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-trunk`).setOrigin(0).setDepth(baseY);
-                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1).setTint(getTintColor(getGrassTint(tileX, tileY), 0.5));
+                const sprite = getPropSprite(tileX, tileY), bare = worldHash(tileX, tileY, 769) < TREE_BARE_CHANCE;
+                const trunk = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-${bare ? 'bare' : 'trunk'}`).setOrigin(0).setDepth(baseY);
+                const canopy = scene.add.image(sprite.x, sprite.y, `${sprite.texture}-canopy`).setOrigin(0).setDepth(baseY + 0.1).setTint(getTintColor(getGrassTint(tileX, tileY), 0.5)).setAlpha(bare ? 0 : 1);
                 worldObjectLayer.add([trunk, canopy]);
                 tileSprites.push(trunk, canopy);
                 const variant = getTreeVariant(tileX, tileY);
-                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-trunk`, color: variant.color, shadow: sprite.shadow, contactShadow: variant.contactShadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
+                trees.push({ x: sprite.x, y: sprite.y, baseY, width: variant.width, texture: `${sprite.texture}-canopy`, canopy, trunk, trunkTexture: `${sprite.texture}-${bare ? 'bare' : 'trunk'}`, color: bare ? null : variant.color, shadow: sprite.shadow, contactShadow: variant.contactShadow, shadowTop: variant.shadowTop, shadowHeight: variant.shadowHeight, offset: 0, rustleStart: -Infinity, touching: false });
             } else if (prop) {
                 const sprite = getPropSprite(tileX, tileY);
                 const image = scene.add.image(sprite.x, sprite.y, sprite.texture)
@@ -9573,6 +9574,7 @@ const PROP_FOREST_LEVEL = 0.72;
 const TREE_CANOPY_TILES = 4;
 const TREE_HITBOX_HEIGHT = 5;
 const TREE_VARIANT_COUNT = 24;
+const TREE_BARE_CHANCE = 0.05;
 const TREE_TONE_SHARES = [0.09, 0.42, 0.75, 0.97];
 const TREE_DITHER_SHARE = 0.015;
 const TREE_TRUNK_SHADES = [0.8, 0.88, 0.94, 1, 1.07];
