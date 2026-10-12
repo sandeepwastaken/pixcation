@@ -354,14 +354,16 @@ function tintChunkGrass(scene, context, originTileX, originTileY) {
     const woodColors = getWoodColors(scene);
     const image = context.getImageData(0, 0, CHUNK_PIXEL_SIZE, CHUNK_PIXEL_SIZE);
     const data = image.data;
+    const grassTints = Array.from({ length: CHUNK_SIZE * CHUNK_SIZE }, (_, tile) => getGrassTint(originTileX + tile % CHUNK_SIZE, originTileY + Math.floor(tile / CHUNK_SIZE)));
+    const dirtTints = Array.from({ length: CHUNK_SIZE * CHUNK_SIZE }, (_, tile) => getDirtTint(originTileX + tile % CHUNK_SIZE, originTileY + Math.floor(tile / CHUNK_SIZE)));
     for (let y = 0; y < CHUNK_PIXEL_SIZE; y++) {
         let tint = null;
         let dirtTint = null;
         for (let x = 0; x < CHUNK_PIXEL_SIZE; x++) {
             const index = (y * CHUNK_PIXEL_SIZE + x) * 4;
             if (x % TILE_SIZE === 0) {
-                tint = getGrassTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
-                dirtTint = getDirtTint(originTileX + x / TILE_SIZE, originTileY + Math.floor(y / TILE_SIZE));
+                tint = grassTints[Math.floor(y / TILE_SIZE) * CHUNK_SIZE + x / TILE_SIZE];
+                dirtTint = dirtTints[Math.floor(y / TILE_SIZE) * CHUNK_SIZE + x / TILE_SIZE];
             }
             const red = data[index], green = data[index + 1], blue = data[index + 2];
             if (!data[index + 3]) continue;
