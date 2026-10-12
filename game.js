@@ -118,7 +118,7 @@ const MARKET_ROW_COUNT = MARKET_ITEM_ROWS + 2;
 const SAVE_KEY = 'pixcation-save-v1' + (typeof getRequestedWorldSeed === 'function' && getRequestedWorldSeed() ? ':' + getRequestedWorldSeed() : '');
 
 const NPC_FIRST_NAMES = [
-    'Ada', 'Abe', 'Agnes', 'Alba', 'Alder', 'Alma', 'Alvin', 'Amos', 'Anika', 'Ansel', 'April', 'Arlo', 'Arden', 'Ashby', 'Aster', 'Astrid',
+    'Ada', 'Abe', 'Agnes', 'Alba', 'Alder', 'Alma', 'Alvin', 'Amos', 'Anika', 'Ansel', 'Arham', 'April', 'Arlo', 'Arden', 'Ashby', 'Aster', 'Astrid',
     'Aubrey', 'August', 'Ava', 'Avery', 'Basil', 'Bea', 'Benny', 'Bernie', 'Bess', 'Birdie', 'Blair', 'Bodhi', 'Bram', 'Briar', 'Brook', 'Bruno',
     'Cal', 'Calla', 'Calvin', 'Camille', 'Carmen', 'Cass', 'Cedar', 'Cecil', 'Celia', 'Chester', 'Clara', 'Clem', 'Cleo', 'Clover', 'Cody', 'Cora',
     'Cosmo', 'Cyrus', 'Dahlia', 'Daisy', 'Dale', 'Darby', 'Dawn', 'Dean', 'Della', 'Dex', 'Dina', 'Dot', 'Drew', 'Dusty', 'Edie', 'Edgar',
