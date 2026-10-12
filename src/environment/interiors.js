@@ -40,13 +40,16 @@ function buildInterior(scene, house) {
     room.blocked.push([tableX, tableY + 4, tableX + tableLength * TILE_SIZE, tableY + TILE_SIZE]);
     const chair = (key, x, bottom) => { place(key, x, bottom - 29, bottom - 0.5); room.blocked.push([x + 2, bottom - 8, x + TILE_SIZE - 2, bottom]); };
     if (random() < 0.85) chair('chairFront', tableX + TILE_SIZE / 2 + Math.round((random() - 0.5) * 10), tableY - 2);
+    const residentNpcs = []; for (const chunk of loadedChunks.values()) for (const npc of chunk.npcs || []) if (house.residents.includes(npc.id)) residentNpcs.push(npc);
+    room.residents = residentNpcs.map((npc, index) => ({ npc, sprite: scene.add.image(Math.round(rugX + 16 + (index - (residentNpcs.length - 1) / 2) * 18), rugY - 4, getNpcTexture(scene, npc.look, 'front', 0)).setOrigin(0).setDepth(rugY + 12).setVisible(false) }));
+    room.layer.add(room.residents.map(resident => resident.sprite));
     return Object.assign(room, { startX: room.doorLeft, startY: room.bottom - CHARACTER_SIZE });
 }
 
 function canOccupyInterior(left, top, right, bottom) {
     const inside = left >= interior.left && right <= interior.right && top >= interior.top && bottom <= interior.bottom;
     const doorway = left >= interior.doorLeft && right <= interior.doorLeft + TILE_SIZE && top >= interior.top && bottom <= interior.bottom + TILE_SIZE;
-    return (inside || doorway) && !interior.blocked.some(([blockLeft, blockTop, blockRight, blockBottom]) => left < blockRight && right > blockLeft && top < blockBottom && bottom > blockTop);
+    return (inside || doorway) && !interior.blocked.some(([blockLeft, blockTop, blockRight, blockBottom]) => left < blockRight && right > blockLeft && top < blockBottom && bottom > blockTop) && !interior.residents.some(({ sprite }) => sprite.visible && left < sprite.x + 12 && right > sprite.x + 4 && top < sprite.y + 16 && bottom > sprite.y + 12);
 }
 
 function snapInteriorCamera() {
@@ -69,16 +72,24 @@ function leaveInterior() {
     worldObjectLayer.add(character);
     character.setPosition(interior.house.doorX * TILE_SIZE, interior.house.doorY * TILE_SIZE);
     interior.layer.destroy();
-    interior = null;
+    interior = null; interiorTalkNpc = null;
     characterShadow.image.setVisible(true);
     characterDirection = 'front';
     setCharacterTexture('character-front');
     snapInteriorCamera();
 }
 
+function talkToInteriorNpc(scene) {
+    if (!interiorTalkNpc || !dialogueContainer) return;
+    interiorTalkNpc.talking = true; interiorTalkNpc.playerVisits = Math.min(100000, (interiorTalkNpc.playerVisits || 0) + 1); saveDirty = true;
+    beginDialogue(scene, buildNpcDialogue(scene, interiorTalkNpc), null, interiorTalkNpc.name, interiorTalkNpc);
+}
+
 function updateInterior(scene) {
     if (spawnReturn || isMenuOpen()) return;
     const top = character.y + CHARACTER_HITBOX_Y, centerX = character.x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH / 2;
+    if (interior) for (const { npc, sprite } of interior.residents) if (sprite.visible !== (npc.state === 'home')) sprite.setVisible(npc.state === 'home');
+    if (interior) interiorTalkNpc = interior.residents.find(({ sprite }) => sprite.visible && (sprite.x - character.x) ** 2 + (sprite.y - character.y) ** 2 < NPC_TALK_DISTANCE_SQUARED)?.npc || null;
     if (interior) { if (top + CHARACTER_HITBOX_HEIGHT > interior.bottom + 6) leaveInterior(); return; }
     if (!characterKeys.up.isDown && !characterKeys.upArrow.isDown) return;
     for (const house of npcHouseCache.values()) if (house && npcHouseSprites.has(house.id) && Math.abs(centerX - (house.doorX + 0.5) * TILE_SIZE) < 5 && top >= house.doorY * TILE_SIZE - 1 && top <= house.doorY * TILE_SIZE + 2) return enterInterior(scene, house);

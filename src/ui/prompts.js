@@ -67,13 +67,13 @@ function createInteractionPromptUI(scene) {
 function updateInteractionPrompt(scene, guideReach, marketReach) {
     if (!interactionPromptLayer) return;
 
-    const time = scene.time.now, available = !isMenuOpen() && !interior && time >= catchCardUntil;
-    const target = available && (guideReach < 1 || marketReach < 1)
+    const time = scene.time.now, available = !isMenuOpen() && time >= catchCardUntil;
+    const target = available && !interior && (guideReach < 1 || marketReach < 1)
         ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
         : null;
     const showItem = available && !target && time < itemLabelUntil;
-    const showNpc = available && !target && !showItem && nearestNpc && nearestNpc.state !== 'home';
-    if (showNpc && npcPrompt.label.textContent !== `- talk to ${nearestNpc.name}`) { setUITextContent(npcPrompt.label, `- talk to ${nearestNpc.name}`); snapPromptWidth(npcPrompt); }
+    const showNpc = available && !target && !showItem && (interior ? interiorTalkNpc : nearestNpc && nearestNpc.state !== 'home' && nearestNpc);
+    if (showNpc && npcPrompt.label.textContent !== `- talk to ${showNpc.name}`) { setUITextContent(npcPrompt.label, `- talk to ${showNpc.name}`); snapPromptWidth(npcPrompt); }
     const state = (target === 'market' ? 1 : 0) | (target === 'guide' ? 2 : 0) | (showItem ? 4 : 0) | (showNpc ? 8 : 0);
 
     if (state === promptState) return;
