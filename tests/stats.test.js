@@ -3,6 +3,46 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('opening player conversations records a lasting conversation count', () => {
+    const {context, run} = createStats();
+    run(fs.readFileSync('src/ui/interactions.js', 'utf8'));
+    run('stopCharacterForMenu = showSlidingPanel = showGuideDialogueNode = () => {}; setUITextContent = () => {}; beginDialogue({}, {}, null, "Guide", null); beginDialogue({}, {}, null, "Visitor", {id: 1});');
+    assert.equal(run('playerStats.conversations'), 2);
+    assert.equal(run('saveDirty'), true);
+});
+
+test('expanded stats scroll through all rows and clamp at either end', () => {
+    const {context, run} = createStats();
+    context.setUITextContent = (element, value) => {element.textContent = String(value);};
+    run('statsValueTexts.push(...Array.from({length: 9}, () => ({}))); statsLabelTexts.push(...Array.from({length: 9}, () => ({}))); peopleMet.add(1); peopleMet.add(2); guideHasMetPlayer = true; playerStats.conversations = 5; playerStats.distanceWalked = 160; playerStats.casts = 4; playerStats.fishCaught = 3; refreshStatsUI(); scrollStats(999);');
+    assert.equal(run('statsScroll'), 9);
+    assert.equal(run('statsLabelTexts[0].textContent'), 'People met');
+    assert.equal(run('statsValueTexts[0].textContent'), '3');
+    assert.equal(run('statsValueTexts[1].textContent'), '5');
+    assert.equal(run('statsValueTexts[3].textContent'), '10 tiles');
+    assert.equal(run('statsValueTexts[8].textContent'), '75%');
+    run('scrollStats(-999)');
+    assert.equal(run('statsScroll'), 0);
+    assert.equal(run('statsLabelTexts[0].textContent'), 'Fish caught');
+    assert.equal(run('statsValueTexts[0].textContent'), '3');
+});
+
+test('only actual catches increment large and giant catch counters', () => {
+    const {context, run} = createStats();
+    context.addCaughtFish(run('FISH_SPECIES.find(species => species.size === "large")'));
+    context.addCaughtFish(run('FISH_SPECIES.find(species => species.size === "giant")'));
+    context.addCaughtFish(run('FISH_SPECIES.find(species => species.size === "giant")'), false);
+    assert.equal(run('playerStats.largeCaught'), 1);
+    assert.equal(run('playerStats.giantCaught'), 1);
+});
+
+test('stats header arrow hitboxes match the pixel-grid positions', () => {
+    const {context} = createStats();
+    assert.equal(context.getStatsScrollAt(254, 38), -1);
+    assert.equal(context.getStatsScrollAt(274, 38), 1);
+    assert.equal(context.getStatsScrollAt(254, 75), 0);
+});
+
 function createStats() {
     const context = vm.createContext({ TEST_MODE: false });
     const source = ['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'runtime/progress.js', 'ui/stats.js', 'ui/market-controls.js', 'fishing/minigame.js'].map(file => fs.readFileSync(`src/${file}`, 'utf8')).join('\n');
@@ -29,7 +69,7 @@ test('stats migration keeps known fish and rejects invalid or unsafe amounts', (
     const { context, run } = createStats();
     run("fishInventory.set('bluegill', 3)");
     context.restoreSavedStats({ playTimeMs: 3600000, casts: -2, moneyEarned: Infinity, moneySpent: 1.5, fishSold: Number.MAX_SAFE_INTEGER + 1 });
-    assert.deepEqual(JSON.parse(run('JSON.stringify(playerStats)')), { fishCaught: 3, playTimeMs: 3600000, moneyEarned: 0, fishSold: 0, casts: 0, moneySpent: 0 });
+    assert.deepEqual(JSON.parse(run('JSON.stringify(playerStats)')), { fishCaught: 3, playTimeMs: 3600000, moneyEarned: 0, fishSold: 0, casts: 0, moneySpent: 0, conversations: 0, npcTrades: 0, distanceWalked: 0, largeCaught: 0, giantCaught: 0 });
     context.recordPlayerStat('casts', Number.MAX_SAFE_INTEGER);
     context.recordPlayerStat('casts');
     assert.equal(run('playerStats.casts'), Number.MAX_SAFE_INTEGER);

@@ -239,7 +239,7 @@ function createNpc(tileX, tileY, water) {
     const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
     const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
-    const rareName = appearance[22] === 0, feminine = rareVanity || rareName || appearance[18] === 1, face = appearance[4], names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
+    const rareName = getNpcRareName(appearance[22] / NPC_APPEARANCE_RADICES[22]), feminine = rareVanity || (rareName ? NPC_FEMININE_FIRST_NAMES.includes(rareName) : appearance[18] === 1), face = appearance[4], names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
     const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8]) : [0, 2, 4, 6, 7, 8], hairstyles = feminine ? [0, 2, 7, 8, 9] : face === 1 ? [0, 1, 5, 6, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9];
     const vanity = feminine ? [0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 6] : [0, 0, 1, 1, 2, 2, 3, 6, 6, 6, 6], pants = feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
     return {
@@ -252,7 +252,7 @@ function createNpc(tileX, tileY, water) {
         hasty: npcHash(tileX, tileY, 1318) < NPC_HASTY_CHANCE,
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),
-        name: (rareName ? 'Emz' : names[appearance[19] % names.length]) + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
+        name: (rareName || names[appearance[19] % names.length]) + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
         look: [
             appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 : 0, face, shirts[appearance[5] % shirts.length], appearance[6],
             appearance[7], accessory,
@@ -338,7 +338,7 @@ function serializeNpc(npc, time) {
     const goal = npc.pausedActivity ? [npc.pausedActivity.x, npc.pausedActivity.y] : npc.state === 'walk' ? npc.path[npc.path.length - 1] : null;
     return {
         id: npc.id,
-        home: npc.state === 'home',
+        home: npc.state === 'home', indoor: npc.indoor ? [npc.indoor.sprite.x, npc.indoor.sprite.y, npc.indoor.direction, npc.indoor.journey] : null,
         visits: npc.playerVisits || 0,
         activity: npc.lastActivity || null,
         neighbor: npc.lastNeighbor || null,
@@ -389,7 +389,7 @@ function restoreNpc(scene, npc) {
     npc.lastActivity = ['fishing', 'walk', 'social', 'greeting', 'rest'].includes(state.activity) ? state.activity : null;
     npc.lastNeighbor = typeof state.neighbor === 'string' ? state.neighbor.slice(0, 80) : null;
     if (!isNpcInHomeArea(npc, npc.x / TILE_SIZE, npc.y / TILE_SIZE)) { npc.x = npc.tileX * TILE_SIZE; npc.y = npc.tileY * TILE_SIZE; npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE); return; }
-    if (state.home === true && npc.house) { npc.x = npc.house.doorX * TILE_SIZE; npc.y = npc.house.doorY * TILE_SIZE; npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE); enterNpcHouse(npc); return; }
+    if (state.home === true && npc.house) { npc.x = npc.house.doorX * TILE_SIZE; npc.y = npc.house.doorY * TILE_SIZE; npc.sprite.setPosition(npc.x, npc.y).setDepth(npc.y + NPC_PART_SIZE); enterNpcHouse(npc); const resident = getNpcIndoorResident(scene, npc); if (Array.isArray(state.indoor) && state.indoor.slice(0, 2).every(Number.isSafeInteger) && state.indoor.length === 4 && canInteriorResidentStand(resident, state.indoor[0], state.indoor[1])) {resident.sprite.setPosition(state.indoor[0], state.indoor[1]); resident.direction = NPC_DIRECTION_STEPS.has(state.indoor[2]) ? state.indoor[2] : 'back'; resident.journey = ['enter', 'exit'].includes(state.indoor[3]) ? state.indoor[3] : null; resident.goal = null; resident.route = null;} return; }
     if (NPC_DIRECTION_STEPS.has(state.direction)) npc.direction = state.direction;
     if (Array.isArray(state.spot) && state.spot.length === 2 && state.spot.every(Number.isSafeInteger) && isNpcInHomeArea(npc, ...state.spot) && !npc.failedSpots.has(getTileId(...state.spot))) {
         const water = findNpcWater(state.spot[0], state.spot[1]);
@@ -426,7 +426,7 @@ function isNpcNearCamera(npc) {
 function canNpcOccupy(scene, npc, x, y) {
     const left = x + CHARACTER_HITBOX_X, top = y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH, bottom = top + CHARACTER_HITBOX_HEIGHT;
-    if (actorBlocksRect(character, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) return false;
+    if (!interior && actorBlocksRect(character, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) return false;
     return canCharacterOccupy(scene, x, y, npc);
 }
 
@@ -701,24 +701,18 @@ function chooseNpcPlan(scene, npc, time) {
 }
 
 function stepNpc(scene, npc, time, delta) {
+    while (npc.path.length && npc.x === npc.path[0][0] * TILE_SIZE && npc.y === npc.path[0][1] * TILE_SIZE) npc.path.shift();
     const next = npc.path[0];
     if (!next) return true;
     const targetX = next[0] * TILE_SIZE, targetY = next[1] * TILE_SIZE;
     const distanceX = targetX - npc.x, distanceY = targetY - npc.y;
-    if (!distanceX && !distanceY) {
-        npc.path.shift();
-        return !npc.path.length;
-    }
 
     const moveX = Math.sign(distanceX), moveY = distanceX ? 0 : Math.sign(distanceY);
     const travelDirection = moveX ? (moveX < 0 ? 'left' : 'right') : (moveY < 0 ? 'back' : 'front');
-    if (npc.travelDirection !== travelDirection) { npc.travelDirection = travelDirection; npc.turnUntil = time + 80 + npcRandom(npc) * 100; npc.walkSpeed = 0; }
-    if (time < npc.turnUntil) { setNpcPose(scene, npc, travelDirection, 0); return false; }
+    npc.travelDirection = travelDirection;
     if (!canNpcOccupy(scene, npc, npc.x + moveX, npc.y + moveY)) { npc.walkSpeed = 0; npc.remainderX = npc.remainderY = 0; setNpcPose(scene, npc, travelDirection, 0); return false; }
-    const after = npc.path[1], turning = !after || after[0] - next[0] !== moveX || after[1] - next[1] !== moveY;
     const speedLimit = npc.goal === 'stroll' ? npc.strollSpeed || npc.speed : npc.speed;
-    const approachLimit = turning ? Math.min(speedLimit, Math.sqrt(2 * Math.hypot(distanceX, distanceY) / CHARACTER_SPEED)) : speedLimit;
-    const pace = npc.walkSpeed = Math.min(approachLimit, (npc.walkSpeed || 0) + Math.min(delta, 50) / 1000);
+    const pace = npc.walkSpeed = speedLimit;
     const frameDelta = Math.min(delta, 50);
     const distance = CHARACTER_SPEED * pace * frameDelta / 1000;
     npc.remainderX += moveX * Math.min(distance, Math.abs(distanceX));
@@ -993,7 +987,7 @@ function getNpcDailyPlan(npc, clock) {
 }
 
 function enterNpcHouse(npc) {
-    npc.lastActivity = 'rest';
+    npc.lastActivity = 'rest'; npc.indoor = null;
     npc.state = 'home'; npc.path = []; npc.sprite.setVisible(false);
     npc.shadow.clear(); if (npc.bubble) npc.bubble.setVisible(false);
     npc.shadowX = npc.shadowY = null;
@@ -1012,7 +1006,7 @@ function findNpcExitPath(scene, npc) {
     return null;
 }
 
-function updateNpcHome(scene, npc, time) {
+function updateNpcHome(scene, npc, time, delta = 16) {
     const clock = getWorldClock();
     npc.dailyPlan = getNpcDailyPlan(npc, clock);
     npc.needsShelter = Boolean(npc.house && getRainIntensity(clock) >= (npc.needsShelter || npc.state === 'home' ? 0.25 : 0.65));
@@ -1020,12 +1014,12 @@ function updateNpcHome(scene, npc, time) {
     if (!npc.house) return false;
     if (!wantsHome && npc.state === 'walk' && npc.goal === 'home') { settleNpc(scene, npc, time, NPC_IDLE_MIN); npc.goal = null; }
     if (npc.state === 'home') {
-        if (wantsHome || time < (npc.exitRetryAt || 0)) return true;
+        const resident = getNpcIndoorResident(scene, npc); const journey = wantsHome ? resident.journey === 'exit' ? 'enter' : resident.journey : 'exit'; if (resident.journey !== journey) {resident.journey = journey; resident.goal = null; resident.route = null; resident.nextWalkAt = time;} updateInteriorResident(scene, resident, time, delta); if (wantsHome || npc.talking || resident.sprite.x !== resident.room.doorLeft || resident.sprite.y !== resident.room.bottom || time < (npc.exitRetryAt || 0)) return true;
         npc.exitRetryAt = time + NPC_HOME_EXIT_RETRY;
         if (!canNpcOccupy(scene, npc, npc.x, npc.y)) return true;
         const path = findNpcExitPath(scene, npc);
         if (!path) return true;
-        npc.sprite.setVisible(true); settleNpc(scene, npc, time, NPC_IDLE_MIN + npcRandom(npc) * NPC_IDLE_RANGE);
+        npc.indoor = null; npc.sprite.setVisible(true); settleNpc(scene, npc, time, NPC_IDLE_MIN + npcRandom(npc) * NPC_IDLE_RANGE);
         startNpcPath(npc, path, 'leaveHome', time);
         saveDirty = true;
         npc.lookAt = npc.until;
@@ -1045,7 +1039,7 @@ function updateNpcHome(scene, npc, time) {
 
 function updateNpc(scene, npc, time, delta) {
     if (npc.fishing) updateNpcFishing(scene, npc, time);
-    if (updateNpcHome(scene, npc, time)) return;
+    if (updateNpcHome(scene, npc, time, delta)) return;
     if (npc.state === 'social') {
         const other = activeNpcs.find(other => other.id === npc.socialPartner);
         if (time >= npc.until && tryNpcSharedWalk(scene, npc, other, time)) npc.lookAt = time;
@@ -1129,7 +1123,7 @@ function updateNpcs(scene, time, delta) {
             moved ||= tile !== getTileId(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE));
             if (npc.state === 'home') continue;
             const x = npc.x - character.x, y = npc.y - character.y, distance = x * x + y * y;
-            if (distance < nearestDistance && canNpcsTalkAcross(character, npc)) [nearest, nearestDistance] = [npc, distance];
+            if (!interior && distance < nearestDistance && canNpcsTalkAcross(character, npc)) [nearest, nearestDistance] = [npc, distance];
         }
     }
     if (moved) saveDirty = true;
@@ -1154,6 +1148,7 @@ function completeNpcTrade(scene, npc, trade) {
     playerCoins = Math.min(Number.MAX_SAFE_INTEGER, playerCoins + trade.coins);
     recordPlayerStat('moneyEarned', trade.coins);
     recordPlayerStat('fishSold', trade.count);
+    recordPlayerStat('npcTrades');
     npcTradesDone.add(`${npc.id}:${trade.period}`);
     saveDirty = true;
     sparkleOverPlayer(scene);
@@ -1235,6 +1230,7 @@ function talkToNearestNpc(scene) {
     npc.talking = true;
     const nodes = buildNpcDialogue(scene, npc);
     npc.playerVisits = Math.min(100000, (npc.playerVisits || 0) + 1); saveDirty = true;
+    peopleMet.add(npc.id);
     beginDialogue(scene, nodes, null, npc.name, npc);
 }
 

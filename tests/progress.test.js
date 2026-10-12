@@ -5,6 +5,15 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
+
+test('people met remain unique across saves and recover known visitors from old NPC memories', () => {
+    const session = createSession({version: 1, people: [1, 1, '2', null], npcs: [{id: 2, visits: 4}, {id: 3, visits: 0}, {id: 4, visits: '1'}]});
+    session.load();
+    assert.deepEqual(session.run('[...peopleMet]').join(','), '1,2');
+    const saved = persisted(session);
+    assert.deepEqual(saved.people, [1, 2]);
+    assert.equal(saved.stats.conversations, 0);
+});
 const source = ['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'runtime/progress.js']
     .map(file => fs.readFileSync(path.join(ROOT, 'src', file), 'utf8')).join('\n');
 
@@ -57,9 +66,9 @@ function persisted(session) {
 test('player progress survives a save and load round trip', () => {
     const saved = {
         version: 1, coins: 123, rods: ['basic', 'master'], fish: [['bluegill', 2], ['goldfish', 1]],
-        catchLog: ['bluegill', 'goldfish'], explored: [-123, 4], bait: [['trainer', 5]],
+        catchLog: ['bluegill', 'goldfish'], explored: [-123, 4], people: [12, 34], bait: [['trainer', 5]],
         activeBait: 'trainer', chests: [-31, 10], guideMet: true, npcs: [], position: [48, -32],
-        stats: { fishCaught: 18, playTimeMs: 90000, moneyEarned: 270, fishSold: 15, casts: 23, moneySpent: 80 }
+        stats: { fishCaught: 18, playTimeMs: 90000, moneyEarned: 270, fishSold: 15, casts: 23, moneySpent: 80, conversations: 7, npcTrades: 2, distanceWalked: 1234, largeCaught: 4, giantCaught: 1 }
     };
     const session = createSession(saved);
     session.load();

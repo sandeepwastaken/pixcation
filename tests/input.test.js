@@ -40,6 +40,19 @@ function createInput() {
 
 const space = { key: ' ', code: 'Space', repeat: false, preventDefault() {} };
 const left = { button: 0, x: 0, y: 180 };
+test('door transition action reset clears held sources so casting resumes normally afterward', () => {
+    const {input, run} = createInput(); input.keyboard.emit('keydown', space);
+    run('scene.resetHeldActions();');
+    assert.equal(run('fishingActionHeld'), false); assert.equal(run('castCharge'), null);
+    input.keyboard.emit('keydown', space); assert.equal(run('presses'), 2);
+});
+test('house transitions block casting, menus, teleporting, and hotbar scrolling', () => {
+    const {input, run} = createInput(); run('interiorTransition = {}; let selected = 0; selectHotbarSlot = () => selected++;');
+    input.keyboard.emit('keydown', space); input.emit('pointerdown', left); input.emit('wheel', {event: {timeStamp: 200}}, [], 0, 1);
+    for (const [key, code] of [['h', 'KeyH'], ['i', 'KeyI'], ['Tab', 'Tab']]) input.keyboard.emit('keydown', {key, code, repeat: false, preventDefault() {}});
+    assert.equal(run('presses'), 0); assert.equal(run('selected'), 0); assert.equal(run('statsOpen'), false);
+});
+test('stats support keyboard, wheel, and header arrows without leaking gameplay actions', () => { const {input, run} = createInput(); run('statsOpen = true; let steps = 0; scrollStats = step => steps += step; getStatsScrollAt = () => -1;'); input.keyboard.emit('keydown', {key: 'ArrowDown', code: 'ArrowDown', repeat: false, preventDefault() {}}); input.emit('wheel', {event: {timeStamp: 200}}, [], 0, 1); input.emit('pointerdown', {button: 0, x: 254, y: 38}); assert.equal(run('steps'), 1); assert.equal(run('presses'), 0); });
 test('the new world chooser consumes keyboard and pointer actions without casting', () => { const { input, run } = createInput(); run('newGameChoice = {open: true}; let chooserKeys = 0, chooserClicks = 0; function handleNewGameChoiceKey() { chooserKeys++; } function handleNewGameChoicePointer() { chooserClicks++; }'); input.keyboard.emit('keydown', space); input.emit('pointerdown', left); input.emit('wheel', {event: {timeStamp: 200}}, [], 0, 1); assert.equal(run('chooserKeys'), 1); assert.equal(run('chooserClicks'), 1); assert.equal(run('presses'), 0); });
 test('casting with either Space or a click dismisses the reveal card and starts charging', () => {
     for (const source of ['keyboard', 'pointer']) {

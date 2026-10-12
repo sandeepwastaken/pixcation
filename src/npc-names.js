@@ -1,4 +1,4 @@
-const NPC_FIRST_NAMES = [
+const NPC_NAME_ENTRIES = [
     'Ada', 'Abe', 'Agnes', 'Alba', 'Alder', 'Alma', 'Alvin', 'Amos', 'Anika', 'Ansel', 'Arham', 'April', 'Arlo', 'Arden', 'Ashby', 'Aster', 'Astrid',
     'Aubrey', 'August', 'Ava', 'Avery', 'Basil', 'Bea', 'Benny', 'Bernie', 'Bess', 'Birdie', 'Blair', 'Bodhi', 'Bram', 'Briar', 'Brook', 'Bruno',
     'Cal', 'Calla', 'Calvin', 'Camille', 'Carmen', 'Cass', 'Cedar', 'Cecil', 'Celia', 'Chester', 'Clara', 'Clem', 'Cleo', 'Clover', 'Cody', 'Cora',
@@ -6,7 +6,7 @@ const NPC_FIRST_NAMES = [
     'Effie', 'Elan', 'Elio', 'Eliza', 'Ellis', 'Elmer', 'Elsie', 'Emil', 'Enzo', 'Esme', 'Etta', 'Ezra', 'Fawn', 'Felix', 'Fern', 'Fig',
     'Finn', 'Fiona', 'Flint', 'Flo', 'Floyd', 'Frankie', 'Fritz', 'Gale', 'Georgie', 'Gil', 'Ginger', 'Gus', 'Hal', 'Hana', 'Hank', 'Harlow',
     'Hattie', 'Hazel', 'Heath', 'Hollis', 'Holly', 'Hugo', 'Ida', 'Ike', 'Imani', 'Indy', 'Ines', 'Iris', 'Ivo', 'Ivy', 'Jada', 'Jasper',
-    'Jem', 'Jett', 'Jo', 'Joel', 'Jonah', 'Joni', 'Jude', 'June', 'Juno', 'Kai', 'Kat', 'Keiko', 'Kenji', 'Kit', 'Emz', 'Jessie',
+    'Jem', 'Jett', 'Jo', 'Joel', 'Jonah', 'Joni', 'Jude', 'June', 'Juno', 'Kai', 'Kat', 'Keiko', 'Kenji', 'Kit', {name: 'Emz', weight: 1}, 'Jessie',
     'Laurel', 'Lena', 'Leo', 'Levi', 'Lila', 'Linus', 'Lola', 'Lou', 'Luca', 'Lucy', 'Lulu', 'Mabel', 'Mack', 'Mae', 'Maggie', 'Malia',
     'Maple', 'Marco', 'Margo', 'Marlo', 'Mateo', 'Maude', 'Mavis', 'Max', 'Meadow', 'Mei', 'Mila', 'Milo', 'Mina', 'Miso', 'Moss', 'Murphy',
     'Nadia', 'Nell', 'Nico', 'Nina', 'Noah', 'Noor', 'Nora', 'Oak', 'Odette', 'Olive', 'Ollie', 'Omar', 'Opal', 'Orla', 'Oscar', 'Otis',
@@ -16,11 +16,19 @@ const NPC_FIRST_NAMES = [
     'Tilly', 'Toby', 'Tomas', 'Tova', 'Tuck', 'Uma', 'Una', 'Vera', 'Vic', 'Vida', 'Viggo', 'Vince', 'Wade', 'Walt', 'Wren', 'Wes',
     'Willa', 'Willow', 'Winnie', 'Wyatt', 'Xavi', 'Yara', 'Yuki', 'Yusuf', 'Zadie', 'Zane', 'Zara', 'Zeke', 'Zion', 'Zoe', 'Zora', 'Zuri'
 ];
+const NPC_FIRST_NAMES = NPC_NAME_ENTRIES.map(entry => typeof entry === 'string' ? entry : entry.name);
+const NPC_NAME_WEIGHTS = new Map(NPC_NAME_ENTRIES.filter(entry => typeof entry === 'object').map(entry => [entry.name, entry.weight]));
 const NPC_NEUTRAL_FIRST_NAMES = ['Arden', 'Avery', 'Blair', 'Briar', 'Brook', 'Cass', 'Cedar', 'Clem', 'Dale', 'Darby', 'Drew', 'Ellis', 'Frankie', 'Gale', 'Harlow', 'Hollis', 'Indy', 'Jo', 'Jude', 'Kai', 'Kit', 'Lark', 'Lou', 'Marlo', 'Noor', 'Quinn', 'Remy', 'River', 'Robin', 'Rowan', 'Sage', 'Sasha', 'Scout', 'Shay', 'Sky', 'Sunny', 'Wren', 'Yuki'];
 const NPC_FEMININE_FIRST_NAMES = NPC_FIRST_NAMES.filter(name => NPC_NEUTRAL_FIRST_NAMES.includes(name) || ['Ada', 'Agnes', 'Alba', 'Alma', 'Anika', 'April', 'Astrid', 'Ava', 'Bea', 'Bess', 'Birdie', 'Calla', 'Camille', 'Carmen', 'Celia', 'Clara', 'Cleo', 'Clover', 'Cora', 'Dahlia', 'Daisy', 'Dawn', 'Della', 'Dina', 'Dot', 'Edie', 'Effie', 'Eliza', 'Elsie', 'Emz', 'Esme', 'Etta', 'Fawn', 'Fern', 'Fiona', 'Flo', 'Ginger', 'Hana', 'Hattie', 'Hazel', 'Holly', 'Ida', 'Imani', 'Ines', 'Iris', 'Ivy', 'Jada', 'Joni', 'June', 'Juno', 'Kat', 'Keiko', 'Laurel', 'Lena', 'Lila', 'Lola', 'Lucy', 'Lulu', 'Mabel', 'Mae', 'Maggie', 'Malia', 'Maple', 'Margo', 'Maude', 'Mavis', 'Meadow', 'Mei', 'Mila', 'Mina', 'Nadia', 'Nell', 'Nina', 'Nora', 'Odette', 'Olive', 'Opal', 'Orla', 'Paloma', 'Peg', 'Pepper', 'Piper', 'Poppy', 'Priya', 'Ramona', 'Rhea', 'Rosa', 'Ruby', 'Selma', 'Stella', 'Suki', 'Tali', 'Tess', 'Thea', 'Tilly', 'Tova', 'Uma', 'Una', 'Vera', 'Vida', 'Willa', 'Willow', 'Winnie', 'Yara', 'Zadie', 'Zara', 'Zoe', 'Zora', 'Zuri'].includes(name));
 const NPC_MASCULINE_FIRST_NAMES = NPC_FIRST_NAMES.filter(name => NPC_NEUTRAL_FIRST_NAMES.includes(name) || !NPC_FEMININE_FIRST_NAMES.includes(name));
-const NPC_COMMON_FEMININE_NAMES = NPC_FEMININE_FIRST_NAMES.filter(name => name !== 'Emz');
-const NPC_COMMON_MASCULINE_NAMES = NPC_MASCULINE_FIRST_NAMES.filter(name => name !== 'Emz');
+const NPC_COMMON_FEMININE_NAMES = NPC_FEMININE_FIRST_NAMES.filter(name => !NPC_NAME_WEIGHTS.has(name));
+const NPC_COMMON_MASCULINE_NAMES = NPC_MASCULINE_FIRST_NAMES.filter(name => !NPC_NAME_WEIGHTS.has(name));
+
+function getNpcRareName(roll) {
+    let limit = 0;
+    for (const [name, weight] of NPC_NAME_WEIGHTS) if (roll < (limit += weight / NPC_APPEARANCE_RADICES[22])) return name;
+    return null;
+}
 
 const NPC_LAST_NAMES = [
     'Abbott', 'Acorn', 'Alder', 'Ames', 'Ashdown', 'Baker', 'Banks', 'Barlow', 'Barnes', 'Bay', 'Beck', 'Bell', 'Birch', 'Bishop', 'Black', 'Bloom',

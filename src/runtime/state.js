@@ -5,7 +5,7 @@ let itemLabelUntil = 0;
 let itemPrompt;
 let selectedHotbarSlot = 0;
 let worldObjectLayer;
-let interior = null, interiorTalkNpc = null;
+let interior = null, interiorTalkNpc = null, interiorTransition = null;
 
 const loadedChunks = new Map();
 const loadedWaterChunks = new Set();
@@ -172,5 +172,8 @@ let statsButtonTextLayer;
 let statsContainer;
 let statsTextLayer;
 const statsValueTexts = [];
-const playerStats = { fishCaught: 0, playTimeMs: 0, moneyEarned: 0, fishSold: 0, casts: 0, moneySpent: 0 };
+const statsLabelTexts = [], peopleMet = new Set();
+let statsScroll = 0, statsScrollText;
+const statsArrowTexts = [];
+const playerStats = { fishCaught: 0, playTimeMs: 0, moneyEarned: 0, fishSold: 0, casts: 0, moneySpent: 0, conversations: 0, npcTrades: 0, distanceWalked: 0, largeCaught: 0, giantCaught: 0 };
 let lastPlayTime = null;

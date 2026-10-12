@@ -4,6 +4,19 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { decodePng } = require('../build-atlas');
 
+test('both contributors name additions survive merging the weighted name generator', () => {
+    const run = createPeople();
+    for (const name of ['Ansel', 'Arham']) assert.equal(run('NPC_FIRST_NAMES.filter(name => name === ' + JSON.stringify(name) + ').length'), 1);
+});
+
+test('uncommon names use generic weighted data rather than character-specific generation branches', () => {
+    const run = createPeople();
+    run('NPC_NAME_WEIGHTS.set("Other", 2)');
+    assert.equal(run('getNpcRareName(0.0001)'), 'Other');
+    assert.equal(run('getNpcRareName(0.0002)'), 'Other');
+    assert.equal(run('getNpcRareName(0.0004)'), null);
+});
+
 test('natural and pastel skin ramps interpolate across hundreds of distinct palettes', () => {
     const run = createPeople();
     for (const pastel of [false, true]) {

@@ -106,6 +106,8 @@ function loadProgress(scene) {
     restoreSavedStats(saved.stats);
     restoreSavedCatchLog(saved.catchLog);
     restoreSavedTileIds(discoveredChunks, saved.explored);
+    restoreSavedTileIds(peopleMet, saved.people);
+    for (const npc of getSavedList(saved.npcs)) if (npc && Number.isSafeInteger(npc.id) && Number.isSafeInteger(npc.visits) && npc.visits > 0) peopleMet.add(npc.id);
     restoreSavedBait(saved.bait);
     activeBaitId = baitInventory.has(saved.activeBait) ? saved.activeBait : null;
     restoreSavedTileIds(openedChests, saved.chests);
@@ -131,6 +133,7 @@ function saveProgress() {
             fish: [...fishInventory],
             catchLog: [...catchLog],
             explored: [...discoveredChunks],
+            people: [...peopleMet],
             bait: [...baitInventory],
             activeBait: activeBaitId,
             chests: [...openedChests],

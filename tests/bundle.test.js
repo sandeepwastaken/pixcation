@@ -7,6 +7,19 @@ const vm = require('node:vm');
 const { buildBundle } = require('../build-bundle');
 const ORDER = require('../bundle-order.json');
 
+test('the production bundle executes its top-level initialization without dependency-order errors', () => {
+    const context = vm.createContext({URLSearchParams, setTimeout() {}, window: {location: {search: ''}, APP_CACHE_BUSTER: 'test', innerWidth: 320, innerHeight: 192, addEventListener() {}}, document: {documentElement: {clientWidth: 320, clientHeight: 192}, addEventListener() {}, getElementById() {return {addEventListener() {}};}}, localStorage: {getItem() {return null;}, setItem() {}}, Phaser: {Renderer: {WebGL: {Pipelines: {SinglePipeline: class {}}}}, AUTO: 0, Scale: {NONE: 0, NO_CENTER: 0}, Game: class {}}});
+    assert.doesNotThrow(() => vm.runInContext(fs.readFileSync(path.join(__dirname, '../game.js'), 'utf8'), context));
+});
+
+test('name data initializes in production order before appearance settings', () => {
+    const context = vm.createContext({URLSearchParams});
+    const files = ORDER.filter(file => ['game-data.js', 'npc-names.js', 'runtime/settings.js'].includes(file));
+    assert.doesNotThrow(() => vm.runInContext(files.map(file => fs.readFileSync(path.join(__dirname, '../src', file), 'utf8')).join('\n'), context));
+    assert.equal(vm.runInContext('getNpcRareName(0)', context), 'Emz');
+    assert.equal(vm.runInContext('getNpcRareName(0.0001)', context), null);
+});
+
 function fixture(t, files) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pixcation-bundle-'));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));

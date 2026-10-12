@@ -58,6 +58,8 @@ function addCaughtFish(species, caught = true) {
     fishInventory.set(species.id, Math.min(Number.MAX_SAFE_INTEGER, (fishInventory.get(species.id) || 0) + 1));
     catchLog.add(species.id);
     if (caught) recordPlayerStat('fishCaught');
+    if (caught && species.size === 'large') recordPlayerStat('largeCaught');
+    if (caught && species.size === 'giant') recordPlayerStat('giantCaught');
     saveDirty = true;
 }
 

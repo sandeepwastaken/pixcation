@@ -148,6 +148,7 @@ function showGuideDialogueNode(scene, nodeKey) {
 }
 
 function beginDialogue(scene, nodes, actor, name, npc) {
+    recordPlayerStat('conversations');
     dialogueNodes = nodes;
     dialogueActor = actor;
     dialogueNpc = npc;

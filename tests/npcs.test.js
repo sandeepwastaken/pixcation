@@ -3,6 +3,170 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('house transitions switch environments only under full black and reveal them afterward', () => {
+    const run = createNpcs();
+    run('let clears = 0, resets = 0, draws = [], switches = [], cameraUpdates = 0; const canvas = {style: {}, getContext() {return context;}}; const context = {canvas, clearRect() {clears++; draws = [];}, fillRect(...rect) {draws.push(rect);}}; const overlay = {setVisible() {return this;}, destroy() {this.destroyed = true;}}; document = {createElement: () => canvas}; addHudLayer = (scene, node, y, depth) => {overlay.node = node; overlay.depth = depth; return overlay;}; scene.resetHeldActions = () => resets++; enterInterior = (scene, house) => {switches.push([house.id, interiorTransition.level]); interior = {house};}; leaveInterior = () => {switches.push([null, interiorTransition.level]); interior = null;}; updateCamera = () => cameraUpdates++; const house = {id: 1}; beginInteriorTransition(scene, house)');
+    assert.equal(run('resets'), 1);
+    assert.equal(run('overlay.node'), run('canvas'));
+    assert.equal(run('overlay.depth'), 10000);
+    assert.equal(run('canvas.style.imageRendering'), 'pixelated');
+    assert.equal(run('canvas.width'), run('mainCamera.width'));
+    assert.equal(run('canvas.height'), run('mainCamera.height'));
+    run('updateInteriorTransition(scene, 220)');
+    assert.equal(run('switches.length'), 0);
+    assert.equal(run('interiorTransition.level'), 8);
+    run('updateInteriorTransition(scene, 340)');
+    assert.equal(run('JSON.stringify(switches)'), '[[1,16]]');
+    assert.equal(run('interiorTransition.phase'), 'in');
+    assert.equal(run('cameraUpdates'), 1);
+    run('updateInteriorTransition(scene, 460)');
+    assert.equal(run('interiorTransition.level'), 8);
+    run('updateInteriorTransition(scene, 580)');
+    assert.equal(run('interiorTransition'), null);
+    assert.equal(run('overlay.destroyed'), true);
+    run('scene.time.now = 600; beginInteriorTransition(scene); updateInteriorTransition(scene, 840)');
+    assert.equal(run('JSON.stringify(switches)'), '[[1,16],[null,16]]');
+    assert.equal(run('interior'), null);
+    run('updateInteriorTransition(scene, 1080)');
+    assert.equal(run('interiorTransition'), null);
+});
+
+test('house transition dithering stays on integer pixels and skips unchanged levels', () => {
+    const run = createNpcs();
+    run('mainCamera.width = mainCamera.height = 4; let clears = 0, draws = []; const transition = {level: -1, context: {canvas: {width: 4, height: 4}, clearRect() {clears++; draws = [];}, fillRect(...rect) {draws.push(rect);}}}; drawInteriorTransition(transition, 8)');
+    assert.equal(run('draws.length'), 8);
+    assert.ok(run('draws.every(rect => rect.every(Number.isInteger) && rect[2] === 1 && rect[3] === 1)'));
+    run('drawInteriorTransition(transition, 8)');
+    assert.equal(run('clears'), 1);
+    run('drawInteriorTransition(transition, 16)');
+    assert.equal(run('JSON.stringify(draws)'), '[[0,0,4,4]]');
+    run('drawInteriorTransition(transition, 0)');
+    assert.equal(run('draws.length'), 0);
+});
+
+test('door transitions ignore duplicate requests and cannot overlap a spawn return', () => {
+    const run = createNpcs();
+    run('let overlays = 0; scene.resetHeldActions = () => {}; document = {createElement: () => ({style: {}, getContext() {return {};}})}; addHudLayer = () => {overlays++; return {setVisible() {return this;}};}; const house = {id: 1}; beginInteriorTransition(scene);');
+    assert.equal(run('overlays'), 0);
+    run('spawnReturn = {}; beginInteriorTransition(scene, house)');
+    assert.equal(run('overlays'), 0);
+    run('spawnReturn = null; beginInteriorTransition(scene, house); beginInteriorTransition(scene, house)');
+    assert.equal(run('overlays'), 1);
+});
+
+test('residents walk through the interior doorway instead of appearing on the rug', () => {
+    const run = createNpcs();
+    run('first.house = {doorX: 3, doorY: 3}; character.x = character.y = -100; getWorldClock = () => ({hour: 23, day: 1}); enterNpcHouse(first); updateNpcHome(scene, first, 100, 50)');
+    assert.equal(run('first.indoor.sprite.x'), 48);
+    assert.ok(run('first.indoor.sprite.y < 48 && first.indoor.sprite.y > 32'));
+    assert.equal(run('first.sprite.visible'), false);
+    run('for (let time = 150; time <= 1000; time += 50) updateNpcHome(scene, first, time, 50)');
+    assert.equal(run('first.indoor.journey'), null);
+    assert.equal(run('first.indoor.sprite.y'), 32);
+});
+
+test('residents route around furniture to leave without teleporting when the player leaves', () => {
+    const run = createNpcs();
+    run('first.house = {doorX: 3, doorY: 3}; character.x = character.y = -100; canNpcOccupy = () => true; enterNpcHouse(first); const resident = getNpcIndoorResident(scene, first); resident.sprite.setPosition(0, -16); resident.journey = null; resident.room.blocked = [[24, -16, 40, 36]]; const route = findInteriorResidentPath(resident, 48, 48)');
+    assert.ok(run('route.length > 1'));
+    run('const startX = resident.sprite.x, startY = resident.sprite.y; updateNpcHome(scene, first, 100, 50)');
+    assert.ok(run('Math.abs(resident.sprite.x - startX) + Math.abs(resident.sprite.y - startY) <= CHARACTER_SPEED * first.speed * 0.05'));
+    assert.equal(run('first.state'), 'home');
+    run('let crossedFurniture = false; for (let time = 150; time < 12000 && first.state === "home"; time += 50) {updateNpcHome(scene, first, time, 50); if (first.state === "home") crossedFurniture ||= !canInteriorResidentStand(resident, resident.sprite.x, resident.sprite.y);}');
+    assert.equal(run('crossedFurniture'), false);
+    assert.equal(run('first.state'), 'walk');
+    assert.equal(run('resident.sprite.x'), 48);
+    assert.equal(run('resident.sprite.y'), 48);
+    assert.equal(run('first.goal'), 'leaveHome');
+});
+
+test('indoor residents retain saved positions and continue moving while the player is outside', () => {
+    const run = createNpcs();
+    run('first.house = {doorX: 3, doorY: 3}; character.x = character.y = -100; enterNpcHouse(first); const resident = getNpcIndoorResident(scene, first); resident.sprite.setPosition(16, -16); resident.journey = null; npcMemory.set(first.id, JSON.parse(JSON.stringify(serializeNpc(first, 100)))); restoreNpc(scene, first)');
+    assert.equal(run('first.indoor.sprite.x'), 16);
+    assert.equal(run('first.indoor.sprite.y'), -16);
+    run('getWorldClock = () => ({hour: 23, day: 1}); first.indoor.goal = {x: 32, y: -16, direction: "right"}; updateNpcHome(scene, first, 1000, 50)');
+    assert.ok(run('first.indoor.sprite.x > 16 && first.indoor.sprite.x < 32'));
+    assert.equal(run('first.state'), 'home');
+    assert.equal(run('interior'), null);
+});
+
+test('residents wait for a blocked interior doorway and resume their actual route when it clears', () => {
+    const run = createNpcs();
+    run('first.house = {doorX: 3, doorY: 3}; canNpcOccupy = () => true; enterNpcHouse(first); const resident = getNpcIndoorResident(scene, first); resident.sprite.setPosition(16, 0); resident.journey = null; interior = resident.room; character.x = character.y = 48; updateNpcHome(scene, first, 100, 50)');
+    assert.equal(run('first.state'), 'home');
+    assert.equal(run('resident.sprite.x'), 16);
+    run('character.x = character.y = -100; for (let time = 1000; time < 6000 && first.state === "home"; time += 50) updateNpcHome(scene, first, time, 50)');
+    assert.equal(run('first.state'), 'walk');
+});
+
+test('malformed indoor save coordinates cannot move residents outside their room', () => {
+    for (const indoor of [[99999, 99999, 'front', null], [48.5, 32, 'front', null], [48, '32', 'front', null], [], [null, null, 'front', null]]) {
+        const run = createNpcs();
+        run('first.house = {doorX: 3, doorY: 3}; character.x = character.y = -100; enterNpcHouse(first); npcMemory.set(first.id, {...serializeNpc(first, 100), indoor: ' + JSON.stringify(indoor) + '}); restoreNpc(scene, first)');
+        assert.equal(run('first.indoor.sprite.x'), 48);
+        assert.equal(run('first.indoor.sprite.y'), 48);
+    }
+});
+
+test('opening and closing the house view never resets resident coordinates or their route', () => {
+    const run = createNpcs();
+    run('first.house = {doorX: 3, doorY: 3}; character.x = character.y = -100; enterNpcHouse(first); const resident = getNpcIndoorResident(scene, first); resident.sprite.setPosition(16, -16); resident.goal = {x: 32, y: -16, direction: "right"}; resident.journey = null; const display = {visible: true, texture: {key: "portrait"}, setPosition(x, y) {this.x = x; this.y = y; return this;}, setDepth() {return this;}}; interior = {...resident.room, residents: [{npc: first, sprite: display}], layer: {destroy() {display.destroyed = true;}}}; updatePersonBlink = () => {}; updateInteriorResidents(scene, 100, 16)');
+    assert.equal(run('display.x'), 16);
+    run('worldObjectLayer = {add() {}}; character.setPosition = function(x, y) {this.x = x; this.y = y;}; characterShadow = {image: {setVisible() {}}}; setCharacterTexture = snapInteriorCamera = () => {}; leaveInterior()');
+    assert.equal(run('resident.sprite.x'), 16);
+    assert.equal(run('resident.sprite.y'), -16);
+    assert.equal(run('resident.goal.x'), 32);
+    assert.equal(run('resident.display'), null);
+    assert.equal(run('first.state'), 'home');
+    run('interior = {...resident.room, residents: [{npc: first, sprite: display}]}; updateInteriorResidents(scene, 200, 16)');
+    assert.equal(run('display.x'), 16);
+    assert.equal(run('display.y'), -16);
+});
+
+test('generated furniture and room layouts are identical with and without a rendered house view', () => {
+    const run = createNpcs();
+    run(fs.readFileSync('src/environment/interiors.js', 'utf8'));
+    run('getInteriorTexture = (scene, key) => key; const image = () => ({setOrigin() {return this;}, setDepth() {return this;}, setFlipX() {return this;}, setScrollFactor() {return this;}}); scene.add = {layer: () => ({setDepth() {return this;}, add() {}}), image, rectangle: image}; character.x = character.y = -100');
+    for (let seed = 1; seed <= 30; seed++) {
+        run('worldHash = () => ' + seed + ' / 31; first.house = {id: 1, x: 2, y: 1, doorX: 3, doorY: 3, residents: [1]}; first.indoor = null; enterNpcHouse(first); var logicalRoom = buildInterior(scene, first.house, false), shownRoom = buildInterior(scene, first.house, true); first.house.indoorRoom = logicalRoom; var generatedResident = getNpcIndoorResident(scene, first);');
+        assert.equal(run('JSON.stringify(logicalRoom.blocked)'), run('JSON.stringify(shownRoom.blocked)'));
+        assert.ok(run('findInteriorResidentPath(generatedResident, logicalRoom.doorLeft, logicalRoom.bottom - TILE_SIZE)?.length > 0'));
+    }
+});
+
+test('indoor walks do not pass through a housemate or wander out through the doorway', () => {
+    const run = createNpcs();
+    run('first.house = second.house = {doorX: 3, doorY: 3}; character.x = character.y = -100; enterNpcHouse(first); enterNpcHouse(second); const resident = getNpcIndoorResident(scene, first), other = getNpcIndoorResident(scene, second); resident.sprite.setPosition(16, 0); other.sprite.setPosition(32, 0); resident.journey = other.journey = null; resident.goal = {x: 48, y: 0, direction: "right"}; for (let time = 100; time < 1500 && resident.goal; time += 50) updateInteriorResident(scene, resident, time, 50)');
+    assert.ok(run('resident.sprite.x <= 24'));
+    assert.equal(run('canInteriorResidentStand(resident, 32, 0)'), false);
+    run('resident.sprite.setPosition(48, 32); for (let attempt = 0; attempt < 100; attempt++) {resident.goal = null; chooseInteriorResidentWalk(resident, 100); if (resident.goal && resident.goal.y + NPC_PART_SIZE > resident.room.bottom) throw new Error("wandering left the house");}');
+});
+
+test('changing the daily plan redirects an indoor exit through the doorway without repositioning', () => {
+    const run = createNpcs();
+    run('first.house = {doorX: 3, doorY: 3}; character.x = character.y = -100; enterNpcHouse(first); const resident = getNpcIndoorResident(scene, first); resident.sprite.setPosition(16, 0); resident.journey = null; updateNpcHome(scene, first, 100, 50); const beforeX = resident.sprite.x, beforeY = resident.sprite.y; getWorldClock = () => ({hour: 23, day: 1}); updateNpcHome(scene, first, 150, 50)');
+    assert.equal(run('resident.journey'), 'enter');
+    assert.ok(run('Math.abs(resident.sprite.x - beforeX) + Math.abs(resident.sprite.y - beforeY) <= Math.ceil(CHARACTER_SPEED * first.speed * 0.05)'));
+    assert.equal(run('first.state'), 'home');
+});
+
+test('NPCs start moving immediately at their normal speed instead of accelerating or waiting to turn', () => {
+    const run = createNpcs();
+    run('Object.assign(first, {path: [[4, 3]], speed: 0.5, walkSpeed: 0, turnUntil: 999999, remainderX: 0, remainderY: 0, walkPhase: 1}); canNpcOccupy = () => true; stepNpc(scene, first, 100, 50)');
+    assert.equal(run('first.walkSpeed'), 0.5);
+    assert.ok(run('first.x > 48'));
+    assert.ok(run('Number.isInteger(first.x) && Number.isInteger(first.y)'));
+});
+
+test('completed waypoints do not introduce an extra idle frame or a turn delay', () => {
+    const run = createNpcs();
+    run('Object.assign(first, {x: 64, path: [[4, 3], [4, 4]], speed: 0.5, travelDirection: "right", remainderX: 0, remainderY: 0, walkPhase: 1}); canNpcOccupy = () => true; stepNpc(scene, first, 100, 50)');
+    assert.ok(run('first.y > 48'));
+    assert.equal(run('first.direction'), 'front');
+    assert.equal(run('first.walkSpeed'), 0.5);
+});
+
 test('subpixel walking progress and horizontal steps avoid redundant sprite depth sorting', () => {
     const run = createNpcs();
     run('let positionWrites = 0, depthWrites = 0; Object.assign(first.sprite, {x: 48, y: 48, depth: 64, setPosition(x, y) {positionWrites++; this.x = x; this.y = y;}, setDepth(depth) {depthWrites++; this.depth = depth;}}); Object.assign(first, {path: [[4, 3]], travelDirection: "right", turnUntil: 0, remainderX: 0, remainderY: 0, walkPhase: 1}); canNpcOccupy = () => true; stepNpc(scene, first, 101, 1)');
@@ -966,14 +1130,14 @@ test('joining friends remember their old task rather than saving their dialogue 
     assert.equal(run('second.path.at(-1)[0]'), 6);
 });
 
-test('walkers brake for corners and arrival without slowing at straight tile boundaries', () => {
+test('walkers keep a constant speed at corners and arrivals without easing', () => {
     const run = createNpcs();
     run("startNpcPath(first, [[4, 3], [5, 3]], 'wander', 100); first.x = 63; first.travelDirection = 'right'; first.turnUntil = 0; first.walkPhase = 1; first.walkSpeed = 0.5; canNpcOccupy = () => true; stepNpc(scene, first, 116, 16)");
     assert.equal(run('first.walkSpeed'), 0.5);
     run('first.path = [[4, 3], [4, 4]]; first.x = 63; first.walkSpeed = 0.5; stepNpc(scene, first, 132, 16)');
-    assert.ok(run('first.walkSpeed > 0 && first.walkSpeed < 0.5'));
+    assert.equal(run('first.walkSpeed'), 0.5);
     run('first.path = [[4, 3]]; first.x = 63; first.walkSpeed = 0.5; stepNpc(scene, first, 148, 16)');
-    assert.ok(run('first.walkSpeed > 0 && first.walkSpeed < 0.5'));
+    assert.equal(run('first.walkSpeed'), 0.5);
     run('let arrived = false; for (let time = 164; time < 1000; time += 16) { arrived = stepNpc(scene, first, time, 16); if (arrived) break; }');
     assert.equal(run('arrived'), true);
     assert.equal(run('first.x'), 64);
@@ -1070,6 +1234,7 @@ test('NPCs recognize repeat visits and recall the neighbor they spoke with', () 
     const run = createNpcs();
     run('findNearestRumor = getMysteryShopRumor = () => null; nearestNpc = first; dialogueContainer = {}; isMenuOpen = () => false; const encounters = []; beginDialogue = (scene, nodes) => encounters.push(nodes.intro.text)');
     run('talkToNearestNpc(scene); first.talking = false; talkToNearestNpc(scene)');
+    assert.equal(run('peopleMet.size'), 1);
     assert.equal(run('first.playerVisits'), 2);
     assert.ok(run('encounters[0] !== encounters[1]'));
     assert.ok(run('NPC_PERSONALITIES[4].familiar.includes(encounters[1])'));
@@ -1151,7 +1316,7 @@ test('blocked routes go around occupied tiles without losing their purpose or ho
 
 function createNpcs() {
     const context = vm.createContext({ TEST_MODE: true, getTileId: (x, y) => (x + 1000) * 10000 + y, coordinateHash: () => 0.7, cacheWorldValue: (cache, key, value) => (cache.set(key, value), value), getPersonTexture: () => 'portrait' });
-    const files = ['runtime/settings.js', 'runtime/state.js', 'npc-names.js', 'npc-dialogue.js', 'environment/npcs.js', 'runtime/character.js', 'art/trees.js'];
+    const files = ['runtime/settings.js', 'runtime/state.js', 'npc-names.js', 'npc-dialogue.js', 'environment/npcs.js', 'environment/interiors.js', 'runtime/character.js', 'art/trees.js'];
     vm.runInContext(files.map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);
     vm.runInContext(`
         const homes = [{ id: 1, tileX: 3, tileY: 3, name: 'Ada Reed' }, { id: 2, tileX: 13, tileY: 3, name: 'Eli Moss' }];
@@ -1160,7 +1325,7 @@ function createNpcs() {
         getTerrainType = () => 'grass';
         getWorldClock = () => ({ hour: 12, day: 1 });
         getRainIntensity = () => 0;
-        drawNpcRod = drawNpcShadow = () => {};
+        drawNpcRod = drawNpcShadow = () => {}; isMenuOpen = () => false; buildInterior = (scene, house) => ({house, left: house.doorX * TILE_SIZE - 64, right: house.doorX * TILE_SIZE + 64, top: house.doorY * TILE_SIZE - 96, bottom: house.doorY * TILE_SIZE, doorLeft: house.doorX * TILE_SIZE, blocked: [], residents: []});
         mainCamera = { scrollX: 0, scrollY: 0, width: 320, height: 192 };
         character = { x: 48, y: 48 };
         const scene = { time: { now: 100 } };

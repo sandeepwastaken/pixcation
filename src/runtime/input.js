@@ -37,7 +37,7 @@ function bindGameInput(scene) {
             mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
         }
 
-        const overStats = (!menuOpen || statsOpen) && isStatsButtonAt(pointer.x, pointer.y);
+        const overStats = (!menuOpen || statsOpen) && isStatsButtonAt(pointer.x, pointer.y) || statsOpen && pointer.y >= 32 && pointer.y < 50 && getStatsScrollAt(pointer.x, pointer.y) !== 0;
         const overActor = !menuOpen && getClickedWorldTarget(pointer);
         setCursor(overStats || overActor ? 'pointer' : 'default');
     });
@@ -65,6 +65,7 @@ function bindGameInput(scene) {
         lastPlayTime = null;
     };
     const resetPlayClock = () => { lastPlayTime = null; };
+    scene.resetHeldActions = resetActions;
     scene.game.events.on(Phaser.Core.Events.BLUR, resetActions);
     document.addEventListener('visibilitychange', resetActions);
     scene.game.events.on(Phaser.Core.Events.FOCUS, resetPlayClock);
@@ -87,7 +88,7 @@ function bindGameInput(scene) {
 
     scene.input.on('pointerdown', pointer => {
         if (pointer.button !== 0) return;
-        if (spawnReturn) return;
+        if (spawnReturn || interiorTransition) return;
         if (newGameChoice?.open) { setCursor('default'); handleNewGameChoicePointer(pointer); return; }
         if (startup) {
             if (isStartButtonAt(pointer.x, pointer.y)) { setCursor('default'); beginStartup(scene.time.now); }
@@ -95,6 +96,7 @@ function bindGameInput(scene) {
         }
         if (statsOpen) {
             if (pointer.x < 32 || pointer.x >= 288 || pointer.y < 24 || pointer.y >= 168) closeStats();
+            else {const step = getStatsScrollAt(pointer.x, pointer.y); if (step) scrollStats(step);}
             return;
         }
         if (!isMenuOpen() && isStatsButtonAt(pointer.x, pointer.y)) {
@@ -144,15 +146,17 @@ function bindGameInput(scene) {
     });
 
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
+        if (interiorTransition) return;
         if (newGameChoice?.open) return;
         const step = Math.sign(deltaY);
 
-        if (!step || inventoryOpen || startup || statsOpen) return;
+        if (!step || inventoryOpen || startup) return;
 
         if (isMenuOpen()) {
             if (pointer.event.timeStamp - lastMenuWheelTime < 120) return;
             lastMenuWheelTime = pointer.event.timeStamp;
         }
+        if (statsOpen) {scrollStats(step); return;}
 
         if (mapOpen) {
             const zoom = Phaser.Math.Clamp(mapZoom - step, 1, MAP_MAX_ZOOM);
@@ -172,7 +176,7 @@ function bindGameInput(scene) {
         if (newGameChoice?.open) { setCursor('default'); handleNewGameChoiceKey(event); return; }
         if (event.code === 'Tab' || event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
         if (event.repeat) return;
-        if (spawnReturn) return;
+        if (spawnReturn || interiorTransition) return;
         if (startup) {
             if (event.code === 'Enter' || event.code === 'Space') { setCursor('default'); beginStartup(scene.time.now); }
             return;
@@ -190,6 +194,7 @@ function bindGameInput(scene) {
         if (code === 'Enter' && !isMenuOpen() && hideCatchCard(scene)) return;
         if (statsOpen) {
             if (code === 'Escape' || code === 'Tab') closeStats();
+            else if (code === 'ArrowUp' || code === 'ArrowDown' || key === 'w' || key === 's') scrollStats(code === 'ArrowUp' || key === 'w' ? -1 : 1);
         } else if (dialogueOpen) handleGuideDialogueKey(scene, event);
         else if (inventoryOpen) handleInventoryKey(scene, event);
         else if (mapOpen && code !== 'KeyH') handleMapKey(scene, event);

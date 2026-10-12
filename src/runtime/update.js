@@ -1,5 +1,6 @@
 function update(time, delta) {
     if (!character) return;
+    if (interiorTransition) { lastPlayTime = null; updateInteriorTransition(this, time); return; }
     if (spawnReturn) { updateSpawnReturn(this, time, delta); return; }
     if (startup) {
         lastPlayTime = null;
@@ -7,8 +8,10 @@ function update(time, delta) {
         return;
     }
 
+    const beforeX = character.x, beforeY = character.y;
     const isWalking = updateCharacter(this, time, delta);
-    updateInterior(this);
+    const travelled = Math.hypot(character.x - beforeX, character.y - beforeY); if (travelled > 0) recordPlayerStat('distanceWalked', travelled);
+    updateInterior(this, time, delta);
     updatePlayTime(time);
 
     character.x = Math.round(character.x);
@@ -41,7 +44,7 @@ function update(time, delta) {
     updateFish(delta);
     spawnFishRise(this, time);
     spawnMeadowMote(this, time);
-    updateNpcs(this, time, delta);
+    updateNpcs(this, time, delta); if (interior) updateInteriorResidents(this, time, delta);
     updateActorBlinks(this, time);
     updateActorShading(this);
     updateFishJumps(this, time);
