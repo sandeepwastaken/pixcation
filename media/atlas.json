@@ -382,8 +382,8 @@
   },
   "items/baits/advancedBait": {
    "frame": {
-    "x": 0,
-    "y": 470,
+    "x": 511,
+    "y": 400,
     "w": 32,
     "h": 32
    },
@@ -402,7 +402,7 @@
   },
   "items/baits/mysteryBait": {
    "frame": {
-    "x": 33,
+    "x": 0,
     "y": 470,
     "w": 32,
     "h": 32
@@ -422,7 +422,7 @@
   },
   "items/baits/noviceBait": {
    "frame": {
-    "x": 66,
+    "x": 33,
     "y": 470,
     "w": 32,
     "h": 32
@@ -442,7 +442,7 @@
   },
   "items/baits/trainerBait": {
    "frame": {
-    "x": 99,
+    "x": 66,
     "y": 470,
     "w": 32,
     "h": 32
@@ -462,7 +462,7 @@
   },
   "items/chest": {
    "frame": {
-    "x": 132,
+    "x": 99,
     "y": 470,
     "w": 32,
     "h": 32
@@ -482,7 +482,7 @@
   },
   "items/rods/legacy": {
    "frame": {
-    "x": 165,
+    "x": 132,
     "y": 470,
     "w": 32,
     "h": 32
@@ -502,7 +502,7 @@
   },
   "items/rods/basic": {
    "frame": {
-    "x": 198,
+    "x": 165,
     "y": 470,
     "w": 31,
     "h": 32
@@ -522,7 +522,7 @@
   },
   "items/rods/intermediate": {
    "frame": {
-    "x": 230,
+    "x": 197,
     "y": 470,
     "w": 31,
     "h": 32
@@ -542,7 +542,7 @@
   },
   "items/rods/master": {
    "frame": {
-    "x": 262,
+    "x": 229,
     "y": 470,
     "w": 31,
     "h": 32
@@ -560,9 +560,49 @@
     "h": 32
    }
   },
+  "environment/interior/couchMid": {
+   "frame": {
+    "x": 261,
+    "y": 470,
+    "w": 16,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 32
+   }
+  },
+  "environment/interior/couchSide": {
+   "frame": {
+    "x": 278,
+    "y": 470,
+    "w": 16,
+    "h": 32
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 32
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 32
+   }
+  },
   "ui/hud/selected": {
    "frame": {
-    "x": 294,
+    "x": 295,
     "y": 470,
     "w": 30,
     "h": 31
@@ -578,6 +618,66 @@
    "sourceSize": {
     "w": 30,
     "h": 31
+   }
+  },
+  "environment/interior/recolorableRug": {
+   "frame": {
+    "x": 326,
+    "y": 470,
+    "w": 48,
+    "h": 30
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 48,
+    "h": 30
+   },
+   "sourceSize": {
+    "w": 48,
+    "h": 30
+   }
+  },
+  "environment/interior/chairFront": {
+   "frame": {
+    "x": 375,
+    "y": 470,
+    "w": 16,
+    "h": 29
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 29
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 29
+   }
+  },
+  "environment/interior/chairSide": {
+   "frame": {
+    "x": 392,
+    "y": 470,
+    "w": 16,
+    "h": 29
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 29
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 29
    }
   },
   "ui/hud/hotbar": {
@@ -700,7 +800,7 @@
     "h": 16
    }
   },
-  "environment/terrain/cornerDirt1": {
+  "environment/interior/insideFloor": {
    "frame": {
     "x": 460,
     "y": 503,
@@ -720,7 +820,7 @@
     "h": 16
    }
   },
-  "environment/terrain/cornerDirt2": {
+  "environment/terrain/cornerDirt1": {
    "frame": {
     "x": 477,
     "y": 503,
@@ -740,7 +840,7 @@
     "h": 16
    }
   },
-  "environment/terrain/cornerDirt3": {
+  "environment/terrain/cornerDirt2": {
    "frame": {
     "x": 494,
     "y": 503,
@@ -760,9 +860,29 @@
     "h": 16
    }
   },
-  "environment/terrain/dirt1": {
+  "environment/terrain/cornerDirt3": {
    "frame": {
     "x": 511,
+    "y": 503,
+    "w": 16,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 16,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 16,
+    "h": 16
+   }
+  },
+  "environment/terrain/dirt1": {
+   "frame": {
+    "x": 528,
     "y": 503,
     "w": 16,
     "h": 16
@@ -1524,7 +1644,7 @@
  "meta": {
   "image": "atlas.png",
   "size": {
-   "w": 539,
+   "w": 544,
    "h": 555
   },
   "scale": 1

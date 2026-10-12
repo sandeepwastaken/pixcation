@@ -8,6 +8,7 @@ function update(time, delta) {
     }
 
     const isWalking = updateCharacter(this, time, delta);
+    updateInterior(this);
     updatePlayTime(time);
 
     character.x = Math.round(character.x);

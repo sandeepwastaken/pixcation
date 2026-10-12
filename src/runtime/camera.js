@@ -3,6 +3,7 @@ function followCameraAxis(offset, lag) {
 }
 
 function updateCamera(delta) {
+    if (interior) return mainCamera.setScroll(Math.round((interior.left + interior.right - mainCamera.width) / 2), Math.round((interior.top + interior.bottom - mainCamera.height) / 2) + TILE_SIZE);
     const baseScrollX = character.x + CHARACTER_SIZE / 2 - mainCamera.width / 2;
     const baseScrollY = character.y + CHARACTER_SIZE / 2 - mainCamera.height / 2;
     const targetX = baseScrollX + characterMoveRemainderX;

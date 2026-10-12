@@ -67,7 +67,7 @@ function createInteractionPromptUI(scene) {
 function updateInteractionPrompt(scene, guideReach, marketReach) {
     if (!interactionPromptLayer) return;
 
-    const time = scene.time.now, available = !isMenuOpen() && time >= catchCardUntil;
+    const time = scene.time.now, available = !isMenuOpen() && !interior && time >= catchCardUntil;
     const target = available && (guideReach < 1 || marketReach < 1)
         ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
         : null;

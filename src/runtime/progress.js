@@ -135,7 +135,7 @@ function saveProgress() {
             activeBait: activeBaitId,
             chests: [...openedChests],
             guideMet: guideHasMetPlayer,
-            position: character ? [Math.round(character.x), Math.round(character.y)] : null,
+            position: character ? interior ? [interior.house.doorX * TILE_SIZE, interior.house.doorY * TILE_SIZE] : [Math.round(character.x), Math.round(character.y)] : null,
             npcs: mainCamera ? getSavedNpcs(mainCamera.scene.time.now) : [],
             stats: Object.fromEntries(Object.entries(playerStats).map(([key, value]) => [key, Math.floor(value)]))
         }));

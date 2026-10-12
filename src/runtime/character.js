@@ -71,6 +71,7 @@ function canCharacterOccupy(scene, x, y, ignoreNpc) {
     const top = y + CHARACTER_HITBOX_Y;
     const right = left + CHARACTER_HITBOX_WIDTH;
     const bottom = top + CHARACTER_HITBOX_HEIGHT;
+    if (interior) return canOccupyInterior(left, top, right, bottom);
 
     if (
         actorBlocksRect(guide, GUIDE_HITBOX_X, GUIDE_HITBOX_Y, GUIDE_HITBOX_WIDTH, GUIDE_HITBOX_HEIGHT, left, top, right, bottom) ||

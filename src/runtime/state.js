@@ -5,6 +5,7 @@ let itemLabelUntil = 0;
 let itemPrompt;
 let selectedHotbarSlot = 0;
 let worldObjectLayer;
+let interior = null;
 
 const loadedChunks = new Map();
 const loadedWaterChunks = new Set();

@@ -23,6 +23,7 @@ function getTextureAliases() {
     for (const key of ['bush', 'boulder', 'rock', 'tree-bare', 'store', 'house']) {
         alias(key, `environment/objects/${key}`);
     }
+    for (const key of ['couchMid', 'couchSide', 'insideFloor', 'recolorableRug', 'chairFront', 'chairSide']) alias(key, `environment/interior/${key}`);
 
     for (const mood of ['friendly', 'laughing', 'surprised']) {
         alias(`guide-portrait-${mood}`, `characters/guide/${mood}`);
