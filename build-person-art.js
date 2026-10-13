@@ -24,7 +24,7 @@ function encodePersonArt(images) {
     return Buffer.concat([header, ...records]);
 }
 function buildPersonArt(files, media, decode) {
-    const images = [...files].sort().map(file => ({key: path.relative(media, file).replace(/\\/g, '/').replace(/\.png$/, ''), ...decode(file)}));
+    const images = files.filter(file => !path.relative(media, file).replace(/\\/g, '/').split('/').includes('legacy')).sort().map(file => ({key: path.relative(media, file).replace(/\\/g, '/').replace(/\.png$/, ''), ...decode(file)}));
     const pack = encodePersonArt(images); fs.writeFileSync(path.join(media, 'person-art.bin'), pack); return pack.length;
 }
 module.exports = {isPersonArt, encodePersonArt, buildPersonArt};

@@ -466,8 +466,8 @@ test('seeded names and sprite rows stay consistent across feminine, masculine, a
     run(fs.readFileSync('src/world/terrain.js', 'utf8'));
     run('const generatedResidents = []; for (let y = -30; y < 30; y++) for (let x = -30; x < 30; x++) generatedResidents.push(createNpc(x, y, null))');
     assert.equal(run('generatedResidents.every(npc => (npc.look[14] ? NPC_FEMININE_FIRST_NAMES : NPC_MASCULINE_FIRST_NAMES).includes(npc.name.split(" ")[0]))'), true);
-    assert.equal(run('generatedResidents.every(npc => npc.look[5] || (npc.look[14] ? [0, 2, 7, 8, 9].includes(npc.look[6]) : [0, 1, 3, 4, 5, 6, 8, 9].includes(npc.look[6])))'), true);
-    assert.equal(run('generatedResidents.every(npc => npc.look[14] || ![1, 3, 5].includes(npc.look[2]))'), true);
+    assert.equal(run('generatedResidents.every(npc => npc.look[5] || (npc.look[14] ? [0, 2, 7, 8, 9, 10, 11, 12].includes(npc.look[6]) : [0, 1, 3, 4, 5, 6, 8, 9].includes(npc.look[6])))'), true);
+    assert.equal(run('generatedResidents.every(npc => npc.look[14] || ![1, 3, 5, 12, 15].includes(npc.look[2]))'), true);
     assert.equal(run('generatedResidents.every(npc => npc.look[1] !== 1 || npc.look[2] !== 3 && (npc.look[5] || ![3, 4].includes(npc.look[6])))'), true);
     assert.ok(run('generatedResidents.some(npc => npc.look[1] === 2 && !npc.look[5] && npc.look[6] === 4)'));
     assert.ok(run('generatedResidents.some(npc => npc.look[2] === 3)'));

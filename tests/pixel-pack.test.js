@@ -22,6 +22,9 @@ test('packed artwork reproduces every original RGBA pixel, including transparent
     assert.equal(decodePixelArt(pack, 'unknown'), null); assert.equal(bytes.includes(Buffer.from('vanity6')), false);
     assert.equal(pixelArtId('character-parts'), pixelArtId('characters/people/parts'));
 });
+test('legacy character art remains editable but is omitted from the runtime pack', () => {
+    assert.equal(fs.existsSync('media/characters/people/legacy/portraits/shirt10.png'), true); assert.equal(decodePixelArt(indexPixelArt(fs.readFileSync('media/person-art.bin')), 'characters/people/legacy/portraits/shirt10'), null);
+});
 test('the main atlas no longer contains any NPC source artwork', () => {
     const atlas = JSON.parse(fs.readFileSync('media/atlas.json', 'utf8')); assert.equal(Object.keys(atlas.frames).some(key => key.startsWith('characters/people/')), false);
 });
