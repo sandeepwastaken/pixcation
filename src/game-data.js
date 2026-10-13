@@ -63,6 +63,7 @@ const GUIDE_DIALOGUE = {
         options: [
             { label: 'Help', next: 'help' },
             { label: 'Greet', next: 'greet' },
+            { label: 'Chat', next: 'chat' },
             { label: 'Exit', close: true }
         ]
     },
@@ -71,6 +72,7 @@ const GUIDE_DIALOGUE = {
         text: "WASD or arrows walk, Shift runs. E talks or shops, M opens your map, I opens your fishpedia.",
         options: [
             { label: 'Fishing', next: 'fishing' },
+            { label: 'Exploring', next: 'explore' },
             { label: 'Back', next: 'intro' },
             { label: 'Exit', close: true }
         ]
@@ -80,6 +82,7 @@ const GUIDE_DIALOGUE = {
         text: "Ignore small taps. On the big splash, press Space or click, then hold to keep the bar on the fish.",
         options: [
             { label: 'Bait', next: 'bait' },
+            { label: 'Missed bites', next: 'trouble' },
             { label: 'Back', next: 'help' },
             { label: 'Exit', close: true }
         ]
@@ -94,12 +97,25 @@ const GUIDE_DIALOGUE = {
     },
     greet: {
         portraitExpression: 'grin',
-        text: "I'm glad you stopped by! I'm your guide. Go find a lovely spot - I'll be here if you need me.",
+        portraitEyesClosed: true,
+        text: "I'm glad you stopped by! I'm your guide. Go find a lovely spot. I'll be here if you need me.",
         options: [
             { label: 'Back', next: 'intro' },
             { label: 'Exit', close: true }
         ]
-    }
+    },
+    chat: {portraitExpression: 'normal', text: "I was counting ripples before you came over. I lost count, so you've saved me from starting again.", options: [{label: 'About you', next: 'about'}, {label: 'Favorite spot', next: 'favorite'}, {label: 'Cheer me up', next: 'encourage'}, {label: 'Back', next: 'intro'}]},
+    about: {portraitExpression: 'normal', text: "I like being a familiar face by the water. Helping people fish is a good excuse to spend the day here.", options: [{label: 'Favorite spot', next: 'favorite'}, {label: 'Tell a joke', next: 'joke'}, {label: 'Back', next: 'chat'}]},
+    favorite: {portraitExpression: 'grin', portraitEyesClosed: true, text: "A quiet bank, a little shade, and nowhere I have to hurry to. That's my kind of afternoon.", options: [{label: 'Sounds nice', next: 'company'}, {label: 'Back', next: 'chat'}, {label: 'Bye', close: true}]},
+    company: {portraitExpression: 'grin', portraitEyesClosed: true, text: "It is! Good company helps, too. You don't need a spectacular catch to make an afternoon worth remembering.", options: [{label: 'Thanks', next: 'thanks'}, {label: 'Back', next: 'chat'}]},
+    encourage: {portraitExpression: 'grin', portraitEyesClosed: true, text: "You made time to come say hello. That's a nice thing already. The fish can keep us waiting a little longer.", options: [{label: 'Any advice?', next: 'advice'}, {label: 'Tell a joke', next: 'joke'}, {label: 'Back', next: 'chat'}]},
+    advice: {portraitExpression: 'normal', text: "A small catch still counts. You don't have to turn every cast into a competition. Find a spot you actually enjoy.", options: [{label: 'Thanks', next: 'thanks'}, {label: 'Back', next: 'chat'}]},
+    joke: {portraitExpression: 'openMouth', portraitEyesClosed: true, text: "I told a fish a joke once. It didn't laugh. Tough crowd down there. You're allowed to laugh out of pity.", options: [{label: 'That was good', next: 'laugh'}, {label: 'Back', next: 'chat'}]},
+    laugh: {portraitExpression: 'grin', portraitEyesClosed: true, text: "Ha! I'll take it. I was about to try that one on the shopkeeper, but you've spared them.", options: [{label: 'Back', next: 'chat'}, {label: 'Bye', close: true}]},
+    explore: {portraitExpression: 'normal', text: "M opens your map. H brings you back to spawn. Talk to your neighbors, too. Some of them know the water better than I do.", options: [{label: 'Neighbors?', next: 'neighbors'}, {label: 'Back', next: 'help'}, {label: 'Exit', close: true}]},
+    neighbors: {portraitExpression: 'normal', text: "Ask about their company or their plans. Everyone has their own routine. Sometimes a conversation turns up a good rumor.", options: [{label: 'Back', next: 'explore'}, {label: 'Bye', close: true}]},
+    trouble: {portraitExpression: 'normal', text: "Missing a bite happens. Wait for the big splash, then press and hold. Better rods and bait make keeping up with a fish easier.", options: [{label: 'Thanks', next: 'thanks'}, {label: 'Back', next: 'fishing'}, {label: 'Exit', close: true}]},
+    thanks: {portraitExpression: 'grin', portraitEyesClosed: true, text: "You're very welcome. Go enjoy the water. I'll keep this spot warm for you!", options: [{label: 'Back', next: 'intro'}, {label: 'See you!', close: true}]}
 };
 
 const MARKET_RODS_BY_ID = new Map(MARKET_RODS.map(rod => [rod.id, rod]));

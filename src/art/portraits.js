@@ -63,12 +63,12 @@ function getGuidePortraitTexture(scene, expression = 'normal', eyesClosed = fals
 
 function setDialoguePortraitPose(scene, look, expression) {
     dialoguePortrait.portraitScene = scene; dialoguePortrait.portraitLook = look; dialoguePortrait.portraitExpression = expression;
-    const key = look ? getPersonPortraitTexture(scene, look, expression) : getGuidePortraitTexture(scene, expression, dialoguePortrait.portraitBlinkState?.closed);
+    const key = look ? getPersonPortraitTexture(scene, look, expression) : getGuidePortraitTexture(scene, expression, dialoguePortrait.portraitEyesClosed || dialoguePortrait.portraitBlinkState?.closed);
     if (dialoguePortrait.texture.key !== key) dialoguePortrait.setTexture(key);
 }
 
 function updateDialoguePortraitBlink(scene, time) {
-    if (!dialogueOpen || dialogueNpc || !dialoguePortrait) return;
+    if (!dialogueOpen || dialogueNpc || !dialoguePortrait || dialoguePortrait.portraitEyesClosed) return;
     const blink = dialoguePortrait.portraitBlinkState ||= {next: time + 1800 + Math.random() * 4200, until: 0, closed: false};
     if (time >= blink.next) {blink.until = time + 120; blink.next = time + 2200 + Math.random() * 4200;}
     const closed = time < blink.until; if (closed === blink.closed) return; blink.closed = closed;

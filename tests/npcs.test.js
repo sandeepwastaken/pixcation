@@ -3,6 +3,21 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('dialogue avoids repeating the same line twice even when random rolls repeat', () => {
+    const run = createNpcs();
+    run('npcRandom = () => 0; const lines = ["One.", "Two.", "Three."], choices = []; for (let index = 0; index < 20; index++) choices.push(pickNpcDialogueLine(first, lines));');
+    assert.equal(run('choices.every((line, index) => !index || line !== choices[index - 1])'), true);
+    run('npcRandom = () => 1; const chosen = pickNpcDialogueLine(first, lines);');
+    assert.equal(run('chosen'), 'Three.');
+});
+
+test('home dialogue acknowledges being indoors instead of saying the resident is outside again', () => {
+    const run = createNpcs();
+    run('findNearestRumor = getMysteryShopRumor = () => null; first.state = "home"; first.lastActivity = "rest"; const text = buildNpcDialogue(scene, first).chat.text;');
+    assert.equal(run('NPC_ACTIVITY_LINES.home.includes(text)'), true);
+    assert.equal(run('text.includes("outside again")'), false);
+});
+
 test('housemates passing in opposite directions use a real sidestep route instead of deadlocking at the door', () => {
     const run = createNpcs();
     run('first.house = second.house = {doorX: 3, doorY: 3}; character.x = character.y = -100; enterNpcHouse(first); enterNpcHouse(second); const resident = getNpcIndoorResident(scene, first), other = getNpcIndoorResident(scene, second); resident.sprite.setPosition(48, 32); other.sprite.setPosition(48, 48); resident.journey = "exit"; other.journey = "enter"; let overlap = false, exited = false, sidestepped = false; for (let time = 100; time < 8000; time += 50) {if (!exited) {updateInteriorResident(scene, resident, time, 50); sidestepped ||= resident.sprite.x !== 48; if (resident.sprite.x === 48 && resident.sprite.y === 48) {exited = true; first.state = "idle";}} updateInteriorResident(scene, other, time, 50); if (!exited) overlap ||= !canInteriorResidentStand(resident, resident.sprite.x, resident.sprite.y); if (exited && other.journey === null) break;}');
@@ -320,7 +335,7 @@ test('residents remember a break at home instead of claiming their old greeting 
     assert.equal(run('first.lastActivity'), 'rest');
     run('npcMemory.set(first.id, { ...serializeNpc(first, 100), home: false }); restoreNpc(scene, first)');
     assert.equal(run('first.lastActivity'), 'rest');
-    assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("quiet break at home")'));
+    assert.ok(run('NPC_ACTIVITY_LINES.rest.includes(buildNpcDialogue(scene, first).chat.text)'));
     assert.equal(run('buildNpcDialogue(scene, first).chat.text.includes("just said hello")'), false);
 });
 
@@ -546,8 +561,8 @@ test('residents remember a passing hello in dialogue and across a saved routine'
     assert.equal(run('first.lastActivity'), 'greeting');
     assert.equal(run('first.lastNeighbor'), 'Eli Moss');
     assert.equal(run('second.lastNeighbor'), 'Ada Reed');
-    assert.equal(run('buildNpcDialogue(scene, first).chat.text'), 'I just said hello to Eli. It is nice to see a familiar face.');
-    assert.equal(run('buildNpcDialogue(scene, second).chat.text'), 'I just said hello to Ada. It is nice to see a familiar face.');
+    assert.ok(run('NPC_ACTIVITY_LINES.greeting.map(line => line.replace("{neighbor}", "Eli")).includes(buildNpcDialogue(scene, first).chat.text)'));
+    assert.ok(run('NPC_ACTIVITY_LINES.greeting.map(line => line.replace("{neighbor}", "Ada")).includes(buildNpcDialogue(scene, second).chat.text)'));
     run('npcMemory.set(first.id, serializeNpc(first, 100)); first.lastActivity = null; first.lastNeighbor = null; restoreNpc(scene, first)');
     assert.equal(run('first.lastActivity'), 'greeting');
     assert.equal(run('first.lastNeighbor'), 'Eli Moss');
@@ -921,9 +936,9 @@ test('morning and evening neighbor exchanges match the listener routine', () => 
 test('weather greetings preserve personality and familiarity without claiming sunshine', () => {
     const run = createNpcs();
     run('findNearestRumor = getMysteryShopRumor = () => null; getRainIntensity = () => 0.5; getWorldClock = () => ({ hour: 8, day: 1 })');
-    assert.equal(run('buildNpcDialogue(scene, first).intro.text'), 'Morning. Ada, at your service. A bit of rain is no match for experience.');
+    assert.ok(run('NPC_PERSONALITIES[4].rainGreetings.slice(0, 5).map(line => line.replace("{first}", "Ada")).includes(buildNpcDialogue(scene, first).intro.text.slice(9))'));
     run('first.playerVisits = 1; getWorldClock = () => ({ hour: 19, day: 1 })');
-    assert.equal(run('buildNpcDialogue(scene, first).intro.text'), 'Evening. Back for more advice? Even in this weather, I see.');
+    assert.ok(run('NPC_PERSONALITIES[4].rainGreetings.slice(5).includes(buildNpcDialogue(scene, first).intro.text.slice(9))'));
     run('getRainIntensity = () => 0; getWorldClock = () => ({ hour: 12, day: 1 })');
     assert.ok(run('NPC_PERSONALITIES[4].familiar.includes(buildNpcDialogue(scene, first).intro.text)'));
 });
@@ -1284,9 +1299,9 @@ test('NPCs recognize repeat visits and recall the neighbor they spoke with', () 
     run("first.talking = false; first.state = second.state = 'idle'; startNpcConversation(scene, first, second, 100)");
     assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("Eli")'));
     run("first.lastActivity = 'fishing'");
-    assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("rod away")'));
+    assert.ok(run('NPC_ACTIVITY_LINES.fishing.includes(buildNpcDialogue(scene, first).chat.text)'));
     run("first.lastActivity = 'walk'");
-    assert.ok(run('buildNpcDialogue(scene, first).chat.text.includes("Nice walk earlier.")'));
+    assert.ok(run('NPC_ACTIVITY_LINES.walk.includes(buildNpcDialogue(scene, first).chat.text)'));
 });
 
 test('NPC memories survive unloading and saving without duplicating active residents', () => {

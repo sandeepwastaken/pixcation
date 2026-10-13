@@ -3,6 +3,16 @@ const assert = require('node:assert/strict');
 const {createPortraitPeople} = require('./portrait-fixture');
 const fs = require('node:fs');
 
+test('joyful closed-eye expressions persist through speech and blinking, then reset on an ordinary line', () => {
+    const {run} = createPortraitPeople();
+    run('dialogueOpen = true; dialoguePortrait = {texture: {key: "none"}, portraitEyesClosed: true, portraitBlinkState: {next: 100, until: 0, closed: false}, setTexture(key) {this.texture.key = key; return this;}}; setDialoguePortraitPose(scene, null, "grin"); updateDialoguePortraitBlink(scene, 10000);');
+    assert.equal(run('dialoguePortrait.texture.key'), 'guide-portrait-grin-closed');
+    run('setDialoguePortraitPose(scene, null, "openMouth"); updateDialoguePortraitBlink(scene, 20000);');
+    assert.equal(run('dialoguePortrait.texture.key'), 'guide-portrait-openMouth-closed');
+    run('dialoguePortrait.portraitEyesClosed = false; setDialoguePortraitPose(scene, null, "normal");');
+    assert.equal(run('dialoguePortrait.texture.key'), 'guide-portrait-normal-open');
+});
+
 test('guide mouth poses and eyelids compose all six independent cached combinations', () => {
     const {run, read, textures} = createPortraitPeople();
     for (const expression of ['normal', 'grin', 'openMouth']) for (const closed of [false, true]) {
@@ -94,8 +104,13 @@ test('dialogue animates speaking mouths and settles back to the node expression 
     assert.equal(run('dialoguePortrait.scale'), 1); assert.equal(run('dialoguePortrait.y'), 8);
     run('dialogueNodes = GUIDE_DIALOGUE; showGuideDialogueNode(scene, "greet"); while (callbacks.length) callbacks.shift()();');
     assert.ok(run('dialoguePortrait.texture.key.startsWith("guide-portrait-")'));
+    assert.equal(run('dialoguePortrait.portraitEyesClosed'), true);
+    assert.ok(run('dialoguePortrait.texture.key.endsWith("-closed")'));
     assert.ok(run('dialoguePortrait.texture.key.includes("-grin-")'));
     assert.equal(run('getGuidePortraitTexture(scene, "grin")'), run('getGuidePortraitTexture(scene, "grin")'));
+    run('showGuideDialogueNode(scene, "intro"); while (callbacks.length) callbacks.shift()();');
+    assert.equal(run('dialoguePortrait.portraitEyesClosed'), false);
+    assert.equal(run('dialoguePortrait.texture.key'), 'guide-portrait-normal-open');
 });
 
 test('every portrait part, face, gender modifier, and expression composes without unmapped colors', () => {

@@ -281,6 +281,12 @@ function getNpcAppearanceRolls(tileX, tileY) {
 function getNpcEyeColor(roll) { let limit = 0; return NPC_EYE_WEIGHTS.findIndex(weight => roll < (limit += Math.round(weight * 100))); }
 function getNpcFace(roll) {let limit = 0; return NPC_FACE_WEIGHTS.findIndex(weight => roll < (limit += weight));}
 
+function pickNpcDialogueLine(npc, lines, start = 0, end = lines.length) {
+    const history = npc.dialogueLastLines ||= new WeakMap(), count = end - start; let index = start + Math.min(count - 1, Math.floor(npcRandom(npc) * count));
+    if (count > 1 && history.get(lines) === index) index = start + (index - start + 1) % count;
+    history.set(lines, index); return lines[index];
+}
+
 function makeNpcAppearanceSeed(worldSeed, tileX, tileY, rolls, variant = 0n) {
     if (!Number.isSafeInteger(worldSeed) || worldSeed <= 0 || worldSeed > 0xffffffff || !Number.isSafeInteger(tileX) || !Number.isSafeInteger(tileY) || rolls.length !== NPC_APPEARANCE_RADICES.length || rolls.some((value, index) => !Number.isSafeInteger(value) || value < 0 || value >= NPC_APPEARANCE_RADICES[index])) throw new Error('Invalid appearance seed inputs');
     let word = BigInt(variant);
@@ -1159,9 +1165,9 @@ function buildNpcDialogue(scene, npc) {
     const personality = NPC_PERSONALITIES[Math.min(NPC_PERSONALITIES.length - 1, Math.floor(npcHash(npc.tileX, npc.tileY, 1320) * NPC_PERSONALITIES.length))];
     const clock = getWorldClock(), raining = getRainIntensity(clock) > 0.25;
     const connection = getNpcConnection(npc);
-    const pick = lines => lines[Math.floor(npcRandom(npc) * lines.length)];
+    const pick = (lines, start, end) => pickNpcDialogueLine(npc, lines, start, end);
     const greetingLines = raining ? personality.rainGreetings : npc.playerVisits ? personality.familiar : personality.greetings;
-    const greeting = (clock.hour < 10 ? 'Morning. ' : clock.hour >= 18 ? 'Evening. ' : '') + (raining ? greetingLines[npc.playerVisits ? 1 : 0] : pick(greetingLines));
+    const greeting = (clock.hour < 10 ? 'Morning. ' : clock.hour >= 18 ? 'Evening. ' : '') + (raining ? pick(greetingLines, npc.playerVisits ? 5 : 0, npc.playerVisits ? 10 : 5) : pick(greetingLines));
     const companion = connection && activeNpcs.find(other => other.id === connection.companion.id);
     const first = npc.name.split(' ')[0];
     const portraitLook = npc.look;
@@ -1180,11 +1186,11 @@ function buildNpcDialogue(scene, npc) {
     };
     if (connection) nodes.chat.options[1] = { label: 'Your company?', action: () => (nodes.company.text = describeNpcConnection(npc, connection), 'company') };
     nodes.chat.options.splice(nodes.chat.options.length - 1, 0, { label: 'Your plans?', next: 'plans' });
-    if (npc.lastActivity === 'greeting' && npc.lastNeighbor) nodes.chat.text = `I just said hello to ${npc.lastNeighbor.split(' ')[0]}. It is nice to see a familiar face.`;
-    if (!npc.fishing && npc.lastActivity === 'social' && npc.lastNeighbor) nodes.chat.text = `I was just catching up with ${npc.lastNeighbor.split(' ')[0]}. It is good to have company nearby.`;
-    else if (!npc.fishing && npc.lastActivity === 'fishing') nodes.chat.text = 'I put my rod away for a bit. Sometimes a quiet break is better than another cast.';
-    else if (!npc.fishing && npc.lastActivity === 'walk') nodes.chat.text = 'Nice walk earlier. ' + nodes.chat.text;
-    else if (!npc.fishing && npc.lastActivity === 'rest') nodes.chat.text = "I had a quiet break at home. It's good to be outside again.";
+    if (npc.lastActivity === 'greeting' && npc.lastNeighbor) nodes.chat.text = pick(NPC_ACTIVITY_LINES.greeting).replace('{neighbor}', npc.lastNeighbor.split(' ')[0]);
+    if (!npc.fishing && npc.lastActivity === 'social' && npc.lastNeighbor) nodes.chat.text = pick(NPC_ACTIVITY_LINES.social).replace('{neighbor}', npc.lastNeighbor.split(' ')[0]);
+    else if (!npc.fishing && npc.lastActivity === 'fishing') nodes.chat.text = pick(NPC_ACTIVITY_LINES.fishing);
+    else if (!npc.fishing && npc.lastActivity === 'walk') nodes.chat.text = pick(NPC_ACTIVITY_LINES.walk);
+    else if (!npc.fishing && npc.lastActivity === 'rest') nodes.chat.text = pick(npc.state === 'home' ? NPC_ACTIVITY_LINES.home : NPC_ACTIVITY_LINES.rest);
     if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
     if (npc.fishing?.state === 'reeling') nodes.tips.text = npc.needsShelter ? 'I am bringing my line in and getting out of this rain for a while.' : 'I am bringing my line in. I will try another cast after a short break.';
     if (companion?.joining === npc.id) nodes.company.options.unshift({ label: 'Say hello', action: () => companion.joinedConversation === npc.id && companion.talking ? 'companion' : 'waiting' });
@@ -1200,9 +1206,9 @@ function buildNpcDialogue(scene, npc) {
     const { count, coins, species } = trade;
     const owned = fishInventory.get(species.id) || 0;
     nodes.intro = node(greeting, [{ label: 'Trade', next: 'trade' }, { label: 'Chat', next: 'chat' }, bye]);
-    nodes.traded = node(personality.thanks.replace('{coins}', coins), [bye], 'grin');
+    nodes.traded = node(pick(personality.thanks).replace('{coins}', coins), [bye], 'grin');
     if (npcTradesDone.has(`${npc.id}:${trade.period}`)) {
-        nodes.trade = node(personality.tradeDone, [back, bye]);
+        nodes.trade = node(pick(personality.tradeDone), [back, bye]);
     } else if (owned >= count) {
         nodes.trade = node(`You have ${count} ${species.name}! I'll give you ${coins}c for ${count === 1 ? 'it' : 'them'}. Deal?`, [
             { label: 'Deal', action: () => (completeNpcTrade(scene, npc, trade), 'traded') },

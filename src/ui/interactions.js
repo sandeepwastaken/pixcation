@@ -122,6 +122,7 @@ function showGuideDialogueNode(scene, nodeKey) {
     selectedDialogueOption = 0;
     dialogueFullText = node.text;
     layoutDialogueText();
+    dialoguePortrait.portraitEyesClosed = !node.portraitLook && Boolean(node.portraitEyesClosed);
     const portraitLook = node.portraitLook || null, expression = node.portraitExpression || (node.portrait === 'guide-portrait-laughing' ? 'grin' : node.portrait === 'guide-portrait-surprised' ? 'openMouth' : 'normal'); dialoguePortrait.portraitRestExpression = expression; setDialoguePortraitPose(scene, portraitLook, expression); dialoguePortrait.portraitRestKey = dialoguePortrait.texture.key;
     dialoguePortrait.setScale(node.portraitScale || 1);
     const typingText = document.createTextNode('');
