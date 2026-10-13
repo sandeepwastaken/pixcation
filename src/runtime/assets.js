@@ -3,6 +3,7 @@ function preload() {
     this.load.image('title-logo', withCacheBuster('media/ui/title/logo.png'));
     this.load.image('ui-button', withCacheBuster('media/ui/title/button.png'));
     this.load.image('stats-panel', withCacheBuster('media/ui/stats/panel.png'));
+    for (const [skin, path] of Object.entries(UI_SKIN_FILES)) this.load.image('ui-skin-' + skin, withCacheBuster('media/ui/' + path));
 }
 
 function getTextureAliases() {

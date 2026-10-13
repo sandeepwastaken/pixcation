@@ -15,8 +15,8 @@ function getPortraitColorMap(look, expression = false) {
 function composePersonPortraitPixels(scene, look, expression = 'normal') {
     if (!['normal', 'openMouth', 'grin'].includes(expression)) throw new Error('Unknown portrait expression');
     const prefix = 'characters/people/portraits/', background = getTerrainPixels(scene, prefix + 'background');
-    const {width, height} = background, data = new Uint8ClampedArray(background.data), colors = getPortraitColorMap(look);
-    const layers = ['base' + (look[1] + 1), ...(look[14] ? ['base' + (look[1] + 1) + 'F'] : []), ...(expression === 'normal' ? [] : [expression]), 'shirt' + (look[2] + 1), ...(look[5] && look[18] !== undefined ? ['hair' + (look[18] + 1)] : []), (look[5] ? 'vanity' : 'hair') + (look[6] + 1)];
+    const {width, height} = background, data = new Uint8ClampedArray(background.data.length), colors = getPortraitColorMap(look);
+    const layers = ['base' + (look[1] + 1), ...(look[14] ? ['base' + (look[1] + 1) + 'F'] : []), ...(expression === 'normal' ? [] : [expression]), 'shirt' + (look[2] + 1), (look[5] ? 'vanity' : 'hair') + (look[6] + 1)];
     for (const layer of layers) {
         const source = getTerrainPixels(scene, prefix + layer), mapping = layer === 'openMouth' || layer === 'grin' ? getPortraitColorMap(look, true) : colors;
         if (source.width !== width || source.height !== height) throw new Error('Portrait layer dimensions do not match: ' + layer);
@@ -28,7 +28,7 @@ function composePersonPortraitPixels(scene, look, expression = 'normal') {
         }
     }
     if (look[8]) for (let y = 0; y < height; y++) for (let x = 0; x < Math.floor(width / 2); x++) {const first = (y * width + x) * 4, second = (y * width + width - 1 - x) * 4; for (let channel = 0; channel < 4; channel++) [data[first + channel], data[second + channel]] = [data[second + channel], data[first + channel]];}
-    for (let pixel = 0; pixel < width * height; pixel++) {const offset = pixel * 4, x = pixel % width, y = Math.floor(pixel / width); if (x < 3 || y < 3 || x >= width - 3 || y >= height - 3) data.set(background.data.subarray(offset, offset + 4), offset);}
+    for (let pixel = 0; pixel < width * height; pixel++) {const offset = pixel * 4, x = pixel % width, y = Math.floor(pixel / width); if (!data[offset + 3] || x < 3 || y < 3 || x >= width - 3 || y >= height - 3) data.set(background.data.subarray(offset, offset + 4), offset);}
     return {width, height, data};
 }
 

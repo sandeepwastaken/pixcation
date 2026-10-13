@@ -76,7 +76,7 @@ function refreshGuideDialogueOptions() {
     const highlightY = DIALOGUE_OPTION_TOP + selectedDialogueOption * layout.step;
     if (dialogueHighlight.y === highlightY) return;
     dialogueHighlight.scene.tweens.killTweensOf(dialogueHighlight);
-    dialogueHighlight.scene.tweens.add({ targets: dialogueHighlight, y: highlightY, duration: 90, ease: 'Quad.Out', onUpdate: snapTweenTarget });
+    dialogueHighlight.scene.tweens.add({ targets: dialogueHighlight, y: highlightY, duration: getUiDuration(90), ease: 'Quad.Out', onUpdate: snapTweenTarget });
 }
 
 function finishGuideDialogueText() {
@@ -144,10 +144,10 @@ function showGuideDialogueNode(scene, nodeKey) {
             settleGuideTalking();
             return;
         }
-        dialogueTypingEvent = scene.time.delayedCall(DIALOGUE_TYPE_DELAY * (/[.!?]/.test(letter) ? 8 : letter === ',' ? 4 : 1), typeNext);
+        dialogueTypingEvent = scene.time.delayedCall(DIALOGUE_TYPE_DELAY / gamePreferences.textSpeed * (/[.!?]/.test(letter) ? 8 : letter === ',' ? 4 : 1), typeNext);
     };
 
-    dialogueTypingEvent = scene.time.delayedCall(DIALOGUE_TYPE_DELAY, typeNext);
+    dialogueTypingEvent = scene.time.delayedCall(DIALOGUE_TYPE_DELAY / gamePreferences.textSpeed, typeNext);
 }
 
 function beginDialogue(scene, nodes, actor, name, npc) {

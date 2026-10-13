@@ -8,7 +8,7 @@ function bindGameInput(scene) {
     };
     const openMenu = open => { setCursor('default'); open(); };
     scene.input.on('pointermove', pointer => {
-        if (characterCreator) return;
+        if (characterCreator || outfitChange || settingsOpen) return;
         if (newGameChoice?.open) { setCursor(pointer.x >= 48 && pointer.x < 272 && ((pointer.y >= 68 && pointer.y < 85) || (pointer.y >= 130 && pointer.y < 150)) ? 'pointer' : 'default'); return; }
         if (startup) {
             setCursor(startup.phase === 'title' && isStartButtonAt(pointer.x, pointer.y) ? 'pointer' : 'default');
@@ -38,7 +38,7 @@ function bindGameInput(scene) {
             mapDirty ||= Math.round(mapPan.x) !== beforeX || Math.round(mapPan.y) !== beforeY;
         }
 
-        const overStats = (!menuOpen || statsOpen) && isStatsButtonAt(pointer.x, pointer.y) || statsOpen && pointer.y >= 32 && pointer.y < 50 && getStatsScrollAt(pointer.x, pointer.y) !== 0;
+        const overStats = (!menuOpen || statsOpen) && (isStatsButtonAt(pointer.x, pointer.y) || typeof isSettingsButtonAt === 'function' && isSettingsButtonAt(pointer.x, pointer.y)) || statsOpen && pointer.y >= 32 && pointer.y < 50 && getStatsScrollAt(pointer.x, pointer.y) !== 0;
         const overActor = !menuOpen && getClickedWorldTarget(pointer);
         setCursor(overStats || overActor ? 'pointer' : 'default');
     });
@@ -78,6 +78,7 @@ function bindGameInput(scene) {
     });
 
     const releasePointer = pointer => {
+        if (outfitChange || settingsOpen) return;
         if (characterCreator) return;
         if (pointer.button === 0 && mapOpen && mapDrag && Math.hypot(pointer.x - mapDrag.x, pointer.y - mapDrag.y) < 3) setMapWaypoint(pointer);
         if (pointer.button !== 0) return;
@@ -90,6 +91,8 @@ function bindGameInput(scene) {
     scene.input.keyboard.on('keyup', event => event.code === 'Space' && releaseAction('keyboard'));
 
     scene.input.on('pointerdown', pointer => {
+        if (outfitChange) return;
+        if (settingsOpen) {if (isSettingsButtonAt(pointer.x, pointer.y)) closeSettings(); else if (isStatsButtonAt(pointer.x, pointer.y)) {closeSettings(); openStats();} return;}
         if (characterCreator) return;
         if (pointer.button !== 0) return;
         if (spawnReturn || interiorTransition) return;
@@ -99,6 +102,7 @@ function bindGameInput(scene) {
             return;
         }
         if (statsOpen) {
+            if (typeof isSettingsButtonAt === 'function' && isSettingsButtonAt(pointer.x, pointer.y)) {openSettings(scene); return;}
             if (pointer.x < 32 || pointer.x >= 288 || pointer.y < 24 || pointer.y >= 168) closeStats();
             else {const step = getStatsScrollAt(pointer.x, pointer.y); if (step) scrollStats(step);}
             return;
@@ -107,6 +111,7 @@ function bindGameInput(scene) {
             openMenu(openStats);
             return;
         }
+        if (!isMenuOpen() && typeof isSettingsButtonAt === 'function' && isSettingsButtonAt(pointer.x, pointer.y)) {openMenu(() => openSettings(scene)); return;}
         if (inventoryOpen) {
             const entry = getFishpediaRowAt(pointer.x, pointer.y);
             if (entry !== -1) selectFishpediaEntry(entry);
@@ -150,6 +155,7 @@ function bindGameInput(scene) {
     });
 
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
+        if (settingsOpen || outfitChange) return;
         if (characterCreator) return;
         if (interiorTransition) return;
         if (newGameChoice?.open) return;
@@ -178,6 +184,8 @@ function bindGameInput(scene) {
     });
 
     scene.input.keyboard.on('keydown', event => {
+        if (outfitChange) return;
+        if (settingsOpen) {if (event.key === 'Escape' || event.code === 'Comma') {event.preventDefault(); closeSettings();} return;}
         if (characterCreator) { if (event.key === 'Escape') { event.preventDefault(); closeCharacterCreator(); } return; }
         if (newGameChoice?.open) { setCursor('default'); handleNewGameChoiceKey(event); return; }
         if (event.code === 'Tab' || event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
@@ -207,6 +215,7 @@ function bindGameInput(scene) {
         else if (marketOpen) handleMarketKey(scene, event);
         else if (key === 'i') openMenu(() => openInventory(scene));
         else if (code === 'Tab') openMenu(openStats);
+        else if (code === 'Comma') openMenu(() => openSettings(scene));
         else if (code === 'Space') pressAction('keyboard');
         else if (key === 'm') openMenu(() => openMap(scene));
         else if (key === 'b') cycleBait(scene);

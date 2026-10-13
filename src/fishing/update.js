@@ -191,7 +191,7 @@ function drawAnglerLine(scene, cast, angler, delta) {
     updateFishingRope(cast.rope, tipX, tipY, cast.bobberX, cast.bobberY - 2, delta, taut ? 1 : cast.state === 'flying' ? 0.7 : 0);
     drawFishingRope(cast.rope, linePalette, line);
     if (waterFishingStates.has(cast.state) || cast.state === 'reeling') drawFishingWaterShadow(scene, tipHeight, 2, waterShadow);
-    if (cast === fishing && cast.state === 'bite') { const x = Math.round(cast.bobberX), y = Math.round(cast.bobberY) - 14; line.fillStyle(0x230a03, 1).fillRect(x - 2, y - 1, 5, 9).fillStyle(0xf6f5e5, 1).fillRect(x - 1, y, 3, 4).fillRect(x - 1, y + 6, 3, 1); return; }
+    if (cast === fishing && cast.state === 'bite') {showBiteIndicator(scene, cast.bobberX, cast.bobberY - 5, depth + 0.1); return;}
     line
         .fillStyle(bobberPalette?.[2] || BOBBER_BOTTOM_COLOR, 1)
         .fillRect(cast.bobberX - 1, cast.bobberY - 2, 2, 1)

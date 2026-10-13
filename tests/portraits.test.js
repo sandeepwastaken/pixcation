@@ -181,5 +181,5 @@ test('masked vanity is layered over expressions instead of drawing a mouth over 
 test('portrait mirroring follows the map appearance and expressions preserve the same outfit', () => {
     const {run} = createPortraitPeople();
     run('const look = createNpc(13, 4, null).look; look[8] = 0; const first = composePersonPortraitPixels(scene, look); look[8] = 1; const flipped = composePersonPortraitPixels(scene, look);');
-    assert.equal(run('first.data.every((value, index) => value === flipped.data[(Math.floor(index / 4 / 55) * 55 + 54 - Math.floor(index / 4) % 55) * 4 + index % 4])'), true);
+    assert.equal(run('(() => {const background = getTerrainPixels(scene, "characters/people/portraits/background"), original = background.data; background.data = new Uint8ClampedArray(original.length); look[8] = 0; const foreground = composePersonPortraitPixels(scene, look); background.data = original; return flipped.data.every((value, index) => {const pixel = Math.floor(index / 4), x = pixel % 55, y = Math.floor(pixel / 55), mirrored = (y * 55 + 54 - x) * 4; return value === (foreground.data[mirrored + 3] && x >= 3 && x < 52 && y >= 3 && y < 59 ? foreground.data[mirrored + index % 4] : original[index]);});})()'), true);
 });

@@ -1,6 +1,8 @@
 function update(time, delta) {
     if (!character) return;
     if (characterCreator) { lastPlayTime = null; return; }
+    if (outfitChange) { lastPlayTime = null; updateOutfitChange(this, time); return; }
+    hideTransientUi();
     if (interiorTransition) { lastPlayTime = null; updateInteriorTransition(this, time); return; }
     if (spawnReturn) { updateSpawnReturn(this, time, delta); return; }
     if (startup) {
@@ -29,6 +31,7 @@ function update(time, delta) {
     updateGuideInteraction(this, guideReach < 1);
     updateInteractionPrompt(this, guideReach, marketReach);
     updateStatsUI();
+    updateSettingsUI();
 
     if (mapOpen) { mapDirty ||= travelled > 0; updateMapPan(this, delta); } updateMapWaypoint();
 

@@ -16,12 +16,12 @@ function getVerticalMenuStep(event, normalizedKey) {
 function popIn(scene, image, y) {
     image.setY(y + 2);
     scene.tweens.killTweensOf(image);
-    scene.tweens.add({ targets: image, y, duration: 140, ease: 'Quad.Out', onUpdate: snapTweenTarget });
+    scene.tweens.add({ targets: image, y, duration: getUiDuration(140), ease: 'Quad.Out', onUpdate: snapTweenTarget });
 }
 
 function slidePanel(scene, y, duration, ease, targets, onComplete) {
     for (const target of targets) scene.tweens.killTweensOf(target);
-    scene.tweens.add({ targets, y, duration, ease, onUpdate: snapTweenTarget, onComplete });
+    scene.tweens.add({ targets, y, duration: gamePreferences.reducedMotion ? 16 : getUiDuration(duration), ease: gamePreferences.reducedMotion ? 'Linear' : ease, onUpdate: snapTweenTarget, onComplete });
 }
 
 function showSlidingPanel(scene, hiddenY, ...targets) {

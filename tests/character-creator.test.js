@@ -2,6 +2,18 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {createPortraitPeople} = require('./portrait-fixture');
+test('settings clamp saved preferences and retain valid independent speeds', () => {
+    const {run, scene} = createCreator(); scene.sound = {setVolume(value) {this.volume = value;}}; run(fs.readFileSync('src/ui/settings.js', 'utf8')); run('storage.set("pixcation-preferences", JSON.stringify({volume: 2, uiSpeed: 2, textSpeed: 17, reducedMotion: true})); loadGamePreferences(scene); saveGamePreferences(scene)');
+    assert.equal(scene.sound.volume, 1); assert.equal(run('gamePreferences.uiSpeed'), 2); assert.equal(run('gamePreferences.textSpeed'), 1); assert.equal(run('JSON.parse(storage.get("pixcation-preferences")).reducedMotion'), true);
+});
+test('outfit changes replace the appearance only when fully dithered out', () => {
+    const {run} = createCreator(); run(fs.readFileSync('src/ui/settings.js', 'utf8')); run('const frames = [], applied = []; function ditherInCharacter(scene, level) {frames.push(level);} applyPlayerAppearance = (scene, look) => applied.push(look); outfitChange = {phase: "out", start: 0, duration: 240, look: [1]}; updateOutfitChange(scene, 120)');
+    assert.equal(run('frames.at(-1)'), 8); assert.equal(run('applied.length'), 0); run('updateOutfitChange(scene, 240)'); assert.equal(run('applied.length'), 1); assert.equal(run('frames.at(-1)'), 0); run('updateOutfitChange(scene, 360)'); assert.equal(run('frames.at(-1)'), 8); run('updateOutfitChange(scene, 480)'); assert.equal(run('outfitChange'), null); assert.equal(run('frames.at(-1)'), 16);
+});
+test('headwear never adds a separate hair layer in either preview', () => {
+    const {run} = createCreator(); run('const look = normalizePlayerLook(PLAYER_LOOK); look[5] = 1; look[6] = 0; look[18] = 0; const firstPortrait = composePersonPortraitPixels(scene, look), firstSprite = composePersonPixels(scene, look, "front"); look[18] = 8; const secondPortrait = composePersonPortraitPixels(scene, look), secondSprite = composePersonPixels(scene, look, "front")');
+    assert.equal(run('firstPortrait.data.every((value, index) => value === secondPortrait.data[index]) && firstSprite.every((value, index) => value === secondSprite[index])'), true);
+});
 test('creator controls remain clickable above the noninteractive HUD parent', () => {
     const {run} = createCreator(); run('document = {createElement() {return {style: {}};}}; const parent = {appendChild() {}}; const button = characterCreatorElement(parent, "button", "Parts")');
     assert.equal(run('button.style.pointerEvents'), 'auto');
@@ -35,7 +47,7 @@ test('malformed appearances are safe, color sliders are clamped, and excluded he
     assert.equal(run('look[6]'), 0); assert.equal(run('look[15]'), 0); assert.equal(run('look[17][0]'), 0); assert.equal(run('look[17][1]'), 1);
     assert.doesNotThrow(() => run('composePersonPixels(scene, look, "front"); composePersonPortraitPixels(scene, look)'));
 });
-test('all ordinary parts and combined hair and headwear render in map sprites and portraits', () => {
+test('all ordinary hair or headwear parts render in map sprites and portraits', () => {
     const {run} = createCreator();
     assert.doesNotThrow(() => run('const look = normalizePlayerLook(PLAYER_LOOK); for(let gender = 0; gender < 2; gender++) for(let face = 0; face < NPC_FACES; face++) for(let hair = 0; hair < NPC_HAIRSTYLES; hair++) {look[14] = gender; look[1] = face; look[18] = hair; look[5] = 0; look[6] = hair; composePersonPortraitPixels(scene, look); composePersonPixels(scene, look, "front");} for(const hat of [0,1,2,3,4,6,7]) {look[5] = 1; look[6] = hat; composePersonPortraitPixels(scene, look); composePersonPixels(scene, look, "front");} for(let shirt = 0; shirt < NPC_SHIRTS; shirt++) {look[2] = shirt; composePersonPortraitPixels(scene, look);} for(let pants = 0; pants < NPC_PANTS_STYLES; pants++) {look[11] = pants; composePersonPixels(scene, look, "front");}'));
 });

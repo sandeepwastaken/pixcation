@@ -64,7 +64,6 @@ function composePersonPixels(scene, look, direction, blink = false) {
     assign(NPC_PART_COLORS.hair, palette.hair);
     assign(accessory ? NPC_PART_COLORS.accessory : NPC_PART_COLORS.hair, palette.top);
     const layers = [[face * 3 + column, 0], [9 + column, 2 + (look[11] ?? 0), 8], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
-    if (accessory && look[18] !== undefined) layers.splice(3, 0, [3 + column, 1 + look[18]]);
     const sheet = getTerrainPixels(scene, 'character-parts');
     const pixels = new Array(NPC_PART_SIZE * NPC_PART_SIZE).fill(null);
 

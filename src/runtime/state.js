@@ -172,6 +172,8 @@ let promptState = -1;
 const promptMotion = { value: 0 };
 let startup = null;
 let statsOpen = false;
+let settingsOpen = false, settingsMenu = null, settingsButton, settingsButtonTextLayer, outfitChange = null, biteIndicator = null;
+const gamePreferences = {volume: 1, uiSpeed: 1, textSpeed: 1, reducedMotion: false};
 let statsButton;
 let statsButtonTextLayer;
 let statsContainer;

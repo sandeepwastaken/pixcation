@@ -1,7 +1,7 @@
-const UI_TEXT_SHADOW = '1px 1px #4a5059';
+const UI_TEXT_SHADOW = '1px 1px rgba(0, 0, 0, 0.55)';
 
 function isMenuOpen() {
-    return dialogueOpen || marketOpen || mapOpen || inventoryOpen || statsOpen;
+    return dialogueOpen || marketOpen || mapOpen || inventoryOpen || statsOpen || settingsOpen;
 }
 
 function drawPanelFrame(panel, x, width, height) {

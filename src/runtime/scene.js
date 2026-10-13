@@ -76,6 +76,7 @@ function create() {
     createCatchCardUI(this);
     createInteractionPromptUI(this);
     createStatsUI(this);
+    loadGamePreferences(this); createSettingsUI(this);
     if (TEST_MODE) {
         try {
             window.PIXCATION_TEST_RESULTS = runAutomatedTests(this);

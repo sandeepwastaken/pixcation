@@ -130,6 +130,7 @@ const DIALOGUE_OPTION_STEP = 19;
 const DIALOGUE_OPTION_WIDTH = 86;
 const DIALOGUE_OPTION_HEIGHT = 17;
 const DIALOGUE_TYPE_DELAY = 24;
+function getUiDuration(duration) { return Math.max(16, Math.round(duration / gamePreferences.uiSpeed)); }
 const DIALOGUE_PORTRAIT_Y = 8;
 
 const MAP_PANEL_HEIGHT = 156;

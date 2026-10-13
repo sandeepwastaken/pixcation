@@ -10,7 +10,8 @@ function createNewGame(search = '', options = {}) {
     const scene = { time: { now: 100 }, add: {} };
     const object = () => ({ scene, visible: false, fillStyle() { return this; }, fillRect() { return this; }, setDepth() { return this; }, setOrigin() { return this; }, setScrollFactor() { return this; }, setVisible(value) { this.visible = value; return this; } });
     scene.add.graphics = scene.add.container = scene.add.dom = object;
-    const context = vm.createContext({ document, scene, TEST_MODE: false, URL, URLSearchParams, window: { location: { href: 'http://localhost:8000/?cheats=true' + search, search: '?cheats=true' + search, assign: value => navigations.push(value) } }, localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => { if (options.failRemove) throw new Error('Storage unavailable'); removals.push(key); storage.delete(key); } } });
+    const uiPngBackground = () => ({});
+    const context = vm.createContext({ document, scene, uiPngBackground, TEST_MODE: false, URL, URLSearchParams, window: { location: { href: 'http://localhost:8000/?cheats=true' + search, search: '?cheats=true' + search, assign: value => navigations.push(value) } }, localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => { if (options.failRemove) throw new Error('Storage unavailable'); removals.push(key); storage.delete(key); } } });
     vm.runInContext(['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'runtime/progress.js', 'ui/elements.js', 'ui/panels.js', 'ui/inventory.js'].map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);
     vm.runInContext('createNewGameUI(scene); inventoryOpen = true; inventoryTextLayer = {visible: true, setVisible(value) {this.visible = value;}};', context);
     return { storage, navigations, removals, run: code => vm.runInContext(code, context) };

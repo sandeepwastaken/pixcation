@@ -28,7 +28,7 @@ function createStatsUI(scene) {
     statsContainer = scene.add.image(32, 24, 'ui-stats-panel').setOrigin(0).setScrollFactor(0).setDepth(220).setVisible(false);
     const text = createTextLayer(144, { color: '#a8afbd', fontSize: '11px', lineHeight: '11px', textShadow: UI_TEXT_SHADOW });
     createUIText(text, 44, 10, '#e2e4e9', 232, 'center', { fontSize: '16px', textShadow: UI_TEXT_SHADOW }).textContent = 'Your stats';
-    for (let index = 0; index < 2; index++) { const arrow = createUIText(text, 250 + index * 18, 10, '#acccf9', 16, 'center'); arrow.textContent = index ? 'v' : '^'; statsArrowTexts.push(arrow); }
+    for (let index = 0; index < 2; index++) {const placeholder = getUiSkinPixels(scene, 'arrow-up').placeholder, arrow = createUIText(text, 250 + index * 18, 10, '#acccf9', 16, 'center', {height: '11px', transform: index ? 'scaleY(-1)' : 'none', imageRendering: 'pixelated', backgroundImage: placeholder ? 'none' : `url("${getUiSkinUrl(scene, 'arrow-up')}")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundSize: '8px 8px'}); arrow.textContent = placeholder ? '^' : ''; statsArrowTexts.push(arrow);}
     const labels = STATS_LABELS;
     for (let index = 0; index < 9; index++) {
         statsLabelTexts.push(createUIText(text, 44, 30 + index * 11, '#a8afbd', 156, 'left', { textShadow: UI_TEXT_SHADOW }));
@@ -78,7 +78,7 @@ function refreshStatsUI() {
 }
 
 function updateStatsUI() {
-    const visible = !isMenuOpen() || statsOpen;
+    const visible = (!isMenuOpen() || statsOpen || settingsOpen) && !characterCreator && !outfitChange;
     if (statsButton.visible !== visible) statsButton.setVisible(visible);
     if (statsButtonTextLayer.visible !== visible) statsButtonTextLayer.setVisible(visible);
     if (statsOpen) refreshStatsUI();
