@@ -247,8 +247,8 @@ function getNpcAccentColor(roll, primary, neutral, count) {
     for (let index = 0; index < count; index++) if (value < (limit += index === neutral ? 60 : index === primary ? 20 : 1)) return index;
     return -1;
 }
-function getNpcOutfitColors(appearance) {
-    const hair = getNpcWeightedIndex(appearance[12], NPC_HAIR_COLOR_WEIGHTS);
+function getNpcOutfitColors(appearance, face = 0) {
+    const hair = getNpcWeightedIndex(appearance[12], face === 2 ? NPC_AGE_HAIR_COLOR_WEIGHTS.older : face === 1 ? NPC_AGE_HAIR_COLOR_WEIGHTS.young : NPC_HAIR_COLOR_WEIGHTS);
     const shirt = getNpcWeightedIndex(appearance[6], NPC_SHIRT_COLOR_WEIGHTS);
     const pants = getNpcWeightedIndex(appearance[7], NPC_PANTS_COLOR_WEIGHTS);
     const headwear = getNpcWeightedIndex(appearance[11], NPC_HEADWEAR_COLOR_WEIGHTS);
@@ -259,14 +259,19 @@ function getNpcOutfitColors(appearance) {
 function getNpcColorVariation(seed) {
     return [0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0].map((spread, index) => seed ? spread * (((Math.imul(seed ^ (index + 1), 0x45d9f3b) >>> 0) & 65535) / 65535) : 0);
 }
+function getNpcStyleProfile(face, feminine) {
+    const gender = feminine ? 'Female' : 'Male';
+    return face === 1 ? 'young' + gender : face === 2 ? 'older' + gender : gender.toLowerCase();
+}
+function getNpcMouthVariant(face, roll) {return Number(face !== 2 && roll < NPC_CANINE_CHANCE[face] * 100);}
 function createNpc(tileX, tileY, water) {
     const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
-    const colors = getNpcOutfitColors(appearance);
     const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
     const rareName = getNpcRareName(appearance[22] / NPC_APPEARANCE_RADICES[22]), feminine = rareVanity || (rareName ? NPC_FEMININE_FIRST_NAMES.includes(rareName) : appearance[18] === 1), face = getNpcFace(appearance[4]), names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
-    const gender = feminine ? 'female' : 'male', hairType = feminine ? gender : face === 1 ? 'youngMale' : face === 2 ? 'olderMale' : gender;
-    const shirtType = feminine && face === 1 ? 'youngFemale' : gender, style = (roll, weights) => getNpcWeightedIndex(appearance[roll], weights, NPC_APPEARANCE_RADICES[roll]);
+    const profile = getNpcStyleProfile(face, feminine);
+    const colors = getNpcOutfitColors(appearance, face);
+    const style = (roll, weights) => getNpcWeightedIndex(appearance[roll], weights, NPC_APPEARANCE_RADICES[roll]);
     return {
         id: getTileId(tileX, tileY),
         tileX,
@@ -279,11 +284,11 @@ function createNpc(tileX, tileY, water) {
         rodIndex: pick(MARKET_RODS.length, 1315),
         name: (rareName || names[appearance[19] % names.length]) + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
         look: [
-            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 : 0, face, style(5, NPC_STYLE_WEIGHTS.shirt[shirtType]), colors.shirt,
+            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 : 0, face, style(5, NPC_STYLE_WEIGHTS.shirt[profile]), colors.shirt,
             colors.pants, accessory,
-            accessory ? (rareVanity ? 5 : style(9, NPC_STYLE_WEIGHTS.vanity[gender])) : style(10, NPC_STYLE_WEIGHTS.hair[hairType]),
+            accessory ? (rareVanity ? 5 : style(9, NPC_STYLE_WEIGHTS.vanity[profile])) : style(10, NPC_STYLE_WEIGHTS.hair[profile]),
             accessory ? colors.headwear : colors.hair,
-            appearance[13], colors.hair, colors.shirtAccent, style(15, NPC_STYLE_WEIGHTS.pants[gender]), colors.pantsAccent, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23], getNpcColorVariation(appearance[23])
+            appearance[13], colors.hair, colors.shirtAccent, style(15, NPC_STYLE_WEIGHTS.pants[profile]), colors.pantsAccent, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23], getNpcColorVariation(appearance[23]), undefined, getNpcMouthVariant(face, appearance[24])
         ]
     };
 }

@@ -20,10 +20,70 @@
     "h": 256
    }
   },
-  "ui/stats/panel": {
+  "ui/common/backdrop": {
    "frame": {
     "x": 257,
     "y": 0,
+    "w": 320,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 320,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 320,
+    "h": 192
+   }
+  },
+  "ui/creator/panel": {
+   "frame": {
+    "x": 0,
+    "y": 257,
+    "w": 256,
+    "h": 144
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 144
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 144
+   }
+  },
+  "ui/settings/panel": {
+   "frame": {
+    "x": 257,
+    "y": 257,
+    "w": 256,
+    "h": 144
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 144
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 144
+   }
+  },
+  "ui/stats/panel": {
+   "frame": {
+    "x": 514,
+    "y": 257,
     "w": 256,
     "h": 144
    },
@@ -43,7 +103,7 @@
   "ui/shop/panel": {
    "frame": {
     "x": 0,
-    "y": 257,
+    "y": 402,
     "w": 320,
     "h": 142
    },
@@ -63,7 +123,7 @@
   "ui/fishing/panel": {
    "frame": {
     "x": 321,
-    "y": 257,
+    "y": 402,
     "w": 22,
     "h": 104
    },
@@ -83,7 +143,7 @@
   "ui/fishing/progress": {
    "frame": {
     "x": 344,
-    "y": 257,
+    "y": 402,
     "w": 3,
     "h": 91
    },
@@ -103,7 +163,7 @@
   "ui/title/logo": {
    "frame": {
     "x": 348,
-    "y": 257,
+    "y": 402,
     "w": 190,
     "h": 72
    },
@@ -123,7 +183,7 @@
   "environment/objects/tree-bare": {
    "frame": {
     "x": 539,
-    "y": 257,
+    "y": 402,
     "w": 40,
     "h": 69
    },
@@ -143,7 +203,7 @@
   "characters/guide/portraits/base": {
    "frame": {
     "x": 580,
-    "y": 257,
+    "y": 402,
     "w": 55,
     "h": 62
    },
@@ -163,7 +223,7 @@
   "characters/guide/portraits/eyes-closed": {
    "frame": {
     "x": 636,
-    "y": 257,
+    "y": 402,
     "w": 55,
     "h": 62
    },
@@ -182,8 +242,8 @@
   },
   "characters/guide/portraits/grin": {
    "frame": {
-    "x": 0,
-    "y": 400,
+    "x": 692,
+    "y": 402,
     "w": 55,
     "h": 62
    },
@@ -202,8 +262,8 @@
   },
   "characters/guide/portraits/open-mouth": {
    "frame": {
-    "x": 56,
-    "y": 400,
+    "x": 748,
+    "y": 402,
     "w": 55,
     "h": 62
    },
@@ -222,8 +282,8 @@
   },
   "characters/people/portraits/background": {
    "frame": {
-    "x": 112,
-    "y": 400,
+    "x": 0,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -242,8 +302,8 @@
   },
   "characters/people/portraits/base1": {
    "frame": {
-    "x": 168,
-    "y": 400,
+    "x": 56,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -262,8 +322,8 @@
   },
   "characters/people/portraits/base1F": {
    "frame": {
-    "x": 224,
-    "y": 400,
+    "x": 112,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -282,8 +342,8 @@
   },
   "characters/people/portraits/base2": {
    "frame": {
-    "x": 280,
-    "y": 400,
+    "x": 168,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -302,8 +362,8 @@
   },
   "characters/people/portraits/base2F": {
    "frame": {
-    "x": 336,
-    "y": 400,
+    "x": 224,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -322,8 +382,8 @@
   },
   "characters/people/portraits/base3": {
    "frame": {
-    "x": 392,
-    "y": 400,
+    "x": 280,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -342,8 +402,8 @@
   },
   "characters/people/portraits/base3F": {
    "frame": {
-    "x": 448,
-    "y": 400,
+    "x": 336,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -362,8 +422,48 @@
   },
   "characters/people/portraits/grin": {
    "frame": {
+    "x": 392,
+    "y": 545,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/grin1": {
+   "frame": {
+    "x": 448,
+    "y": 545,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/grin2": {
+   "frame": {
     "x": 504,
-    "y": 400,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -383,7 +483,7 @@
   "characters/people/portraits/hair1": {
    "frame": {
     "x": 560,
-    "y": 400,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -403,7 +503,7 @@
   "characters/people/portraits/hair10": {
    "frame": {
     "x": 616,
-    "y": 400,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -422,8 +522,8 @@
   },
   "characters/people/portraits/hair2": {
    "frame": {
-    "x": 0,
-    "y": 463,
+    "x": 672,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -442,8 +542,8 @@
   },
   "characters/people/portraits/hair3": {
    "frame": {
-    "x": 56,
-    "y": 463,
+    "x": 728,
+    "y": 545,
     "w": 55,
     "h": 62
    },
@@ -462,8 +562,8 @@
   },
   "characters/people/portraits/hair4": {
    "frame": {
-    "x": 112,
-    "y": 463,
+    "x": 0,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -482,8 +582,8 @@
   },
   "characters/people/portraits/hair5": {
    "frame": {
-    "x": 168,
-    "y": 463,
+    "x": 56,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -502,8 +602,8 @@
   },
   "characters/people/portraits/hair6": {
    "frame": {
-    "x": 224,
-    "y": 463,
+    "x": 112,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -522,8 +622,8 @@
   },
   "characters/people/portraits/hair7": {
    "frame": {
-    "x": 280,
-    "y": 463,
+    "x": 168,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -542,8 +642,8 @@
   },
   "characters/people/portraits/hair8": {
    "frame": {
-    "x": 336,
-    "y": 463,
+    "x": 224,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -562,8 +662,8 @@
   },
   "characters/people/portraits/hair9": {
    "frame": {
-    "x": 392,
-    "y": 463,
+    "x": 280,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -580,10 +680,30 @@
     "h": 62
    }
   },
-  "characters/people/portraits/openMouth": {
+  "characters/people/portraits/openMouth1": {
    "frame": {
-    "x": 448,
-    "y": 463,
+    "x": 336,
+    "y": 608,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/openMouth2": {
+   "frame": {
+    "x": 392,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -602,8 +722,8 @@
   },
   "characters/people/portraits/shirt1": {
    "frame": {
-    "x": 504,
-    "y": 463,
+    "x": 448,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -622,8 +742,8 @@
   },
   "characters/people/portraits/shirt10": {
    "frame": {
-    "x": 560,
-    "y": 463,
+    "x": 504,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -642,8 +762,8 @@
   },
   "characters/people/portraits/shirt2": {
    "frame": {
-    "x": 616,
-    "y": 463,
+    "x": 560,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -662,8 +782,8 @@
   },
   "characters/people/portraits/shirt3": {
    "frame": {
-    "x": 0,
-    "y": 526,
+    "x": 616,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -682,8 +802,8 @@
   },
   "characters/people/portraits/shirt4": {
    "frame": {
-    "x": 56,
-    "y": 526,
+    "x": 672,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -702,8 +822,8 @@
   },
   "characters/people/portraits/shirt5": {
    "frame": {
-    "x": 112,
-    "y": 526,
+    "x": 728,
+    "y": 608,
     "w": 55,
     "h": 62
    },
@@ -722,8 +842,8 @@
   },
   "characters/people/portraits/shirt6": {
    "frame": {
-    "x": 168,
-    "y": 526,
+    "x": 0,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -742,8 +862,8 @@
   },
   "characters/people/portraits/shirt7": {
    "frame": {
-    "x": 224,
-    "y": 526,
+    "x": 56,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -762,8 +882,8 @@
   },
   "characters/people/portraits/shirt8": {
    "frame": {
-    "x": 280,
-    "y": 526,
+    "x": 112,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -782,8 +902,8 @@
   },
   "characters/people/portraits/shirt9": {
    "frame": {
-    "x": 336,
-    "y": 526,
+    "x": 168,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -802,8 +922,8 @@
   },
   "characters/people/portraits/vanity1": {
    "frame": {
-    "x": 392,
-    "y": 526,
+    "x": 224,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -822,8 +942,8 @@
   },
   "characters/people/portraits/vanity2": {
    "frame": {
-    "x": 448,
-    "y": 526,
+    "x": 280,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -842,8 +962,8 @@
   },
   "characters/people/portraits/vanity3": {
    "frame": {
-    "x": 504,
-    "y": 526,
+    "x": 336,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -862,8 +982,8 @@
   },
   "characters/people/portraits/vanity4": {
    "frame": {
-    "x": 560,
-    "y": 526,
+    "x": 392,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -882,8 +1002,8 @@
   },
   "characters/people/portraits/vanity5": {
    "frame": {
-    "x": 616,
-    "y": 526,
+    "x": 448,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -902,8 +1022,8 @@
   },
   "characters/people/portraits/vanity6": {
    "frame": {
-    "x": 0,
-    "y": 589,
+    "x": 504,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -922,8 +1042,8 @@
   },
   "characters/people/portraits/vanity7": {
    "frame": {
-    "x": 56,
-    "y": 589,
+    "x": 560,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -942,8 +1062,8 @@
   },
   "characters/people/portraits/vanity8": {
    "frame": {
-    "x": 112,
-    "y": 589,
+    "x": 616,
+    "y": 671,
     "w": 55,
     "h": 62
    },
@@ -962,8 +1082,8 @@
   },
   "characters/guide/legacy/friendly": {
    "frame": {
-    "x": 168,
-    "y": 589,
+    "x": 672,
+    "y": 671,
     "w": 46,
     "h": 52
    },
@@ -982,8 +1102,8 @@
   },
   "characters/guide/legacy/laughing": {
    "frame": {
-    "x": 215,
-    "y": 589,
+    "x": 719,
+    "y": 671,
     "w": 46,
     "h": 52
    },
@@ -1002,8 +1122,8 @@
   },
   "characters/guide/legacy/surprised": {
    "frame": {
-    "x": 262,
-    "y": 589,
+    "x": 766,
+    "y": 671,
     "w": 46,
     "h": 52
    },
@@ -1020,10 +1140,30 @@
     "h": 52
    }
   },
+  "ui/creator/sprite-frame": {
+   "frame": {
+    "x": 0,
+    "y": 734,
+    "w": 34,
+    "h": 34
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 34,
+    "h": 34
+   },
+   "sourceSize": {
+    "w": 34,
+    "h": 34
+   }
+  },
   "environment/objects/house": {
    "frame": {
-    "x": 309,
-    "y": 589,
+    "x": 35,
+    "y": 734,
     "w": 48,
     "h": 32
    },
@@ -1042,8 +1182,8 @@
   },
   "environment/objects/store": {
    "frame": {
-    "x": 358,
-    "y": 589,
+    "x": 84,
+    "y": 734,
     "w": 48,
     "h": 32
    },
@@ -1062,8 +1202,8 @@
   },
   "environment/effects/water-overlay": {
    "frame": {
-    "x": 407,
-    "y": 589,
+    "x": 133,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1082,8 +1222,8 @@
   },
   "fish/bluegill": {
    "frame": {
-    "x": 440,
-    "y": 589,
+    "x": 166,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1102,8 +1242,8 @@
   },
   "fish/largemouthBass": {
    "frame": {
-    "x": 473,
-    "y": 589,
+    "x": 199,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1122,8 +1262,8 @@
   },
   "fish/placeholder": {
    "frame": {
-    "x": 506,
-    "y": 589,
+    "x": 232,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1142,8 +1282,8 @@
   },
   "fish/pumpkinSeed": {
    "frame": {
-    "x": 539,
-    "y": 589,
+    "x": 265,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1162,8 +1302,8 @@
   },
   "fish/smallmouthBass": {
    "frame": {
-    "x": 572,
-    "y": 589,
+    "x": 298,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1182,8 +1322,8 @@
   },
   "fish/yellowPerch": {
    "frame": {
-    "x": 605,
-    "y": 589,
+    "x": 331,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1202,8 +1342,8 @@
   },
   "items/baits/advancedBait": {
    "frame": {
-    "x": 638,
-    "y": 589,
+    "x": 364,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1222,8 +1362,8 @@
   },
   "items/baits/mysteryBait": {
    "frame": {
-    "x": 0,
-    "y": 652,
+    "x": 397,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1242,8 +1382,8 @@
   },
   "items/baits/noviceBait": {
    "frame": {
-    "x": 33,
-    "y": 652,
+    "x": 430,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1262,8 +1402,8 @@
   },
   "items/baits/trainerBait": {
    "frame": {
-    "x": 66,
-    "y": 652,
+    "x": 463,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1282,8 +1422,8 @@
   },
   "items/chest": {
    "frame": {
-    "x": 99,
-    "y": 652,
+    "x": 496,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1302,8 +1442,8 @@
   },
   "items/rods/legacy": {
    "frame": {
-    "x": 132,
-    "y": 652,
+    "x": 529,
+    "y": 734,
     "w": 32,
     "h": 32
    },
@@ -1322,8 +1462,8 @@
   },
   "items/rods/basic": {
    "frame": {
-    "x": 165,
-    "y": 652,
+    "x": 562,
+    "y": 734,
     "w": 31,
     "h": 32
    },
@@ -1342,8 +1482,8 @@
   },
   "items/rods/intermediate": {
    "frame": {
-    "x": 197,
-    "y": 652,
+    "x": 594,
+    "y": 734,
     "w": 31,
     "h": 32
    },
@@ -1362,8 +1502,8 @@
   },
   "items/rods/master": {
    "frame": {
-    "x": 229,
-    "y": 652,
+    "x": 626,
+    "y": 734,
     "w": 31,
     "h": 32
    },
@@ -1382,8 +1522,8 @@
   },
   "environment/interior/couchMid": {
    "frame": {
-    "x": 261,
-    "y": 652,
+    "x": 658,
+    "y": 734,
     "w": 16,
     "h": 32
    },
@@ -1402,8 +1542,8 @@
   },
   "environment/interior/couchSide": {
    "frame": {
-    "x": 278,
-    "y": 652,
+    "x": 675,
+    "y": 734,
     "w": 16,
     "h": 32
    },
@@ -1422,8 +1562,8 @@
   },
   "ui/hud/selected": {
    "frame": {
-    "x": 295,
-    "y": 652,
+    "x": 692,
+    "y": 734,
     "w": 30,
     "h": 31
    },
@@ -1442,8 +1582,8 @@
   },
   "environment/interior/recolorableRug": {
    "frame": {
-    "x": 326,
-    "y": 652,
+    "x": 723,
+    "y": 734,
     "w": 48,
     "h": 30
    },
@@ -1462,8 +1602,8 @@
   },
   "environment/interior/chairFront": {
    "frame": {
-    "x": 375,
-    "y": 652,
+    "x": 772,
+    "y": 734,
     "w": 16,
     "h": 29
    },
@@ -1482,8 +1622,8 @@
   },
   "environment/interior/chairSide": {
    "frame": {
-    "x": 392,
-    "y": 652,
+    "x": 789,
+    "y": 734,
     "w": 16,
     "h": 29
    },
@@ -1502,8 +1642,8 @@
   },
   "ui/hud/hotbar": {
    "frame": {
-    "x": 409,
-    "y": 652,
+    "x": 0,
+    "y": 769,
     "w": 234,
     "h": 26
    },
@@ -1522,8 +1662,8 @@
   },
   "environment/objects/boulder": {
    "frame": {
-    "x": 644,
-    "y": 652,
+    "x": 235,
+    "y": 769,
     "w": 28,
     "h": 23
    },
@@ -1542,8 +1682,8 @@
   },
   "environment/objects/bush": {
    "frame": {
-    "x": 0,
-    "y": 685,
+    "x": 264,
+    "y": 769,
     "w": 32,
     "h": 22
    },
@@ -1562,8 +1702,8 @@
   },
   "ui/title/button": {
    "frame": {
-    "x": 33,
-    "y": 685,
+    "x": 297,
+    "y": 769,
     "w": 96,
     "h": 20
    },
@@ -1580,10 +1720,50 @@
     "h": 20
    }
   },
+  "ui/widgets/input": {
+   "frame": {
+    "x": 394,
+    "y": 769,
+    "w": 92,
+    "h": 18
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 92,
+    "h": 18
+   },
+   "sourceSize": {
+    "w": 92,
+    "h": 18
+   }
+  },
+  "ui/settings/button": {
+   "frame": {
+    "x": 487,
+    "y": 769,
+    "w": 48,
+    "h": 16
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 48,
+    "h": 16
+   },
+   "sourceSize": {
+    "w": 48,
+    "h": 16
+   }
+  },
   "ui/stats/button": {
    "frame": {
-    "x": 130,
-    "y": 685,
+    "x": 536,
+    "y": 769,
     "w": 48,
     "h": 16
    },
@@ -1602,8 +1782,8 @@
   },
   "characters/guide/sprite": {
    "frame": {
-    "x": 179,
-    "y": 685,
+    "x": 585,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1622,8 +1802,8 @@
   },
   "environment/interior/insideFloor": {
    "frame": {
-    "x": 196,
-    "y": 685,
+    "x": 602,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1642,8 +1822,8 @@
   },
   "environment/terrain/cornerDirt1": {
    "frame": {
-    "x": 213,
-    "y": 685,
+    "x": 619,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1662,8 +1842,8 @@
   },
   "environment/terrain/cornerDirt2": {
    "frame": {
-    "x": 230,
-    "y": 685,
+    "x": 636,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1682,8 +1862,8 @@
   },
   "environment/terrain/cornerDirt3": {
    "frame": {
-    "x": 247,
-    "y": 685,
+    "x": 653,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1702,8 +1882,8 @@
   },
   "environment/terrain/dirt1": {
    "frame": {
-    "x": 264,
-    "y": 685,
+    "x": 670,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1722,8 +1902,8 @@
   },
   "environment/terrain/dirtEdge": {
    "frame": {
-    "x": 281,
-    "y": 685,
+    "x": 687,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1742,8 +1922,8 @@
   },
   "environment/terrain/dirtEdgeInnerLeft": {
    "frame": {
-    "x": 298,
-    "y": 685,
+    "x": 704,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1762,8 +1942,8 @@
   },
   "environment/terrain/dirtEdgeInnerRight": {
    "frame": {
-    "x": 315,
-    "y": 685,
+    "x": 721,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1782,8 +1962,8 @@
   },
   "environment/terrain/dirtEdgeOuterBoth": {
    "frame": {
-    "x": 332,
-    "y": 685,
+    "x": 738,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1802,8 +1982,8 @@
   },
   "environment/terrain/dirtEdgeOuterLeft": {
    "frame": {
-    "x": 349,
-    "y": 685,
+    "x": 755,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1822,8 +2002,8 @@
   },
   "environment/terrain/dirtEdgeOuterRight": {
    "frame": {
-    "x": 366,
-    "y": 685,
+    "x": 772,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1842,8 +2022,8 @@
   },
   "environment/terrain/grass1": {
    "frame": {
-    "x": 383,
-    "y": 685,
+    "x": 789,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1862,8 +2042,8 @@
   },
   "environment/terrain/grass2": {
    "frame": {
-    "x": 400,
-    "y": 685,
+    "x": 806,
+    "y": 769,
     "w": 16,
     "h": 16
    },
@@ -1882,8 +2062,8 @@
   },
   "environment/terrain/grass3": {
    "frame": {
-    "x": 417,
-    "y": 685,
+    "x": 0,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -1902,8 +2082,8 @@
   },
   "environment/terrain/grass4": {
    "frame": {
-    "x": 434,
-    "y": 685,
+    "x": 17,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -1922,8 +2102,8 @@
   },
   "environment/terrain/grassEdge": {
    "frame": {
-    "x": 451,
-    "y": 685,
+    "x": 34,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -1942,8 +2122,8 @@
   },
   "environment/terrain/transition1": {
    "frame": {
-    "x": 468,
-    "y": 685,
+    "x": 51,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -1962,8 +2142,8 @@
   },
   "environment/terrain/transition2": {
    "frame": {
-    "x": 485,
-    "y": 685,
+    "x": 68,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -1982,8 +2162,8 @@
   },
   "environment/terrain/transition3": {
    "frame": {
-    "x": 502,
-    "y": 685,
+    "x": 85,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2002,8 +2182,8 @@
   },
   "environment/terrain/transition4": {
    "frame": {
-    "x": 519,
-    "y": 685,
+    "x": 102,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2022,8 +2202,8 @@
   },
   "environment/terrain/water": {
    "frame": {
-    "x": 536,
-    "y": 685,
+    "x": 119,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2042,8 +2222,8 @@
   },
   "environment/terrain/waterDirt": {
    "frame": {
-    "x": 553,
-    "y": 685,
+    "x": 136,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2062,8 +2242,8 @@
   },
   "environment/terrain/waterDirtInnerLeft": {
    "frame": {
-    "x": 570,
-    "y": 685,
+    "x": 153,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2082,8 +2262,8 @@
   },
   "environment/terrain/waterDirtInnerRight": {
    "frame": {
-    "x": 587,
-    "y": 685,
+    "x": 170,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2102,8 +2282,8 @@
   },
   "environment/terrain/waterGrass": {
    "frame": {
-    "x": 604,
-    "y": 685,
+    "x": 187,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2122,8 +2302,8 @@
   },
   "environment/terrain/wood": {
    "frame": {
-    "x": 621,
-    "y": 685,
+    "x": 204,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2142,8 +2322,8 @@
   },
   "environment/terrain/woodLeft": {
    "frame": {
-    "x": 638,
-    "y": 685,
+    "x": 221,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2162,8 +2342,8 @@
   },
   "environment/terrain/woodRight": {
    "frame": {
-    "x": 655,
-    "y": 685,
+    "x": 238,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2182,8 +2362,8 @@
   },
   "items/baits/advanced-icon": {
    "frame": {
-    "x": 672,
-    "y": 685,
+    "x": 255,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2202,8 +2382,8 @@
   },
   "items/baits/mystery-icon": {
    "frame": {
-    "x": 0,
-    "y": 708,
+    "x": 272,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2222,8 +2402,8 @@
   },
   "items/baits/novice-icon": {
    "frame": {
-    "x": 17,
-    "y": 708,
+    "x": 289,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2242,8 +2422,8 @@
   },
   "items/baits/trainer-icon": {
    "frame": {
-    "x": 34,
-    "y": 708,
+    "x": 306,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2262,8 +2442,8 @@
   },
   "items/chest-icon": {
    "frame": {
-    "x": 51,
-    "y": 708,
+    "x": 323,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2282,8 +2462,8 @@
   },
   "items/rods/basic-icon": {
    "frame": {
-    "x": 68,
-    "y": 708,
+    "x": 340,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2302,8 +2482,8 @@
   },
   "items/rods/intermediate-icon": {
    "frame": {
-    "x": 85,
-    "y": 708,
+    "x": 357,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2322,8 +2502,8 @@
   },
   "items/rods/master-icon": {
    "frame": {
-    "x": 102,
-    "y": 708,
+    "x": 374,
+    "y": 796,
     "w": 16,
     "h": 16
    },
@@ -2342,8 +2522,8 @@
   },
   "environment/objects/rock": {
    "frame": {
-    "x": 119,
-    "y": 708,
+    "x": 391,
+    "y": 796,
     "w": 14,
     "h": 16
    },
@@ -2362,8 +2542,8 @@
   },
   "environment/effects/shimmer": {
    "frame": {
-    "x": 134,
-    "y": 708,
+    "x": 406,
+    "y": 796,
     "w": 12,
     "h": 16
    },
@@ -2380,10 +2560,90 @@
     "h": 16
    }
   },
+  "ui/widgets/slider-knob": {
+   "frame": {
+    "x": 419,
+    "y": 796,
+    "w": 5,
+    "h": 12
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 5,
+    "h": 12
+   },
+   "sourceSize": {
+    "w": 5,
+    "h": 12
+   }
+  },
+  "ui/widgets/button": {
+   "frame": {
+    "x": 425,
+    "y": 796,
+    "w": 9,
+    "h": 9
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 9,
+    "h": 9
+   },
+   "sourceSize": {
+    "w": 9,
+    "h": 9
+   }
+  },
+  "ui/widgets/button-selected": {
+   "frame": {
+    "x": 435,
+    "y": 796,
+    "w": 9,
+    "h": 9
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 9,
+    "h": 9
+   },
+   "sourceSize": {
+    "w": 9,
+    "h": 9
+   }
+  },
+  "ui/fishing/bite": {
+   "frame": {
+    "x": 445,
+    "y": 796,
+    "w": 5,
+    "h": 9
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 5,
+    "h": 9
+   },
+   "sourceSize": {
+    "w": 5,
+    "h": 9
+   }
+  },
   "ui/fishing/fish": {
    "frame": {
-    "x": 147,
-    "y": 708,
+    "x": 451,
+    "y": 796,
     "w": 11,
     "h": 8
    },
@@ -2402,8 +2662,48 @@
   },
   "ui/fishing/catch-zone": {
    "frame": {
-    "x": 159,
-    "y": 708,
+    "x": 463,
+    "y": 796,
+    "w": 8,
+    "h": 8
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 8,
+    "h": 8
+   },
+   "sourceSize": {
+    "w": 8,
+    "h": 8
+   }
+  },
+  "ui/widgets/arrow-up": {
+   "frame": {
+    "x": 472,
+    "y": 796,
+    "w": 8,
+    "h": 8
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 8,
+    "h": 8
+   },
+   "sourceSize": {
+    "w": 8,
+    "h": 8
+   }
+  },
+  "ui/widgets/select-arrow": {
+   "frame": {
+    "x": 481,
+    "y": 796,
     "w": 8,
     "h": 8
    },
@@ -2422,8 +2722,8 @@
   },
   "environment/terrain/corner": {
    "frame": {
-    "x": 168,
-    "y": 708,
+    "x": 490,
+    "y": 796,
     "w": 7,
     "h": 7
    },
@@ -2440,10 +2740,50 @@
     "h": 7
    }
   },
+  "ui/settings/volume-track": {
+   "frame": {
+    "x": 498,
+    "y": 796,
+    "w": 92,
+    "h": 6
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 92,
+    "h": 6
+   },
+   "sourceSize": {
+    "w": 92,
+    "h": 6
+   }
+  },
+  "ui/widgets/slider-track": {
+   "frame": {
+    "x": 591,
+    "y": 796,
+    "w": 92,
+    "h": 6
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 92,
+    "h": 6
+   },
+   "sourceSize": {
+    "w": 92,
+    "h": 6
+   }
+  },
   "environment/terrain/dirtCliffCorner": {
    "frame": {
-    "x": 176,
-    "y": 708,
+    "x": 684,
+    "y": 796,
     "w": 5,
     "h": 5
    },
@@ -2462,8 +2802,8 @@
   },
   "environment/terrain/dirtEdgeCorner": {
    "frame": {
-    "x": 182,
-    "y": 708,
+    "x": 690,
+    "y": 796,
     "w": 5,
     "h": 5
    },
@@ -2484,8 +2824,8 @@
  "meta": {
   "image": "atlas.png",
   "size": {
-   "w": 698,
-   "h": 724
+   "w": 831,
+   "h": 812
   },
   "scale": 1
  }

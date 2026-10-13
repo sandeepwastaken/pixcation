@@ -1,5 +1,23 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+test('pronounced canines use independent seeded chances and never occur on older residents', () => {
+    const run = createPeople(); assert.equal(run('JSON.stringify([0,1,2].map(face=>Array.from({length:100},(_,roll)=>getNpcMouthVariant(face,roll)).reduce((sum,value)=>sum+value,0)))'), JSON.stringify([5,8,0]));
+    run('const rolls=NPC_APPEARANCE_RADICES.map(()=>0); rolls[0]=100; rolls[22]=9999; getNpcAppearanceRolls=()=>rolls;'); for(const faceRoll of [0,65,90]) for(let mouthRoll=0;mouthRoll<100;mouthRoll++) {run('rolls[4]=' + faceRoll + '; rolls[24]=' + mouthRoll + '; constNpc=createNpc(13,4,null)'); assert.equal(run('constNpc.look[19]'), run('getNpcMouthVariant(constNpc.look[1],' + mouthRoll + ')'));}
+});
+test('pastel skin shades retain clear value separation throughout the continuous hue ramp', () => {
+    const run = createPeople(); assert.equal(run('(() => {const value = color => (color >> 16 & 255) * 0.2126 + (color >> 8 & 255) * 0.7152 + (color & 255) * 0.0722; for(let index=0;index<=255;index++) {const skin=getPersonSkinRamp(true,index/255); if(value(skin[2])-value(skin[1]) < 35 || value(skin[1])-value(skin[0]) < 35 || value(skin[0])-value(skin[3]) < 20) return false;} return true;})()'), true);
+});
+test('young and older wardrobes exclude adult party cuts while older hair colors favor gray', () => {
+    const run = createPeople(); for(const profile of ['youngFemale','olderFemale']) for(const index of [1,3,5]) assert.equal(run('NPC_STYLE_WEIGHTS.shirt.' + profile + '[' + index + ']'), 0); for(const profile of ['olderMale','olderFemale']) assert.equal(run('NPC_STYLE_WEIGHTS.vanity.' + profile + '[7]'), 0); assert.equal(run('NPC_STYLE_WEIGHTS.pants.olderFemale[1]'), 0);
+    run('const rolls=NPC_APPEARANCE_RADICES.map(()=>0); const grayCounts=[0,0,0]; for(let face=0;face<3;face++) for(let roll=0;roll<100;roll++) {rolls[12]=roll; if(getNpcOutfitColors(rolls,face).hair===4) grayCounts[face]++;}'); assert.equal(run('JSON.stringify(grayCounts)'), JSON.stringify([5,1,30]));
+});
+test('older wardrobes exclude crop tops, bikinis, shirt six, short-cut pants, and oversized bows', () => {
+    const run = createPeople(); for (const gender of ['Male','Female']) {const profile = 'older' + gender; for (const index of [1,3,5]) assert.equal(run('NPC_STYLE_WEIGHTS.shirt.' + profile + '[' + index + ']'), 0); assert.equal(run('NPC_STYLE_WEIGHTS.pants.' + profile + '[4]'), 0);}
+    assert.equal(run('NPC_STYLE_WEIGHTS.vanity.olderFemale[7]'), 0); assert.ok(run('NPC_STYLE_WEIGHTS.hair.olderFemale[7]') > run('NPC_STYLE_WEIGHTS.hair.olderFemale[8]'));
+});
+test('generation applies the age profile to every ordinary wardrobe category', () => {
+    const run = createPeople(); run('const rolls = NPC_APPEARANCE_RADICES.map(() => 0); rolls[0] = 100; rolls[22] = 9999; getNpcAppearanceRolls = () => rolls;'); for(const face of [0,1,2]) for(const feminine of [0,1]) for(let roll=0;roll<720;roll++) {run('rolls[4]=' + [0,65,90][face] + '; rolls[18]=' + feminine + '; rolls[5]=' + roll + '; constNpc = createNpc(13,4,null)'); const profile = (face===1?'young':face===2?'older':'') + (face===0?(feminine?'female':'male'):(feminine?'Female':'Male')); assert.ok(run('NPC_STYLE_WEIGHTS.shirt.' + profile + '[constNpc.look[2]]') > 0);}
+});
 test('accent selection preserves weighted results without temporary palette arrays', () => {
     const run = createPeople(); assert.equal(run('(() => {for(const count of [7,16]) for(let primary=0;primary<count;primary++) for(let neutral=0;neutral<count;neutral++) for(let roll=0;roll<100;roll++) {const weights=Array.from({length:count},(_,index)=>index===neutral?60:index===primary?20:1); if(getNpcAccentColor(roll,primary,neutral,count)!==getNpcWeightedIndex(roll,weights)) return false;} return true;})()'), true);
 });
@@ -107,7 +125,7 @@ function createPeople(seed = '13') {
 }
 
 function solveRequestedSeed() {
-    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 130, 52, 90, 0, 0, 0, 90, 99, 0, 29, 8, 99, 0, 1, 0, 0, 0, 0, 0])');
+    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 130, 52, 90, 0, 0, 0, 90, 99, 0, 29, 8, 99, 0, 1, 0, 0, 0, 0, 0, 1])');
 }
 
 test('a reversed ordinary seed produces the requested rare resident near spawn', () => {
@@ -116,7 +134,7 @@ test('a reversed ordinary seed produces the requested rare resident near spawn',
     assert.equal(run('resident.tileX'), 13);
     assert.equal(run('resident.tileY'), 4);
     assert.equal(run('resident.name'), 'Emz');
-    assert.deepEqual(JSON.parse(run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1, 0.8, 0, [0, 0, 0, 0, 0, 0, 0]]);
+    assert.deepEqual(JSON.parse(run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1, 0.8, 0, [0, 0, 0, 0, 0, 0, 0], null, 1]);
     assert.equal(run('WORLD_SEED'), 13);
     assert.equal(run('getTerrainType(0, 0)'), 'grass');
     assert.equal(run('(() => { const queue = [[0, 0]], seen = new Set(["0,0"]); for (let index = 0; index < queue.length; index++) { const [x, y] = queue[index]; if (x === 13 && y === 4) return true; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, key = nx + "," + ny; if (Math.abs(nx) > 25 || Math.abs(ny) > 25 || seen.has(key) || !isNpcWalkableTile(nx, ny)) continue; seen.add(key); queue.push([nx, ny]); } } return false; })()'), true);

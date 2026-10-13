@@ -17,7 +17,7 @@ function samplePersonPalette(palettes, index, amount) {
 }
 
 function getPersonSkinRamp(pastel, amount) {
-    const anchors = pastel ? [NPC_SKIN_TONES[8], [0xb99b60, 0xe0c07c, 0xf3d99e, 0x7a6138], NPC_SKIN_TONES[7], NPC_SKIN_TONES[6], NPC_SKIN_TONES[5], NPC_SKIN_TONES[8]] : [NPC_SKIN_TONES[4], NPC_SKIN_TONES[3], NPC_SKIN_TONES[2], NPC_SKIN_TONES[0], NPC_SKIN_TONES[1]];
+    const anchors = pastel ? [NPC_SKIN_TONES[8], [0x99763e, 0xcea45e, 0xf3d99e, 0x5a401f], NPC_SKIN_TONES[7], NPC_SKIN_TONES[6], NPC_SKIN_TONES[5], NPC_SKIN_TONES[8]] : [NPC_SKIN_TONES[4], NPC_SKIN_TONES[3], NPC_SKIN_TONES[2], NPC_SKIN_TONES[0], NPC_SKIN_TONES[1]];
     const value = Math.max(0, Math.min(1, amount)) * (anchors.length - 1), index = Math.min(anchors.length - 2, Math.floor(value));
     return samplePersonPalette(anchors, index, value - index);
 }
