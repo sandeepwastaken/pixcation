@@ -248,7 +248,7 @@ function createNpc(tileX, tileY, water) {
         tileY,
         water,
         role: !water && npcHash(tileX, tileY, 1316) < NPC_TRADER_CHANCE ? 'trader' : 'villager',
-        speed: NPC_SPEED_MIN + npcHash(tileX, tileY, 1317) * NPC_SPEED_RANGE,
+        speed: (face === 2 ? NPC_OLDER_SPEED_MIN : NPC_SPEED_MIN) + npcHash(tileX, tileY, 1317) * (face === 2 ? NPC_OLDER_SPEED_RANGE : NPC_SPEED_RANGE),
         hasty: npcHash(tileX, tileY, 1318) < NPC_HASTY_CHANCE,
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),

@@ -4,6 +4,17 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { decodePng } = require('../build-atlas');
 
+test('normal and young NPCs walk at 40 to 105 percent speed while older NPCs keep 35 to 55 percent', () => {
+    const run = createPeople();
+    run('const rolls = NPC_APPEARANCE_RADICES.map(() => 0); getNpcAppearanceRolls = () => rolls;');
+    for (const [roll, minimum, maximum] of [[0, 0.4, 1.05], [65, 0.4, 1.05], [90, 0.35, 0.55]]) {
+        for (const amount of [0, 0.5, 1]) {
+            run('rolls[4] = ' + roll + '; npcHash = () => ' + amount + ';');
+            assert.ok(Math.abs(run('createNpc(13, 4, null).speed') - (minimum + amount * (maximum - minimum))) < 1e-12);
+        }
+    }
+});
+
 test('face selection gives older residents a ten percent chance while keeping all three ages', () => {
     const run = createPeople();
     run('const counts = [0, 0, 0]; for (let roll = 0; roll < NPC_APPEARANCE_RADICES[4]; roll++) counts[getNpcFace(roll)]++;');

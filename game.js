@@ -4179,7 +4179,7 @@ function createNpc(tileX, tileY, water) {
         tileY,
         water,
         role: !water && npcHash(tileX, tileY, 1316) < NPC_TRADER_CHANCE ? 'trader' : 'villager',
-        speed: NPC_SPEED_MIN + npcHash(tileX, tileY, 1317) * NPC_SPEED_RANGE,
+        speed: (face === 2 ? NPC_OLDER_SPEED_MIN : NPC_SPEED_MIN) + npcHash(tileX, tileY, 1317) * (face === 2 ? NPC_OLDER_SPEED_RANGE : NPC_SPEED_RANGE),
         hasty: npcHash(tileX, tileY, 1318) < NPC_HASTY_CHANCE,
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),
@@ -10141,8 +10141,9 @@ const NPC_PART_COLORS = {
     shirt: [0x00129e, 0x001eff]
 };
 const NPC_CAST_REACH = 2;
-const NPC_SPEED_MIN = 0.35;
-const NPC_SPEED_RANGE = 0.2;
+const NPC_SPEED_MIN = 0.4;
+const NPC_SPEED_RANGE = 0.65;
+const NPC_OLDER_SPEED_MIN = 0.35, NPC_OLDER_SPEED_RANGE = 0.2;
 const NPC_ROAM_RADIUS = 4;
 const NPC_TRADER_ROAM = 2;
 const NPC_FISH_CHANCE = 0.55;

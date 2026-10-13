@@ -472,8 +472,9 @@ const NPC_PART_COLORS = {
     shirt: [0x00129e, 0x001eff]
 };
 const NPC_CAST_REACH = 2;
-const NPC_SPEED_MIN = 0.35;
-const NPC_SPEED_RANGE = 0.2;
+const NPC_SPEED_MIN = 0.4;
+const NPC_SPEED_RANGE = 0.65;
+const NPC_OLDER_SPEED_MIN = 0.35, NPC_OLDER_SPEED_RANGE = 0.2;
 const NPC_ROAM_RADIUS = 4;
 const NPC_TRADER_ROAM = 2;
 const NPC_FISH_CHANCE = 0.55;
