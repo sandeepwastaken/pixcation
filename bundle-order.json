@@ -23,6 +23,7 @@
     "environment/particles.js",
     "environment/bushes.js",
     "environment/npcs.js",
+    "environment/npc-worlds.js",
     "environment/sky.js",
     "environment/fireflies.js",
     "environment/snow.js",

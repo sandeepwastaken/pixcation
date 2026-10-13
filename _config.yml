@@ -2,6 +2,7 @@ exclude:
   - media/characters/people
   - src
   - tests
+  - tools
   - build-atlas.js
   - build-person-art.js
   - build-bundle.js

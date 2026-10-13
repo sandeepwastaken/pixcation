@@ -297,8 +297,7 @@ function balanceNpcAppearance(look, rolls) {
     }
     return look;
 }
-function createNpc(tileX, tileY, water) {
-    const appearance = getNpcAppearanceRolls(tileX, tileY);
+function createNpc(tileX, tileY, water, appearance = getNpcAppearanceRolls(tileX, tileY)) {
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
     const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
     const rareName = getNpcRareName(appearance[22] / NPC_APPEARANCE_RADICES[22]), feminine = rareVanity || (rareName ? NPC_FEMININE_FIRST_NAMES.includes(rareName) : appearance[18] === 1), face = getNpcFace(appearance[4]), names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
@@ -330,14 +329,16 @@ function getNpcTexture(scene, look, direction, frame = 0, blink = false) {
     return getPersonTexture(scene, `npc-${look.join('-')}-${direction}-${frame}${blink ? '-blink' : ''}`, look, direction, frame, blink);
 }
 
-function getNpcAppearanceWord(tileX, tileY) {
+function getNpcUnfoldedAppearanceWord(tileX, tileY) {
     const seed = BigInt(WORLD_SEED_CODE), coordinate = BigInt.asUintN(32, BigInt(tileX)) << 32n | BigInt.asUintN(32, BigInt(tileY));
     const appearance = seed > BigInt(Number.MAX_SAFE_INTEGER) ? seed >> 32n : seed * 0xd6e8feb86659fd93a5a3564e27f8862bn;
     const word = BigInt.asUintN(256, (appearance + coordinate * 0xbf58476d1ce4e5b9a0761d6478bd642fn + 0x94d049bb133111ebn) * 0x9e3779b97f4a7c15d6e8feb86659fd93n);
-    return word ^ word >> 128n;
+    return word;
 }
 
+function getNpcAppearanceWord(tileX, tileY) {const word = getNpcUnfoldedAppearanceWord(tileX, tileY); return word ^ word >> 128n;}
 function getNpcAppearanceRolls(tileX, tileY) {
+    const grouped = typeof getNpcWorldAppearanceRolls === 'function' ? getNpcWorldAppearanceRolls(tileX, tileY) : null; if (grouped) return grouped.slice();
     let word = getNpcAppearanceWord(tileX, tileY);
     return NPC_APPEARANCE_RADICES.map(radix => { const value = Number(word % BigInt(radix)); word /= BigInt(radix); return value; });
 }

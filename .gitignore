@@ -3,3 +3,4 @@
 .env
 dist/
 AGENTS.md
+tools/__pycache__/
