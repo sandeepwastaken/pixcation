@@ -34,7 +34,7 @@ Counts from 1 to 127 select existing residents in expanding spawn-centered cell 
 
 The returned decimal seed is accepted by the normal seed field. It is reconstructed through the inverse appearance hash, not a prefixed format or a hardcoded seed exception. `verifiedCounts` reports actual runtime matches, and `examinedResidents` reports the number checked. A world-wide result verifies a sample rather than claiming to enumerate an infinite world.
 
-The generic family selector occupies approximately one in 1,048,576 numeric seed states. Other states retain ordinary generation. Shared appearances are intentionally correlated inside a family, so those worlds are not statistically equivalent to ordinary independent-looking worlds.
+The generic family selector occupies approximately one in 1,048,576 large numeric seed states. All safe-integer seeds bypass families, protecting first launch, unseeded creation, saved automatic worlds and storage fallbacks. Other large states retain ordinary generation. Shared appearances are intentionally correlated inside a family, so those worlds are not statistically equivalent to ordinary independent-looking worlds.
 
 Appearance genes are packed using the current trait radices. `getNpcWorldFeatureOffset(field, design)` returns the fixed additive seed offset for increasing a gene by one, modulo 2^288. This applies only to a valid non-wrapping gene change; arbitrary combinations may violate age, gender or color-contrast rules and are rejected by `makeNpcWorldSeed`.
 

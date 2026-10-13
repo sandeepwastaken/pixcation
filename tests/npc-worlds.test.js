@@ -4,6 +4,19 @@ const {createPortraitPeople} = require('./portrait-fixture');
 const {scanSeedResidents, inspectSeed, reconstructWorldSeed} = require('../tools/seed-runtime');
 function donor(x = 13, y = 4) {return createPortraitPeople().run('createNpc(' + x + ',' + y + ',null)');}
 function sharedSeed(designs, variant = 0) {return createPortraitPeople().run('makeNpcWorldSeed(13,' + JSON.stringify(designs) + ',' + variant + 'n)');}
+test('safe-integer seeds cannot activate a duplicate family even when its selector matches', () => {
+    for (const seed of ['1','1000','2147483646','6767676767676',String(Number.MAX_SAFE_INTEGER)]) {const {run} = createPortraitPeople(seed); run('getNpcUnfoldedAppearanceWord=()=>NPC_WORLD_FAMILY_MARK*NPC_WORLD_COUNT_RADIX*NPC_WORLD_COUNT_RADIX*getNpcWorldGenePeriod()**2n'); assert.equal(run('getNpcWorldAppearancePlan()'),null);}
+});
+test('first launch and unseeded creation only generate protected ordinary seeds', () => {
+    for (const amount of [0,0.5,1-Number.EPSILON]) {const {run} = createPortraitPeople(); run('window.location.search="";localStorage.getItem=()=>null;Math.random=()=>'+amount); const seed=run('loadWorldSeed()'); assert.ok(Number.isSafeInteger(seed)&&seed>=1&&seed<=2147483646); assert.equal(createPortraitPeople(String(seed)).run('getNpcWorldAppearancePlan()'),null);}
+});
+test('saved automatic worlds and the storage-error fallback remain protected', () => {
+    for (const saved of ['1','1000',String(Number.MAX_SAFE_INTEGER)]) {const {run} = createPortraitPeople(); run('window.location.search="";localStorage.getItem=()=>'+JSON.stringify(saved)); assert.equal(run('loadWorldSeed()'),Number(saved)); assert.equal(createPortraitPeople(saved).run('getNpcWorldAppearancePlan()'),null);}
+    const {run} = createPortraitPeople(); run('window.location.search="";localStorage.getItem=()=>{throw Error("storage unavailable")}'); const seed=run('loadWorldSeed()'); assert.equal(seed,run('DEFAULT_WORLD_SEED')); assert.equal(createPortraitPeople(String(seed)).run('getNpcWorldAppearancePlan()'),null);
+});
+test('explicit large numeric family seeds still load without being replaced', () => {
+    const seed=sharedSeed([{npc:donor(),count:0}]), {run}=createPortraitPeople(seed); assert.equal(run('getRequestedWorldSeed()'),seed); assert.equal(run('WORLD_SEED_CODE'),seed); assert.ok(run('getNpcWorldAppearancePlan()'));
+});
 test('natural appearances round-trip across ages, names, skin ramps and outfit rules', () => {
     const {run} = createPortraitPeople(); assert.equal(run('(()=>{for(let i=0;i<2500;i++){const npc=createNpc(i*7-5000,i*11-12000,null), rank=encodeNpcWorldDesign(npc), copy=createNpc(0,0,null,getNpcWorldRolls(decodeNpcWorldGenes(rank)));if(npc.name!==copy.name||JSON.stringify(npc.look)!==JSON.stringify(copy.look))return false;}return true;})()'), true);
 });

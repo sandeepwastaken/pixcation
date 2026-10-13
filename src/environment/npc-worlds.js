@@ -33,6 +33,7 @@ function encodeNpcWorldDesign(npc) {
 }
 function getNpcWorldAppearancePlan() {
     if (npcWorldAppearancePlan !== undefined) return npcWorldAppearancePlan;
+    if (BigInt(WORLD_SEED_CODE) <= BigInt(Number.MAX_SAFE_INTEGER)) return npcWorldAppearancePlan = null;
     const period = getNpcWorldGenePeriod(), word = getNpcUnfoldedAppearanceWord(0, 0), layout = word / (period * period);
     if (layout / (NPC_WORLD_COUNT_RADIX * NPC_WORLD_COUNT_RADIX) % NPC_WORLD_FAMILY_INTERVAL !== NPC_WORLD_FAMILY_MARK) return npcWorldAppearancePlan = null;
     const firstCount = Number(layout % NPC_WORLD_COUNT_RADIX), secondCount = Number(layout / NPC_WORLD_COUNT_RADIX % NPC_WORLD_COUNT_RADIX);
