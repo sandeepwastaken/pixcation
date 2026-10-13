@@ -1,5 +1,6 @@
 function preload() {
     this.load.atlas('atlas', withCacheBuster('media/atlas.png'), withCacheBuster('media/atlas.json'));
+    this.load.binary('person-art', withCacheBuster('media/person-art.bin'));
     this.load.image('title-logo', withCacheBuster('media/ui/title/logo.png'));
     this.load.image('ui-button', withCacheBuster('media/ui/title/button.png'));
     this.load.image('stats-panel', withCacheBuster('media/ui/stats/panel.png'));

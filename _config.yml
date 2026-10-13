@@ -1,0 +1,11 @@
+exclude:
+  - media/characters/people
+  - src
+  - tests
+  - build-atlas.js
+  - build-person-art.js
+  - build-bundle.js
+  - build-site.js
+  - bundle-order.json
+  - AGENTS.md
+  - dist

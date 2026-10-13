@@ -42,6 +42,12 @@ Run `node build-bundle.js` after changing the source. This builds `game.js`, whi
 
 Run `node --test tests/*.test.js` to check builds, saves, storage behavior, input, particles, chunk streaming, and water sparkle placement without a browser.
 
+Run `node build-atlas.js` after editing artwork. NPC source images are packed losslessly into `media/person-art.bin` rather than the visible atlas, and decoded lazily at runtime.
+
+Run `node build-site.js` to prepare an empty `dist` directory for publishing. Publish that directory, not the workspace: editable NPC PNGs, PSDs, source scripts, and tests are excluded. An existing nonempty output directory is never overwritten; use `buildSite({output: 'another-directory'})` for another build.
+
+GitHub Pages branch builds also use `_config.yml` to exclude editable NPC artwork and development files. Client-rendered graphics remain extractable, and a public source repository still exposes its originals; the pack reduces accidental discovery, not access by a determined reader.
+
 The source is split up by what it does:
 
 - `src/art` builds textures, trees, and cliffs.

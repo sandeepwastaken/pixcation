@@ -25,6 +25,8 @@ function getTextureSource(scene, key) {
 function getTerrainPixels(scene, key) {
     const cached = scene.terrainPixelCache.get(key);
     if (cached) return cached;
+    const packed = typeof getPackedPersonPixels === 'function' ? getPackedPersonPixels(scene, key) : null;
+    if (packed) {scene.terrainPixelCache.set(key, packed); return packed;}
 
     const source = getTextureSource(scene, key);
     const canvas = document.createElement('canvas');

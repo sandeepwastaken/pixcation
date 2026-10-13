@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
+const {isPersonArt, buildPersonArt} = require('./build-person-art');
 
 const MEDIA = path.join(__dirname, 'media');
 const OUTPUT_IMAGE = path.join(MEDIA, 'atlas.png');
@@ -163,7 +164,9 @@ function encodePng(width, height, rgba) {
 }
 
 function buildAtlas() {
-    const images = findImages(MEDIA)
+    const files = findImages(MEDIA), packed = files.filter(file => isPersonArt(file, MEDIA));
+    if (packed.length) buildPersonArt(packed, MEDIA, decodePng);
+    const images = files.filter(file => !isPersonArt(file, MEDIA))
         .map(file => ({ name: path.relative(MEDIA, file).replace(/\\/g, '/').replace(/\.png$/, ''), ...decodePng(file) }))
         .sort((a, b) => b.height - a.height || b.width - a.width || a.name.localeCompare(b.name));
     const area = images.reduce((total, image) => total + (image.width + PADDING) * (image.height + PADDING), 0);

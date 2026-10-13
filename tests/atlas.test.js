@@ -123,7 +123,7 @@ test('atlas shelves preserve every pixel of images wider than the preferred widt
             [pixel & 255, pixel >> 8, 93, pixel % 3 ? 255 : 128]).flat());
         fs.writeFileSync(path.join(media, `${image.name}.png`), encodePng(image.width, image.height, image.rgba));
     }
-    const context = vm.createContext({ require, __dirname: directory, Buffer, console: { log() {} }, module: { exports: {} } });
+    const context = vm.createContext({ require: id => id === './build-person-art' ? require('../build-person-art') : require(id), __dirname: directory, Buffer, console: { log() {} }, module: { exports: {} } });
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../build-atlas.js'), 'utf8'), context);
     context.module.exports.buildAtlas();
     const atlas = decodePng(path.join(media, 'atlas.png'));
