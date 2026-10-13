@@ -252,7 +252,7 @@ function getNpcOutfitColors(appearance, face = 0) {
     const shirt = getNpcWeightedIndex(appearance[6], NPC_SHIRT_COLOR_WEIGHTS);
     const pants = getNpcWeightedIndex(appearance[7], NPC_PANTS_COLOR_WEIGHTS);
     const headwear = getNpcWeightedIndex(appearance[11], NPC_HEADWEAR_COLOR_WEIGHTS);
-    const shirtAccent = getNpcAccentColor(appearance[14], shirt, shirt === 10 ? 9 : 10, NPC_SHIRT_COLORS.length);
+    const shirtAccent = getNpcAccentColor(appearance[14], shirt, NPC_SHIRT_ACCENT_NEUTRALS[shirt], NPC_SHIRT_COLORS.length);
     const pantsAccent = getNpcAccentColor(appearance[16], pants, pants === 5 ? 4 : 5, NPC_PANTS_COLORS.length);
     return {hair, shirt, pants, headwear, shirtAccent, pantsAccent};
 }

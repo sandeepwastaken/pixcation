@@ -398,8 +398,8 @@ const NPC_MAKEUP_CHANCE = [0.3, 0.08, 0];
 const NPC_FACE_WEIGHTS = [65, 25, 10];
 const NPC_ACCESSORIES = 8;
 const NPC_STYLE_WEIGHTS = {
-    hair: {male: [38, 28, 0, 1, 7, 6, 5, 0, 8, 27, 0, 0, 0], youngMale: [40, 30, 0, 0, 0, 8, 3, 0, 10, 29, 0, 0, 0], olderMale: [34, 24, 0, 2, 27, 0, 15, 0, 0, 18, 0, 0, 0], female: [22, 0, 18, 0, 0, 0, 0, 22, 4, 14, 28, 32, 24], youngFemale: [25, 0, 34, 0, 0, 0, 0, 18, 9, 14, 0, 0, 0], olderFemale: [48, 0, 20, 0, 0, 0, 0, 30, 0, 2, 0, 0, 0]},
-    shirt: {male: [25, 0, 20, 0, 18, 0, 10, 10, 9, 18, 6, 2, 0, 10, 4, 0], female: [18, 10, 14, 2, 12, 24, 6, 6, 5, 16, 18, 7, 18, 8, 14, 10], youngMale: [30, 0, 18, 0, 18, 0, 12, 5, 7, 22, 7, 0, 0, 6, 0, 0], youngFemale: [32, 0, 12, 0, 18, 0, 15, 8, 5, 18, 22, 0, 3, 6, 0, 2], olderMale: [22, 0, 24, 0, 28, 0, 3, 15, 7, 0, 0, 0, 0, 14, 0, 0], olderFemale: [24, 0, 26, 0, 25, 0, 4, 12, 7, 0, 0, 0, 0, 14, 0, 0]},
+    hair: {male: [38, 28, 0, 1, 7, 6, 5, 0, 3, 27, 0, 0, 0], youngMale: [40, 30, 0, 0, 0, 8, 3, 0, 4, 29, 0, 0, 0], olderMale: [34, 24, 0, 2, 27, 0, 15, 0, 0, 18, 0, 0, 0], female: [22, 0, 18, 0, 0, 0, 0, 22, 2, 14, 28, 32, 28], youngFemale: [25, 0, 34, 0, 0, 0, 0, 18, 4, 14, 0, 0, 0], olderFemale: [48, 0, 20, 0, 0, 0, 0, 30, 0, 2, 0, 0, 0]},
+    shirt: {male: [12, 0, 10, 0, 16, 0, 9, 22, 5, 24, 16, 2, 0, 14, 6, 0], female: [8, 8, 7, 1, 12, 28, 8, 18, 4, 18, 28, 5, 26, 8, 16, 12], youngMale: [16, 0, 12, 0, 14, 0, 12, 18, 5, 26, 24, 0, 0, 6, 0, 0], youngFemale: [16, 0, 8, 0, 12, 0, 12, 18, 4, 24, 34, 0, 4, 6, 0, 2], olderMale: [14, 0, 20, 0, 32, 0, 4, 18, 4, 0, 0, 0, 0, 18, 0, 0], olderFemale: [16, 0, 20, 0, 28, 0, 5, 18, 4, 0, 0, 0, 0, 18, 0, 0]},
     vanity: {male: [36, 28, 22, 0, 0, 0, 10, 4], female: [32, 24, 0, 26, 14, 0, 2, 2], youngMale: [48, 32, 16, 0, 0, 0, 0, 4], youngFemale: [40, 27, 0, 18, 9, 0, 0, 6], olderMale: [20, 26, 36, 0, 0, 0, 18, 0], olderFemale: [18, 22, 0, 42, 18, 0, 0, 0]},
     pants: {male: [56, 0, 30, 10, 4], female: [42, 22, 24, 8, 4], youngMale: [45, 0, 25, 20, 10], youngFemale: [35, 20, 20, 15, 10], olderMale: [60, 0, 35, 5, 0], olderFemale: [65, 0, 30, 5, 0]}
 };
@@ -455,7 +455,8 @@ const NPC_PANTS_COLORS = [
     [0x36363c, 0x4a4a52, 0x66666e],
     [0x9b7965, 0xc9a48e, 0xecd0b8], [0x261334, 0x3f1d54, 0x623580]
 ];
-const NPC_HAIR_COLOR_WEIGHTS = [36, 31, 10, 12, 5, 5, 1], NPC_SHIRT_COLOR_WEIGHTS = [12, 9, 8, 5, 6, 4, 8, 2, 3, 11, 10, 7, 7, 4, 2, 2], NPC_PANTS_COLOR_WEIGHTS = [4, 34, 20, 9, 23, 7, 3], NPC_HEADWEAR_COLOR_WEIGHTS = [10, 18, 10, 8, 14, 8, 12, 7, 3, 2, 3, 2, 3];
+const NPC_HAIR_COLOR_WEIGHTS = [36, 31, 10, 12, 5, 5, 1], NPC_SHIRT_COLOR_WEIGHTS = [14, 10, 9, 3, 8, 5, 9, 1, 3, 10, 8, 6, 9, 3, 1, 1], NPC_PANTS_COLOR_WEIGHTS = [4, 34, 20, 9, 23, 7, 3], NPC_HEADWEAR_COLOR_WEIGHTS = [10, 18, 10, 8, 14, 8, 12, 7, 3, 2, 3, 2, 3];
+const NPC_SHIRT_ACCENT_NEUTRALS = [11, 6, 10, 6, 11, 11, 10, 10, 11, 11, 11, 11, 11, 6, 6, 10];
 const PLAYER_LOOK = [0, 0, 0, 0, 0, 1, 0, 0];
 const PERSON_ARM_TOP = 8;
 const PERSON_ARM_BOTTOM = 13;

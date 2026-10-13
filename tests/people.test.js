@@ -1,5 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+test('detailed shirts outweigh basic tops while stated gender preferences hold after normalization', () => {
+    const run = createPeople(); for(const profile of ['male','female','youngMale','youngFemale']) assert.equal(run('(() => {const weights=NPC_STYLE_WEIGHTS.shirt.' + profile + '; return weights[7]+weights[9]+weights[10]+weights[12]+weights[14] > weights[0]+weights[2];})()'), true); for(const [male,female,indices] of [['male','female',[10,11,14]],['youngMale','youngFemale',[10]]]) for(const index of indices) assert.equal(run('(() => {const male=NPC_STYLE_WEIGHTS.shirt.' + male + ',female=NPC_STYLE_WEIGHTS.shirt.' + female + '; return female[' + index + ']/female.reduce((sum,weight)=>sum+weight,0) > male[' + index + ']/male.reduce((sum,weight)=>sum+weight,0);})()'), true);
+});
+test('muted NPC colors and compatible shirt accents are favored without limiting player palettes', () => {
+    const run = createPeople(); assert.equal(run('NPC_SHIRT_COLOR_WEIGHTS[7]'), 1); assert.equal(run('NPC_SHIRT_COLORS.length'), 16); assert.equal(run('NPC_SHIRT_ACCENT_NEUTRALS.length'), 16); for(const primary of [8,9,10,12]) {run('var outfitRolls=NPC_APPEARANCE_RADICES.map(()=>0); var primaryRoll=Array.from({length:100},(_,roll)=>roll).find(roll=>getNpcWeightedIndex(roll,NPC_SHIRT_COLOR_WEIGHTS)===' + primary + '); outfitRolls[6]=primaryRoll;'); assert.equal(run('Array.from({length:100},(_,roll)=>{outfitRolls[14]=roll; return getNpcOutfitColors(outfitRolls).shirtAccent;}).filter(accent=>accent===11).length > 60'), true);}
+});
 test('expanded fair skin includes warm and cool highlights with clearly separated shading', () => {
     const run = createPeople(); assert.equal(run('(() => {const value=color=>(color>>16&255)*0.2126+(color>>8&255)*0.7152+(color&255)*0.0722; for(let step=0;step<=100;step++){const skin=getPersonSkinRamp(false,5/6+step/600); if(value(skin[2])-value(skin[1])<34 || value(skin[1])-value(skin[0])<40 || value(skin[0])-value(skin[3])<40) return false;} return true;})()'), true); assert.equal(run('getPersonSkinRamp(false,1)[2]'), 0xfff0e9); assert.equal(run('getPersonSkinRamp(false,0.75).every((color,index)=>color===NPC_SKIN_TONES[0][index])'), true);
     assert.equal(run('(() => {for(let step=1;step<=1000;step++){const first=getPersonSkinRamp(false,(step-1)/1000),second=getPersonSkinRamp(false,step/1000); for(let shade=0;shade<4;shade++) for(const shift of [16,8,0]) if(Math.abs((first[shade]>>shift&255)-(second[shade]>>shift&255))>2)return false;} return true;})()'), true);
@@ -143,7 +149,7 @@ function createPeople(seed = '13') {
 }
 
 function solveRequestedSeed() {
-    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 87, 52, 90, 0, 0, 0, 64, 99, 0, 29, 8, 99, 0, 1, 0, 0, 0, 0, 0, 1])');
+    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 45, 58, 90, 0, 0, 0, 64, 99, 0, 29, 8, 99, 0, 1, 0, 0, 0, 0, 0, 1])');
 }
 
 test('a reversed ordinary seed produces the requested rare resident near spawn', () => {
