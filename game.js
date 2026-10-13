@@ -7867,7 +7867,7 @@ function createGuideDialogueUI(scene) {
     dialogueName = createUIText(textLayer, 78, 10, '#acccf9');
     dialogueName.textContent = 'Guide';
     dialogueText = createUIText(textLayer, 78, 26, '#e0f2fd', 132, null, { whiteSpace: 'normal', fontSize: '11px', lineHeight: '10px' });
-    dialogueOptionTexts = [0, 1, 2].map(index => {
+    dialogueOptionTexts = [0, 1, 2, 3].map(index => {
         return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 2 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });
 
@@ -7880,6 +7880,10 @@ function layoutDialogueText() {
     const lines = Math.max(1, Math.round(dialogueText.offsetHeight / 10)), top = Math.max(3, Math.floor((78 - 14 - lines * 10) / 2));
     dialogueName.style.top = `${top}px`;
     dialogueText.style.top = `${top + 14}px`;
+}
+
+function getDialogueOptionLayout(count) {
+    return {step: count > 3 ? 15 : DIALOGUE_OPTION_STEP, height: count > 3 ? 13 : DIALOGUE_OPTION_HEIGHT, fontSize: count > 3 ? '11px' : '16px'};
 }
 
 function createMapUI(scene) {
@@ -8860,9 +8864,9 @@ function getMarketRowAt(x, y) {
 }
 
 function getDialogueOptionAt(x, y) {
-    const option = Math.floor((y - DIALOGUE_VISIBLE_Y - DIALOGUE_OPTION_TOP) / DIALOGUE_OPTION_STEP);
+    const layout = getDialogueOptionLayout(dialogueNodes[dialogueNode].options.length), relativeY = y - DIALOGUE_VISIBLE_Y - DIALOGUE_OPTION_TOP, option = Math.floor(relativeY / layout.step);
     const inside = x >= DIALOGUE_OPTION_X - 3 && x < DIALOGUE_OPTION_X - 3 + DIALOGUE_OPTION_WIDTH &&
-        option >= 0 && option < dialogueNodes[dialogueNode].options.length;
+        relativeY >= 0 && relativeY % layout.step < layout.height && option >= 0 && option < dialogueNodes[dialogueNode].options.length;
 
     return inside ? option : -1;
 }
@@ -9125,6 +9129,7 @@ function getInteractionTarget(guideAvailable, guideReach, marketReach) {
 
 function refreshGuideDialogueOptions() {
     const options = dialogueNodes[dialogueNode].options;
+    const layout = getDialogueOptionLayout(options.length); if (dialogueHighlight.optionHeight !== layout.height) {dialogueHighlight.clear().fillStyle(0xacccf9, 1).fillRect(DIALOGUE_OPTION_X - 3, 0, DIALOGUE_OPTION_WIDTH, layout.height).fillStyle(0x4a2216, 1).fillRect(DIALOGUE_OPTION_X - 2, 1, DIALOGUE_OPTION_WIDTH - 2, layout.height - 2); dialogueHighlight.optionHeight = layout.height;}
 
     dialogueOptionTexts.forEach((optionText, index) => {
         const option = options[index], display = option ? 'block' : 'none';
@@ -9133,10 +9138,11 @@ function refreshGuideDialogueOptions() {
         if (!option) return;
 
         setUITextContent(optionText, option.label);
+        optionText.style.top = `${DIALOGUE_OPTION_TOP + 2 + index * layout.step}px`; optionText.style.fontSize = layout.fontSize;
         optionText.style.color = index === selectedDialogueOption ? '#e0f2fd' : '#c0a887';
     });
 
-    const highlightY = DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP;
+    const highlightY = DIALOGUE_OPTION_TOP + selectedDialogueOption * layout.step;
     if (dialogueHighlight.y === highlightY) return;
     dialogueHighlight.scene.tweens.killTweensOf(dialogueHighlight);
     dialogueHighlight.scene.tweens.add({ targets: dialogueHighlight, y: highlightY, duration: 90, ease: 'Quad.Out', onUpdate: snapTweenTarget });

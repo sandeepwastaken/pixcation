@@ -3,6 +3,26 @@ const assert = require('node:assert/strict');
 const {createPortraitPeople} = require('./portrait-fixture');
 const fs = require('node:fs');
 
+test('four-choice dialogue renders every label and keeps mouse targets and highlights inside the panel', () => {
+    const {run} = createPortraitPeople();
+    for (const file of ['src/ui/elements.js', 'src/ui/panels.js', 'src/ui/guide-panel.js', 'src/ui/interactions.js', 'src/ui/market-controls.js']) run(fs.readFileSync(file, 'utf8'));
+    run('const rectangles = [], graphics = () => ({scene, clear() {rectangles.length = 0; return this;}, fillStyle() {return this;}, fillRect(x, y, width, height) {rectangles.push({x, y, width, height}); return this;}}); scene.tweens = {killTweensOf() {}, add(config) {config.targets.y = config.y;}}; scene.add = {graphics, image(x, y, key) {return {x, y, texture: {key}, setOrigin() {return this;}};}}; drawPanelFrame = panel => panel; createTextLayer = () => ({}); createUIText = (layer, x, y, color, width) => ({x, y, width, style: {}}); addPanelContainer = () => ({}); addHudLayer = () => ({}); createGuideDialogueUI(scene); dialogueNode = "chat"; dialogueNodes = {chat: {options: [{label: "Any rumors?"}, {label: "Your company?"}, {label: "Your plans?"}, {label: "Bye"}]}};');
+    for (const selected of [0, 1, 2, 3]) {
+        run('selectedDialogueOption = ' + selected + '; refreshGuideDialogueOptions();');
+        assert.equal(run('dialogueOptionTexts.length'), 4);
+        assert.equal(run('dialogueOptionTexts[3].textContent'), 'Bye');
+        assert.ok(run('dialogueHighlight.y + dialogueHighlight.optionHeight <= 74'));
+        assert.equal(run('getDialogueOptionAt(230, DIALOGUE_VISIBLE_Y + dialogueHighlight.y + 4)'), selected);
+    }
+    assert.ok(run('dialogueOptionTexts.every(text => parseInt(text.style.top) + parseInt(text.style.fontSize) <= 74)'));
+    assert.equal(run('getDialogueOptionAt(230, DIALOGUE_VISIBLE_Y + 77)'), -1);
+    run('dialogueNodes.chat.options.pop(); selectedDialogueOption = 2; refreshGuideDialogueOptions();');
+    assert.equal(run('dialogueOptionTexts[3].style.display'), 'none');
+    assert.equal(run('dialogueOptionTexts[0].style.fontSize'), '16px');
+    assert.equal(run('dialogueHighlight.optionHeight'), 17);
+    assert.equal(run('getDialogueOptionAt(230, DIALOGUE_VISIBLE_Y + dialogueHighlight.y + 4)'), 2);
+});
+
 test('native-size portraits fit the dialogue panel without overlapping the name, text, or options', () => {
     const {run} = createPortraitPeople();
     run(fs.readFileSync('src/ui/guide-panel.js', 'utf8'));

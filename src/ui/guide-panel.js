@@ -19,7 +19,7 @@ function createGuideDialogueUI(scene) {
     dialogueName = createUIText(textLayer, 78, 10, '#acccf9');
     dialogueName.textContent = 'Guide';
     dialogueText = createUIText(textLayer, 78, 26, '#e0f2fd', 132, null, { whiteSpace: 'normal', fontSize: '11px', lineHeight: '10px' });
-    dialogueOptionTexts = [0, 1, 2].map(index => {
+    dialogueOptionTexts = [0, 1, 2, 3].map(index => {
         return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 2 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });
 
@@ -32,4 +32,8 @@ function layoutDialogueText() {
     const lines = Math.max(1, Math.round(dialogueText.offsetHeight / 10)), top = Math.max(3, Math.floor((78 - 14 - lines * 10) / 2));
     dialogueName.style.top = `${top}px`;
     dialogueText.style.top = `${top + 14}px`;
+}
+
+function getDialogueOptionLayout(count) {
+    return {step: count > 3 ? 15 : DIALOGUE_OPTION_STEP, height: count > 3 ? 13 : DIALOGUE_OPTION_HEIGHT, fontSize: count > 3 ? '11px' : '16px'};
 }

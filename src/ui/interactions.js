@@ -60,6 +60,7 @@ function getInteractionTarget(guideAvailable, guideReach, marketReach) {
 
 function refreshGuideDialogueOptions() {
     const options = dialogueNodes[dialogueNode].options;
+    const layout = getDialogueOptionLayout(options.length); if (dialogueHighlight.optionHeight !== layout.height) {dialogueHighlight.clear().fillStyle(0xacccf9, 1).fillRect(DIALOGUE_OPTION_X - 3, 0, DIALOGUE_OPTION_WIDTH, layout.height).fillStyle(0x4a2216, 1).fillRect(DIALOGUE_OPTION_X - 2, 1, DIALOGUE_OPTION_WIDTH - 2, layout.height - 2); dialogueHighlight.optionHeight = layout.height;}
 
     dialogueOptionTexts.forEach((optionText, index) => {
         const option = options[index], display = option ? 'block' : 'none';
@@ -68,10 +69,11 @@ function refreshGuideDialogueOptions() {
         if (!option) return;
 
         setUITextContent(optionText, option.label);
+        optionText.style.top = `${DIALOGUE_OPTION_TOP + 2 + index * layout.step}px`; optionText.style.fontSize = layout.fontSize;
         optionText.style.color = index === selectedDialogueOption ? '#e0f2fd' : '#c0a887';
     });
 
-    const highlightY = DIALOGUE_OPTION_TOP + selectedDialogueOption * DIALOGUE_OPTION_STEP;
+    const highlightY = DIALOGUE_OPTION_TOP + selectedDialogueOption * layout.step;
     if (dialogueHighlight.y === highlightY) return;
     dialogueHighlight.scene.tweens.killTweensOf(dialogueHighlight);
     dialogueHighlight.scene.tweens.add({ targets: dialogueHighlight, y: highlightY, duration: 90, ease: 'Quad.Out', onUpdate: snapTweenTarget });
