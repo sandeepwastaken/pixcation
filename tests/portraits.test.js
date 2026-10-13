@@ -3,6 +3,37 @@ const assert = require('node:assert/strict');
 const {createPortraitPeople} = require('./portrait-fixture');
 const fs = require('node:fs');
 
+test('guide mouth poses and eyelids compose all six independent cached combinations', () => {
+    const {run, read, textures} = createPortraitPeople();
+    for (const expression of ['normal', 'grin', 'openMouth']) for (const closed of [false, true]) {
+        const portrait = run('composeGuidePortraitPixels(scene, ' + JSON.stringify(expression) + ', ' + closed + ')');
+        assert.equal(portrait.width, 55); assert.equal(portrait.height, 62);
+        if (closed) {const eyes = read('characters/guide/portraits/eyes-closed'); for (let i = 0; i < eyes.data.length; i += 4) if (eyes.data[i + 3]) assert.deepEqual([...portrait.data.slice(i, i + 4)], [...eyes.data.slice(i, i + 4)]);}
+        run('getGuidePortraitTexture(scene, ' + JSON.stringify(expression) + ', ' + closed + '); getGuidePortraitTexture(scene, ' + JSON.stringify(expression) + ', ' + closed + ');');
+    }
+    assert.equal(textures.size, 6);
+    const eyes = read('characters/guide/portraits/eyes-closed');
+    for (const mouth of ['grin', 'open-mouth']) {const pixels = read('characters/guide/portraits/' + mouth); for (let i = 3; i < eyes.data.length; i += 4) assert.ok(!eyes.data[i] || !pixels.data[i]);}
+});
+
+test('guide blinking preserves her speaking pose and reopens her eyes after a short blink', () => {
+    const {run} = createPortraitPeople();
+    run('dialogueOpen = true; dialoguePortrait = {texture: {key: "none"}, portraitBlinkState: {next: 100, until: 0, closed: false}, setTexture(key) {this.texture.key = key; return this;}}; setDialoguePortraitPose(scene, null, "grin"); updateDialoguePortraitBlink(scene, 100);');
+    assert.equal(run('dialoguePortrait.texture.key'), 'guide-portrait-grin-closed');
+    run('setDialoguePortraitPose(scene, null, "openMouth");');
+    assert.equal(run('dialoguePortrait.texture.key'), 'guide-portrait-openMouth-closed');
+    run('updateDialoguePortraitBlink(scene, 221)');
+    assert.equal(run('dialoguePortrait.texture.key'), 'guide-portrait-openMouth-open');
+    run('dialogueNpc = {id: 1}; updateDialoguePortraitBlink(scene, 999999)');
+    assert.equal(run('dialoguePortrait.texture.key'), 'guide-portrait-openMouth-open');
+});
+
+test('scenic backgrounds remain behind NPC faces instead of hiding their colors', () => {
+    const {run} = createPortraitPeople();
+    run('const look = createNpc(13, 4, null).look; look[1] = 0; look[8] = 0; const portrait = composePersonPortraitPixels(scene, look), background = getTerrainPixels(scene, "characters/people/portraits/background");');
+    assert.equal(run('Array.from(portrait.data.slice((30 * 55 + 24) * 4, (30 * 55 + 24) * 4 + 3)).join() === Array.from(background.data.slice((30 * 55 + 24) * 4, (30 * 55 + 24) * 4 + 3)).join()'), false);
+});
+
 test('four-choice dialogue renders every label and keeps mouse targets and highlights inside the panel', () => {
     const {run} = createPortraitPeople();
     for (const file of ['src/ui/elements.js', 'src/ui/panels.js', 'src/ui/guide-panel.js', 'src/ui/interactions.js', 'src/ui/market-controls.js']) run(fs.readFileSync(file, 'utf8'));
@@ -39,7 +70,7 @@ test('portrait frames stay in front of shoulders and all layers without covering
     const {run, read} = createPortraitPeople();
     run('const look = createNpc(13, 4, null).look; look[8] = 0; const portrait = composePersonPortraitPixels(scene, look);');
     const portrait = run('portrait'), background = read('characters/people/portraits/background');
-    for (let pixel = 0; pixel < 55 * 62; pixel++) {const i = pixel * 4, color = background.data[i] << 16 | background.data[i + 1] << 8 | background.data[i + 2]; if (color !== 0x32180f) assert.deepEqual([...portrait.data.slice(i, i + 4)], [...background.data.slice(i, i + 4)]);}
+    for (let pixel = 0; pixel < 55 * 62; pixel++) {const i = pixel * 4, x = pixel % 55, y = Math.floor(pixel / 55); if (x < 3 || y < 3 || x >= 52 || y >= 59) assert.deepEqual([...portrait.data.slice(i, i + 4)], [...background.data.slice(i, i + 4)]);}
 });
 
 test('the new appearance seed naturally produces Emz with a matching layered portrait near spawn', () => {
@@ -62,9 +93,9 @@ test('dialogue animates speaking mouths and settles back to the node expression 
     assert.ok(run('dialoguePortrait.texture.key.endsWith("-grin")'));
     assert.equal(run('dialoguePortrait.scale'), 1); assert.equal(run('dialoguePortrait.y'), 8);
     run('dialogueNodes = GUIDE_DIALOGUE; showGuideDialogueNode(scene, "greet"); while (callbacks.length) callbacks.shift()();');
-    assert.ok(run('dialoguePortrait.texture.key.startsWith("portrait-")'));
-    assert.ok(run('dialoguePortrait.texture.key.endsWith("-grin")'));
-    assert.equal(run('getGuidePortraitLook(scene)'), run('getGuidePortraitLook(scene)'));
+    assert.ok(run('dialoguePortrait.texture.key.startsWith("guide-portrait-")'));
+    assert.ok(run('dialoguePortrait.texture.key.includes("-grin-")'));
+    assert.equal(run('getGuidePortraitTexture(scene, "grin")'), run('getGuidePortraitTexture(scene, "grin")'));
 });
 
 test('every portrait part, face, gender modifier, and expression composes without unmapped colors', () => {
@@ -103,7 +134,7 @@ test('portraits cache expressions separately and reuse textures for repeated dia
 test('masked vanity is layered over expressions instead of drawing a mouth over the mask', () => {
     const {run} = createPortraitPeople();
     run('const look = [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1, 0.8, 0], portrait = composePersonPortraitPixels(scene, look, "grin"), head = getTerrainPixels(scene, "characters/people/portraits/vanity6"), background = getTerrainPixels(scene, "characters/people/portraits/background"), colors = getPortraitColorMap(look);');
-    assert.equal(run('(() => {for (let pixel = 0; pixel < 55 * 62; pixel++) {const i = pixel * 4; if (!head.data[i + 3] || (background.data[i] << 16 | background.data[i + 1] << 8 | background.data[i + 2]) !== 0x32180f) continue; const expected = colors.get(head.data[i] << 16 | head.data[i + 1] << 8 | head.data[i + 2]); const actual = portrait.data[i] << 16 | portrait.data[i + 1] << 8 | portrait.data[i + 2]; if (expected !== actual) return false;} return true;})()'), true);
+    assert.equal(run('(() => {for (let pixel = 0; pixel < 55 * 62; pixel++) {const i = pixel * 4, x = pixel % 55, y = Math.floor(pixel / 55); if (!head.data[i + 3] || x < 3 || y < 3 || x >= 52 || y >= 59) continue; const expected = colors.get(head.data[i] << 16 | head.data[i + 1] << 8 | head.data[i + 2]); const actual = portrait.data[i] << 16 | portrait.data[i + 1] << 8 | portrait.data[i + 2]; if (expected !== actual) return false;} return true;})()'), true);
 });
 
 test('portrait mirroring follows the map appearance and expressions preserve the same outfit', () => {

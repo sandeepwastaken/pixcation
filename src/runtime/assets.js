@@ -26,7 +26,7 @@ function getTextureAliases() {
     for (const key of ['couchMid', 'couchSide', 'insideFloor', 'recolorableRug', 'chairFront', 'chairSide']) alias(key, `environment/interior/${key}`);
 
     for (const mood of ['friendly', 'laughing', 'surprised']) {
-        alias(`guide-portrait-${mood}`, `characters/guide/${mood}`);
+        alias(`guide-legacy-${mood}`, `characters/guide/legacy/${mood}`);
     }
 
     for (const rod of MARKET_RODS) {

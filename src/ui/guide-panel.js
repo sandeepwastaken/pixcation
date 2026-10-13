@@ -11,7 +11,7 @@ function createGuideDialogueUI(scene) {
         .fillStyle(0x4a2216, 1)
         .fillRect(DIALOGUE_OPTION_X - 2, 1, DIALOGUE_OPTION_WIDTH - 2, DIALOGUE_OPTION_HEIGHT - 2);
 
-    dialoguePortrait = scene.add.image(12, DIALOGUE_PORTRAIT_Y, getPersonPortraitTexture(scene, getGuidePortraitLook(scene)))
+    dialoguePortrait = scene.add.image(12, DIALOGUE_PORTRAIT_Y, getGuidePortraitTexture(scene))
         .setOrigin(0);
 
     const textLayer = createTextLayer(78, CRISP_TEXT_STYLE);

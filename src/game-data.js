@@ -58,8 +58,8 @@ const ALL_BAITS = [...MARKET_BAITS, ...MYSTERY_BAITS];
 
 const GUIDE_DIALOGUE = {
     intro: {
-        portrait: 'guide-portrait-friendly',
-        text: "Hey! Need something?",
+        portraitExpression: 'normal',
+        text: "Hey, you! Need a hand, or just saying hello?",
         options: [
             { label: 'Help', next: 'help' },
             { label: 'Greet', next: 'greet' },
@@ -67,7 +67,7 @@ const GUIDE_DIALOGUE = {
         ]
     },
     help: {
-        portrait: 'guide-portrait-friendly',
+        portraitExpression: 'normal',
         text: "WASD or arrows walk, Shift runs. E talks or shops, M opens your map, I opens your fishpedia.",
         options: [
             { label: 'Fishing', next: 'fishing' },
@@ -76,7 +76,7 @@ const GUIDE_DIALOGUE = {
         ]
     },
     fishing: {
-        portrait: 'guide-portrait-surprised',
+        portraitExpression: 'openMouth',
         text: "Ignore small taps. On the big splash, press Space or click, then hold to keep the bar on the fish.",
         options: [
             { label: 'Bait', next: 'bait' },
@@ -85,7 +85,7 @@ const GUIDE_DIALOGUE = {
         ]
     },
     bait: {
-        portrait: 'guide-portrait-laughing',
+        portraitExpression: 'grin',
         text: "Bait makes your bar longer and lures fish in. B swaps it. See a chest shadow underwater? Cast right on it!",
         options: [
             { label: 'Back', next: 'fishing' },
@@ -93,8 +93,8 @@ const GUIDE_DIALOGUE = {
         ]
     },
     greet: {
-        portrait: 'guide-portrait-laughing',
-        text: "Hello there! I'm your guide. It's nice to meet you. Enjoy your adventure!",
+        portraitExpression: 'grin',
+        text: "I'm glad you stopped by! I'm your guide. Go find a lovely spot - I'll be here if you need me.",
         options: [
             { label: 'Back', next: 'intro' },
             { label: 'Exit', close: true }

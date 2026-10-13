@@ -102,7 +102,7 @@ function stopDialogueTyping() {
 }
 
 function settleGuideTalking() {
-    dialoguePortrait.y = DIALOGUE_PORTRAIT_Y; if (dialoguePortrait.portraitRestKey) dialoguePortrait.setTexture(dialoguePortrait.portraitRestKey);
+    dialoguePortrait.y = DIALOGUE_PORTRAIT_Y; if (dialoguePortrait.portraitRestExpression) setDialoguePortraitPose(dialoguePortrait.portraitScene, dialoguePortrait.portraitLook, dialoguePortrait.portraitRestExpression); else if (dialoguePortrait.portraitRestKey) dialoguePortrait.setTexture(dialoguePortrait.portraitRestKey);
     if (dialogueActor && dialogueActor.restY !== undefined) dialogueActor.y = dialogueActor.restY;
     showDialogueOptions(true);
 }
@@ -122,7 +122,7 @@ function showGuideDialogueNode(scene, nodeKey) {
     selectedDialogueOption = 0;
     dialogueFullText = node.text;
     layoutDialogueText();
-    const portraitLook = node.portraitLook || getGuidePortraitLook(scene), expression = node.portraitExpression || (node.portrait === 'guide-portrait-laughing' ? 'grin' : node.portrait === 'guide-portrait-surprised' ? 'openMouth' : 'normal'); dialoguePortrait.portraitRestKey = getPersonPortraitTexture(scene, portraitLook, expression); if (dialoguePortrait.texture.key !== dialoguePortrait.portraitRestKey) dialoguePortrait.setTexture(dialoguePortrait.portraitRestKey);
+    const portraitLook = node.portraitLook || null, expression = node.portraitExpression || (node.portrait === 'guide-portrait-laughing' ? 'grin' : node.portrait === 'guide-portrait-surprised' ? 'openMouth' : 'normal'); dialoguePortrait.portraitRestExpression = expression; setDialoguePortraitPose(scene, portraitLook, expression); dialoguePortrait.portraitRestKey = dialoguePortrait.texture.key;
     dialoguePortrait.setScale(node.portraitScale || 1);
     const typingText = document.createTextNode('');
     dialogueText.replaceChildren(typingText);
@@ -136,7 +136,7 @@ function showGuideDialogueNode(scene, nodeKey) {
         typingText.appendData(letter);
         characterIndex++;
         const bob = Math.floor(characterIndex / 3) % 2;
-        dialoguePortrait.y = DIALOGUE_PORTRAIT_Y - bob; dialoguePortrait.setTexture(getPersonPortraitTexture(scene, portraitLook, bob && !/[.!?,]/.test(letter) ? 'openMouth' : expression));
+        dialoguePortrait.y = DIALOGUE_PORTRAIT_Y - bob; setDialoguePortraitPose(scene, portraitLook, bob && !/[.!?,]/.test(letter) ? 'openMouth' : expression);
         if (dialogueActor) dialogueActor.y = dialogueActor.restY - bob;
         if (characterIndex >= dialogueFullText.length) {
             dialogueTypingEvent = null;

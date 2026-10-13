@@ -46,6 +46,7 @@ function update(time, delta) {
     spawnMeadowMote(this, time);
     updateNpcs(this, time, delta); if (interior) updateInteriorResidents(this, time, delta);
     updateActorBlinks(this, time);
+    updateDialoguePortraitBlink(this, time);
     updateActorShading(this);
     updateFishJumps(this, time);
     updateSky(this, time, delta);

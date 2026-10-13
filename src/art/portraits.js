@@ -28,7 +28,7 @@ function composePersonPortraitPixels(scene, look, expression = 'normal') {
         }
     }
     if (look[8]) for (let y = 0; y < height; y++) for (let x = 0; x < Math.floor(width / 2); x++) {const first = (y * width + x) * 4, second = (y * width + width - 1 - x) * 4; for (let channel = 0; channel < 4; channel++) [data[first + channel], data[second + channel]] = [data[second + channel], data[first + channel]];}
-    for (let pixel = 0; pixel < width * height; pixel++) {const offset = pixel * 4, color = background.data[offset] << 16 | background.data[offset + 1] << 8 | background.data[offset + 2]; if (color !== 0x32180f) data.set(background.data.subarray(offset, offset + 4), offset);}
+    for (let pixel = 0; pixel < width * height; pixel++) {const offset = pixel * 4, x = pixel % width, y = Math.floor(pixel / width); if (x < 3 || y < 3 || x >= width - 3 || y >= height - 3) data.set(background.data.subarray(offset, offset + 4), offset);}
     return {width, height, data};
 }
 
@@ -43,4 +43,34 @@ function getPersonPortraitTexture(scene, look, expression = 'normal') {
 
 function getGuidePortraitLook(scene) {
     return scene.guidePortraitLook ||= createNpc(-2, 2, null).look;
+}
+
+function composeGuidePortraitPixels(scene, expression = 'normal', eyesClosed = false) {
+    if (!['normal', 'openMouth', 'grin'].includes(expression)) throw new Error('Unknown guide expression');
+    const prefix = 'characters/guide/portraits/', base = getTerrainPixels(scene, prefix + 'base'), data = new Uint8ClampedArray(base.data);
+    for (const layer of [...(expression === 'normal' ? [] : [expression === 'openMouth' ? 'open-mouth' : expression]), ...(eyesClosed ? ['eyes-closed'] : [])]) {
+        const source = getTerrainPixels(scene, prefix + layer); if (source.width !== base.width || source.height !== base.height) throw new Error('Guide portrait layer dimensions do not match');
+        for (let pixel = 0; pixel < base.width * base.height; pixel++) {const offset = pixel * 4; if (source.data[offset + 3]) data.set(source.data.subarray(offset, offset + 4), offset);}
+    }
+    return {width: base.width, height: base.height, data};
+}
+
+function getGuidePortraitTexture(scene, expression = 'normal', eyesClosed = false) {
+    const key = `guide-portrait-${expression}-${eyesClosed ? 'closed' : 'open'}`;
+    if (!scene.textures.exists(key)) {const pixels = composeGuidePortraitPixels(scene, expression, eyesClosed); createCanvasTexture(scene, key, pixels.width, pixels.height, context => {const image = context.createImageData(pixels.width, pixels.height); image.data.set(pixels.data); context.putImageData(image, 0, 0);});}
+    return key;
+}
+
+function setDialoguePortraitPose(scene, look, expression) {
+    dialoguePortrait.portraitScene = scene; dialoguePortrait.portraitLook = look; dialoguePortrait.portraitExpression = expression;
+    const key = look ? getPersonPortraitTexture(scene, look, expression) : getGuidePortraitTexture(scene, expression, dialoguePortrait.portraitBlinkState?.closed);
+    if (dialoguePortrait.texture.key !== key) dialoguePortrait.setTexture(key);
+}
+
+function updateDialoguePortraitBlink(scene, time) {
+    if (!dialogueOpen || dialogueNpc || !dialoguePortrait) return;
+    const blink = dialoguePortrait.portraitBlinkState ||= {next: time + 1800 + Math.random() * 4200, until: 0, closed: false};
+    if (time >= blink.next) {blink.until = time + 120; blink.next = time + 2200 + Math.random() * 4200;}
+    const closed = time < blink.until; if (closed === blink.closed) return; blink.closed = closed;
+    setDialoguePortraitPose(scene, null, dialoguePortrait.portraitExpression || 'normal');
 }
