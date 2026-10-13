@@ -3,6 +3,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+test('map arrow optimization preserves all bearings and clipped pixel output', () => {
+    const run = createMap(); run('const pixels = new Uint32Array(MAP_WIDTH * MAP_HEIGHT); for (const [x,y] of [[0,0],[10,10],[MAP_WIDTH-1,MAP_HEIGHT-1]]) for (let index=0;index<8;index++) drawMapArrow(pixels,{x,y,angle:index*Math.PI/4},0xacccf9)');
+    assert.equal(require('node:crypto').createHash('sha256').update(run('JSON.stringify(Array.from(pixels))')).digest('hex'), '6422cf9f6db7538e7e3230d141b829806ea6f4e6506b836d61c385eb4c46eabf');
+});
+test('waypoint arrow helper preserves every pixel of the original geometry', () => {
+    const run = createMap(); run('const actual = [], expected = [], graphics = {setVisible() {return this;}, clear() {return this;}, fillStyle() {return this;}, fillRect(x,y) {actual.push([x,y]);}}; for(let index=0;index<8;index++) {const angle=index*Math.PI/4; drawWaypointArrow(graphics,angle); for(let forward=-3;forward<=3;forward++) for(let side=-(3-forward)/2;side<=(3-forward)/2;side++) expected.push([Math.round(7+Math.cos(angle)*forward-Math.sin(angle)*side),Math.round(35+Math.sin(angle)*forward+Math.cos(angle)*side)]);}');
+    assert.equal(run('JSON.stringify(actual)'), run('JSON.stringify(expected)'));
+});
 test('house footprints stay flat and the player dot has a compact red center and dark edge', () => {
     const run = createMap(); run('const pixels = new Uint32Array(MAP_WIDTH * MAP_HEIGHT).fill(toMapPixel(0x8eb067)); drawMapHouse(pixels, 20, 20, 2); drawMapPlayerDot(pixels, 40, 40)');
     assert.equal(run('pixels[20 * MAP_WIDTH + 20]'), run('toMapPixel(0x825b3d)')); assert.equal(run('pixels[19 * MAP_WIDTH + 20]'), run('toMapPixel(0x8eb067)'));

@@ -26,7 +26,12 @@ function updateMapWaypoint() {
     if (distance <= 1 && !interior) { mapWaypoint = null; mapDirty = true; mapWaypointLayer.setVisible(false); return; }
     const directions = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'], bearing = directions[(Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8];
     setUITextContent(mapWaypointText, `Waypoint: ${bearing}  ${distance} tiles`); mapWaypointLayer.setVisible(!startup && !dialogueOpen && !marketOpen && !inventoryOpen && !statsOpen && !mapOpen && !spawnReturn && !interior);
-    if (mapWaypointArrow && mapWaypointLayer.visible) { const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI / 4; mapWaypointArrow.setVisible(true).clear().fillStyle(0xe0f2fd, 1); for (let forward = -3; forward <= 3; forward++) for (let side = -(3 - forward) / 2; side <= (3 - forward) / 2; side++) mapWaypointArrow.fillRect(Math.round(7 + Math.cos(angle) * forward - Math.sin(angle) * side), Math.round(35 + Math.sin(angle) * forward + Math.cos(angle) * side), 1, 1); }
+    if (mapWaypointArrow && mapWaypointLayer.visible) drawWaypointArrow(mapWaypointArrow, Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI / 4);
+}
+function drawWaypointArrow(graphics, angle) {
+    const cosine = Math.cos(angle), sine = Math.sin(angle);
+    graphics.setVisible(true).clear().fillStyle(0xe0f2fd, 1);
+    for (let forward = -3; forward <= 3; forward++) for (let side = -(3 - forward) / 2; side <= (3 - forward) / 2; side++) graphics.fillRect(Math.round(7 + cosine * forward - sine * side), Math.round(35 + sine * forward + cosine * side), 1, 1);
 }
 function getMapEdgeMarker(x, y, margin = 8) {
     const cx = MAP_WIDTH / 2, cy = MAP_HEIGHT / 2, dx = x - cx, dy = y - cy;
@@ -35,10 +40,11 @@ function getMapEdgeMarker(x, y, margin = 8) {
     return { x: Math.round(cx + dx * scale), y: Math.round(cy + dy * scale), outside, angle: Math.atan2(dy, dx) };
 }
 function drawMapArrow(pixels, marker, color) {
+    const cosine = Math.cos(marker.angle), sine = Math.sin(marker.angle), packed = toMapPixel(color);
     drawMapMarker(pixels, marker.x - 3, marker.y - 3, 7, 7, toMapPixel(0x230a03), toMapPixel(0x230a03));
     for (let forward = -3; forward <= 3; forward++) for (let side = -(3 - forward) / 2; side <= (3 - forward) / 2; side++) {
-        const x = Math.round(marker.x + Math.cos(marker.angle) * forward - Math.sin(marker.angle) * side), y = Math.round(marker.y + Math.sin(marker.angle) * forward + Math.cos(marker.angle) * side);
-        if (x >= 0 && y >= 0 && x < MAP_WIDTH && y < MAP_HEIGHT) pixels[y * MAP_WIDTH + x] = toMapPixel(color);
+        const x = Math.round(marker.x + cosine * forward - sine * side), y = Math.round(marker.y + sine * forward + cosine * side);
+        if (x >= 0 && y >= 0 && x < MAP_WIDTH && y < MAP_HEIGHT) pixels[y * MAP_WIDTH + x] = packed;
     }
 }
 function drawMapSprite(scene, pixels, key, x, y, size = 16, boxed = true) {

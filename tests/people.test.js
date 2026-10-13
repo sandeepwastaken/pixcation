@@ -1,8 +1,18 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+test('accent selection preserves weighted results without temporary palette arrays', () => {
+    const run = createPeople(); assert.equal(run('(() => {for(const count of [7,16]) for(let primary=0;primary<count;primary++) for(let neutral=0;neutral<count;neutral++) for(let roll=0;roll<100;roll++) {const weights=Array.from({length:count},(_,index)=>index===neutral?60:index===primary?20:1); if(getNpcAccentColor(roll,primary,neutral,count)!==getNpcWeightedIndex(roll,weights)) return false;} return true;})()'), true);
+});
+test('style weights favor everyday hairstyles and shirt six while keeping unusual styles reachable', () => {
+    const run = createPeople(); run('const hairCounts = Array.from({length:120},(_,roll)=>getNpcWeightedIndex(roll,NPC_STYLE_WEIGHTS.hair.male,120)).reduce((counts,index)=>{counts[index]++;return counts;},new Array(10).fill(0)); const shirtCounts = Array.from({length:720},(_,roll)=>getNpcWeightedIndex(roll,NPC_STYLE_WEIGHTS.shirt.female,720)).reduce((counts,index)=>{counts[index]++;return counts;},new Array(10).fill(0))');
+    assert.equal(run('hairCounts[3]'), 1); assert.ok(run('hairCounts[0]') > 30); assert.ok(run('hairCounts[9]') > 20); assert.ok(run('shirtCounts[5]') > 170); assert.equal(run('shirtCounts.every(count=>count > 0)'), true);
+});
+test('all valid gender and age style options remain reachable with existing seed radices', () => {
+    const run = createPeople(); for(const [category, radix] of [['hair',120],['shirt',720],['vanity',143],['pants',20]]) for(const key of JSON.parse(run('JSON.stringify(Object.keys(NPC_STYLE_WEIGHTS.' + category + '))'))) {const weights = 'NPC_STYLE_WEIGHTS.' + category + '.' + key; assert.equal(run('new Set(Array.from({length:' + radix + '},(_,roll)=>getNpcWeightedIndex(roll,' + weights + ',' + radix + '))).size'), run(weights + '.filter(weight=>weight > 0).length'));}
+});
 test('natural wardrobe weights favor everyday colors while every palette remains reachable', () => {
-    const run = createPeople(), counts = JSON.parse(run('JSON.stringify(Array.from({length: 100}, (_, roll) => getNpcWeightedColor(roll, NPC_HAIR_COLOR_WEIGHTS)).reduce((counts, index) => {counts[index]++; return counts;}, new Array(NPC_HAIR_COLORS.length).fill(0)))'));
-    assert.deepEqual(counts, [36, 31, 10, 12, 5, 5, 1]); for (const weights of ['NPC_SHIRT_COLOR_WEIGHTS', 'NPC_PANTS_COLOR_WEIGHTS', 'NPC_HEADWEAR_COLOR_WEIGHTS']) assert.equal(run('new Set(Array.from({length:100},(_,roll)=>getNpcWeightedColor(roll,' + weights + '))).size'), run(weights + '.length'));
+    const run = createPeople(), counts = JSON.parse(run('JSON.stringify(Array.from({length: 100}, (_, roll) => getNpcWeightedIndex(roll, NPC_HAIR_COLOR_WEIGHTS)).reduce((counts, index) => {counts[index]++; return counts;}, new Array(NPC_HAIR_COLORS.length).fill(0)))'));
+    assert.deepEqual(counts, [36, 31, 10, 12, 5, 5, 1]); for (const weights of ['NPC_SHIRT_COLOR_WEIGHTS', 'NPC_PANTS_COLOR_WEIGHTS', 'NPC_HEADWEAR_COLOR_WEIGHTS']) assert.equal(run('new Set(Array.from({length:100},(_,roll)=>getNpcWeightedIndex(roll,' + weights + '))).size'), run(weights + '.length'));
     assert.equal(run('NPC_SHIRT_COLORS.length'), 16); assert.equal(run('Array.from({length: 100}, (_, roll) => getNpcAccentColor(roll, 7, 10, NPC_SHIRT_COLORS.length)).filter(color => color === 10).length > 60'), true);
 });
 test('seeded residents keep small color variations without drifting into adjacent bright palettes', () => {
@@ -97,7 +107,7 @@ function createPeople(seed = '13') {
 }
 
 function solveRequestedSeed() {
-    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 2, 52, 90, 0, 0, 0, 90, 99, 0, 29, 3, 99, 0, 1, 0, 0, 0, 0, 0])');
+    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 130, 52, 90, 0, 0, 0, 90, 99, 0, 29, 8, 99, 0, 1, 0, 0, 0, 0, 0])');
 }
 
 test('a reversed ordinary seed produces the requested rare resident near spawn', () => {

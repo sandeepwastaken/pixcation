@@ -395,6 +395,12 @@ const NPC_PART_SIZE = 16;
 const NPC_FACES = 3;
 const NPC_FACE_WEIGHTS = [65, 25, 10];
 const NPC_ACCESSORIES = 8;
+const NPC_STYLE_WEIGHTS = {
+    hair: {male: [38, 28, 0, 1, 7, 6, 5, 0, 8, 27], youngMale: [40, 30, 0, 0, 0, 8, 3, 0, 10, 29], olderMale: [30, 20, 0, 2, 25, 4, 15, 0, 6, 18], female: [36, 0, 30, 0, 0, 0, 0, 30, 6, 18]},
+    shirt: {male: [25, 0, 20, 0, 18, 0, 10, 10, 9, 8], female: [18, 10, 14, 2, 12, 24, 6, 6, 5, 3], youngFemale: [19, 10, 15, 0, 12, 24, 6, 6, 5, 3]},
+    vanity: {male: [36, 28, 22, 0, 0, 0, 10, 4], female: [32, 24, 0, 26, 14, 0, 2, 2]},
+    pants: {male: [56, 0, 30, 10, 4], female: [42, 22, 24, 8, 4]}
+};
 const NPC_HAIRSTYLES = 10;
 const NPC_SHIRTS = 10;
 const NPC_ACCESSORY_CHANCE = 0.25;
