@@ -278,7 +278,7 @@ function balanceNpcAppearance(look, rolls) {
         look[9] = getNpcWeightedIndex(rolls[12], compatible); if (!look[5]) look[7] = look[9];
         palette = getPersonPalette(look);
     }
-    const buttons = [4, 12, 13].includes(look[2]);
+    const buttons = [4, 13, 14].includes(look[2]);
     if (!isNpcFabricDistinct(palette.shirt[1], palette.skin)) {
         const compatible = NPC_SHIRT_COLOR_WEIGHTS.map((weight, index) => isNpcFabricDistinct(samplePersonPalette(NPC_SHIRT_COLORS, index, look[17][2])[1], palette.skin) ? weight : 0);
         look[3] = getNpcWeightedIndex(rolls[6], compatible); palette = getPersonPalette(look);
