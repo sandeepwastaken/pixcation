@@ -196,6 +196,7 @@ function startNewGameChoice() {
     if (!newGameChoice.open || newGameResetting) return;
     const seed = newGameChoice.mode === 0 ? newGameChoice.input.value.trim() : null;
     if (seed !== null && !isValidWorldSeed(seed)) { newGameChoice.note.textContent = 'Enter a valid positive whole-number seed'; newGameChoice.input.focus(); return; }
+    try { localStorage.setItem('pixcation-player-look', JSON.stringify(PLAYER_LOOK)); } catch (error) { newGameChoice.note.textContent = 'Could not keep your look. Try again.'; return; }
     const target = new URL(window.location.href);
     if (seed === null) target.searchParams.delete('seed'); else target.searchParams.set('seed', seed);
     if (!resetProgress(seed)) { newGameChoice.note.textContent = 'Could not erase save - try again'; return; }

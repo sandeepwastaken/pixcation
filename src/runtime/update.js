@@ -1,5 +1,6 @@
 function update(time, delta) {
     if (!character) return;
+    if (characterCreator) { lastPlayTime = null; return; }
     if (interiorTransition) { lastPlayTime = null; updateInteriorTransition(this, time); return; }
     if (spawnReturn) { updateSpawnReturn(this, time, delta); return; }
     if (startup) {

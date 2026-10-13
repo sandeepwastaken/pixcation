@@ -50,6 +50,7 @@ function isStartButtonAt(x, y) {
 
 function beginStartup(time) {
     if (!startup || startup.phase !== 'title') return;
+    if (!playerAppearanceChosen) { openCharacterCreator(mainCamera.scene); return; }
     startup.phase = 'closing';
     startup.start = time;
     startup.from = [mainCamera.scrollX, mainCamera.scrollY];

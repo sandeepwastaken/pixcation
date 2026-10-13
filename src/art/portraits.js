@@ -16,7 +16,7 @@ function composePersonPortraitPixels(scene, look, expression = 'normal') {
     if (!['normal', 'openMouth', 'grin'].includes(expression)) throw new Error('Unknown portrait expression');
     const prefix = 'characters/people/portraits/', background = getTerrainPixels(scene, prefix + 'background');
     const {width, height} = background, data = new Uint8ClampedArray(background.data), colors = getPortraitColorMap(look);
-    const layers = ['base' + (look[1] + 1), ...(look[14] ? ['base' + (look[1] + 1) + 'F'] : []), ...(expression === 'normal' ? [] : [expression]), 'shirt' + (look[2] + 1), (look[5] ? 'vanity' : 'hair') + (look[6] + 1)];
+    const layers = ['base' + (look[1] + 1), ...(look[14] ? ['base' + (look[1] + 1) + 'F'] : []), ...(expression === 'normal' ? [] : [expression]), 'shirt' + (look[2] + 1), ...(look[5] && look[18] !== undefined ? ['hair' + (look[18] + 1)] : []), (look[5] ? 'vanity' : 'hair') + (look[6] + 1)];
     for (const layer of layers) {
         const source = getTerrainPixels(scene, prefix + layer), mapping = layer === 'openMouth' || layer === 'grin' ? getPortraitColorMap(look, true) : colors;
         if (source.width !== width || source.height !== height) throw new Error('Portrait layer dimensions do not match: ' + layer);

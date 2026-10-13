@@ -15,7 +15,6 @@ function createMapUI(scene) {
         .setOrigin(0);
 
     const textLayer = createTextLayer(MAP_PANEL_HEIGHT);
-    mapGuideLabel = createUIText(textLayer, 0, 0, '#e0f2fd', 48, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(0,0,0,0.9)' }); mapGuideLabel.textContent = 'Guide'; mapMarketLabel = createUIText(textLayer, 0, 0, '#e0f2fd', 48, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(0,0,0,0.9)' }); mapMarketLabel.textContent = 'Market';
 
     createUIText(textLayer, 14, 5, '#acccf9').textContent = 'World Map';
     appendKeyHints(
@@ -25,7 +24,6 @@ function createMapUI(scene) {
 
     mapTextLayer = addHudLayer(scene, textLayer, MAP_HIDDEN_Y, 203);
     createUIText(textLayer, 14, 21, '#e0f2fd', null, null, { fontSize: '11px' }).textContent = 'WASD walk  Arrows/drag pan  Click mark  R clear';
-    createUIText(textLayer, 14, 143, '#c0a887', null, null, { fontSize: '11px' }).textContent = 'White arrow: you  Homes  Gold: marks / rumors';
     const waypointHud = createTextLayer(12); mapWaypointText = createUIText(waypointHud, 14, 0, '#e0f2fd', null, null, { fontSize: '11px', textShadow: '1px 1px rgba(0,0,0,0.65)' }); mapWaypointLayer = addHudLayer(scene, waypointHud, 30, 103);
     mapWaypointArrow = scene.add.graphics().setScrollFactor(0).setDepth(103).setVisible(false);
     mapContainer = addPanelContainer(scene, MAP_HIDDEN_Y, 202, [panel, mapImage]);

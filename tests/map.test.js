@@ -3,11 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-test('landmark labels stay inside the map and hide when their landmark is off-screen', () => {
-    const run = createMap(); run('const label = {style: {}}; positionMapLandmarkLabel(label, 100, 40)');
-    assert.equal(run('label.style.display'), 'block'); assert.equal(run('label.style.top'), '86px');
-    run('positionMapLandmarkLabel(label, -20, 40)'); assert.equal(run('label.style.display'), 'none');
-    run('positionMapLandmarkLabel(label, 100, MAP_HEIGHT - 1)'); assert.equal(run('label.style.display'), 'none');
+test('house footprints stay flat and the player dot has a compact red center and dark edge', () => {
+    const run = createMap(); run('const pixels = new Uint32Array(MAP_WIDTH * MAP_HEIGHT).fill(toMapPixel(0x8eb067)); drawMapHouse(pixels, 20, 20, 2); drawMapPlayerDot(pixels, 40, 40)');
+    assert.equal(run('pixels[20 * MAP_WIDTH + 20]'), run('toMapPixel(0x825b3d)')); assert.equal(run('pixels[19 * MAP_WIDTH + 20]'), run('toMapPixel(0x8eb067)'));
+    assert.equal(run('pixels[40 * MAP_WIDTH + 40]'), run('toMapPixel(0xe06a60)')); assert.equal(run('pixels[40 * MAP_WIDTH + 42]'), run('toMapPixel(0x6c302e)'));
+    assert.equal(run('pixels[42 * MAP_WIDTH + 42]'), run('toMapPixel(0x8eb067)')); assert.doesNotThrow(() => run('drawMapHouse(pixels, -1000, -1000, 2); drawMapPlayerDot(pixels, -1000, -1000)'));
 });
 function createMap() {
     const context = vm.createContext({ createTileCache: () => () => 0 });
@@ -28,6 +28,8 @@ test('map badges use artwork pixels, preserve transparency, and clip safely at t
     const run = createMap(); run('function getTerrainPixels() { return { width: 2, height: 1, data: new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 0]) }; } const pixels = new Uint32Array(MAP_WIDTH * MAP_HEIGHT); drawMapSprite({}, pixels, "guide", 10, 10, 2)');
     assert.equal(run('pixels[9 * MAP_WIDTH + 9]'), run('toMapPixel(0xff0000)')); assert.equal(run('pixels[9 * MAP_WIDTH + 10]'), run('toMapPixel(0x36160d)'));
     assert.doesNotThrow(() => run('drawMapSprite({}, pixels, "guide", -1000, -1000, 16)'));
+    run('pixels.fill(toMapPixel(0x8eb067)); drawMapSprite({}, pixels, "guide", 10, 10, 2, false)');
+    assert.equal(run('pixels[9 * MAP_WIDTH + 9]'), run('toMapPixel(0xff0000)')); assert.equal(run('pixels[9 * MAP_WIDTH + 10]'), run('toMapPixel(0x8eb067)')); assert.equal(run('pixels[8 * MAP_WIDTH + 8]'), run('toMapPixel(0x8eb067)'));
 });
 test('waypoint guidance updates its bearing, hides behind dialogue, and clears on arrival', () => {
     const run = createMap(); run('mapWaypoint = { x: 20, y: 0 }; updateMapWaypoint()'); assert.equal(run('mapWaypointText.textContent'), 'Waypoint: E  20 tiles'); assert.equal(run('mapWaypointLayer.visible'), true);

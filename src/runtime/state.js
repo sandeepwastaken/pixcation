@@ -91,7 +91,6 @@ const mapCenter = { x: 0, y: 0 };
 let mapWaypoint = null, mapWaypointLayer, mapWaypointText, mapWaypointArrow;
 let mapZoom = 1;
 let mapPalette = null;
-let mapGuideLabel, mapMarketLabel;
 
 let inventoryOpen = false;
 let inventoryContainer;
@@ -106,6 +105,7 @@ let inventoryDetailTexts = [];
 let selectedFishIndex = 0;
 let newGameConfirmUntil = 0;
 let newGameChoice = null;
+let characterCreator = null, playerAppearanceChosen = false;
 let catchCardContainer;
 let catchCardTextLayer;
 let catchCardTitle;

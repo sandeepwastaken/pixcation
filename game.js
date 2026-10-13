@@ -1071,10 +1071,10 @@ function createRoundedCliffTextures(scene) {
 
 function getPersonPalette(look) {
     const [skin, , , shirtColor, pants, accessory, , topColor] = look;
-    const blend = salt => look[16] ? ((Math.imul(look[16] ^ salt, 0x45d9f3b) >>> 0) & 65535) / 65535 : 0;
+    const blend = salt => look[17]?.[salt - 1] ?? (look[16] ? ((Math.imul(look[16] ^ salt, 0x45d9f3b) >>> 0) & 65535) / 65535 : 0);
     return {
         skin: look[15] === undefined ? NPC_SKIN_TONES[skin] : getPersonSkinRamp(skin >= 5, look[15]),
-        hair: samplePersonPalette(NPC_HAIR_COLORS, look[9] ?? (accessory ? 0 : topColor), blend(1)), eye: samplePersonPalette(NPC_EYE_PALETTES, look[13] ?? 0, look[13] ? blend(7) : 0)[0],
+        hair: samplePersonPalette(NPC_HAIR_COLORS, look[9] ?? (accessory ? 0 : topColor), blend(1)), eye: samplePersonPalette(NPC_EYE_PALETTES, look[13] ?? 0, look[17] || look[13] ? blend(7) : 0)[0],
         pants: samplePersonPalette(NPC_PANTS_COLORS, pants, blend(2)),
         shirt: samplePersonPalette(NPC_SHIRT_COLORS, shirtColor, blend(3)),
         shirtAccent: samplePersonPalette(NPC_SHIRT_COLORS, look[10] ?? shirtColor, blend(5))[1], pantsAccent: samplePersonPalette(NPC_PANTS_COLORS, look[12] ?? pants, blend(6)),
@@ -1135,6 +1135,7 @@ function composePersonPixels(scene, look, direction, blink = false) {
     assign(NPC_PART_COLORS.hair, palette.hair);
     assign(accessory ? NPC_PART_COLORS.accessory : NPC_PART_COLORS.hair, palette.top);
     const layers = [[face * 3 + column, 0], [9 + column, 2 + (look[11] ?? 0), 8], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
+    if (accessory && look[18] !== undefined) layers.splice(3, 0, [3 + column, 1 + look[18]]);
     const sheet = getTerrainPixels(scene, 'character-parts');
     const pixels = new Array(NPC_PART_SIZE * NPC_PART_SIZE).fill(null);
 
@@ -1233,7 +1234,7 @@ function composePersonPortraitPixels(scene, look, expression = 'normal') {
     if (!['normal', 'openMouth', 'grin'].includes(expression)) throw new Error('Unknown portrait expression');
     const prefix = 'characters/people/portraits/', background = getTerrainPixels(scene, prefix + 'background');
     const {width, height} = background, data = new Uint8ClampedArray(background.data), colors = getPortraitColorMap(look);
-    const layers = ['base' + (look[1] + 1), ...(look[14] ? ['base' + (look[1] + 1) + 'F'] : []), ...(expression === 'normal' ? [] : [expression]), 'shirt' + (look[2] + 1), (look[5] ? 'vanity' : 'hair') + (look[6] + 1)];
+    const layers = ['base' + (look[1] + 1), ...(look[14] ? ['base' + (look[1] + 1) + 'F'] : []), ...(expression === 'normal' ? [] : [expression]), 'shirt' + (look[2] + 1), ...(look[5] && look[18] !== undefined ? ['hair' + (look[18] + 1)] : []), (look[5] ? 'vanity' : 'hair') + (look[6] + 1)];
     for (const layer of layers) {
         const source = getTerrainPixels(scene, prefix + layer), mapping = layer === 'openMouth' || layer === 'grin' ? getPortraitColorMap(look, true) : colors;
         if (source.width !== width || source.height !== height) throw new Error('Portrait layer dimensions do not match: ' + layer);
@@ -7679,6 +7680,7 @@ function isStartButtonAt(x, y) {
 
 function beginStartup(time) {
     if (!startup || startup.phase !== 'title') return;
+    if (!playerAppearanceChosen) { openCharacterCreator(mainCamera.scene); return; }
     startup.phase = 'closing';
     startup.start = time;
     startup.from = [mainCamera.scrollX, mainCamera.scrollY];
@@ -7747,6 +7749,90 @@ function updateStartup(scene, time, delta) {
     updateSky(scene, time, delta);
     updateFireflies(time, delta);
     updateSnow(scene, time, delta);
+}
+
+function characterCreatorElement(parent, tag, text, style = {}) {
+    const element = document.createElement(tag); if (text !== null) element.textContent = text; Object.assign(element.style, {pointerEvents: 'auto'}, style); parent.appendChild(element); return element;
+}
+function characterCreatorRow(label) {
+    const row = characterCreatorElement(characterCreator.controls, 'label', null, {display: 'flex', alignItems: 'center', gap: '4px', height: characterCreator.tab === 2 ? '14px' : '20px'});
+    characterCreatorElement(row, 'span', label, {width: '62px', flexShrink: '0', color: '#c0a887'}); return row;
+}
+function characterCreatorSelect(label, options, value, change) {
+    const select = characterCreatorElement(characterCreatorRow(label), 'select', null);
+    for (const [id, name] of options) { const option = characterCreatorElement(select, 'option', name); option.value = String(id); } select.value = String(value);
+    select.addEventListener('change', () => {change(Number(select.value)); refreshCharacterCreator();}); return select;
+}
+function characterCreatorSlider(label, value, max, gradient, change) {
+    const slider = characterCreatorElement(characterCreatorRow(label), 'input', null); slider.type = 'range'; slider.min = '0'; slider.max = String(max); slider.step = '1'; slider.value = String(value); slider.style.background = gradient;
+    slider.addEventListener('input', () => {change(Number(slider.value)); paintCharacterCreator();}); return slider;
+}
+function characterColorGradient(palettes, shade = 1) {
+    return 'linear-gradient(to right, ' + [...palettes, palettes[0]].map(palette => '#' + palette[Math.min(shade, palette.length - 1)].toString(16).padStart(6, '0')).join(', ') + ')';
+}
+function refreshCharacterCreator() {
+    const creator = characterCreator, look = creator.look, scroll = creator.controls.scrollTop, focused = document.activeElement?.closest('label')?.querySelector('span')?.textContent; creator.controls.replaceChildren();
+    for (const [index, tab] of creator.tabs.entries()) {tab.style.background = index === creator.tab ? '#465989' : '#230a03'; tab.setAttribute('aria-pressed', String(index === creator.tab));}
+    if (creator.tab === 0) {
+    characterCreatorSelect('Gender', [[0, 'Male'], [1, 'Female']], look[14], value => { look[14] = value; });
+    characterCreatorSelect('Face', [[0, 'Normal'], [1, 'Young'], [2, 'Older']], look[1], value => { look[1] = value; });
+    characterCreatorSelect('Facing', [[0, 'Original'], [1, 'Flipped']], look[8], value => { look[8] = value; });
+    } if (creator.tab === 1) {
+    const parts = count => Array.from({length: count}, (_, index) => [index, 'Style ' + (index + 1)]);
+    characterCreatorSelect('Hair', parts(NPC_HAIRSTYLES), look[18] ?? 0, value => { look[18] = value; if (!look[5]) look[6] = value; });
+    const headwear = [-1, 0, 1, 2, 3, 4, 6, 7].map((id, index) => [id, index ? 'Style ' + index : 'None']);
+    characterCreatorSelect('Headwear', headwear, look[5] ? look[6] : -1, value => { look[5] = value >= 0 ? 1 : 0; look[6] = value >= 0 ? value : look[18] ?? 0; look[7] = look[5] ? look[7] % NPC_ACCESSORY_COLORS.length : look[9]; });
+    characterCreatorSelect('Shirt', parts(NPC_SHIRTS), look[2], value => { look[2] = value; });
+    characterCreatorSelect('Pants', parts(NPC_PANTS_STYLES), look[11], value => { look[11] = value; });
+    } if (creator.tab === 0) {
+    characterCreatorSelect('Palette', [[0, 'Natural'], [5, 'Pastel']], look[0] >= 5 ? 5 : 0, value => { look[0] = value; });
+    const skinColors = Array.from({length: 17}, (_, index) => '#' + getPersonSkinRamp(look[0] >= 5, index / 16)[1].toString(16).padStart(6, '0'));
+    characterCreatorSlider('Tone', Math.round(look[15] * 1000), 1000, 'linear-gradient(to right, ' + skinColors.join(', ') + ')', value => {look[15] = value / 1000;});
+    } if (creator.tab === 2) {
+    const colors = [['Hair', 9, 1, NPC_HAIR_COLORS], ['Headwear', 7, 4, NPC_ACCESSORY_COLORS], ['Shirt', 3, 3, NPC_SHIRT_COLORS], ['Shirt trim', 10, 5, NPC_SHIRT_COLORS], ['Pants', 4, 2, NPC_PANTS_COLORS], ['Pants trim', 12, 6, NPC_PANTS_COLORS], ['Eyes', 13, 7, NPC_EYE_PALETTES]];
+    for (const [label, index, salt, palettes] of colors) {
+        const current = index === 7 && !look[5] ? 0 : look[index];
+        const slider = characterCreatorSlider(label, Math.round((current + look[17][salt - 1]) * 1000), palettes.length * 1000 - 1, characterColorGradient(palettes), value => {look[index] = Math.floor(value / 1000); look[17][salt - 1] = value % 1000 / 1000; if (index === 9 && !look[5]) look[7] = look[9];});
+        if (index === 7 && !look[5]) {slider.disabled = true; slider.style.opacity = '0.35';}
+    }
+    }
+    creator.controls.scrollTop = scroll; if (focused) [...creator.controls.querySelectorAll('label')].find(row => row.querySelector('span').textContent === focused)?.querySelector('select,input')?.focus(); paintCharacterCreator();
+}
+function paintCharacterCreator() {
+    const creator = characterCreator, portrait = composePersonPortraitPixels(creator.scene, creator.look, 'normal'), context = creator.portrait.getContext('2d'), image = context.createImageData(portrait.width, portrait.height);
+    image.data.set(portrait.data); context.putImageData(image, 0, 0);
+    const sprite = creator.sprite.getContext('2d'), pixels = composePersonPixels(creator.scene, creator.look, 'front'), frame = sprite.createImageData(16, 16);
+    pixels.forEach((color, index) => color !== null && writeRGBPixel(frame.data, index, color)); sprite.putImageData(frame, 0, 0);
+}
+function applyPlayerAppearance(scene, look) {
+    PLAYER_LOOK.splice(0, PLAYER_LOOK.length, ...normalizePlayerLook(look));
+    for (const direction of ['front', 'back', 'left', 'right']) for (const blink of [false, true]) for (const frame of [0, 1, 2]) {const key = `character-${direction}${frame ? `walk${frame}` : ''}${blink ? '-blink' : ''}`; if (scene.textures.exists(key)) scene.textures.remove(key); scene.textureSourceCache?.delete(key); scene.terrainPixelCache?.delete(key);}
+    createPlayerTextures(scene); characterTextureKey = null; if (character) {character.personBlinkState = null; setCharacterTexture(`character-${characterDirection}`);}
+    playerAppearanceChosen = true; saveDirty = true; try { localStorage.setItem('pixcation-player-look', JSON.stringify(PLAYER_LOOK)); } catch (error) {} saveProgress();
+}
+function closeCharacterCreator() {
+    if (!characterCreator) return; const creator = characterCreator; characterCreator = null; creator.layer.destroy(); creator.root.remove(); creator.scene.resetHeldActions?.();
+    if (startup) {startup.logo.setVisible(true); startup.logoShadow.setVisible(true); startup.button.setVisible(true); startup.textLayer.setVisible(true);}
+}
+function acceptCharacterCreator() {
+    if (!characterCreator) return; const {scene, look} = characterCreator; applyPlayerAppearance(scene, look); closeCharacterCreator(); beginStartup(scene.time.now);
+}
+function openCharacterCreator(scene) {
+    if (characterCreator) return; scene.resetHeldActions?.();
+    const root = createTextLayer(192, {background: '#230a03', pointerEvents: 'auto', color: '#e0f2fd', fontSize: '11px', lineHeight: '12px'}); root.className = 'character-creator';
+    characterCreatorElement(root, 'div', null, {position: 'absolute', left: '6px', top: '8px', width: '308px', height: '176px', boxSizing: 'border-box', border: '1px solid #acccf9', background: '#36160d'});
+    const style = characterCreatorElement(root, 'style', '.character-creator select,.character-creator button{font:11px m6x11,monospace;color:#e0f2fd;background:#230a03;border:1px solid #465989;border-radius:0;height:18px;box-sizing:border-box}.character-creator select{width:92px;padding:0 2px}.character-creator button{cursor:pointer}.character-creator button:hover,.character-creator button:focus-visible{background:#465989;outline:1px solid #acccf9}.character-creator input[type=range]{appearance:none;width:92px;height:6px;border:1px solid #230a03;border-radius:0;margin:0;cursor:ew-resize}.character-creator input[type=range]::-webkit-slider-thumb{appearance:none;width:5px;height:12px;background:#f6f5e5;border:1px solid #230a03;border-radius:0}.character-creator input[type=range]::-moz-range-thumb{width:4px;height:10px;background:#f6f5e5;border:1px solid #230a03;border-radius:0}.character-creator input:focus-visible,.character-creator select:focus-visible{outline:1px solid #acccf9}.character-creator *{scrollbar-width:thin;scrollbar-color:#465989 #230a03}');
+    createUIText(root, 14, 16, '#acccf9', null, null, {fontSize: '16px'}).textContent = 'Your character';
+    createUIText(root, 136, 19, '#c0a887', null, null, {fontSize: '11px'}).textContent = 'Make yourself at home';
+    const portrait = characterCreatorElement(root, 'canvas', null, {position: 'absolute', left: '14px', top: '35px', width: '110px', height: '124px', imageRendering: 'pixelated'}); portrait.width = 55; portrait.height = 62;
+    const sprite = characterCreatorElement(root, 'canvas', null, {position: 'absolute', left: '90px', top: '125px', width: '32px', height: '32px', imageRendering: 'pixelated', background: '#36160d', border: '1px solid #acccf9'}); sprite.width = 16; sprite.height = 16;
+    const controls = characterCreatorElement(root, 'div', null, {position: 'absolute', left: '136px', top: '55px', width: '166px', height: '100px', overflowY: 'auto', overflowX: 'hidden', paddingRight: '4px', boxSizing: 'border-box'});
+    const initial = normalizePlayerLook(PLAYER_LOOK); characterCreator = {scene, root, controls, portrait, sprite, initial, tab: 0, look: normalizePlayerLook(initial), layer: addHudLayer(scene, root, 0, 850).setVisible(true)};
+    characterCreator.tabs = ['Look', 'Parts', 'Colors'].map((label, index) => {const tab = characterCreatorElement(root, 'button', label, {position: 'absolute', left: 136 + index * 56 + 'px', top: '35px', width: '52px'}); tab.type = 'button'; tab.addEventListener('click', () => {characterCreator.tab = index; characterCreator.controls.scrollTop = 0; refreshCharacterCreator();}); return tab;});
+    const button = (label, x, width, action) => {const element = characterCreatorElement(root, 'button', label, {position: 'absolute', left: x + 'px', top: '165px', width: width + 'px'}); element.type = 'button'; element.addEventListener('click', action); return element;};
+    button('Reset', 136, 46, () => {characterCreator.look = normalizePlayerLook(characterCreator.initial); refreshCharacterCreator();}); button('Back', 186, 46, closeCharacterCreator); button("Let's go!", 236, 66, acceptCharacterCreator);
+    if (startup) {startup.logo.setVisible(false); startup.logoShadow.setVisible(false); startup.button.setVisible(false); startup.textLayer.setVisible(false);}
+    refreshCharacterCreator(); controls.querySelector('select')?.focus();
 }
 
 const playTimeFormatCache = { seconds: null, label: '' };
@@ -8008,7 +8094,6 @@ function createMapUI(scene) {
         .setOrigin(0);
 
     const textLayer = createTextLayer(MAP_PANEL_HEIGHT);
-    mapGuideLabel = createUIText(textLayer, 0, 0, '#e0f2fd', 48, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(0,0,0,0.9)' }); mapGuideLabel.textContent = 'Guide'; mapMarketLabel = createUIText(textLayer, 0, 0, '#e0f2fd', 48, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(0,0,0,0.9)' }); mapMarketLabel.textContent = 'Market';
 
     createUIText(textLayer, 14, 5, '#acccf9').textContent = 'World Map';
     appendKeyHints(
@@ -8018,7 +8103,6 @@ function createMapUI(scene) {
 
     mapTextLayer = addHudLayer(scene, textLayer, MAP_HIDDEN_Y, 203);
     createUIText(textLayer, 14, 21, '#e0f2fd', null, null, { fontSize: '11px' }).textContent = 'WASD walk  Arrows/drag pan  Click mark  R clear';
-    createUIText(textLayer, 14, 143, '#c0a887', null, null, { fontSize: '11px' }).textContent = 'White arrow: you  Homes  Gold: marks / rumors';
     const waypointHud = createTextLayer(12); mapWaypointText = createUIText(waypointHud, 14, 0, '#e0f2fd', null, null, { fontSize: '11px', textShadow: '1px 1px rgba(0,0,0,0.65)' }); mapWaypointLayer = addHudLayer(scene, waypointHud, 30, 103);
     mapWaypointArrow = scene.add.graphics().setScrollFactor(0).setDepth(103).setVisible(false);
     mapContainer = addPanelContainer(scene, MAP_HIDDEN_Y, 202, [panel, mapImage]);
@@ -8028,9 +8112,16 @@ let mapPixels;
 let mapPixelWords;
 let mapFog;
 const mapColors = createTileCache(() => new Uint32Array(CHUNK_SIZE * CHUNK_SIZE));
-function positionMapLandmarkLabel(label, x, y) {
-    if (!label) return;
-    label.style.display = x >= 8 && y >= 8 && x < MAP_WIDTH - 8 && y < MAP_HEIGHT - 20 ? 'block' : 'none'; label.style.left = `${Math.round(Math.max(12, Math.min(MAP_WIDTH - 36, 12 + x - 24)))}px`; label.style.top = `${MAP_TOP + Math.round(y) + 10}px`;
+function drawMapHouse(pixels, x, y, zoom) {
+    const left = Math.max(0, x), right = Math.min(MAP_WIDTH, x + 3 * zoom), top = Math.max(0, y), bottom = Math.min(MAP_HEIGHT, y + 2 * zoom);
+    if (left >= right || top >= bottom) return;
+    for (let row = top; row < bottom; row++) pixels.fill(toMapPixel(row === y + 2 * zoom - 1 ? 0x62452f : 0x825b3d), row * MAP_WIDTH + left, row * MAP_WIDTH + right);
+}
+function drawMapPlayerDot(pixels, x, y) {
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const px = x + dx, py = y + dy, distance = dx * dx + dy * dy; if (distance > 5 || px < 0 || py < 0 || px >= MAP_WIDTH || py >= MAP_HEIGHT) continue;
+        pixels[py * MAP_WIDTH + px] = toMapPixel(distance <= 2 ? dx === -1 && dy === -1 ? 0xf29b80 : 0xe06a60 : 0x6c302e);
+    }
 }
 function setMapWaypoint(pointer) {
     const x = Math.floor(pointer.x - 12), y = Math.floor(pointer.y - mapContainer.y - MAP_TOP);
@@ -8060,9 +8151,9 @@ function drawMapArrow(pixels, marker, color) {
         if (x >= 0 && y >= 0 && x < MAP_WIDTH && y < MAP_HEIGHT) pixels[y * MAP_WIDTH + x] = toMapPixel(color);
     }
 }
-function drawMapSprite(scene, pixels, key, x, y, size = 16) {
+function drawMapSprite(scene, pixels, key, x, y, size = 16, boxed = true) {
     const source = getTerrainPixels(scene, key), left = Math.round(x - size / 2), top = Math.round(y - size / 2);
-    drawMapMarker(pixels, left, top, size, size, toMapPixel(0x36160d), toMapPixel(0xacccf9));
+    if (boxed) drawMapMarker(pixels, left, top, size, size, toMapPixel(0x36160d), toMapPixel(0xacccf9));
     for (let py = 0; py < size; py++) for (let px = 0; px < size; px++) {
         const sx = Math.floor(px * source.width / size), sy = Math.floor(py * source.height / size), offset = (sy * source.width + sx) * 4;
         if (source.data[offset + 3] < 128 || left + px < 0 || top + py < 0 || left + px >= MAP_WIDTH || top + py >= MAP_HEIGHT) continue;
@@ -8239,8 +8330,6 @@ function redrawMap(scene) {
     const pixels = mapPixelWords;
     const fog = palette.fog.map(toMapPixel);
     const outline = toMapPixel(palette.outline);
-    const playerTileX = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE);
-    const playerTileY = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
     const zoom = mapZoom;
     const originX = mapCenter.x - Math.floor(MAP_WIDTH / zoom / 2) + Math.round(mapPan.x);
     const originY = mapCenter.y - Math.floor(MAP_HEIGHT / zoom / 2) + Math.round(mapPan.y);
@@ -8251,25 +8340,19 @@ function redrawMap(scene) {
 
     pixels.set(getMapFogPixels(fog));
     drawMapTerrain(pixels, originX, originY, zoom);
-    if (mapGuideLabel) mapGuideLabel.style.display = 'none'; if (mapMarketLabel) mapMarketLabel.style.display = 'none';
-    for (const house of npcHouseCache.values()) if (house && isTileDiscovered(house.x, house.y)) drawMapSprite(scene, pixels, 'house', (house.x + 1 - originX) * zoom, (house.y + 1 - originY) * zoom, 12);
+    for (const house of npcHouseCache.values()) if (house && isTileDiscovered(house.x, house.y)) drawMapHouse(pixels, (house.x - originX) * zoom, (house.y - originY) * zoom, zoom);
 
-    if (store && isTileDiscovered(Math.floor(store.x / TILE_SIZE), Math.floor(store.y / TILE_SIZE))) {
-        drawMapSprite(scene, pixels, 'store', (store.x / TILE_SIZE + STORE_WIDTH_TILES / 2 - originX) * zoom, (store.y / TILE_SIZE + STORE_HEIGHT_TILES / 2 - originY) * zoom);
-        positionMapLandmarkLabel(mapMarketLabel, (store.x / TILE_SIZE + STORE_WIDTH_TILES / 2 - originX) * zoom, (store.y / TILE_SIZE + STORE_HEIGHT_TILES / 2 - originY) * zoom);
-    }
 
     if (guide && isTileDiscovered(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE))) {
-        drawMapSprite(scene, pixels, 'guide', (Math.floor(guide.x / TILE_SIZE) - originX) * zoom, (Math.floor(guide.y / TILE_SIZE) - originY) * zoom);
-        positionMapLandmarkLabel(mapGuideLabel, (Math.floor(guide.x / TILE_SIZE) - originX) * zoom, (Math.floor(guide.y / TILE_SIZE) - originY) * zoom);
+        drawMapSprite(scene, pixels, 'guide', (Math.floor(guide.x / TILE_SIZE) - originX) * zoom, (Math.floor(guide.y / TILE_SIZE) - originY) * zoom, 16, false);
     }
 
     for (const rumor of heardRumors.values()) {
         if (rumor.day === getWorldClock().day) marker((rumor.chunkX + 0.5) * CHUNK_SIZE, (rumor.chunkY + 0.5) * CHUNK_SIZE, 1, 1, RUMOR_MAP_COLOR);
     }
 
-    const playerMarker = getMapEdgeMarker((playerTileX - originX) * zoom, (playerTileY - originY) * zoom); if (!playerMarker.outside) playerMarker.angle = { right: 0, front: Math.PI / 2, left: Math.PI, back: -Math.PI / 2 }[characterDirection]; drawMapArrow(pixels, playerMarker, palette.player);
     if (mapWaypoint) { const point = getMapEdgeMarker((mapWaypoint.x - originX) * zoom, (mapWaypoint.y - originY) * zoom, 4); if (point.outside) drawMapArrow(pixels, point, RUMOR_MAP_COLOR); else { drawMapMarker(pixels, point.x - 2, point.y - 2, 5, 5, toMapPixel(RUMOR_MAP_COLOR), outline); drawMapMarker(pixels, point.x, point.y, 1, 1, toMapPixel(palette.outline), toMapPixel(RUMOR_MAP_COLOR)); } }
+    const playerPoint = getMapEdgeMarker(((character.x + CHARACTER_SIZE / 2) / TILE_SIZE - originX) * zoom, ((character.y + CHARACTER_SIZE / 2) / TILE_SIZE - originY) * zoom, 3); drawMapPlayerDot(pixels, playerPoint.x, playerPoint.y);
 
     context.putImageData(mapPixels, 0, 0);
     mapTexture.refresh();
@@ -8558,6 +8641,7 @@ function startNewGameChoice() {
     if (!newGameChoice.open || newGameResetting) return;
     const seed = newGameChoice.mode === 0 ? newGameChoice.input.value.trim() : null;
     if (seed !== null && !isValidWorldSeed(seed)) { newGameChoice.note.textContent = 'Enter a valid positive whole-number seed'; newGameChoice.input.focus(); return; }
+    try { localStorage.setItem('pixcation-player-look', JSON.stringify(PLAYER_LOOK)); } catch (error) { newGameChoice.note.textContent = 'Could not keep your look. Try again.'; return; }
     const target = new URL(window.location.href);
     if (seed === null) target.searchParams.delete('seed'); else target.searchParams.set('seed', seed);
     if (!resetProgress(seed)) { newGameChoice.note.textContent = 'Could not erase save - try again'; return; }
@@ -10506,7 +10590,6 @@ const mapCenter = { x: 0, y: 0 };
 let mapWaypoint = null, mapWaypointLayer, mapWaypointText, mapWaypointArrow;
 let mapZoom = 1;
 let mapPalette = null;
-let mapGuideLabel, mapMarketLabel;
 
 let inventoryOpen = false;
 let inventoryContainer;
@@ -10521,6 +10604,7 @@ let inventoryDetailTexts = [];
 let selectedFishIndex = 0;
 let newGameConfirmUntil = 0;
 let newGameChoice = null;
+let characterCreator = null, playerAppearanceChosen = false;
 let catchCardContainer;
 let catchCardTextLayer;
 let catchCardTitle;
@@ -10685,6 +10769,7 @@ function bindGameInput(scene) {
     };
     const openMenu = open => { setCursor('default'); open(); };
     scene.input.on('pointermove', pointer => {
+        if (characterCreator) return;
         if (newGameChoice?.open) { setCursor(pointer.x >= 48 && pointer.x < 272 && ((pointer.y >= 68 && pointer.y < 85) || (pointer.y >= 130 && pointer.y < 150)) ? 'pointer' : 'default'); return; }
         if (startup) {
             setCursor(startup.phase === 'title' && isStartButtonAt(pointer.x, pointer.y) ? 'pointer' : 'default');
@@ -10754,6 +10839,7 @@ function bindGameInput(scene) {
     });
 
     const releasePointer = pointer => {
+        if (characterCreator) return;
         if (pointer.button === 0 && mapOpen && mapDrag && Math.hypot(pointer.x - mapDrag.x, pointer.y - mapDrag.y) < 3) setMapWaypoint(pointer);
         if (pointer.button !== 0) return;
         mapDrag = null;
@@ -10765,6 +10851,7 @@ function bindGameInput(scene) {
     scene.input.keyboard.on('keyup', event => event.code === 'Space' && releaseAction('keyboard'));
 
     scene.input.on('pointerdown', pointer => {
+        if (characterCreator) return;
         if (pointer.button !== 0) return;
         if (spawnReturn || interiorTransition) return;
         if (newGameChoice?.open) { setCursor('default'); handleNewGameChoicePointer(pointer); return; }
@@ -10824,6 +10911,7 @@ function bindGameInput(scene) {
     });
 
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
+        if (characterCreator) return;
         if (interiorTransition) return;
         if (newGameChoice?.open) return;
         const step = Math.sign(deltaY);
@@ -10851,6 +10939,7 @@ function bindGameInput(scene) {
     });
 
     scene.input.keyboard.on('keydown', event => {
+        if (characterCreator) { if (event.key === 'Escape') { event.preventDefault(); closeCharacterCreator(); } return; }
         if (newGameChoice?.open) { setCursor('default'); handleNewGameChoiceKey(event); return; }
         if (event.code === 'Tab' || event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
         if (event.repeat) return;
@@ -10904,6 +10993,7 @@ function create() {
     createRoundedCliffTextures(this);
     createGrassFlowerTextures(this);
     createBridgeEdgeTexture(this);
+    if (!TEST_MODE) loadPlayerAppearance();
     createPlayerTextures(this);
     createShimmerSheet(this);
     extractRodArtStyles(this);
@@ -11003,6 +11093,22 @@ function create() {
 }
 
 const LEGACY_ROD_IDS = { sturdy: 'intermediate', iron: 'master' };
+function normalizePlayerLook(value) {
+    const source = Array.isArray(value) ? value : [], defaults = [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.75, 0];
+    const limits = [9, NPC_FACES, NPC_SHIRTS, NPC_SHIRT_COLORS.length, NPC_PANTS_COLORS.length, 2, source[5] ? NPC_ACCESSORIES : NPC_HAIRSTYLES, NPC_ACCESSORY_COLORS.length, 2, NPC_HAIR_COLORS.length, NPC_SHIRT_COLORS.length, NPC_PANTS_STYLES, NPC_PANTS_COLORS.length, NPC_EYE_COLORS.length, 2];
+    const look = defaults.map((fallback, index) => index < 15 ? Number.isInteger(source[index]) && source[index] >= 0 && source[index] < limits[index] ? source[index] : fallback : fallback);
+    if (!look[5]) look[7] = Number.isInteger(source[7]) && source[7] >= 0 && source[7] < NPC_HAIR_COLORS.length ? source[7] : look[9];
+    if (look[5] && look[6] === 5) look[6] = 0;
+    look[15] = Number.isFinite(source[15]) ? Math.max(0, Math.min(1, source[15])) : [0.75, 1, 0.5, 0.25, 0, 0.8, 0.6, 0.4, 0][look[0]];
+    look[17] = Array.from({length: 8}, (_, index) => Number.isFinite(source[17]?.[index]) ? Math.max(0, Math.min(1, source[17][index])) : 0);
+    look[18] = Number.isInteger(source[18]) && source[18] >= 0 && source[18] < NPC_HAIRSTYLES ? source[18] : look[5] ? undefined : look[6];
+    return look;
+}
+function loadPlayerAppearance() {
+    let saved = null, profile = null; try { saved = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (error) {} try { profile = JSON.parse(localStorage.getItem('pixcation-player-look')); } catch (error) {}
+    const existing = saved?.version === 1; playerAppearanceChosen = existing && saved.appearanceChosen !== false;
+    const look = existing ? saved.appearance || [0, 0, 0, 0, 0, 1, 0, 0] : profile; PLAYER_LOOK.splice(0, PLAYER_LOOK.length, ...normalizePlayerLook(look));
+}
 const LEGACY_SPECIES_IDS = {
     minnow: 'common-minnow',
     carp: 'common-carp',
@@ -11103,6 +11209,7 @@ function loadProgress(scene) {
     }
 
     guideHasMetPlayer = saved.guideMet === true;
+    playerAppearanceChosen = saved.appearanceChosen !== false;
     if (character && Array.isArray(saved.position) && saved.position.length === 2 && saved.position.every(Number.isSafeInteger)) character.setPosition(saved.position[0], saved.position[1]);
 
     restoreSavedRods(scene, saved.rods);
@@ -11142,6 +11249,7 @@ function saveProgress() {
             activeBait: activeBaitId,
             chests: [...openedChests],
             guideMet: guideHasMetPlayer,
+            appearance: PLAYER_LOOK, appearanceChosen: playerAppearanceChosen,
             position: character ? interior ? [interior.house.doorX * TILE_SIZE, interior.house.doorY * TILE_SIZE] : [Math.round(character.x), Math.round(character.y)] : null,
             npcs: mainCamera ? getSavedNpcs(mainCamera.scene.time.now) : [],
             stats: Object.fromEntries(Object.entries(playerStats).map(([key, value]) => [key, Math.floor(value)]))
@@ -11532,6 +11640,7 @@ function updateCamera(delta) {
 
 function update(time, delta) {
     if (!character) return;
+    if (characterCreator) { lastPlayTime = null; return; }
     if (interiorTransition) { lastPlayTime = null; updateInteriorTransition(this, time); return; }
     if (spawnReturn) { updateSpawnReturn(this, time, delta); return; }
     if (startup) {

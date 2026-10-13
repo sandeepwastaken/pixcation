@@ -79,7 +79,7 @@ test('player progress survives a save and load round trip', () => {
     const saved = {
         version: 1, coins: 123, rods: ['basic', 'master'], fish: [['bluegill', 2], ['goldfish', 1]],
         catchLog: ['bluegill', 'goldfish'], explored: [-123, 4], people: [12, 34], bait: [['trainer', 5]],
-        activeBait: 'trainer', chests: [-31, 10], guideMet: true, npcs: [], position: [48, -32],
+        activeBait: 'trainer', chests: [-31, 10], guideMet: true, appearance: [0, 0, 0, 0, 0, 1, 0, 0], appearanceChosen: true, npcs: [], position: [48, -32],
         stats: { fishCaught: 18, playTimeMs: 90000, moneyEarned: 270, fishSold: 15, casts: 23, moneySpent: 80, conversations: 7, npcTrades: 2, distanceWalked: 1234, largeCaught: 4, giantCaught: 1 }
     };
     const session = createSession(saved);

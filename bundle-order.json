@@ -44,6 +44,7 @@
     "treasure.js",
     "ui/elements.js",
     "ui/startup.js",
+    "ui/character-creator.js",
     "ui/stats.js",
     "ui/fishing.js",
     "ui/guide-panel.js",

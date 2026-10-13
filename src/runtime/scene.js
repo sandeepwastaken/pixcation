@@ -13,6 +13,7 @@ function create() {
     createRoundedCliffTextures(this);
     createGrassFlowerTextures(this);
     createBridgeEdgeTexture(this);
+    if (!TEST_MODE) loadPlayerAppearance();
     createPlayerTextures(this);
     createShimmerSheet(this);
     extractRodArtStyles(this);

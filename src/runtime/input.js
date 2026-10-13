@@ -8,6 +8,7 @@ function bindGameInput(scene) {
     };
     const openMenu = open => { setCursor('default'); open(); };
     scene.input.on('pointermove', pointer => {
+        if (characterCreator) return;
         if (newGameChoice?.open) { setCursor(pointer.x >= 48 && pointer.x < 272 && ((pointer.y >= 68 && pointer.y < 85) || (pointer.y >= 130 && pointer.y < 150)) ? 'pointer' : 'default'); return; }
         if (startup) {
             setCursor(startup.phase === 'title' && isStartButtonAt(pointer.x, pointer.y) ? 'pointer' : 'default');
@@ -77,6 +78,7 @@ function bindGameInput(scene) {
     });
 
     const releasePointer = pointer => {
+        if (characterCreator) return;
         if (pointer.button === 0 && mapOpen && mapDrag && Math.hypot(pointer.x - mapDrag.x, pointer.y - mapDrag.y) < 3) setMapWaypoint(pointer);
         if (pointer.button !== 0) return;
         mapDrag = null;
@@ -88,6 +90,7 @@ function bindGameInput(scene) {
     scene.input.keyboard.on('keyup', event => event.code === 'Space' && releaseAction('keyboard'));
 
     scene.input.on('pointerdown', pointer => {
+        if (characterCreator) return;
         if (pointer.button !== 0) return;
         if (spawnReturn || interiorTransition) return;
         if (newGameChoice?.open) { setCursor('default'); handleNewGameChoicePointer(pointer); return; }
@@ -147,6 +150,7 @@ function bindGameInput(scene) {
     });
 
     scene.input.on('wheel', (pointer, objects, deltaX, deltaY) => {
+        if (characterCreator) return;
         if (interiorTransition) return;
         if (newGameChoice?.open) return;
         const step = Math.sign(deltaY);
@@ -174,6 +178,7 @@ function bindGameInput(scene) {
     });
 
     scene.input.keyboard.on('keydown', event => {
+        if (characterCreator) { if (event.key === 'Escape') { event.preventDefault(); closeCharacterCreator(); } return; }
         if (newGameChoice?.open) { setCursor('default'); handleNewGameChoiceKey(event); return; }
         if (event.code === 'Tab' || event.code === 'Space' || event.code.startsWith('Arrow')) event.preventDefault();
         if (event.repeat) return;

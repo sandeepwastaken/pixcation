@@ -40,6 +40,11 @@ function createInput() {
 
 const space = { key: ' ', code: 'Space', repeat: false, preventDefault() {} };
 const left = { button: 0, x: 0, y: 180 };
+test('the creator blocks world actions without stealing native slider keys', () => {
+    const {input, run} = createInput(); run('characterCreator = {}; function closeCharacterCreator() {characterCreator = null;}'); let prevented = false;
+    input.keyboard.emit('keydown', {...space, preventDefault() {prevented = true;}}); input.emit('pointerdown', left); assert.equal(run('presses'), 0); assert.equal(prevented, false);
+    input.keyboard.emit('keydown', {key: 'Escape', code: 'Escape', preventDefault() {}}); assert.equal(run('characterCreator'), null);
+});
 test('clicking the map creates a waypoint but dragging does not', () => {
     const { input, run } = createInput(); run('let marks = 0; function setMapWaypoint() { marks++; } mapOpen = true; mapDrag = { x: 20, y: 40 };');
     input.emit('pointerup', { button: 0, x: 20, y: 40 }); assert.equal(run('marks'), 1);

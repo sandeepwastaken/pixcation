@@ -1,9 +1,9 @@
 function getPersonPalette(look) {
     const [skin, , , shirtColor, pants, accessory, , topColor] = look;
-    const blend = salt => look[16] ? ((Math.imul(look[16] ^ salt, 0x45d9f3b) >>> 0) & 65535) / 65535 : 0;
+    const blend = salt => look[17]?.[salt - 1] ?? (look[16] ? ((Math.imul(look[16] ^ salt, 0x45d9f3b) >>> 0) & 65535) / 65535 : 0);
     return {
         skin: look[15] === undefined ? NPC_SKIN_TONES[skin] : getPersonSkinRamp(skin >= 5, look[15]),
-        hair: samplePersonPalette(NPC_HAIR_COLORS, look[9] ?? (accessory ? 0 : topColor), blend(1)), eye: samplePersonPalette(NPC_EYE_PALETTES, look[13] ?? 0, look[13] ? blend(7) : 0)[0],
+        hair: samplePersonPalette(NPC_HAIR_COLORS, look[9] ?? (accessory ? 0 : topColor), blend(1)), eye: samplePersonPalette(NPC_EYE_PALETTES, look[13] ?? 0, look[17] || look[13] ? blend(7) : 0)[0],
         pants: samplePersonPalette(NPC_PANTS_COLORS, pants, blend(2)),
         shirt: samplePersonPalette(NPC_SHIRT_COLORS, shirtColor, blend(3)),
         shirtAccent: samplePersonPalette(NPC_SHIRT_COLORS, look[10] ?? shirtColor, blend(5))[1], pantsAccent: samplePersonPalette(NPC_PANTS_COLORS, look[12] ?? pants, blend(6)),
@@ -64,6 +64,7 @@ function composePersonPixels(scene, look, direction, blink = false) {
     assign(NPC_PART_COLORS.hair, palette.hair);
     assign(accessory ? NPC_PART_COLORS.accessory : NPC_PART_COLORS.hair, palette.top);
     const layers = [[face * 3 + column, 0], [9 + column, 2 + (look[11] ?? 0), 8], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
+    if (accessory && look[18] !== undefined) layers.splice(3, 0, [3 + column, 1 + look[18]]);
     const sheet = getTerrainPixels(scene, 'character-parts');
     const pixels = new Array(NPC_PART_SIZE * NPC_PART_SIZE).fill(null);
 
