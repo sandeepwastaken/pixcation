@@ -1,6 +1,6 @@
 function characterCreatorElement(parent, tag, text, style = {}) {
     const element = document.createElement(tag); if (text !== null) element.textContent = text; Object.assign(element.style, {pointerEvents: 'auto'}, style); parent.appendChild(element); return element;
-}
+    }
 function characterCreatorRow(label) {
     const row = characterCreatorElement(characterCreator.controls, 'label', null, {display: 'flex', alignItems: 'center', gap: '4px', height: characterCreator.tab === 2 ? '12px' : '16px'});
     characterCreatorElement(row, 'span', label, {width: '62px', flexShrink: '0', color: '#c0a887'}); return row;
@@ -22,32 +22,54 @@ function characterCreatorSlider(label, value, max, gradient, change) {
 function characterColorGradient(palettes, shade = 1) {
     return 'linear-gradient(to right, ' + [...palettes, palettes[0]].map(palette => '#' + palette[Math.min(shade, palette.length - 1)].toString(16).padStart(6, '0')).join(', ') + ')';
 }
-function refreshCharacterCreator() {
-    const creator = characterCreator, look = creator.look, scroll = creator.controls.scrollTop, focused = document.activeElement?.closest('label')?.querySelector('span')?.textContent; creator.controls.replaceChildren();
-    for (const [index, tab] of creator.tabs.entries()) {Object.assign(tab.style, uiPngBackground(creator.scene, index === creator.tab ? 'button-selected' : 'button')); tab.setAttribute('aria-pressed', String(index === creator.tab));}
-    if (creator.tab === 0) {
+function createCharacterCreatorLookControls(look) {
     characterCreatorSelect('Gender', [[0, 'Male'], [1, 'Female']], look[14], value => { look[14] = value; });
     characterCreatorSelect('Face', [[0, 'Normal'], [1, 'Young'], [2, 'Older']], look[1], value => { look[1] = value; });
-    } if (creator.tab === 1) {
-    const parts = count => Array.from({length: count}, (_, index) => [index, 'Style ' + (index + 1)]);
-    characterCreatorStepper('Head', [[0, 'Hair'], [1, 'Headwear']], look[5], value => {if (!look[5]) look[18] = look[6]; else creator.headwear = look[6]; look[5] = value; look[6] = value ? creator.headwear ?? 0 : look[18] ?? 0; look[7] = value ? look[7] % NPC_ACCESSORY_COLORS.length : look[9];});
-    const headwear = [0, 1, 2, 3, 4, 6, 7].map((id, index) => [id, 'Style ' + (index + 1)]);
-    characterCreatorStepper('Style', look[5] ? headwear : parts(NPC_HAIRSTYLES), look[6], value => {look[6] = value; if (look[5]) creator.headwear = value; else look[18] = value;});
-    characterCreatorStepper('Shirt', parts(NPC_SHIRTS), look[2], value => { look[2] = value; });
-    characterCreatorStepper('Pants', parts(NPC_PANTS_STYLES), look[11], value => { look[11] = value; });
-    } if (creator.tab === 0) {
     characterCreatorSelect('Palette', [[0, 'Natural'], [5, 'Pastel']], look[0] >= 5 ? 5 : 0, value => { look[0] = value; });
     const skinColors = Array.from({length: 17}, (_, index) => '#' + getPersonSkinRamp(look[0] >= 5, index / 16)[1].toString(16).padStart(6, '0'));
     characterCreatorSlider('Tone', Math.round(look[15] * 1000), 1000, 'linear-gradient(to right, ' + skinColors.join(', ') + ')', value => {look[15] = value / 1000;});
-    } if (creator.tab === 2) {
-    const colors = [['Hair', 9, 1, NPC_HAIR_COLORS], ['Headwear', 7, 4, NPC_ACCESSORY_COLORS], ['Shirt', 3, 3, NPC_SHIRT_COLORS], ['Shirt trim', 10, 5, NPC_SHIRT_COLORS], ['Pants', 4, 2, NPC_PANTS_COLORS], ['Pants trim', 12, 6, NPC_PANTS_COLORS], ['Eyes', 13, 7, NPC_EYE_PALETTES]];
-    for (const [label, index, salt, palettes] of colors) {
-        const current = index === 7 && !look[5] ? 0 : look[index];
-        const slider = characterCreatorSlider(label, Math.round((current + look[17][salt - 1]) * 1000), palettes.length * 1000 - 1, characterColorGradient(palettes), value => {look[index] = Math.floor(value / 1000); look[17][salt - 1] = value % 1000 / 1000; if (index === 9 && !look[5]) look[7] = look[9];});
-        if (index === 7 && !look[5]) {slider.disabled = true; slider.style.opacity = '0.35';}
+}
+function refreshCharacterCreator() {
+    const creator = characterCreator, look = creator.look, scroll = creator.controls.scrollTop, focused = document.activeElement?.closest('label')?.querySelector('span')?.textContent; creator.controls.replaceChildren();
+    for (const [index, tab] of creator.tabs.entries()) {Object.assign(tab.style, uiPngBackground(creator.scene, index === creator.tab ? 'button-selected' : 'button')); tab.setAttribute('aria-pressed', String(index === creator.tab));}
+    if (creator.tab === 0) createCharacterCreatorLookControls(look);
+    if (creator.tab === 1) {
+        const parts = count => Array.from({length: count}, (_, index) => [index, 'Style ' + (index + 1)]);
+        characterCreatorStepper('Head', [[0, 'Hair'], [1, 'Headwear']], look[5], value => {if (!look[5]) look[18] = look[6]; else creator.headwear = look[6]; look[5] = value; look[6] = value ? creator.headwear ?? 0 : look[18] ?? 0; look[7] = value ? look[7] % NPC_ACCESSORY_COLORS.length : look[9];});
+        const headwear = [0, 1, 2, 3, 4, 6, 7].map((id, index) => [id, 'Style ' + (index + 1)]);
+        characterCreatorStepper('Style', look[5] ? headwear : parts(NPC_HAIRSTYLES), look[6], value => {look[6] = value; if (look[5]) creator.headwear = value; else look[18] = value;});
+        characterCreatorStepper('Shirt', parts(NPC_SHIRTS), look[2], value => { look[2] = value; });
+        characterCreatorStepper('Pants', parts(NPC_PANTS_STYLES), look[11], value => { look[11] = value; });
     }
+    if (creator.tab === 2) {
+        const colors = [['Hair', 9, 1, NPC_HAIR_COLORS], ['Headwear', 7, 4, NPC_ACCESSORY_COLORS], ['Shirt', 3, 3, NPC_SHIRT_COLORS], ['Shirt trim', 10, 5, NPC_SHIRT_COLORS], ['Pants', 4, 2, NPC_PANTS_COLORS], ['Pants trim', 12, 6, NPC_PANTS_COLORS], ['Eyes', 13, 7, NPC_EYE_PALETTES]];
+        for (const [label, index, salt, palettes] of colors) {
+            const current = index === 7 && !look[5] ? 0 : look[index];
+            const slider = characterCreatorSlider(label, Math.round((current + look[17][salt - 1]) * 1000), palettes.length * 1000 - 1, characterColorGradient(palettes), value => {look[index] = Math.floor(value / 1000); look[17][salt - 1] = value % 1000 / 1000; if (index === 9 && !look[5]) look[7] = look[9];});
+            if (index === 7 && !look[5]) {slider.disabled = true; slider.style.opacity = '0.35';}
+        }
     }
-    creator.controls.scrollTop = scroll; for (const button of creator.scrollButtons || []) button.style.display = creator.tab === 2 ? 'block' : 'none'; if (focused) [...creator.controls.querySelectorAll('label')].find(row => row.querySelector('span').textContent === focused)?.querySelector('select,input')?.focus(); paintCharacterCreator();
+    creator.controls.scrollTop = scroll; updateCharacterCreatorScrollbar(); if (focused) [...creator.controls.querySelectorAll('label')].find(row => row.querySelector('span').textContent === focused)?.querySelector('select,input')?.focus(); paintCharacterCreator();
+}
+function getCharacterCreatorScrollLayout(viewportHeight, contentHeight, scrollTop) {
+    const maximum = Math.max(0, contentHeight - viewportHeight), height = Math.max(12, Math.floor(66 * viewportHeight / Math.max(1, contentHeight)));
+    return {maximum, height, top: maximum ? Math.round((66 - height) * scrollTop / maximum) : 0};
+}
+function updateCharacterCreatorScrollbar() {
+    const creator = characterCreator; if (!creator?.scrollbar) return;
+    const {track, thumb} = creator.scrollbar, layout = getCharacterCreatorScrollLayout(creator.controls.clientHeight, creator.controls.scrollHeight, creator.controls.scrollTop);
+    track.style.display = layout.maximum > 0 ? 'block' : 'none';
+    thumb.style.height = layout.height + 'px';
+    thumb.style.top = layout.top + 'px';
+    track.setAttribute('aria-valuemax', String(layout.maximum));
+    track.setAttribute('aria-valuenow', String(Math.round(creator.controls.scrollTop)));
+}
+function createCharacterCreatorScrollbar() {
+    const creator = characterCreator, track = characterCreatorElement(creator.root, 'div', null, {position: 'absolute', left: '276px', top: '77px', width: '8px', height: '66px', boxSizing: 'border-box', touchAction: 'none', ...uiPngBackground(creator.scene, 'button')}), thumb = characterCreatorElement(track, 'div', null, {position: 'absolute', left: '0px', width: '6px', boxSizing: 'border-box', cursor: 'grab', ...uiPngBackground(creator.scene, 'button-selected')});
+    creator.scrollbar = {track, thumb}; track.tabIndex = 0; track.setAttribute('role', 'scrollbar'); track.setAttribute('aria-label', 'Appearance colors'); track.setAttribute('aria-orientation', 'vertical'); track.setAttribute('aria-valuemin', '0'); let drag = null;
+    const move = event => {const bounds = track.getBoundingClientRect(), height = parseInt(thumb.style.height), position = Math.max(0, Math.min(66 - height, (event.clientY - bounds.top) * 66 / bounds.height - (drag ?? height / 2))), max = creator.controls.scrollHeight - creator.controls.clientHeight; creator.controls.scrollTop = Math.round(position / Math.max(1, 66 - height) * max); updateCharacterCreatorScrollbar();};
+    track.addEventListener('pointerdown', event => {event.preventDefault(); const bounds = thumb.getBoundingClientRect(); drag = event.target === thumb ? (event.clientY - bounds.top) * 66 / track.getBoundingClientRect().height : parseInt(thumb.style.height) / 2; track.setPointerCapture(event.pointerId); move(event);}); track.addEventListener('pointermove', event => {if (drag !== null) move(event);}); track.addEventListener('pointerup', () => {drag = null;}); track.addEventListener('lostpointercapture', () => {drag = null;});
+    track.addEventListener('keydown', event => {const steps = {ArrowUp: -12, ArrowDown: 12, PageUp: -66, PageDown: 66}; if (event.key in steps || event.key === 'Home' || event.key === 'End') {event.preventDefault(); creator.controls.scrollTop = event.key === 'Home' ? 0 : event.key === 'End' ? creator.controls.scrollHeight : creator.controls.scrollTop + steps[event.key]; updateCharacterCreatorScrollbar();}}); creator.controls.addEventListener('scroll', updateCharacterCreatorScrollbar);
 }
 function paintCharacterCreator() {
     const creator = characterCreator, portrait = composePersonPortraitPixels(creator.scene, creator.look, 'normal'), context = creator.portrait.getContext('2d'), image = context.createImageData(portrait.width, portrait.height);
@@ -84,6 +106,6 @@ function openCharacterCreator(scene, editing = false) {
     const button = (label, x, width, action) => {const element = characterCreatorElement(root, 'button', label, {position: 'absolute', left: x + 'px', top: '147px', width: width + 'px'}); element.type = 'button'; element.addEventListener('click', action); return element;};
     button('Reset', 112, 46, () => {characterCreator.look = normalizePlayerLook(characterCreator.initial); refreshCharacterCreator();}); button('Back', 162, 46, () => closeCharacterCreator()); button(editing ? 'Wear this' : "Let's go!", 212, 66, acceptCharacterCreator); button('Flip', 46, 55, () => {characterCreator.look[8] = characterCreator.look[8] ? 0 : 1; paintCharacterCreator();});
     if (startup) {startup.logo.setVisible(false); startup.logoShadow.setVisible(false); startup.button.setVisible(false); startup.textLayer.setVisible(false);}
-    characterCreator.scrollButtons = [-1, 1].map(direction => {const arrow = characterCreatorElement(root, 'button', null, {position: 'absolute', left: '276px', top: direction < 0 ? '78px' : '129px', width: '10px', height: '14px', padding: '0'}); arrow.type = 'button'; arrow.setAttribute('aria-label', direction < 0 ? 'Scroll colors up' : 'Scroll colors down'); const image = characterCreatorElement(arrow, 'img', null, {width: '8px', height: '8px', transform: direction < 0 ? 'none' : 'scaleY(-1)'}); image.src = getUiSkinUrl(scene, 'arrow-up'); arrow.addEventListener('click', () => {controls.scrollTop += direction * 24;}); return arrow;});
+    createCharacterCreatorScrollbar();
     refreshCharacterCreator(); controls.querySelector('select')?.focus();
 }

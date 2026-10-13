@@ -12,7 +12,7 @@ function createSettingsUI(scene) {
     const text = createTextLayer(16, {width: '48px', fontSize: '11px', lineHeight: '11px'}); createUIText(text, 0, 2, '#e0f2fd', 48, 'center', {textShadow: '1px 1px #000'}).textContent = 'Settings'; settingsButtonTextLayer = addHudLayer(scene, text, 8, 211).setX(212).setVisible(true);
 }
 function updateSettingsUI() {
-    if (!settingsButton) return; const visible = (!isMenuOpen() || settingsOpen || statsOpen) && !characterCreator && !outfitChange; settingsButton.setVisible(visible); settingsButtonTextLayer.setVisible(visible);
+    if (!settingsButton) return; const visible = (!isMenuOpen() || settingsOpen || statsOpen) && !characterCreator && !outfitChange; if (settingsButton.visible !== visible) settingsButton.setVisible(visible); if (settingsButtonTextLayer.visible !== visible) settingsButtonTextLayer.setVisible(visible);
 }
 function closeSettings() {
     if (!settingsMenu) return; const menu = settingsMenu; settingsMenu = null; settingsOpen = false; menu.layer.destroy(); menu.root.remove(); menu.scene.resetHeldActions?.();

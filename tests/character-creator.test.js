@@ -2,6 +2,20 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {createPortraitPeople} = require('./portrait-fixture');
+test('scrollbar geometry preserves pixel-aligned endpoints and hides without overflow', () => {
+    const {run} = createCreator(); assert.equal(run('JSON.stringify(getCharacterCreatorScrollLayout(66, 84, 0))'), JSON.stringify({maximum:18,height:51,top:0})); assert.equal(run('JSON.stringify(getCharacterCreatorScrollLayout(66, 84, 18))'), JSON.stringify({maximum:18,height:51,top:15})); assert.equal(run('getCharacterCreatorScrollLayout(66, 66, 0).maximum'), 0);
+});
+test('unchanged settings button visibility skips redundant scene writes', () => {
+    const {run} = createCreator(); run(fs.readFileSync('src/ui/settings.js', 'utf8')); run('function isMenuOpen() {return false;} const visibilityWrites = []; settingsButton = {visible:true, setVisible(value) {this.visible = value; visibilityWrites.push(value);}}; settingsButtonTextLayer = {visible:true, setVisible(value) {this.visible = value; visibilityWrites.push(value);}}; updateSettingsUI(); updateSettingsUI()');
+    assert.equal(run('visibilityWrites.length'), 0); run('characterCreator = {}; updateSettingsUI(); updateSettingsUI()'); assert.equal(run('visibilityWrites.length'), 2);
+});
+test('already hidden transient UI skips redundant visibility writes', () => {
+    const {run} = createCreator(); run(fs.readFileSync('src/ui/skins.js', 'utf8')); run('let visibilityWrites = 0; const indicator = {visible:true, setVisible(value) {this.visible = value; visibilityWrites++;}}; transientUiImages.add(indicator); hideTransientUi(); hideTransientUi()'); assert.equal(run('visibilityWrites'), 1);
+});
+test('finished PNG skins share one cached URL regardless of unused tint requests', () => {
+    const {run} = createCreator(); run(fs.readFileSync('src/ui/skins.js', 'utf8')); run('let canvasCount = 0; getTerrainPixels = () => ({width:2,height:2,data:new Uint8ClampedArray(16).fill(127)}); document = {createElement() {canvasCount++; return {getContext() {return {createImageData() {return {data:new Uint8ClampedArray(16)};}, putImageData() {}};}, toDataURL() {return "rendered-png";}};}}; const first = getUiSkinUrl(scene, "button", 0xff0000), second = getUiSkinUrl(scene, "button", 0x0000ff)');
+    assert.equal(run('first === second'), true); assert.equal(run('canvasCount'), 1);
+});
 test('settings clamp saved preferences and retain valid independent speeds', () => {
     const {run, scene} = createCreator(); scene.sound = {setVolume(value) {this.volume = value;}}; run(fs.readFileSync('src/ui/settings.js', 'utf8')); run('storage.set("pixcation-preferences", JSON.stringify({volume: 2, uiSpeed: 2, textSpeed: 17, reducedMotion: true})); loadGamePreferences(scene); saveGamePreferences(scene)');
     assert.equal(scene.sound.volume, 1); assert.equal(run('gamePreferences.uiSpeed'), 2); assert.equal(run('gamePreferences.textSpeed'), 1); assert.equal(run('JSON.parse(storage.get("pixcation-preferences")).reducedMotion'), true);

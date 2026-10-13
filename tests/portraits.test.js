@@ -111,12 +111,12 @@ test('portrait frames stay in front of shoulders and all layers without covering
 
 test('the new appearance seed naturally produces Emz with a matching layered portrait near spawn', () => {
     const {run} = createPortraitPeople();
-    const seed = run('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 1, 7, 5, 0, 0, 0, 5, 6, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0], 2n)');
+    const seed = run('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 2, 52, 90, 0, 0, 0, 90, 99, 0, 29, 3, 99, 0, 1, 0, 0, 0, 0, 0], 2n)');
     const reversed = createPortraitPeople(seed);
     reversed.run('const resident = findCellNpc(1, 0), portrait = composePersonPortraitPixels(scene, resident.look);');
     assert.equal(reversed.run('resident.name'), 'Emz');
     assert.equal(reversed.run('resident.tileX'), 13); assert.equal(reversed.run('resident.tileY'), 4);
-    assert.deepEqual(JSON.parse(reversed.run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1, 0.8, 0]);
+    assert.deepEqual(JSON.parse(reversed.run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1, 0.8, 0, [0, 0, 0, 0, 0, 0, 0]]);
     assert.equal(reversed.run('WORLD_SEED'), 13);
     assert.equal(reversed.run('portrait.width'), 55); assert.equal(reversed.run('portrait.height'), 62);
 });

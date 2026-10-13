@@ -4192,13 +4192,29 @@ function findCellNpc(cellX, cellY) {
     return fallback ? createNpc(fallback[0], fallback[1], null) : null;
 }
 
+function getNpcWeightedColor(roll, weights) {
+    let limit = 0;
+    const value = (roll + 0.5) / 100 * weights.reduce((sum, weight) => sum + weight, 0);
+    return weights.findIndex(weight => value < (limit += weight));
+}
+function getNpcAccentColor(roll, primary, neutral, count) {return getNpcWeightedColor(roll, Array.from({length: count}, (_, index) => index === neutral ? 60 : index === primary ? 20 : 1));}
+function getNpcOutfitColors(appearance) {
+    const hair = getNpcWeightedColor(appearance[12], NPC_HAIR_COLOR_WEIGHTS), shirt = getNpcWeightedColor(appearance[6], NPC_SHIRT_COLOR_WEIGHTS), pants = getNpcWeightedColor(appearance[7], NPC_PANTS_COLOR_WEIGHTS), headwear = getNpcWeightedColor(appearance[11], NPC_HEADWEAR_COLOR_WEIGHTS);
+    const shirtAccent = getNpcAccentColor(appearance[14], shirt, shirt === 10 ? 9 : 10, NPC_SHIRT_COLORS.length);
+    const pantsAccent = getNpcAccentColor(appearance[16], pants, pants === 5 ? 4 : 5, NPC_PANTS_COLORS.length);
+    return {hair, shirt, pants, headwear, shirtAccent, pantsAccent};
+}
+function getNpcColorVariation(seed) {
+    return [0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0].map((spread, index) => seed ? spread * (((Math.imul(seed ^ (index + 1), 0x45d9f3b) >>> 0) & 65535) / 65535) : 0);
+}
 function createNpc(tileX, tileY, water) {
     const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
+    const colors = getNpcOutfitColors(appearance);
     const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
     const rareName = getNpcRareName(appearance[22] / NPC_APPEARANCE_RADICES[22]), feminine = rareVanity || (rareName ? NPC_FEMININE_FIRST_NAMES.includes(rareName) : appearance[18] === 1), face = getNpcFace(appearance[4]), names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
-    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8, 9] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) : [0, 2, 4, 6, 7, 8, 9], hairstyles = feminine ? [0, 2, 7, 8, 9] : face === 1 ? [0, 1, 5, 6, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9];
-    const vanity = feminine ? [0, 0, 1, 1, 3, 3, 3, 3, 4, 4, 6, 7] : [0, 0, 1, 1, 2, 2, 6, 6, 6, 6, 7], pants = feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
+    const shirts = feminine ? (face === 1 ? [0, 0, 1, 2, 4, 4, 5, 6, 7, 8, 9] : [0, 0, 1, 2, 2, 3, 4, 4, 5, 6, 7, 8, 9]) : [0, 0, 2, 2, 4, 4, 6, 7, 8, 9], hairstyles = feminine ? [0, 0, 0, 2, 2, 2, 7, 7, 8, 9] : face === 1 ? [0, 0, 0, 1, 1, 5, 6, 8, 9] : [0, 0, 0, 1, 1, 1, 3, 4, 5, 6, 8, 9];
+    const vanity = feminine ? [0, 0, 0, 1, 1, 1, 3, 3, 4, 4, 6, 7] : [0, 0, 0, 1, 1, 1, 2, 2, 6, 6, 7], pants = feminine ? [0, 0, 0, 1, 2, 2, 3, 4] : [0, 0, 0, 2, 2, 3, 4];
     return {
         id: getTileId(tileX, tileY),
         tileX,
@@ -4211,11 +4227,11 @@ function createNpc(tileX, tileY, water) {
         rodIndex: pick(MARKET_RODS.length, 1315),
         name: (rareName || names[appearance[19] % names.length]) + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
         look: [
-            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 : 0, face, shirts[appearance[5] % shirts.length], appearance[6],
-            appearance[7], accessory,
+            appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 : 0, face, shirts[appearance[5] % shirts.length], colors.shirt,
+            colors.pants, accessory,
             accessory ? (rareVanity ? 5 : vanity[appearance[9] % vanity.length]) : hairstyles[appearance[10] % hairstyles.length],
-            accessory ? appearance[11] : appearance[12],
-            appearance[13], appearance[12], (appearance[6] + 1 + appearance[14]) % NPC_SHIRT_COLORS.length, pants[appearance[15] % pants.length], (appearance[7] + 1 + appearance[16]) % NPC_PANTS_COLORS.length, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23]
+            accessory ? colors.headwear : colors.hair,
+            appearance[13], colors.hair, colors.shirtAccent, pants[appearance[15] % pants.length], colors.pantsAccent, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23], getNpcColorVariation(appearance[23])
         ]
     };
 }
@@ -5486,20 +5502,21 @@ function splashFishJump(scene, time, x, y) {
     }
 }
 
-function drawFishSilhouette(graphics, fish, centerX, centerY, headingX, headingY, color) {
+function drawFishSilhouette(graphics, fish, centerX, centerY, headingX, headingY, color, bend = 0, waterline = Infinity, opacity = 1) {
     const halfLength = fish.length * 0.5, radius = fish.radius, head = halfLength - radius;
-    const bound = Math.ceil(halfLength + radius + Math.abs(fish.amplitude) + 1);
-    graphics.clear().fillStyle(color, 1);
+    const bound = Math.ceil(halfLength + radius + Math.abs(fish.amplitude) + Math.abs(bend) + 1);
+    graphics.clear().fillStyle(color, opacity);
     for (let y = -bound; y <= bound; y++) {
         for (let x = -bound; x <= bound; x++) {
             const localX = x + 0.5, localY = y + 0.5;
             const along = localX * headingX + localY * headingY;
+            if (along <= -halfLength || along >= halfLength) continue;
             const spine = Phaser.Math.Clamp((halfLength - along) / fish.length, 0, 1);
-            const across = localX * -headingY + localY * headingX - fish.amplitude * spine * spine * Math.sin(spine * 5.6 - fish.phase);
+            const across = localX * -headingY + localY * headingX + bend * Math.sin(spine * Math.PI) * headingX - fish.amplitude * spine * spine * Math.sin(spine * 5.6 - fish.phase);
             const headOffset = along - head;
             const inside = headOffset * headOffset + across * across < radius * radius ||
                 along < head && along > -halfLength && Math.abs(across) < radius * (along + halfLength) / (head + halfLength);
-            if (inside) graphics.fillRect(centerX + x, centerY + y, 1, 1);
+            if (inside && centerY + y < waterline) graphics.fillRect(centerX + x, centerY + y, 1, 1);
         }
     }
 }
@@ -5513,7 +5530,7 @@ function pickJumpingFish() {
         for (const fish of chunk.fish) {
             if (fish.jumping || fish.npcLured || fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee' || (fish.visibility ?? 1) < 1) continue;
             if (fish.x < left || fish.y < top || fish.x > left + mainCamera.width || fish.y > top + mainCamera.height) continue;
-            const weight = (fish.size === 'large' || fish.size === 'giant' ? FISH_JUMP_BIG_WEIGHT : 1) * (fish.rumor ? FISH_JUMP_RUMOR_WEIGHT : 1);
+            const weight = (fish.size === 'giant' ? 0.25 : fish.size === 'large' ? 1.5 : 1) * (fish.rumor ? FISH_JUMP_RUMOR_WEIGHT : 1);
             total += weight;
             candidates.push([fish, chunk, weight]);
         }
@@ -5530,7 +5547,7 @@ function startFishJump(scene, time) {
     const picked = pickJumpingFish();
     if (!picked) return;
     const [fish, chunk] = picked;
-    const distance = FISH_JUMP_DISTANCE + fish.length * 0.5;
+    const distance = FISH_JUMP_DISTANCE + fish.length * 0.8;
     let heading = fish.heading;
     let toX = fish.x + Math.cos(heading) * distance, toY = fish.y + Math.sin(heading) * distance;
     if (!canFishSwim(chunk, fish, toX, toY)) {
@@ -5540,14 +5557,21 @@ function startFishJump(scene, time) {
         if (!canFishSwim(chunk, fish, toX, toY)) return;
     }
 
+    if (![0.25, 0.5, 0.75].every(amount => canFishSwim(chunk, fish, fish.x + (toX - fish.x) * amount, fish.y + (toY - fish.y) * amount))) return;
     const graphics = fishJumpGraphics.pop() || scene.add.graphics();
     graphics.setVisible(true).setDepth(1.3);
     fish.jumping = true;
     const color = tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(fish.x, fish.y));
-    fishJumps.push({ fish, graphics, color, fromX: fish.x, fromY: fish.y, toX, toY, heading, start: time, height: FISH_JUMP_HEIGHT + fish.length * 0.4 });
-    splashFishJump(scene, time, Math.round(fish.x), Math.round(fish.y));
+    fishJumps.push({fish, graphics, color, fromX: fish.x, fromY: fish.y, toX, toY, heading, start: time, height: FISH_JUMP_HEIGHT + Math.min(9, fish.length * 0.2), anticipation: 140 + Math.min(140, fish.length * 4), airborne: FISH_JUMP_TIME + Math.min(300, fish.length * 6), settling: 220 + Math.min(150, fish.length * 3), launched: false, landed: false});
+    idleRipple(scene, time, Math.round(fish.x), Math.round(fish.y), scene.children, 1.3);
 }
 
+function getFishJumpPose(jump, time) {
+    const elapsed = Math.max(0, time - jump.start), progress = Math.max(0, Math.min(1, (elapsed - jump.anticipation) / jump.airborne)), surfaceX = jump.fromX + (jump.toX - jump.fromX) * progress, surfaceY = jump.fromY + (jump.toY - jump.fromY) * progress;
+    if (elapsed < jump.anticipation) {const preparation = elapsed / jump.anticipation; return {phase: 'anticipation', x: jump.fromX, y: jump.fromY + Math.sin(preparation * Math.PI) * 2, heading: jump.heading, bend: -Math.sin(preparation * Math.PI) * Math.min(3, jump.fish.length * 0.12), waterline: Infinity, opacity: 1 - Math.sin(preparation * Math.PI) * 0.35};}
+    if (elapsed < jump.anticipation + jump.airborne) return {phase: 'airborne', x: surfaceX, y: surfaceY - 4 * progress * (1 - progress) * jump.height, heading: Math.atan2(jump.toY - jump.fromY - 4 * (1 - 2 * progress) * jump.height, jump.toX - jump.fromX), bend: Math.sin(progress * Math.PI) * Math.min(6, jump.fish.length * 0.18), waterline: surfaceY, opacity: 1};
+    const settling = Math.min(1, (elapsed - jump.anticipation - jump.airborne) / jump.settling); return {phase: settling < 1 ? 'settling' : 'done', x: jump.toX, y: jump.toY + Math.sin(settling * Math.PI) * Math.min(4, jump.fish.radius), heading: jump.heading, bend: -Math.sin(settling * Math.PI) * Math.min(2, jump.fish.length * 0.08), waterline: Infinity, opacity: 0.35 + settling * 0.65};
+}
 function updateFishJumps(scene, time) {
     fishJumpRandom ||= createSeededRandom(Math.imul(WORLD_SEED + 1501, WORLD_HASH_MULTIPLIER));
     if (time >= nextFishJumpAt) {
@@ -5557,19 +5581,15 @@ function updateFishJumps(scene, time) {
 
     for (let index = fishJumps.length - 1; index >= 0; index--) {
         const jump = fishJumps[index];
-        const amount = Math.min(1, (time - jump.start) / FISH_JUMP_TIME);
-        const x = jump.fromX + (jump.toX - jump.fromX) * amount;
-        const y = jump.fromY + (jump.toY - jump.fromY) * amount - Math.sin(amount * Math.PI) * jump.height;
-        const pitch = (amount - 0.5) * FISH_JUMP_TILT * 2;
-        const side = Math.cos(jump.heading) < 0 ? -1 : 1;
-        const tilt = jump.heading + pitch * side;
-        drawFishSilhouette(jump.graphics, jump.fish, Math.round(x), Math.round(y), Math.cos(tilt), Math.sin(tilt), jump.color);
-        if (amount < 1) continue;
+        const pose = getFishJumpPose(jump, time);
+        if (!jump.launched && pose.phase !== 'anticipation') {jump.launched = true; splashFishJump(scene, time, Math.round(jump.fromX), Math.round(jump.fromY));}
+        if (!jump.landed && (pose.phase === 'settling' || pose.phase === 'done')) {jump.landed = true; splashFishJump(scene, time, Math.round(jump.toX), Math.round(jump.toY));}
+        drawFishSilhouette(jump.graphics, jump.fish, Math.round(pose.x), Math.round(pose.y), Math.cos(pose.heading), Math.sin(pose.heading), jump.color, pose.bend, Math.round(pose.waterline), pose.opacity);
+        if (pose.phase !== 'done') continue;
 
         jump.fish.x = jump.toX;
         jump.fish.y = jump.toY;
         jump.fish.jumping = false;
-        splashFishJump(scene, time, Math.round(jump.toX), Math.round(jump.toY));
         jump.graphics.clear().setVisible(false);
         fishJumpGraphics.push(jump.graphics);
         fishJumps[index] = fishJumps[fishJumps.length - 1];
@@ -7538,8 +7558,8 @@ function getUiSkinPixels(scene, skin) {
     const pixels = getTerrainPixels(scene, 'ui-skin-' + skin); pixels.placeholder = isUiPlaceholder(pixels); cache.set(skin, pixels); return pixels;
 }
 function getUiSkinUrl(scene, skin, color = 0x36160d) {
-    const cache = scene.uiSkinUrls ||= new Map(), id = skin + ':' + color; if (cache.has(id)) return cache.get(id);
-    const pixels = getUiSkinPixels(scene, skin), canvas = document.createElement('canvas'); canvas.width = pixels.width; canvas.height = pixels.height;
+    const pixels = getUiSkinPixels(scene, skin), cache = scene.uiSkinUrls ||= new Map(), id = pixels.placeholder ? skin + ':' + color : skin; if (cache.has(id)) return cache.get(id);
+    const canvas = document.createElement('canvas'); canvas.width = pixels.width; canvas.height = pixels.height;
     const context = canvas.getContext('2d'), image = context.createImageData(pixels.width, pixels.height); image.data.set(pixels.data);
     if (pixels.placeholder) for (let offset = 0; offset < image.data.length; offset += 4) if (image.data[offset] === 255) {image.data[offset] = color >> 16 & 255; image.data[offset + 1] = color >> 8 & 255; image.data[offset + 2] = color & 255;}
     context.putImageData(image, 0, 0); const url = canvas.toDataURL(); cache.set(id, url); return url;
@@ -7550,7 +7570,7 @@ function pngControlStyles(scene, scope) {
 return `${scope} select,${scope} button{font:11px m6x11,monospace;color:#e0f2fd;border:1px solid transparent;border-radius:0;height:18px;box-sizing:border-box;image-rendering:pixelated;background:none;border-image:${url('button')} 1 fill stretch;text-shadow:1px 1px #000}${scope} select{appearance:none;width:92px;padding:0 9px 0 3px;border-image:none;border:0;background-image:${url('select-arrow')},${url('input')};background-size:7px 7px,100% 100%;background-position:right 2px center,0 0;background-repeat:no-repeat}${scope} option{background:#230a03;color:#e0f2fd}${scope} button{cursor:pointer}${scope} button:hover,${scope} button:focus-visible{border-image:${url('button-selected')} 1 fill stretch}${scope} input[type=range]{appearance:none;width:92px;height:6px;border:0;border-radius:0;margin:0;cursor:ew-resize;background:${url(track)} 0 0/100% 100%;image-rendering:pixelated}${scope} input[type=range]::-webkit-slider-thumb{appearance:none;width:5px;height:12px;border:0;border-radius:0;background:${url('slider-knob')} 0 0/100% 100%;image-rendering:pixelated}${scope} input[type=range]::-moz-range-thumb{width:5px;height:12px;border:0;border-radius:0;background:${url('slider-knob')} 0 0/100% 100%;image-rendering:pixelated}${scope} *{scrollbar-width:none}`;
 }
 const transientUiImages = new Set();
-function hideTransientUi() {for (const image of transientUiImages) image.setVisible(false);}
+function hideTransientUi() {for (const image of transientUiImages) if (image.visible) image.setVisible(false);}
 function showBiteIndicator(scene, x, y, depth) {
     if (!biteIndicator) {const pixels = getUiSkinPixels(scene, 'bite'); biteIndicator = scene.add.container(0, 0); biteIndicator.add(scene.add.image(-Math.floor(pixels.width / 2), -pixels.height, 'ui-skin-bite').setOrigin(0)); worldObjectLayer?.add(biteIndicator); transientUiImages.add(biteIndicator);}
     biteIndicator.setPosition(Math.round(x), Math.round(y)).setDepth(depth).setVisible(true);
@@ -7779,7 +7799,7 @@ function updateStartup(scene, time, delta) {
 
 function characterCreatorElement(parent, tag, text, style = {}) {
     const element = document.createElement(tag); if (text !== null) element.textContent = text; Object.assign(element.style, {pointerEvents: 'auto'}, style); parent.appendChild(element); return element;
-}
+    }
 function characterCreatorRow(label) {
     const row = characterCreatorElement(characterCreator.controls, 'label', null, {display: 'flex', alignItems: 'center', gap: '4px', height: characterCreator.tab === 2 ? '12px' : '16px'});
     characterCreatorElement(row, 'span', label, {width: '62px', flexShrink: '0', color: '#c0a887'}); return row;
@@ -7801,32 +7821,54 @@ function characterCreatorSlider(label, value, max, gradient, change) {
 function characterColorGradient(palettes, shade = 1) {
     return 'linear-gradient(to right, ' + [...palettes, palettes[0]].map(palette => '#' + palette[Math.min(shade, palette.length - 1)].toString(16).padStart(6, '0')).join(', ') + ')';
 }
-function refreshCharacterCreator() {
-    const creator = characterCreator, look = creator.look, scroll = creator.controls.scrollTop, focused = document.activeElement?.closest('label')?.querySelector('span')?.textContent; creator.controls.replaceChildren();
-    for (const [index, tab] of creator.tabs.entries()) {Object.assign(tab.style, uiPngBackground(creator.scene, index === creator.tab ? 'button-selected' : 'button')); tab.setAttribute('aria-pressed', String(index === creator.tab));}
-    if (creator.tab === 0) {
+function createCharacterCreatorLookControls(look) {
     characterCreatorSelect('Gender', [[0, 'Male'], [1, 'Female']], look[14], value => { look[14] = value; });
     characterCreatorSelect('Face', [[0, 'Normal'], [1, 'Young'], [2, 'Older']], look[1], value => { look[1] = value; });
-    } if (creator.tab === 1) {
-    const parts = count => Array.from({length: count}, (_, index) => [index, 'Style ' + (index + 1)]);
-    characterCreatorStepper('Head', [[0, 'Hair'], [1, 'Headwear']], look[5], value => {if (!look[5]) look[18] = look[6]; else creator.headwear = look[6]; look[5] = value; look[6] = value ? creator.headwear ?? 0 : look[18] ?? 0; look[7] = value ? look[7] % NPC_ACCESSORY_COLORS.length : look[9];});
-    const headwear = [0, 1, 2, 3, 4, 6, 7].map((id, index) => [id, 'Style ' + (index + 1)]);
-    characterCreatorStepper('Style', look[5] ? headwear : parts(NPC_HAIRSTYLES), look[6], value => {look[6] = value; if (look[5]) creator.headwear = value; else look[18] = value;});
-    characterCreatorStepper('Shirt', parts(NPC_SHIRTS), look[2], value => { look[2] = value; });
-    characterCreatorStepper('Pants', parts(NPC_PANTS_STYLES), look[11], value => { look[11] = value; });
-    } if (creator.tab === 0) {
     characterCreatorSelect('Palette', [[0, 'Natural'], [5, 'Pastel']], look[0] >= 5 ? 5 : 0, value => { look[0] = value; });
     const skinColors = Array.from({length: 17}, (_, index) => '#' + getPersonSkinRamp(look[0] >= 5, index / 16)[1].toString(16).padStart(6, '0'));
     characterCreatorSlider('Tone', Math.round(look[15] * 1000), 1000, 'linear-gradient(to right, ' + skinColors.join(', ') + ')', value => {look[15] = value / 1000;});
-    } if (creator.tab === 2) {
-    const colors = [['Hair', 9, 1, NPC_HAIR_COLORS], ['Headwear', 7, 4, NPC_ACCESSORY_COLORS], ['Shirt', 3, 3, NPC_SHIRT_COLORS], ['Shirt trim', 10, 5, NPC_SHIRT_COLORS], ['Pants', 4, 2, NPC_PANTS_COLORS], ['Pants trim', 12, 6, NPC_PANTS_COLORS], ['Eyes', 13, 7, NPC_EYE_PALETTES]];
-    for (const [label, index, salt, palettes] of colors) {
-        const current = index === 7 && !look[5] ? 0 : look[index];
-        const slider = characterCreatorSlider(label, Math.round((current + look[17][salt - 1]) * 1000), palettes.length * 1000 - 1, characterColorGradient(palettes), value => {look[index] = Math.floor(value / 1000); look[17][salt - 1] = value % 1000 / 1000; if (index === 9 && !look[5]) look[7] = look[9];});
-        if (index === 7 && !look[5]) {slider.disabled = true; slider.style.opacity = '0.35';}
+}
+function refreshCharacterCreator() {
+    const creator = characterCreator, look = creator.look, scroll = creator.controls.scrollTop, focused = document.activeElement?.closest('label')?.querySelector('span')?.textContent; creator.controls.replaceChildren();
+    for (const [index, tab] of creator.tabs.entries()) {Object.assign(tab.style, uiPngBackground(creator.scene, index === creator.tab ? 'button-selected' : 'button')); tab.setAttribute('aria-pressed', String(index === creator.tab));}
+    if (creator.tab === 0) createCharacterCreatorLookControls(look);
+    if (creator.tab === 1) {
+        const parts = count => Array.from({length: count}, (_, index) => [index, 'Style ' + (index + 1)]);
+        characterCreatorStepper('Head', [[0, 'Hair'], [1, 'Headwear']], look[5], value => {if (!look[5]) look[18] = look[6]; else creator.headwear = look[6]; look[5] = value; look[6] = value ? creator.headwear ?? 0 : look[18] ?? 0; look[7] = value ? look[7] % NPC_ACCESSORY_COLORS.length : look[9];});
+        const headwear = [0, 1, 2, 3, 4, 6, 7].map((id, index) => [id, 'Style ' + (index + 1)]);
+        characterCreatorStepper('Style', look[5] ? headwear : parts(NPC_HAIRSTYLES), look[6], value => {look[6] = value; if (look[5]) creator.headwear = value; else look[18] = value;});
+        characterCreatorStepper('Shirt', parts(NPC_SHIRTS), look[2], value => { look[2] = value; });
+        characterCreatorStepper('Pants', parts(NPC_PANTS_STYLES), look[11], value => { look[11] = value; });
     }
+    if (creator.tab === 2) {
+        const colors = [['Hair', 9, 1, NPC_HAIR_COLORS], ['Headwear', 7, 4, NPC_ACCESSORY_COLORS], ['Shirt', 3, 3, NPC_SHIRT_COLORS], ['Shirt trim', 10, 5, NPC_SHIRT_COLORS], ['Pants', 4, 2, NPC_PANTS_COLORS], ['Pants trim', 12, 6, NPC_PANTS_COLORS], ['Eyes', 13, 7, NPC_EYE_PALETTES]];
+        for (const [label, index, salt, palettes] of colors) {
+            const current = index === 7 && !look[5] ? 0 : look[index];
+            const slider = characterCreatorSlider(label, Math.round((current + look[17][salt - 1]) * 1000), palettes.length * 1000 - 1, characterColorGradient(palettes), value => {look[index] = Math.floor(value / 1000); look[17][salt - 1] = value % 1000 / 1000; if (index === 9 && !look[5]) look[7] = look[9];});
+            if (index === 7 && !look[5]) {slider.disabled = true; slider.style.opacity = '0.35';}
+        }
     }
-    creator.controls.scrollTop = scroll; for (const button of creator.scrollButtons || []) button.style.display = creator.tab === 2 ? 'block' : 'none'; if (focused) [...creator.controls.querySelectorAll('label')].find(row => row.querySelector('span').textContent === focused)?.querySelector('select,input')?.focus(); paintCharacterCreator();
+    creator.controls.scrollTop = scroll; updateCharacterCreatorScrollbar(); if (focused) [...creator.controls.querySelectorAll('label')].find(row => row.querySelector('span').textContent === focused)?.querySelector('select,input')?.focus(); paintCharacterCreator();
+}
+function getCharacterCreatorScrollLayout(viewportHeight, contentHeight, scrollTop) {
+    const maximum = Math.max(0, contentHeight - viewportHeight), height = Math.max(12, Math.floor(66 * viewportHeight / Math.max(1, contentHeight)));
+    return {maximum, height, top: maximum ? Math.round((66 - height) * scrollTop / maximum) : 0};
+}
+function updateCharacterCreatorScrollbar() {
+    const creator = characterCreator; if (!creator?.scrollbar) return;
+    const {track, thumb} = creator.scrollbar, layout = getCharacterCreatorScrollLayout(creator.controls.clientHeight, creator.controls.scrollHeight, creator.controls.scrollTop);
+    track.style.display = layout.maximum > 0 ? 'block' : 'none';
+    thumb.style.height = layout.height + 'px';
+    thumb.style.top = layout.top + 'px';
+    track.setAttribute('aria-valuemax', String(layout.maximum));
+    track.setAttribute('aria-valuenow', String(Math.round(creator.controls.scrollTop)));
+}
+function createCharacterCreatorScrollbar() {
+    const creator = characterCreator, track = characterCreatorElement(creator.root, 'div', null, {position: 'absolute', left: '276px', top: '77px', width: '8px', height: '66px', boxSizing: 'border-box', touchAction: 'none', ...uiPngBackground(creator.scene, 'button')}), thumb = characterCreatorElement(track, 'div', null, {position: 'absolute', left: '0px', width: '6px', boxSizing: 'border-box', cursor: 'grab', ...uiPngBackground(creator.scene, 'button-selected')});
+    creator.scrollbar = {track, thumb}; track.tabIndex = 0; track.setAttribute('role', 'scrollbar'); track.setAttribute('aria-label', 'Appearance colors'); track.setAttribute('aria-orientation', 'vertical'); track.setAttribute('aria-valuemin', '0'); let drag = null;
+    const move = event => {const bounds = track.getBoundingClientRect(), height = parseInt(thumb.style.height), position = Math.max(0, Math.min(66 - height, (event.clientY - bounds.top) * 66 / bounds.height - (drag ?? height / 2))), max = creator.controls.scrollHeight - creator.controls.clientHeight; creator.controls.scrollTop = Math.round(position / Math.max(1, 66 - height) * max); updateCharacterCreatorScrollbar();};
+    track.addEventListener('pointerdown', event => {event.preventDefault(); const bounds = thumb.getBoundingClientRect(); drag = event.target === thumb ? (event.clientY - bounds.top) * 66 / track.getBoundingClientRect().height : parseInt(thumb.style.height) / 2; track.setPointerCapture(event.pointerId); move(event);}); track.addEventListener('pointermove', event => {if (drag !== null) move(event);}); track.addEventListener('pointerup', () => {drag = null;}); track.addEventListener('lostpointercapture', () => {drag = null;});
+    track.addEventListener('keydown', event => {const steps = {ArrowUp: -12, ArrowDown: 12, PageUp: -66, PageDown: 66}; if (event.key in steps || event.key === 'Home' || event.key === 'End') {event.preventDefault(); creator.controls.scrollTop = event.key === 'Home' ? 0 : event.key === 'End' ? creator.controls.scrollHeight : creator.controls.scrollTop + steps[event.key]; updateCharacterCreatorScrollbar();}}); creator.controls.addEventListener('scroll', updateCharacterCreatorScrollbar);
 }
 function paintCharacterCreator() {
     const creator = characterCreator, portrait = composePersonPortraitPixels(creator.scene, creator.look, 'normal'), context = creator.portrait.getContext('2d'), image = context.createImageData(portrait.width, portrait.height);
@@ -7863,7 +7905,7 @@ function openCharacterCreator(scene, editing = false) {
     const button = (label, x, width, action) => {const element = characterCreatorElement(root, 'button', label, {position: 'absolute', left: x + 'px', top: '147px', width: width + 'px'}); element.type = 'button'; element.addEventListener('click', action); return element;};
     button('Reset', 112, 46, () => {characterCreator.look = normalizePlayerLook(characterCreator.initial); refreshCharacterCreator();}); button('Back', 162, 46, () => closeCharacterCreator()); button(editing ? 'Wear this' : "Let's go!", 212, 66, acceptCharacterCreator); button('Flip', 46, 55, () => {characterCreator.look[8] = characterCreator.look[8] ? 0 : 1; paintCharacterCreator();});
     if (startup) {startup.logo.setVisible(false); startup.logoShadow.setVisible(false); startup.button.setVisible(false); startup.textLayer.setVisible(false);}
-    characterCreator.scrollButtons = [-1, 1].map(direction => {const arrow = characterCreatorElement(root, 'button', null, {position: 'absolute', left: '276px', top: direction < 0 ? '78px' : '129px', width: '10px', height: '14px', padding: '0'}); arrow.type = 'button'; arrow.setAttribute('aria-label', direction < 0 ? 'Scroll colors up' : 'Scroll colors down'); const image = characterCreatorElement(arrow, 'img', null, {width: '8px', height: '8px', transform: direction < 0 ? 'none' : 'scaleY(-1)'}); image.src = getUiSkinUrl(scene, 'arrow-up'); arrow.addEventListener('click', () => {controls.scrollTop += direction * 24;}); return arrow;});
+    createCharacterCreatorScrollbar();
     refreshCharacterCreator(); controls.querySelector('select')?.focus();
 }
 
@@ -7881,7 +7923,7 @@ function createSettingsUI(scene) {
     const text = createTextLayer(16, {width: '48px', fontSize: '11px', lineHeight: '11px'}); createUIText(text, 0, 2, '#e0f2fd', 48, 'center', {textShadow: '1px 1px #000'}).textContent = 'Settings'; settingsButtonTextLayer = addHudLayer(scene, text, 8, 211).setX(212).setVisible(true);
 }
 function updateSettingsUI() {
-    if (!settingsButton) return; const visible = (!isMenuOpen() || settingsOpen || statsOpen) && !characterCreator && !outfitChange; settingsButton.setVisible(visible); settingsButtonTextLayer.setVisible(visible);
+    if (!settingsButton) return; const visible = (!isMenuOpen() || settingsOpen || statsOpen) && !characterCreator && !outfitChange; if (settingsButton.visible !== visible) settingsButton.setVisible(visible); if (settingsButtonTextLayer.visible !== visible) settingsButtonTextLayer.setVisible(visible);
 }
 function closeSettings() {
     if (!settingsMenu) return; const menu = settingsMenu; settingsMenu = null; settingsOpen = false; menu.layer.destroy(); menu.root.remove(); menu.scene.resetHeldActions?.();
@@ -10320,11 +10362,11 @@ const NPC_FACE_WEIGHTS = [65, 25, 10];
 const NPC_ACCESSORIES = 8;
 const NPC_HAIRSTYLES = 10;
 const NPC_SHIRTS = 10;
-const NPC_ACCESSORY_CHANCE = 0.35;
+const NPC_ACCESSORY_CHANCE = 0.25;
 const NPC_RARE_VANITY_CHANCE = 0.0001, NPC_PASTEL_SKIN_CHANCE = 0.01, NPC_PANTS_STYLES = 5;
 const NPC_EYE_COLORS = [0x191820, 0x633d2b, 0x46758b, 0x527349, 0x77794a, 0xadcddd, 0xb18c53], NPC_EYE_WEIGHTS = [0.64, 0.16, 0.07, 0.06, 0.04, 0.02, 0.01];
 const NPC_EYE_PALETTES = NPC_EYE_COLORS.map(color => [color]);
-const NPC_APPEARANCE_RADICES = [10000, 100, 65536, 65536, 100, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536, 10000, 4294967296];
+const NPC_APPEARANCE_RADICES = [10000, 100, 65536, 65536, 100, 720, 100, 100, 100, 143, 120, 100, 100, 2, 100, 20, 100, 100, 2, 65536, 5, 65536, 10000, 4294967296];
 const NPC_CELL_SIZE = 10;
 const NPC_CELL_MARGIN = 2;
 const NPC_CELL_CHANCE = 0.45;
@@ -10358,7 +10400,8 @@ const NPC_SHIRT_COLORS = [
     [0x2f6f6f, 0x4a9090],
     [0x5e4a7a, 0x7a669a],
     [0xb0a080, 0xd2c4a2],
-    [0xb51f70, 0xf63f9b], [0x392348, 0x624078]
+    [0xb51f70, 0xf63f9b], [0x392348, 0x624078],
+    [0x12151b, 0x242832], [0xb8b6b0, 0xf2f0e8], [0x464b53, 0x747b85], [0x15283d, 0x294765], [0x493325, 0x79533c], [0x8b493e, 0xc37b66], [0x76939d, 0xb3d5df]
 ];
 const NPC_PANTS_COLORS = [
     [0x5c2525, 0x773333, 0x9a4444],
@@ -10368,6 +10411,7 @@ const NPC_PANTS_COLORS = [
     [0x36363c, 0x4a4a52, 0x66666e],
     [0x9b7965, 0xc9a48e, 0xecd0b8], [0x261334, 0x3f1d54, 0x623580]
 ];
+const NPC_HAIR_COLOR_WEIGHTS = [36, 31, 10, 12, 5, 5, 1], NPC_SHIRT_COLOR_WEIGHTS = [12, 9, 8, 5, 6, 4, 8, 2, 3, 11, 10, 7, 7, 4, 2, 2], NPC_PANTS_COLOR_WEIGHTS = [4, 34, 20, 9, 23, 7, 3], NPC_HEADWEAR_COLOR_WEIGHTS = [16, 27, 14, 13, 20, 10];
 const PLAYER_LOOK = [0, 0, 0, 0, 0, 1, 0, 0];
 const PERSON_ARM_TOP = 8;
 const PERSON_ARM_BOTTOM = 13;
@@ -10529,9 +10573,6 @@ const FISH_JUMP_RANGE = 9000;
 const FISH_JUMP_DISTANCE = 10;
 const FISH_JUMP_HEIGHT = 7;
 const FISH_JUMP_TIME = 620;
-const FISH_JUMP_TILT = 0.45;
-const FISH_JUMP_DEPTH = 6;
-const FISH_JUMP_BIG_WEIGHT = 3;
 const FISH_JUMP_RUMOR_WEIGHT = 3;
 const FISH_JUMP_DROPLETS = 3;
 const FISH_JUMP_DROPLET_LIFETIME = 260;

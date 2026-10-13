@@ -1,5 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+test('natural wardrobe weights favor everyday colors while every palette remains reachable', () => {
+    const run = createPeople(), counts = JSON.parse(run('JSON.stringify(Array.from({length: 100}, (_, roll) => getNpcWeightedColor(roll, NPC_HAIR_COLOR_WEIGHTS)).reduce((counts, index) => {counts[index]++; return counts;}, new Array(NPC_HAIR_COLORS.length).fill(0)))'));
+    assert.deepEqual(counts, [36, 31, 10, 12, 5, 5, 1]); for (const weights of ['NPC_SHIRT_COLOR_WEIGHTS', 'NPC_PANTS_COLOR_WEIGHTS', 'NPC_HEADWEAR_COLOR_WEIGHTS']) assert.equal(run('new Set(Array.from({length:100},(_,roll)=>getNpcWeightedColor(roll,' + weights + '))).size'), run(weights + '.length'));
+    assert.equal(run('NPC_SHIRT_COLORS.length'), 16); assert.equal(run('Array.from({length: 100}, (_, roll) => getNpcAccentColor(roll, 7, 10, NPC_SHIRT_COLORS.length)).filter(color => color === 10).length > 60'), true);
+});
+test('seeded residents keep small color variations without drifting into adjacent bright palettes', () => {
+    const run = createPeople(); assert.equal(run('Array.from({length:200},(_,i)=>createNpc(i*19-800,i*23-500,null)).every(npc=>npc.look[17].length === 7 && npc.look[17].every(value=>value >= 0 && value <= 0.08))'), true);
+});
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { decodePng } = require('../build-atlas');
@@ -51,7 +59,7 @@ test('natural and pastel skin ramps interpolate across hundreds of distinct pale
         assert.ok(run('new Set(Array.from({length: 256}, (_, index) => JSON.stringify(getPersonSkinRamp(' + pastel + ', index / 255)))).size') > 200);
         assert.deepEqual(JSON.parse(run('JSON.stringify(getPersonSkinRamp(' + pastel + ', 0.8))')), JSON.parse(run('JSON.stringify(getPersonSkinRamp(' + pastel + ', 52428 / 65535))')));
     }
-    run('const varied = createNpc(13, 4, null).look; const basic = getPersonPalette(varied); varied[16] = 18928771; const blended = getPersonPalette(varied);');
+    run('const varied = createNpc(13, 4, null).look; varied[17] = undefined; const basic = getPersonPalette(varied); varied[16] = 18928771; const blended = getPersonPalette(varied);');
     assert.notEqual(run('JSON.stringify(basic.shirt)'), run('JSON.stringify(blended.shirt)'));
     assert.notEqual(run('JSON.stringify(basic.hair)'), run('JSON.stringify(blended.hair)'));
 });
@@ -89,7 +97,7 @@ function createPeople(seed = '13') {
 }
 
 function solveRequestedSeed() {
-    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 1, 7, 5, 0, 0, 0, 5, 6, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0])');
+    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 2, 52, 90, 0, 0, 0, 90, 99, 0, 29, 3, 99, 0, 1, 0, 0, 0, 0, 0])');
 }
 
 test('a reversed ordinary seed produces the requested rare resident near spawn', () => {
@@ -98,7 +106,7 @@ test('a reversed ordinary seed produces the requested rare resident near spawn',
     assert.equal(run('resident.tileX'), 13);
     assert.equal(run('resident.tileY'), 4);
     assert.equal(run('resident.name'), 'Emz');
-    assert.deepEqual(JSON.parse(run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1, 0.8, 0]);
+    assert.deepEqual(JSON.parse(run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1, 0.8, 0, [0, 0, 0, 0, 0, 0, 0]]);
     assert.equal(run('WORLD_SEED'), 13);
     assert.equal(run('getTerrainType(0, 0)'), 'grass');
     assert.equal(run('(() => { const queue = [[0, 0]], seen = new Set(["0,0"]); for (let index = 0; index < queue.length; index++) { const [x, y] = queue[index]; if (x === 13 && y === 4) return true; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, key = nx + "," + ny; if (Math.abs(nx) > 25 || Math.abs(ny) > 25 || seen.has(key) || !isNpcWalkableTile(nx, ny)) continue; seen.add(key); queue.push([nx, ny]); } } return false; })()'), true);
@@ -135,7 +143,7 @@ test('eye weights and wardrobe rarity retain their stated probabilities', () => 
     const run = createPeople();
     assert.deepEqual(JSON.parse(run('JSON.stringify(Array.from({length: 7}, (_, index) => Array.from({length: 100}, (_, roll) => getNpcEyeColor(roll)).filter(color => color === index).length))')), [64, 16, 7, 6, 4, 2, 1]);
     const counts = JSON.parse(run('JSON.stringify(Array.from({length: 10000}, (_, roll) => { const rolls = NPC_APPEARANCE_RADICES.map(() => 0); rolls[0] = roll; rolls[1] = roll % 100; getNpcAppearanceRolls = () => rolls; const npc = createNpc(13, 4, null); return [Number(npc.look[5] === 1 && npc.look[6] === 5), Number(npc.look[0] >= 5), Number(npc.look[3] !== npc.look[10] && npc.look[4] !== npc.look[12])]; }).reduce((counts, row) => counts.map((count, index) => count + row[index]), [0, 0, 0]))'));
-    assert.deepEqual(counts, [1, 100, 10000]);
+    assert.deepEqual(counts, [1, 100, 0]);
 });
 
 test('all pants styles shade their primary color separately from the pink-purple accent', () => {
