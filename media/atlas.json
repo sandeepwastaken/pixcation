@@ -1860,7 +1860,7 @@
     "h": 8
    }
   },
-  "ui/widgets/arrow-up": {
+  "ui/widgets/arrow-left": {
    "frame": {
     "x": 21,
     "y": 621,
@@ -1880,7 +1880,7 @@
     "h": 8
    }
   },
-  "ui/widgets/select-arrow": {
+  "ui/widgets/arrow-right": {
    "frame": {
     "x": 30,
     "y": 621,
@@ -1900,9 +1900,49 @@
     "h": 8
    }
   },
-  "environment/terrain/corner": {
+  "ui/widgets/arrow-up": {
    "frame": {
     "x": 39,
+    "y": 621,
+    "w": 8,
+    "h": 8
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 8,
+    "h": 8
+   },
+   "sourceSize": {
+    "w": 8,
+    "h": 8
+   }
+  },
+  "ui/widgets/select-arrow": {
+   "frame": {
+    "x": 48,
+    "y": 621,
+    "w": 8,
+    "h": 8
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 8,
+    "h": 8
+   },
+   "sourceSize": {
+    "w": 8,
+    "h": 8
+   }
+  },
+  "environment/terrain/corner": {
+   "frame": {
+    "x": 57,
     "y": 621,
     "w": 7,
     "h": 7
@@ -1922,7 +1962,7 @@
   },
   "ui/settings/volume-track": {
    "frame": {
-    "x": 47,
+    "x": 65,
     "y": 621,
     "w": 92,
     "h": 6
@@ -1942,7 +1982,7 @@
   },
   "ui/widgets/slider-track": {
    "frame": {
-    "x": 140,
+    "x": 158,
     "y": 621,
     "w": 92,
     "h": 6
@@ -1962,7 +2002,7 @@
   },
   "environment/terrain/dirtCliffCorner": {
    "frame": {
-    "x": 233,
+    "x": 251,
     "y": 621,
     "w": 5,
     "h": 5
@@ -1982,7 +2022,7 @@
   },
   "environment/terrain/dirtEdgeCorner": {
    "frame": {
-    "x": 239,
+    "x": 257,
     "y": 621,
     "w": 5,
     "h": 5

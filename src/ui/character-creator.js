@@ -16,7 +16,7 @@ function characterCreatorSelect(label, options, value, change) {
 }
 function characterCreatorStepper(label, options, value, change) {
     const row = characterCreatorRow(label), current = Math.max(0, options.findIndex(option => option[0] === value)), group = characterCreatorElement(row, 'span', null, {display: 'flex', width: '92px', alignItems: 'center', gap: '2px'});
-    const arrow = (direction) => {const button = characterCreatorElement(group, 'button', null, {width: '14px', height: '14px', padding: '2px', flexShrink: '0'}); button.type = 'button'; button.setAttribute('aria-label', (direction < 0 ? 'Previous ' : 'Next ') + label); const image = characterCreatorElement(button, 'img', null, {width: '8px', height: '8px', display: 'block', transform: `rotate(${direction < 0 ? -90 : 90}deg)`}); image.src = getUiSkinUrl(characterCreator.scene, 'arrow-up'); button.addEventListener('click', () => {change(options[(current + direction + options.length) % options.length][0]); refreshCharacterCreator();});};
+    const arrow = (direction) => {const button = characterCreatorElement(group, 'button', null, {width: '14px', height: '14px', padding: '2px', flexShrink: '0'}); button.type = 'button'; button.setAttribute('aria-label', (direction < 0 ? 'Previous ' : 'Next ') + label); const image = characterCreatorElement(button, 'img', null, {width: '8px', height: '8px', display: 'block'}); image.src = getUiSkinUrl(characterCreator.scene, direction < 0 ? 'arrow-left' : 'arrow-right'); button.addEventListener('click', () => {change(options[(current + direction + options.length) % options.length][0]); refreshCharacterCreator();});};
     arrow(-1); characterCreatorElement(group, 'span', options[current][1], {width: '60px', textAlign: 'center', color: '#e0f2fd'}); arrow(1);
 }
 function characterCreatorSlider(label, value, max, gradient, change) {
@@ -27,8 +27,9 @@ function characterColorGradient(palettes, shade = 1) {
     return 'linear-gradient(to right, ' + [...palettes, palettes[0]].map(palette => '#' + palette[Math.min(shade, palette.length - 1)].toString(16).padStart(6, '0')).join(', ') + ')';
 }
 function createCharacterCreatorLookControls(look) {
-    characterCreatorSelect('Gender', [[0, 'Male'], [1, 'Female']], look[14], value => { look[14] = value; });
-    characterCreatorSelect('Face', [[0, 'Normal'], [1, 'Young'], [2, 'Older']], look[1], value => { look[1] = value; });
+    characterCreatorSelect('Gender', [[0, 'Male'], [1, 'Female']], look[14], value => { look[14] = value; if (!value && look.length > 20) look[20] = 0; });
+    characterCreatorSelect('Face', [[0, 'Normal'], [1, 'Young'], [2, 'Older']], look[1], value => { look[1] = value; if (value === 2 && look.length > 20) look[20] = 0; });
+    if (look[14] && look[1] !== 2) characterCreatorStepper('Makeup', [[0, 'Soft'], [1, 'Full']], look[20] ?? 0, value => {look[20] = value;});
     characterCreatorSelect('Palette', [[0, 'Natural'], [5, 'Pastel']], look[0] >= 5 ? 5 : 0, value => { look[0] = value; });
     const skinColors = Array.from({length: 17}, (_, index) => '#' + getPersonSkinRamp(look[0] >= 5, index / 16)[1].toString(16).padStart(6, '0'));
     characterCreatorSlider('Tone', Math.round(look[15] * 1000), 1000, 'linear-gradient(to right, ' + skinColors.join(', ') + ')', value => {look[15] = value / 1000;});
