@@ -69,7 +69,7 @@ function updateInteractionPrompt(scene, guideReach, marketReach) {
 
     const time = scene.time.now, available = !isMenuOpen() && time >= catchCardUntil;
     const target = available && !interior && (guideReach < 1 || marketReach < 1)
-        ? getInteractionTarget(guideHasMetPlayer, guideReach, marketReach)
+        ? getInteractionTarget(true, guideReach, marketReach)
         : null;
     const showItem = available && !target && time < itemLabelUntil;
     const showNpc = available && !target && !showItem && (interior ? interiorTalkNpc : nearestNpc && nearestNpc.state !== 'home' && nearestNpc);

@@ -6,6 +6,18 @@ const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
 
+test('guide introduction status persists across reloads and remains unmet until a real conversation', () => {
+    const unseen = createSession({version: 1, guideMet: false}); unseen.load();
+    assert.equal(unseen.run('guideHasMetPlayer'), false);
+    const reloaded = createSession(persisted(unseen)); reloaded.load();
+    assert.equal(reloaded.run('guideHasMetPlayer'), false);
+    reloaded.run('guideHasMetPlayer = true; saveDirty = true;');
+    const met = createSession(persisted(reloaded)); met.load();
+    assert.equal(met.run('guideHasMetPlayer'), true);
+    const fresh = createSession(null); fresh.load();
+    assert.equal(fresh.run('guideHasMetPlayer'), false);
+});
+
 test('people met remain unique across saves and recover known visitors from old NPC memories', () => {
     const session = createSession({version: 1, people: [1, 1, '2', null], npcs: [{id: 2, visits: 4}, {id: 3, visits: 0}, {id: 4, visits: '1'}]});
     session.load();

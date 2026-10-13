@@ -151,7 +151,7 @@ function showGuideDialogueNode(scene, nodeKey) {
 }
 
 function beginDialogue(scene, nodes, actor, name, npc) {
-    recordPlayerStat('conversations');
+    if (nodes !== GUIDE_INVITATION) recordPlayerStat('conversations');
     dialogueNodes = nodes;
     dialogueActor = actor;
     dialogueNpc = npc;
@@ -166,7 +166,12 @@ function beginDialogue(scene, nodes, actor, name, npc) {
 function openGuideDialogue(scene) {
     if (isMenuOpen() || !guide || !dialogueContainer) return;
 
-    beginDialogue(scene, GUIDE_DIALOGUE, guide, 'Guide', null);
+    guideHasMetPlayer = true; saveDirty = true; beginDialogue(scene, GUIDE_DIALOGUE, guide, 'Guide', null);
+}
+
+function acceptGuideInvitation(scene) {
+    guideHasMetPlayer = true; saveDirty = true; dialogueNodes = GUIDE_DIALOGUE; recordPlayerStat('conversations');
+    return 'intro';
 }
 
 function closeGuideDialogue(scene) {
@@ -174,7 +179,7 @@ function closeGuideDialogue(scene) {
 
     dialogueOpen = false;
     if (dialogueNpc) releaseDialogueNpc(scene);
-    else guideHasMetPlayer = true;
+    else if (dialogueNodes !== GUIDE_INVITATION) guideHasMetPlayer = true;
     saveDirty = true;
     stopDialogueTyping();
     hideSlidingPanel(scene, DIALOGUE_HIDDEN_Y, () => dialogueOpen, dialogueContainer, dialogueTextLayer);
@@ -214,8 +219,8 @@ function handleGuideDialogueKey(scene, event) {
 }
 
 function updateGuideInteraction(scene, guideIsNear) {
-    if (guideIsNear && !guideWasNear && !guideHasMetPlayer && !isMenuOpen()) {
-        openGuideDialogue(scene);
+    if (!guideInvitationShown && !guideHasMetPlayer && guide && dialogueContainer && !startup && !interior && !interiorTransition && !spawnReturn && !isMenuOpen()) {
+        guideInvitationShown = true; beginDialogue(scene, GUIDE_INVITATION, guide, 'Guide', null);
     }
 
     guideWasNear = guideIsNear;

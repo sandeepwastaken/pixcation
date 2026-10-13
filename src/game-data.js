@@ -56,6 +56,10 @@ const MYSTERY_BAITS = FISH_SPECIES.map(species => ({
 }));
 const ALL_BAITS = [...MARKET_BAITS, ...MYSTERY_BAITS];
 
+const GUIDE_INVITATION = {
+    intro: {portraitExpression: 'grin', portraitEyesClosed: true, text: "Hey! I'm the Guide. Come talk to me!", options: [{label: 'Talk', action: scene => acceptGuideInvitation(scene)}, {label: 'Later', close: true}]}
+};
+
 const GUIDE_DIALOGUE = {
     intro: {
         portraitExpression: 'normal',

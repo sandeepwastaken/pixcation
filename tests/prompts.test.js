@@ -3,6 +3,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+test('the guide talk prompt remains available after dismissing her invitation without marking her as met', () => {
+    const run = createPrompts(); run(fs.readFileSync('src/ui/interactions.js', 'utf8'));
+    run('guideHasMetPlayer = false; guideInvitationShown = true; updateInteractionPrompt(scene, 0.5, Infinity);');
+    assert.equal(run('promptState'), 2); assert.equal(run('guidePrompt.style.display'), 'flex');
+    assert.equal(run('guideHasMetPlayer'), false);
+    run('dialogueOpen = true; updateInteractionPrompt(scene, 0.5, Infinity)');
+    assert.equal(run('promptState'), 0);
+    run('dialogueOpen = false; updateInteractionPrompt(scene, 0.5, Infinity)');
+    assert.equal(run('promptState'), 2);
+});
+
 function createPrompts() {
     const context = vm.createContext({});
     vm.runInContext(['runtime/settings.js', 'runtime/state.js', 'ui/elements.js', 'ui/prompts.js'].map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);

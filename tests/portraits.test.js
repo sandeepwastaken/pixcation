@@ -3,6 +3,32 @@ const assert = require('node:assert/strict');
 const {createPortraitPeople} = require('./portrait-fixture');
 const fs = require('node:fs');
 
+test('the guide invitation appears once per session until an actual conversation and uses her joyful portrait', () => {
+    const {run} = createPortraitPeople(); run(fs.readFileSync('src/ui/interactions.js', 'utf8'));
+    run('guide = {}; dialogueContainer = {}; let invited = 0, shown; isMenuOpen = () => false; beginDialogue = (scene, nodes) => {invited++; shown = nodes;}; updateGuideInteraction(scene, false); updateGuideInteraction(scene, false);');
+    assert.equal(run('invited'), 1); assert.equal(run('shown === GUIDE_INVITATION'), true);
+    assert.equal(run('shown.intro.text'), "Hey! I'm the Guide. Come talk to me!");
+    assert.equal(run('shown.intro.portraitEyesClosed'), true); assert.equal(run('shown.intro.portraitExpression'), 'grin');
+    assert.equal(run('guideHasMetPlayer'), false);
+    run('guideInvitationShown = false; updateGuideInteraction(scene, false)');
+    assert.equal(run('invited'), 2);
+    run('guideInvitationShown = false; guideHasMetPlayer = true; updateGuideInteraction(scene, false)');
+    assert.equal(run('invited'), 2);
+});
+
+test('dismissing the invitation does not count as talking to the guide, but accepting or talking directly does', () => {
+    const {run} = createPortraitPeople(); run(fs.readFileSync('src/ui/interactions.js', 'utf8'));
+    run(fs.readFileSync('src/runtime/progress.js', 'utf8'));
+    run('guide = {}; dialogueContainer = {}; dialogueOpen = true; dialogueNodes = GUIDE_INVITATION; stopDialogueTyping = hideSlidingPanel = () => {}; closeGuideDialogue(scene);');
+    assert.equal(run('guideHasMetPlayer'), false);
+    run('const next = GUIDE_INVITATION.intro.options[0].action(scene);');
+    assert.equal(run('next'), 'intro'); assert.equal(run('dialogueNodes === GUIDE_DIALOGUE'), true);
+    assert.equal(run('guideHasMetPlayer'), true); assert.equal(run('saveDirty'), true);
+    assert.equal(run('playerStats.conversations'), 1);
+    run('guideHasMetPlayer = false; isMenuOpen = () => false; beginDialogue = () => {}; openGuideDialogue(scene)');
+    assert.equal(run('guideHasMetPlayer'), true);
+});
+
 test('joyful closed-eye expressions persist through speech and blinking, then reset on an ordinary line', () => {
     const {run} = createPortraitPeople();
     run('dialogueOpen = true; dialoguePortrait = {texture: {key: "none"}, portraitEyesClosed: true, portraitBlinkState: {next: 100, until: 0, closed: false}, setTexture(key) {this.texture.key = key; return this;}}; setDialoguePortraitPose(scene, null, "grin"); updateDialoguePortraitBlink(scene, 10000);');

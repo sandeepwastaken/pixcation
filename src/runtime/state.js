@@ -69,6 +69,7 @@ let spawnReturn = null;
 let store;
 let guideWasNear = false;
 let guideHasMetPlayer = false;
+let guideInvitationShown = false;
 let dialogueContainer;
 let dialogueTextLayer;
 let dialogueText;
