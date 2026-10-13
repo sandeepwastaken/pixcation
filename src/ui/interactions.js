@@ -100,7 +100,7 @@ function stopDialogueTyping() {
 }
 
 function settleGuideTalking() {
-    dialoguePortrait.y = DIALOGUE_PORTRAIT_Y;
+    dialoguePortrait.y = DIALOGUE_PORTRAIT_Y; if (dialoguePortrait.portraitRestKey) dialoguePortrait.setTexture(dialoguePortrait.portraitRestKey);
     if (dialogueActor && dialogueActor.restY !== undefined) dialogueActor.y = dialogueActor.restY;
     showDialogueOptions(true);
 }
@@ -120,7 +120,7 @@ function showGuideDialogueNode(scene, nodeKey) {
     selectedDialogueOption = 0;
     dialogueFullText = node.text;
     layoutDialogueText();
-    if (dialoguePortrait.texture.key !== node.portrait) dialoguePortrait.setTexture(node.portrait);
+    const portraitLook = node.portraitLook || getGuidePortraitLook(scene), expression = node.portraitExpression || (node.portrait === 'guide-portrait-laughing' ? 'grin' : node.portrait === 'guide-portrait-surprised' ? 'openMouth' : 'normal'); dialoguePortrait.portraitRestKey = getPersonPortraitTexture(scene, portraitLook, expression); if (dialoguePortrait.texture.key !== dialoguePortrait.portraitRestKey) dialoguePortrait.setTexture(dialoguePortrait.portraitRestKey);
     dialoguePortrait.setScale(node.portraitScale || 1);
     const typingText = document.createTextNode('');
     dialogueText.replaceChildren(typingText);
@@ -134,7 +134,7 @@ function showGuideDialogueNode(scene, nodeKey) {
         typingText.appendData(letter);
         characterIndex++;
         const bob = Math.floor(characterIndex / 3) % 2;
-        dialoguePortrait.y = DIALOGUE_PORTRAIT_Y - bob;
+        dialoguePortrait.y = DIALOGUE_PORTRAIT_Y - bob; dialoguePortrait.setTexture(getPersonPortraitTexture(scene, portraitLook, bob && !/[.!?,]/.test(letter) ? 'openMouth' : expression));
         if (dialogueActor) dialogueActor.y = dialogueActor.restY - bob;
         if (characterIndex >= dialogueFullText.length) {
             dialogueTypingEvent = null;

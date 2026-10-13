@@ -239,9 +239,9 @@ function createNpc(tileX, tileY, water) {
     const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
     const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
-    const rareName = getNpcRareName(appearance[22] / NPC_APPEARANCE_RADICES[22]), feminine = rareVanity || (rareName ? NPC_FEMININE_FIRST_NAMES.includes(rareName) : appearance[18] === 1), face = appearance[4], names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
-    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8]) : [0, 2, 4, 6, 7, 8], hairstyles = feminine ? [0, 2, 7, 8, 9] : face === 1 ? [0, 1, 5, 6, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9];
-    const vanity = feminine ? [0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 6] : [0, 0, 1, 1, 2, 2, 3, 6, 6, 6, 6], pants = feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
+    const rareName = getNpcRareName(appearance[22] / NPC_APPEARANCE_RADICES[22]), feminine = rareVanity || (rareName ? NPC_FEMININE_FIRST_NAMES.includes(rareName) : appearance[18] === 1), face = getNpcFace(appearance[4]), names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
+    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8, 9] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) : [0, 2, 4, 6, 7, 8, 9], hairstyles = feminine ? [0, 2, 7, 8, 9] : face === 1 ? [0, 1, 5, 6, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9];
+    const vanity = feminine ? [0, 0, 1, 1, 3, 3, 3, 3, 4, 4, 6, 7] : [0, 0, 1, 1, 2, 2, 6, 6, 6, 6, 7], pants = feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
     return {
         id: getTileId(tileX, tileY),
         tileX,
@@ -279,6 +279,7 @@ function getNpcAppearanceRolls(tileX, tileY) {
     return NPC_APPEARANCE_RADICES.map(radix => { const value = Number(word % BigInt(radix)); word /= BigInt(radix); return value; });
 }
 function getNpcEyeColor(roll) { let limit = 0; return NPC_EYE_WEIGHTS.findIndex(weight => roll < (limit += Math.round(weight * 100))); }
+function getNpcFace(roll) {let limit = 0; return NPC_FACE_WEIGHTS.findIndex(weight => roll < (limit += weight));}
 
 function makeNpcAppearanceSeed(worldSeed, tileX, tileY, rolls, variant = 0n) {
     if (!Number.isSafeInteger(worldSeed) || worldSeed <= 0 || worldSeed > 0xffffffff || !Number.isSafeInteger(tileX) || !Number.isSafeInteger(tileY) || rolls.length !== NPC_APPEARANCE_RADICES.length || rolls.some((value, index) => !Number.isSafeInteger(value) || value < 0 || value >= NPC_APPEARANCE_RADICES[index])) throw new Error('Invalid appearance seed inputs');
@@ -1163,19 +1164,19 @@ function buildNpcDialogue(scene, npc) {
     const greeting = (clock.hour < 10 ? 'Morning. ' : clock.hour >= 18 ? 'Evening. ' : '') + (raining ? greetingLines[npc.playerVisits ? 1 : 0] : pick(greetingLines));
     const companion = connection && activeNpcs.find(other => other.id === connection.companion.id);
     const first = npc.name.split(' ')[0];
-    const portrait = getNpcTexture(scene, npc.look, 'front', 0);
-    const node = (text, options) => ({ portrait, portraitScale: NPC_PORTRAIT_SCALE, text: text.replaceAll('{first}', first), options });
+    const portraitLook = npc.look;
+    const node = (text, options, portraitExpression = 'normal') => ({ portrait: getPersonPortraitTexture(scene, portraitLook, portraitExpression), portraitLook, portraitExpression, portraitScale: NPC_PORTRAIT_SCALE, text: text.replaceAll('{first}', first), options });
     const back = { label: 'Back', next: 'intro' };
     const rumor = findNearestRumor(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE));
     const shopRumor = getMysteryShopRumor();
     const bye = { label: 'Bye', close: true };
     const nodes = {
         chat: node(pick(personality.chatter), [{ label: 'Any rumors?', action: () => (!shopRumor && rumor && hearRumor(rumor), 'rumor') }, back, bye]),
-        company: node(connection ? describeNpcConnection(npc, connection) : 'I enjoy meeting people around here.', [back, bye]),
+        company: node(connection ? describeNpcConnection(npc, connection) : 'I enjoy meeting people around here.', [back, bye], 'grin'),
         plans: node(describeNpcPlans(npc), [back, bye]),
         waiting: node('They might join us when they have a moment. We can keep chatting.', [back, bye]),
         rumor: node(shopRumor ? pick(shopRumor === 'now' ? NPC_RARE_BAIT_NOW_LINES : NPC_RARE_BAIT_SOON_LINES) : rumor ? describeRumor(rumor, pick(NPC_RUMOR_LINES)) : pick(NPC_NO_RUMOR_LINES), [back, bye]),
-        tips: node(pick(npc.fishing ? raining ? personality.rainFishing : personality.fishing : NPC_FISHING_TIPS), [back, bye])
+        tips: node(pick(npc.fishing ? raining ? personality.rainFishing : personality.fishing : NPC_FISHING_TIPS), [back, bye], 'openMouth')
     };
     if (connection) nodes.chat.options[1] = { label: 'Your company?', action: () => (nodes.company.text = describeNpcConnection(npc, connection), 'company') };
     nodes.chat.options.splice(nodes.chat.options.length - 1, 0, { label: 'Your plans?', next: 'plans' });
@@ -1187,8 +1188,8 @@ function buildNpcDialogue(scene, npc) {
     if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
     if (npc.fishing?.state === 'reeling') nodes.tips.text = npc.needsShelter ? 'I am bringing my line in and getting out of this rain for a while.' : 'I am bringing my line in. I will try another cast after a short break.';
     if (companion?.joining === npc.id) nodes.company.options.unshift({ label: 'Say hello', action: () => companion.joinedConversation === npc.id && companion.talking ? 'companion' : 'waiting' });
-    if (companion) nodes.companion = { portrait: getNpcTexture(scene, companion.look, 'front', 0), portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: `Hi! ${connection.kind === 'close' ? "I'm close to " + first : first + ' is my ' + connection.kind}. How is your fishing going?`, options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'Back', next: 'intro' }, bye] };
-    if (companion) nodes.companionReply = { ...nodes.companion, text: 'Glad to hear it. Maybe we will see you around the water later!', options: [back, bye] };
+    if (companion) nodes.companion = { portrait: getPersonPortraitTexture(scene, companion.look), portraitLook: companion.look, portraitExpression: 'normal', portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: `Hi! ${connection.kind === 'close' ? "I'm close to " + first : first + ' is my ' + connection.kind}. How is your fishing going?`, options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'Back', next: 'intro' }, bye] };
+    if (companion) nodes.companionReply = { ...nodes.companion, portrait: getPersonPortraitTexture(scene, companion.look, 'grin'), portraitExpression: 'grin', text: 'Glad to hear it. Maybe we will see you around the water later!', options: [back, bye] };
 
     if (npc.role !== 'trader') {
         nodes.intro = node(greeting, [{ label: 'Chat', next: 'chat' }, { label: npc.fishing ? 'Any bites?' : 'Tips', next: 'tips' }, bye]);
@@ -1199,7 +1200,7 @@ function buildNpcDialogue(scene, npc) {
     const { count, coins, species } = trade;
     const owned = fishInventory.get(species.id) || 0;
     nodes.intro = node(greeting, [{ label: 'Trade', next: 'trade' }, { label: 'Chat', next: 'chat' }, bye]);
-    nodes.traded = node(personality.thanks.replace('{coins}', coins), [bye]);
+    nodes.traded = node(personality.thanks.replace('{coins}', coins), [bye], 'grin');
     if (npcTradesDone.has(`${npc.id}:${trade.period}`)) {
         nodes.trade = node(personality.tradeDone, [back, bye]);
     } else if (owned >= count) {

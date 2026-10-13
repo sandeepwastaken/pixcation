@@ -130,7 +130,7 @@ const DIALOGUE_OPTION_STEP = 19;
 const DIALOGUE_OPTION_WIDTH = 86;
 const DIALOGUE_OPTION_HEIGHT = 17;
 const DIALOGUE_TYPE_DELAY = 24;
-const DIALOGUE_PORTRAIT_Y = 13;
+const DIALOGUE_PORTRAIT_Y = 8;
 
 const MAP_PANEL_HEIGHT = 142;
 const MAP_WIDTH = 296;
@@ -392,14 +392,15 @@ function loadWorldSeed() {
 
 const NPC_PART_SIZE = 16;
 const NPC_FACES = 3;
-const NPC_ACCESSORIES = 7;
+const NPC_FACE_WEIGHTS = [65, 25, 10];
+const NPC_ACCESSORIES = 8;
 const NPC_HAIRSTYLES = 10;
-const NPC_SHIRTS = 9;
+const NPC_SHIRTS = 10;
 const NPC_ACCESSORY_CHANCE = 0.35;
 const NPC_RARE_VANITY_CHANCE = 0.0001, NPC_PASTEL_SKIN_CHANCE = 0.01, NPC_PANTS_STYLES = 5;
 const NPC_EYE_COLORS = [0x191820, 0x633d2b, 0x46758b, 0x527349, 0x77794a, 0xadcddd, 0xb18c53], NPC_EYE_WEIGHTS = [0.64, 0.16, 0.07, 0.06, 0.04, 0.02, 0.01];
 const NPC_EYE_PALETTES = NPC_EYE_COLORS.map(color => [color]);
-const NPC_APPEARANCE_RADICES = [10000, 100, 65536, 65536, 3, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536, 10000, 4294967296];
+const NPC_APPEARANCE_RADICES = [10000, 100, 65536, 65536, 100, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536, 10000, 4294967296];
 const NPC_CELL_SIZE = 10;
 const NPC_CELL_MARGIN = 2;
 const NPC_CELL_CHANCE = 0.45;
@@ -414,7 +415,7 @@ const NPC_SKIN_TONES = [
     [0x8c5a3c, 0xb07a52, 0xc99a6c, 0x3a2620],
     [0x5e3a2a, 0x7d4f37, 0x9a6a4a, 0x2a1a16],
     [0x3e2620, 0x58372a, 0x744b38, 0x1e1412],
-    [0x9c7abd, 0xc9ace7, 0xebdcff, 0x64477d], [0x80a2bf, 0xafd2eb, 0xd6edf9, 0x506a85], [0x91ad91, 0xbad8b9, 0xe0f0dc, 0x587558], [0xbd93a2, 0xe4bfcd, 0xf8e1ea, 0x805d6c]
+    [0x885fa6, 0xae7fcc, 0xc49ae4, 0x593775], [0x6693b5, 0x96bedc, 0xb4d5ee, 0x3f607e], [0x78a478, 0xa2cda1, 0xc2e2bc, 0x426741], [0xb17696, 0xd6a3bd, 0xeebed4, 0x7a4564]
 ];
 const NPC_HAIR_COLORS = [
     [0x1f1a1d, 0x2f282c, 0x463c40],
@@ -495,7 +496,7 @@ const NPC_SCARE_RADIUS = 7;
 const NPC_DISAPPOINT_TIME = 900;
 const NPC_FISH_MIN = 5000;
 const NPC_FISH_RANGE = 7000;
-const NPC_PORTRAIT_SCALE = 3;
+const NPC_PORTRAIT_SCALE = 1;
 const NPC_HASTY_CHANCE = 0.4;
 const NPC_SPRINT_DISTANCE = 8;
 const NPC_MEMORY_LIMIT = 200;

@@ -50,11 +50,41 @@ function canInteriorResidentStand(resident, x, y, room = resident.room) {
     return canOccupyInterior(x + CHARACTER_HITBOX_X, y + CHARACTER_HITBOX_Y, x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, resident.sprite, room);
 }
 
+function clearInteriorEntrance(scene) {
+    const residents = interior.residents.filter(resident => resident.npc.state === 'home').map(resident => getNpcIndoorResident(scene, resident.npc));
+    const left = character.x + CHARACTER_HITBOX_X, top = character.y + CHARACTER_HITBOX_Y, right = left + CHARACTER_HITBOX_WIDTH, bottom = Math.max(top + CHARACTER_HITBOX_HEIGHT, interior.bottom + TILE_SIZE);
+    for (const resident of residents) {
+        if (!actorBlocksRect(resident.sprite, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) continue;
+        const origin = [resident.sprite.x, resident.sprite.y], queue = [origin], seen = new Set([origin.join(',')]), room = resident.room;
+        for (let index = 0; index < queue.length; index++) {
+            const [x, y] = queue[index];
+            if (index && x >= room.left && y >= room.top && x + NPC_PART_SIZE <= room.right && y + NPC_PART_SIZE <= room.bottom && canInteriorResidentStand(resident, x, y)) {resident.sprite.setPosition(x, y); resident.goal = null; resident.route = null; resident.remainder = 0; resident.nextWalkAt = scene.time.now; room.occupancyVersion = (room.occupancyVersion || 0) + 1; saveDirty = true; break;}
+            for (const [dx, dy] of [[0, -1], [-1, 0], [1, 0], [0, 1]]) {const next = [x + dx * TILE_SIZE, y + dy * TILE_SIZE], key = next.join(','); if (!seen.has(key) && next[0] >= room.left - TILE_SIZE && next[0] <= room.right && next[1] >= room.top - TILE_SIZE && next[1] <= room.bottom) {seen.add(key); queue.push(next);}}
+        }
+    }
+    updateInteriorResidents(scene, scene.time.now, 0);
+}
+
+function isInteriorResidentRouteClear(resident) {
+    let x = resident.sprite.x, y = resident.sprite.y;
+    for (const goal of [resident.goal, ...(resident.route || [])]) {
+        if (!goal) continue;
+        while (x !== goal.x || y !== goal.y) {x += Math.sign(goal.x - x); y += Math.sign(goal.y - y); if (!canInteriorResidentStand(resident, x, y)) return false;}
+    }
+    return true;
+}
+
+function findInteriorDoorYieldPath(resident) {
+    const room = resident.room; if (!room.residents.some(other => other !== resident && other.npc.state === 'home' && other.journey === 'enter' && Math.abs(other.sprite.x - room.doorLeft) + Math.abs(other.sprite.y - room.bottom) <= TILE_SIZE)) return null;
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) {const x = resident.sprite.x + dx * TILE_SIZE, y = resident.sprite.y + dy * TILE_SIZE; if (x < room.left || x + NPC_PART_SIZE > room.right || y < room.top || y + NPC_PART_SIZE > room.bottom || x === room.doorLeft) continue; const path = findInteriorResidentPath(resident, x, y); if (path?.length) return path;}
+    return null;
+}
+
 function getNpcIndoorResident(scene, npc) {
     const room = npc.house.indoorRoom ||= buildInterior(scene, npc.house, false);
     if (!npc.indoor) npc.indoor = {npc, room, journey: 'enter', direction: 'back', sprite: {x: room.doorLeft, y: room.bottom, setPosition(x, y) {this.x = x; this.y = y; return this;}, setDepth() {return this;}}};
-    if (!room.residents.includes(npc.indoor)) room.residents.push(npc.indoor);
-    room.residents = room.residents.filter(resident => resident.npc.indoor === resident && resident.npc.state === 'home' && (resident.npc === npc || activeNpcs.includes(resident.npc)));
+    if (!room.residents.includes(npc.indoor)) {room.residents.push(npc.indoor); room.occupancyVersion = (room.occupancyVersion || 0) + 1;}
+    const count = room.residents.length; room.residents = room.residents.filter(resident => resident.npc.indoor === resident && resident.npc.state === 'home' && (resident.npc === npc || activeNpcs.includes(resident.npc))); if (room.residents.length !== count) room.occupancyVersion = (room.occupancyVersion || 0) + 1;
     return npc.indoor;
 }
 
@@ -93,8 +123,9 @@ function chooseInteriorResidentWalk(resident, time) {
 }
 
 function updateInteriorResident(scene, resident, time, delta) {
+    const occupancy = `${resident.room.occupancyVersion || 0}:${interior?.house === resident.room.house ? character.x + ',' + character.y : ''}`; if (resident.journey && resident.routeVersion !== occupancy) {if (!resident.goal || !isInteriorResidentRouteClear(resident)) {resident.goal = null; resident.route = null; resident.nextWalkAt = time;} resident.routeVersion = occupancy;}
     if (resident.npc.talking || isMenuOpen()) { setInteriorResidentPose(scene, resident, resident.npc.talking ? getDirectionToward(resident.sprite, character.x, character.y) : resident.direction || 'front', 0); return; }
-    if (resident.journey === 'enter' && resident.sprite.x === resident.room.doorLeft && resident.sprite.y === resident.room.bottom - TILE_SIZE && !resident.goal) resident.journey = null; if (!resident.goal && resident.journey && time >= (resident.nextWalkAt || 0)) {resident.route = findInteriorResidentPath(resident, resident.room.doorLeft, resident.room.bottom - (resident.journey === 'enter' ? TILE_SIZE : 0)); resident.goal = resident.route?.shift() || null; resident.nextWalkAt = time + 750;} else if (!resident.goal && !resident.journey && time >= (resident.nextWalkAt ??= time + 500 + Math.random() * 1500)) chooseInteriorResidentWalk(resident, time);
+    if (resident.journey === 'enter' && resident.sprite.x === resident.room.doorLeft && resident.sprite.y === resident.room.bottom - TILE_SIZE && !resident.goal) resident.journey = null; if (!resident.goal && resident.journey && time >= (resident.nextWalkAt || 0)) {resident.route = findInteriorResidentPath(resident, resident.room.doorLeft, resident.room.bottom - (resident.journey === 'enter' ? TILE_SIZE : 0)); if (!resident.route && resident.journey === 'exit') resident.route = findInteriorDoorYieldPath(resident); resident.goal = resident.route?.shift() || null; resident.nextWalkAt = time + 750;} else if (!resident.goal && !resident.journey && time >= (resident.nextWalkAt ??= time + 500 + Math.random() * 1500)) chooseInteriorResidentWalk(resident, time);
     if (!resident.goal) {setInteriorResidentPose(scene, resident, resident.direction || 'front', 0); return;}
     const goal = resident.goal, dx = Math.sign(goal.x - resident.sprite.x), dy = Math.sign(goal.y - resident.sprite.y), frameDelta = Math.min(delta, 50);
     resident.remainder = (resident.remainder || 0) + CHARACTER_SPEED * resident.npc.speed * frameDelta / 1000;
@@ -102,9 +133,9 @@ function updateInteriorResident(scene, resident, time, delta) {
     for (let step = 0; step < steps; step++) {
         const x = resident.sprite.x + dx, y = resident.sprite.y + dy;
         if (!canInteriorResidentStand(resident, x, y)) {resident.goal = null; resident.route = null; resident.remainder = 0; resident.nextWalkAt = time + 500; break;}
-        resident.sprite.setPosition(x, y); saveDirty = true; if (resident.sprite.depth !== y + NPC_PART_SIZE) resident.sprite.setDepth(y + NPC_PART_SIZE);
+        resident.sprite.setPosition(x, y); resident.room.occupancyVersion = (resident.room.occupancyVersion || 0) + 1; saveDirty = true; if (resident.sprite.depth !== y + NPC_PART_SIZE) resident.sprite.setDepth(y + NPC_PART_SIZE);
     }
-    resident.walkPhase = (resident.walkPhase || 0) + frameDelta * CHARACTER_ANIMATION_SPEED * resident.npc.speed / 1000;
+    resident.walkPhase = (resident.walkPhase || 0) + frameDelta * CHARACTER_ANIMATION_SPEED * resident.npc.speed / 1000; resident.routeVersion = `${resident.room.occupancyVersion || 0}:${interior?.house === resident.room.house ? character.x + ',' + character.y : ''}`;
     setInteriorResidentPose(scene, resident, goal.direction, CHARACTER_WALK_FRAMES[Math.floor(resident.walkPhase) % 4]);
     if (resident.sprite.x === goal.x && resident.sprite.y === goal.y) {resident.goal = resident.route?.shift() || null; if (!resident.goal) {resident.remainder = 0; resident.nextWalkAt = resident.journey === 'exit' ? time : time + 800 + Math.random() * 2200; if (resident.journey === 'enter' && resident.sprite.x === resident.room.doorLeft && resident.sprite.y === resident.room.bottom - TILE_SIZE) resident.journey = null; setInteriorResidentPose(scene, resident, goal.direction, 0);}}
 }
@@ -159,6 +190,7 @@ function enterInterior(scene, house) {
     interior.layer.add(character);
     characterShadow.image.setVisible(false);
     character.setPosition(interior.startX, interior.startY);
+    clearInteriorEntrance(scene);
     characterDirection = 'back';
     setCharacterTexture('character-back');
     snapInteriorCamera();

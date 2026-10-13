@@ -11,14 +11,14 @@ function createGuideDialogueUI(scene) {
         .fillStyle(0x4a2216, 1)
         .fillRect(DIALOGUE_OPTION_X - 2, 1, DIALOGUE_OPTION_WIDTH - 2, DIALOGUE_OPTION_HEIGHT - 2);
 
-    dialoguePortrait = scene.add.image(12, 13, 'guide-portrait-friendly')
+    dialoguePortrait = scene.add.image(12, DIALOGUE_PORTRAIT_Y, getPersonPortraitTexture(scene, getGuidePortraitLook(scene)))
         .setOrigin(0);
 
     const textLayer = createTextLayer(78, CRISP_TEXT_STYLE);
 
-    dialogueName = createUIText(textLayer, 64, 10, '#acccf9');
+    dialogueName = createUIText(textLayer, 78, 10, '#acccf9');
     dialogueName.textContent = 'Guide';
-    dialogueText = createUIText(textLayer, 64, 26, '#e0f2fd', 146, null, { whiteSpace: 'normal', fontSize: '11px', lineHeight: '10px' });
+    dialogueText = createUIText(textLayer, 78, 26, '#e0f2fd', 132, null, { whiteSpace: 'normal', fontSize: '11px', lineHeight: '10px' });
     dialogueOptionTexts = [0, 1, 2].map(index => {
         return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 2 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });

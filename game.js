@@ -1057,7 +1057,7 @@ function samplePersonPalette(palettes, index, amount) {
 }
 
 function getPersonSkinRamp(pastel, amount) {
-    const anchors = pastel ? [NPC_SKIN_TONES[8], [0xc0a478, 0xe8cfaa, 0xffecd2, 0x806746], NPC_SKIN_TONES[7], NPC_SKIN_TONES[6], NPC_SKIN_TONES[5], NPC_SKIN_TONES[8]] : [NPC_SKIN_TONES[4], NPC_SKIN_TONES[3], NPC_SKIN_TONES[2], NPC_SKIN_TONES[0], NPC_SKIN_TONES[1]];
+    const anchors = pastel ? [NPC_SKIN_TONES[8], [0xb99b60, 0xe0c07c, 0xf3d99e, 0x7a6138], NPC_SKIN_TONES[7], NPC_SKIN_TONES[6], NPC_SKIN_TONES[5], NPC_SKIN_TONES[8]] : [NPC_SKIN_TONES[4], NPC_SKIN_TONES[3], NPC_SKIN_TONES[2], NPC_SKIN_TONES[0], NPC_SKIN_TONES[1]];
     const value = Math.max(0, Math.min(1, amount)) * (anchors.length - 1), index = Math.min(anchors.length - 2, Math.floor(value));
     return samplePersonPalette(anchors, index, value - index);
 }
@@ -1182,6 +1182,53 @@ function createPlayerTextures(scene) {
     for (const direction of ['front', 'back', 'left', 'right']) for (const blink of [false, true]) {
         for (const frame of [0, 1, 2]) getPersonTexture(scene, `character-${direction}${frame ? `walk${frame}` : ''}${blink ? '-blink' : ''}`, PLAYER_LOOK, direction, frame, blink);
     }
+}
+
+function mixPortraitColor(first, second, amount) {
+    return samplePersonPalette([[first], [second]], 0, amount)[0];
+}
+
+function getPortraitColorMap(look, expression = false) {
+    const palette = getPersonPalette(look), mix = mixPortraitColor;
+    const colors = new Map([[0xff0000, palette.skin[2]], [0xe90000, mix(palette.skin[1], palette.skin[2], 0.5)], [0xd20000, palette.skin[1]], [0xa40000, palette.skin[0]], [0xff2d1c, mix(palette.skin[2], 0xffffff, 0.12)]]);
+    for (const [source, target] of [[0xd07d00, palette.hair[0]], [0xe88b00, mix(palette.hair[0], palette.hair[1], 0.6)], [0xff9900, palette.hair[1]], [0xffdeab, palette.hair[2]]]) colors.set(source, target);
+    for (const [source, target] of [[0x004a16, palette.top[0]], [0x00ac34, palette.top[1]], [0x00d540, mix(palette.top[1], palette.top[2], 0.5)], [0x00ff4d, palette.top[2]], [0x8affad, palette.top[3]]]) colors.set(source, target);
+    for (const [source, target] of [[0x00129e, palette.shirt[0]], [0x0018cf, mix(palette.shirt[0], palette.shirt[1], 0.5)], [0x001eff, palette.shirt[1]], [0x364df7, mix(palette.shirt[1], 0xffffff, 0.18)], [0x00d9ff, palette.shirtAccent], [0x00c3e5, mix(palette.shirtAccent, 0x000000, 0.16)]]) colors.set(source, target);
+    for (const [source, target] of [[0x000000, 0x000000], [0x660000, expression ? palette.skin[3] : mix(palette.eye, 0x000000, 0.25)], [0x8f1010, palette.eye], [0xb72323, mix(palette.eye, 0xffffff, 0.2)], [0x1a0000, mix(expression ? palette.skin[3] : palette.hair[0], 0x000000, 0.45)], [0x3b0000, mix(palette.hair[0], 0x000000, 0.2)], [0xffffff, 0xffffff], [0xf9dede, 0xf2efec], [0xf2bdbd, 0xdcd6d0], [0xc78888, 0xb7aba1]]) colors.set(source, target);
+    return colors;
+}
+
+function composePersonPortraitPixels(scene, look, expression = 'normal') {
+    if (!['normal', 'openMouth', 'grin'].includes(expression)) throw new Error('Unknown portrait expression');
+    const prefix = 'characters/people/portraits/', background = getTerrainPixels(scene, prefix + 'background');
+    const {width, height} = background, data = new Uint8ClampedArray(background.data), colors = getPortraitColorMap(look);
+    const layers = ['base' + (look[1] + 1), ...(look[14] ? ['base' + (look[1] + 1) + 'F'] : []), ...(expression === 'normal' ? [] : [expression]), 'shirt' + (look[2] + 1), (look[5] ? 'vanity' : 'hair') + (look[6] + 1)];
+    for (const layer of layers) {
+        const source = getTerrainPixels(scene, prefix + layer), mapping = layer === 'openMouth' || layer === 'grin' ? getPortraitColorMap(look, true) : colors;
+        if (source.width !== width || source.height !== height) throw new Error('Portrait layer dimensions do not match: ' + layer);
+        for (let pixel = 0; pixel < width * height; pixel++) {
+            const offset = pixel * 4; if (!source.data[offset + 3]) continue;
+            const original = (source.data[offset] << 16) | (source.data[offset + 1] << 8) | source.data[offset + 2], color = mapping.get(original);
+            if (color === undefined) throw new Error('Unmapped portrait color: ' + original.toString(16) + ' in ' + layer);
+            data[offset] = color >> 16 & 255; data[offset + 1] = color >> 8 & 255; data[offset + 2] = color & 255; data[offset + 3] = source.data[offset + 3];
+        }
+    }
+    if (look[8]) for (let y = 0; y < height; y++) for (let x = 0; x < Math.floor(width / 2); x++) {const first = (y * width + x) * 4, second = (y * width + width - 1 - x) * 4; for (let channel = 0; channel < 4; channel++) [data[first + channel], data[second + channel]] = [data[second + channel], data[first + channel]];}
+    for (let pixel = 0; pixel < width * height; pixel++) {const offset = pixel * 4, color = background.data[offset] << 16 | background.data[offset + 1] << 8 | background.data[offset + 2]; if (color !== 0x32180f) data.set(background.data.subarray(offset, offset + 4), offset);}
+    return {width, height, data};
+}
+
+function getPersonPortraitTexture(scene, look, expression = 'normal') {
+    const key = `portrait-${look.join('-')}-${expression}`;
+    if (!scene.textures.exists(key)) {
+        const pixels = composePersonPortraitPixels(scene, look, expression);
+        createCanvasTexture(scene, key, pixels.width, pixels.height, context => {const image = context.createImageData(pixels.width, pixels.height); image.data.set(pixels.data); context.putImageData(image, 0, 0);});
+    }
+    return key;
+}
+
+function getGuidePortraitLook(scene) {
+    return scene.guidePortraitLook ||= createNpc(-2, 2, null).look;
 }
 
 function getTileId(tileX, tileY) {
@@ -4064,9 +4111,9 @@ function createNpc(tileX, tileY, water) {
     const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
     const rareVanity = appearance[0] < NPC_RARE_VANITY_CHANCE * NPC_APPEARANCE_RADICES[0], accessory = rareVanity || appearance[8] < NPC_ACCESSORY_CHANCE * 100 ? 1 : 0;
-    const rareName = getNpcRareName(appearance[22] / NPC_APPEARANCE_RADICES[22]), feminine = rareVanity || (rareName ? NPC_FEMININE_FIRST_NAMES.includes(rareName) : appearance[18] === 1), face = appearance[4], names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
-    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8] : [0, 1, 2, 3, 4, 5, 6, 7, 8]) : [0, 2, 4, 6, 7, 8], hairstyles = feminine ? [0, 2, 7, 8, 9] : face === 1 ? [0, 1, 5, 6, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9];
-    const vanity = feminine ? [0, 0, 1, 1, 2, 2, 3, 3, 3, 3, 4, 4, 6] : [0, 0, 1, 1, 2, 2, 3, 6, 6, 6, 6], pants = feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
+    const rareName = getNpcRareName(appearance[22] / NPC_APPEARANCE_RADICES[22]), feminine = rareVanity || (rareName ? NPC_FEMININE_FIRST_NAMES.includes(rareName) : appearance[18] === 1), face = getNpcFace(appearance[4]), names = feminine ? NPC_COMMON_FEMININE_NAMES : NPC_COMMON_MASCULINE_NAMES;
+    const shirts = feminine ? (face === 1 ? [0, 1, 2, 4, 5, 6, 7, 8, 9] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) : [0, 2, 4, 6, 7, 8, 9], hairstyles = feminine ? [0, 2, 7, 8, 9] : face === 1 ? [0, 1, 5, 6, 8, 9] : [0, 1, 3, 4, 5, 6, 8, 9];
+    const vanity = feminine ? [0, 0, 1, 1, 3, 3, 3, 3, 4, 4, 6, 7] : [0, 0, 1, 1, 2, 2, 6, 6, 6, 6, 7], pants = feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4];
     return {
         id: getTileId(tileX, tileY),
         tileX,
@@ -4104,6 +4151,7 @@ function getNpcAppearanceRolls(tileX, tileY) {
     return NPC_APPEARANCE_RADICES.map(radix => { const value = Number(word % BigInt(radix)); word /= BigInt(radix); return value; });
 }
 function getNpcEyeColor(roll) { let limit = 0; return NPC_EYE_WEIGHTS.findIndex(weight => roll < (limit += Math.round(weight * 100))); }
+function getNpcFace(roll) {let limit = 0; return NPC_FACE_WEIGHTS.findIndex(weight => roll < (limit += weight));}
 
 function makeNpcAppearanceSeed(worldSeed, tileX, tileY, rolls, variant = 0n) {
     if (!Number.isSafeInteger(worldSeed) || worldSeed <= 0 || worldSeed > 0xffffffff || !Number.isSafeInteger(tileX) || !Number.isSafeInteger(tileY) || rolls.length !== NPC_APPEARANCE_RADICES.length || rolls.some((value, index) => !Number.isSafeInteger(value) || value < 0 || value >= NPC_APPEARANCE_RADICES[index])) throw new Error('Invalid appearance seed inputs');
@@ -4988,19 +5036,19 @@ function buildNpcDialogue(scene, npc) {
     const greeting = (clock.hour < 10 ? 'Morning. ' : clock.hour >= 18 ? 'Evening. ' : '') + (raining ? greetingLines[npc.playerVisits ? 1 : 0] : pick(greetingLines));
     const companion = connection && activeNpcs.find(other => other.id === connection.companion.id);
     const first = npc.name.split(' ')[0];
-    const portrait = getNpcTexture(scene, npc.look, 'front', 0);
-    const node = (text, options) => ({ portrait, portraitScale: NPC_PORTRAIT_SCALE, text: text.replaceAll('{first}', first), options });
+    const portraitLook = npc.look;
+    const node = (text, options, portraitExpression = 'normal') => ({ portrait: getPersonPortraitTexture(scene, portraitLook, portraitExpression), portraitLook, portraitExpression, portraitScale: NPC_PORTRAIT_SCALE, text: text.replaceAll('{first}', first), options });
     const back = { label: 'Back', next: 'intro' };
     const rumor = findNearestRumor(Math.round(npc.x / TILE_SIZE), Math.round(npc.y / TILE_SIZE));
     const shopRumor = getMysteryShopRumor();
     const bye = { label: 'Bye', close: true };
     const nodes = {
         chat: node(pick(personality.chatter), [{ label: 'Any rumors?', action: () => (!shopRumor && rumor && hearRumor(rumor), 'rumor') }, back, bye]),
-        company: node(connection ? describeNpcConnection(npc, connection) : 'I enjoy meeting people around here.', [back, bye]),
+        company: node(connection ? describeNpcConnection(npc, connection) : 'I enjoy meeting people around here.', [back, bye], 'grin'),
         plans: node(describeNpcPlans(npc), [back, bye]),
         waiting: node('They might join us when they have a moment. We can keep chatting.', [back, bye]),
         rumor: node(shopRumor ? pick(shopRumor === 'now' ? NPC_RARE_BAIT_NOW_LINES : NPC_RARE_BAIT_SOON_LINES) : rumor ? describeRumor(rumor, pick(NPC_RUMOR_LINES)) : pick(NPC_NO_RUMOR_LINES), [back, bye]),
-        tips: node(pick(npc.fishing ? raining ? personality.rainFishing : personality.fishing : NPC_FISHING_TIPS), [back, bye])
+        tips: node(pick(npc.fishing ? raining ? personality.rainFishing : personality.fishing : NPC_FISHING_TIPS), [back, bye], 'openMouth')
     };
     if (connection) nodes.chat.options[1] = { label: 'Your company?', action: () => (nodes.company.text = describeNpcConnection(npc, connection), 'company') };
     nodes.chat.options.splice(nodes.chat.options.length - 1, 0, { label: 'Your plans?', next: 'plans' });
@@ -5012,8 +5060,8 @@ function buildNpcDialogue(scene, npc) {
     if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
     if (npc.fishing?.state === 'reeling') nodes.tips.text = npc.needsShelter ? 'I am bringing my line in and getting out of this rain for a while.' : 'I am bringing my line in. I will try another cast after a short break.';
     if (companion?.joining === npc.id) nodes.company.options.unshift({ label: 'Say hello', action: () => companion.joinedConversation === npc.id && companion.talking ? 'companion' : 'waiting' });
-    if (companion) nodes.companion = { portrait: getNpcTexture(scene, companion.look, 'front', 0), portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: `Hi! ${connection.kind === 'close' ? "I'm close to " + first : first + ' is my ' + connection.kind}. How is your fishing going?`, options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'Back', next: 'intro' }, bye] };
-    if (companion) nodes.companionReply = { ...nodes.companion, text: 'Glad to hear it. Maybe we will see you around the water later!', options: [back, bye] };
+    if (companion) nodes.companion = { portrait: getPersonPortraitTexture(scene, companion.look), portraitLook: companion.look, portraitExpression: 'normal', portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: `Hi! ${connection.kind === 'close' ? "I'm close to " + first : first + ' is my ' + connection.kind}. How is your fishing going?`, options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'Back', next: 'intro' }, bye] };
+    if (companion) nodes.companionReply = { ...nodes.companion, portrait: getPersonPortraitTexture(scene, companion.look, 'grin'), portraitExpression: 'grin', text: 'Glad to hear it. Maybe we will see you around the water later!', options: [back, bye] };
 
     if (npc.role !== 'trader') {
         nodes.intro = node(greeting, [{ label: 'Chat', next: 'chat' }, { label: npc.fishing ? 'Any bites?' : 'Tips', next: 'tips' }, bye]);
@@ -5024,7 +5072,7 @@ function buildNpcDialogue(scene, npc) {
     const { count, coins, species } = trade;
     const owned = fishInventory.get(species.id) || 0;
     nodes.intro = node(greeting, [{ label: 'Trade', next: 'trade' }, { label: 'Chat', next: 'chat' }, bye]);
-    nodes.traded = node(personality.thanks.replace('{coins}', coins), [bye]);
+    nodes.traded = node(personality.thanks.replace('{coins}', coins), [bye], 'grin');
     if (npcTradesDone.has(`${npc.id}:${trade.period}`)) {
         nodes.trade = node(personality.tradeDone, [back, bye]);
     } else if (owned >= count) {
@@ -5587,11 +5635,41 @@ function canInteriorResidentStand(resident, x, y, room = resident.room) {
     return canOccupyInterior(x + CHARACTER_HITBOX_X, y + CHARACTER_HITBOX_Y, x + CHARACTER_HITBOX_X + CHARACTER_HITBOX_WIDTH, y + CHARACTER_HITBOX_Y + CHARACTER_HITBOX_HEIGHT, resident.sprite, room);
 }
 
+function clearInteriorEntrance(scene) {
+    const residents = interior.residents.filter(resident => resident.npc.state === 'home').map(resident => getNpcIndoorResident(scene, resident.npc));
+    const left = character.x + CHARACTER_HITBOX_X, top = character.y + CHARACTER_HITBOX_Y, right = left + CHARACTER_HITBOX_WIDTH, bottom = Math.max(top + CHARACTER_HITBOX_HEIGHT, interior.bottom + TILE_SIZE);
+    for (const resident of residents) {
+        if (!actorBlocksRect(resident.sprite, CHARACTER_HITBOX_X, CHARACTER_HITBOX_Y, CHARACTER_HITBOX_WIDTH, CHARACTER_HITBOX_HEIGHT, left, top, right, bottom)) continue;
+        const origin = [resident.sprite.x, resident.sprite.y], queue = [origin], seen = new Set([origin.join(',')]), room = resident.room;
+        for (let index = 0; index < queue.length; index++) {
+            const [x, y] = queue[index];
+            if (index && x >= room.left && y >= room.top && x + NPC_PART_SIZE <= room.right && y + NPC_PART_SIZE <= room.bottom && canInteriorResidentStand(resident, x, y)) {resident.sprite.setPosition(x, y); resident.goal = null; resident.route = null; resident.remainder = 0; resident.nextWalkAt = scene.time.now; room.occupancyVersion = (room.occupancyVersion || 0) + 1; saveDirty = true; break;}
+            for (const [dx, dy] of [[0, -1], [-1, 0], [1, 0], [0, 1]]) {const next = [x + dx * TILE_SIZE, y + dy * TILE_SIZE], key = next.join(','); if (!seen.has(key) && next[0] >= room.left - TILE_SIZE && next[0] <= room.right && next[1] >= room.top - TILE_SIZE && next[1] <= room.bottom) {seen.add(key); queue.push(next);}}
+        }
+    }
+    updateInteriorResidents(scene, scene.time.now, 0);
+}
+
+function isInteriorResidentRouteClear(resident) {
+    let x = resident.sprite.x, y = resident.sprite.y;
+    for (const goal of [resident.goal, ...(resident.route || [])]) {
+        if (!goal) continue;
+        while (x !== goal.x || y !== goal.y) {x += Math.sign(goal.x - x); y += Math.sign(goal.y - y); if (!canInteriorResidentStand(resident, x, y)) return false;}
+    }
+    return true;
+}
+
+function findInteriorDoorYieldPath(resident) {
+    const room = resident.room; if (!room.residents.some(other => other !== resident && other.npc.state === 'home' && other.journey === 'enter' && Math.abs(other.sprite.x - room.doorLeft) + Math.abs(other.sprite.y - room.bottom) <= TILE_SIZE)) return null;
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1]]) {const x = resident.sprite.x + dx * TILE_SIZE, y = resident.sprite.y + dy * TILE_SIZE; if (x < room.left || x + NPC_PART_SIZE > room.right || y < room.top || y + NPC_PART_SIZE > room.bottom || x === room.doorLeft) continue; const path = findInteriorResidentPath(resident, x, y); if (path?.length) return path;}
+    return null;
+}
+
 function getNpcIndoorResident(scene, npc) {
     const room = npc.house.indoorRoom ||= buildInterior(scene, npc.house, false);
     if (!npc.indoor) npc.indoor = {npc, room, journey: 'enter', direction: 'back', sprite: {x: room.doorLeft, y: room.bottom, setPosition(x, y) {this.x = x; this.y = y; return this;}, setDepth() {return this;}}};
-    if (!room.residents.includes(npc.indoor)) room.residents.push(npc.indoor);
-    room.residents = room.residents.filter(resident => resident.npc.indoor === resident && resident.npc.state === 'home' && (resident.npc === npc || activeNpcs.includes(resident.npc)));
+    if (!room.residents.includes(npc.indoor)) {room.residents.push(npc.indoor); room.occupancyVersion = (room.occupancyVersion || 0) + 1;}
+    const count = room.residents.length; room.residents = room.residents.filter(resident => resident.npc.indoor === resident && resident.npc.state === 'home' && (resident.npc === npc || activeNpcs.includes(resident.npc))); if (room.residents.length !== count) room.occupancyVersion = (room.occupancyVersion || 0) + 1;
     return npc.indoor;
 }
 
@@ -5630,8 +5708,9 @@ function chooseInteriorResidentWalk(resident, time) {
 }
 
 function updateInteriorResident(scene, resident, time, delta) {
+    const occupancy = `${resident.room.occupancyVersion || 0}:${interior?.house === resident.room.house ? character.x + ',' + character.y : ''}`; if (resident.journey && resident.routeVersion !== occupancy) {if (!resident.goal || !isInteriorResidentRouteClear(resident)) {resident.goal = null; resident.route = null; resident.nextWalkAt = time;} resident.routeVersion = occupancy;}
     if (resident.npc.talking || isMenuOpen()) { setInteriorResidentPose(scene, resident, resident.npc.talking ? getDirectionToward(resident.sprite, character.x, character.y) : resident.direction || 'front', 0); return; }
-    if (resident.journey === 'enter' && resident.sprite.x === resident.room.doorLeft && resident.sprite.y === resident.room.bottom - TILE_SIZE && !resident.goal) resident.journey = null; if (!resident.goal && resident.journey && time >= (resident.nextWalkAt || 0)) {resident.route = findInteriorResidentPath(resident, resident.room.doorLeft, resident.room.bottom - (resident.journey === 'enter' ? TILE_SIZE : 0)); resident.goal = resident.route?.shift() || null; resident.nextWalkAt = time + 750;} else if (!resident.goal && !resident.journey && time >= (resident.nextWalkAt ??= time + 500 + Math.random() * 1500)) chooseInteriorResidentWalk(resident, time);
+    if (resident.journey === 'enter' && resident.sprite.x === resident.room.doorLeft && resident.sprite.y === resident.room.bottom - TILE_SIZE && !resident.goal) resident.journey = null; if (!resident.goal && resident.journey && time >= (resident.nextWalkAt || 0)) {resident.route = findInteriorResidentPath(resident, resident.room.doorLeft, resident.room.bottom - (resident.journey === 'enter' ? TILE_SIZE : 0)); if (!resident.route && resident.journey === 'exit') resident.route = findInteriorDoorYieldPath(resident); resident.goal = resident.route?.shift() || null; resident.nextWalkAt = time + 750;} else if (!resident.goal && !resident.journey && time >= (resident.nextWalkAt ??= time + 500 + Math.random() * 1500)) chooseInteriorResidentWalk(resident, time);
     if (!resident.goal) {setInteriorResidentPose(scene, resident, resident.direction || 'front', 0); return;}
     const goal = resident.goal, dx = Math.sign(goal.x - resident.sprite.x), dy = Math.sign(goal.y - resident.sprite.y), frameDelta = Math.min(delta, 50);
     resident.remainder = (resident.remainder || 0) + CHARACTER_SPEED * resident.npc.speed * frameDelta / 1000;
@@ -5639,9 +5718,9 @@ function updateInteriorResident(scene, resident, time, delta) {
     for (let step = 0; step < steps; step++) {
         const x = resident.sprite.x + dx, y = resident.sprite.y + dy;
         if (!canInteriorResidentStand(resident, x, y)) {resident.goal = null; resident.route = null; resident.remainder = 0; resident.nextWalkAt = time + 500; break;}
-        resident.sprite.setPosition(x, y); saveDirty = true; if (resident.sprite.depth !== y + NPC_PART_SIZE) resident.sprite.setDepth(y + NPC_PART_SIZE);
+        resident.sprite.setPosition(x, y); resident.room.occupancyVersion = (resident.room.occupancyVersion || 0) + 1; saveDirty = true; if (resident.sprite.depth !== y + NPC_PART_SIZE) resident.sprite.setDepth(y + NPC_PART_SIZE);
     }
-    resident.walkPhase = (resident.walkPhase || 0) + frameDelta * CHARACTER_ANIMATION_SPEED * resident.npc.speed / 1000;
+    resident.walkPhase = (resident.walkPhase || 0) + frameDelta * CHARACTER_ANIMATION_SPEED * resident.npc.speed / 1000; resident.routeVersion = `${resident.room.occupancyVersion || 0}:${interior?.house === resident.room.house ? character.x + ',' + character.y : ''}`;
     setInteriorResidentPose(scene, resident, goal.direction, CHARACTER_WALK_FRAMES[Math.floor(resident.walkPhase) % 4]);
     if (resident.sprite.x === goal.x && resident.sprite.y === goal.y) {resident.goal = resident.route?.shift() || null; if (!resident.goal) {resident.remainder = 0; resident.nextWalkAt = resident.journey === 'exit' ? time : time + 800 + Math.random() * 2200; if (resident.journey === 'enter' && resident.sprite.x === resident.room.doorLeft && resident.sprite.y === resident.room.bottom - TILE_SIZE) resident.journey = null; setInteriorResidentPose(scene, resident, goal.direction, 0);}}
 }
@@ -5696,6 +5775,7 @@ function enterInterior(scene, house) {
     interior.layer.add(character);
     characterShadow.image.setVisible(false);
     character.setPosition(interior.startX, interior.startY);
+    clearInteriorEntrance(scene);
     characterDirection = 'back';
     setCharacterTexture('character-back');
     snapInteriorCamera();
@@ -7779,14 +7859,14 @@ function createGuideDialogueUI(scene) {
         .fillStyle(0x4a2216, 1)
         .fillRect(DIALOGUE_OPTION_X - 2, 1, DIALOGUE_OPTION_WIDTH - 2, DIALOGUE_OPTION_HEIGHT - 2);
 
-    dialoguePortrait = scene.add.image(12, 13, 'guide-portrait-friendly')
+    dialoguePortrait = scene.add.image(12, DIALOGUE_PORTRAIT_Y, getPersonPortraitTexture(scene, getGuidePortraitLook(scene)))
         .setOrigin(0);
 
     const textLayer = createTextLayer(78, CRISP_TEXT_STYLE);
 
-    dialogueName = createUIText(textLayer, 64, 10, '#acccf9');
+    dialogueName = createUIText(textLayer, 78, 10, '#acccf9');
     dialogueName.textContent = 'Guide';
-    dialogueText = createUIText(textLayer, 64, 26, '#e0f2fd', 146, null, { whiteSpace: 'normal', fontSize: '11px', lineHeight: '10px' });
+    dialogueText = createUIText(textLayer, 78, 26, '#e0f2fd', 132, null, { whiteSpace: 'normal', fontSize: '11px', lineHeight: '10px' });
     dialogueOptionTexts = [0, 1, 2].map(index => {
         return createUIText(textLayer, DIALOGUE_OPTION_X + 3, DIALOGUE_OPTION_TOP + 2 + index * DIALOGUE_OPTION_STEP, '#c0a887');
     });
@@ -9085,7 +9165,7 @@ function stopDialogueTyping() {
 }
 
 function settleGuideTalking() {
-    dialoguePortrait.y = DIALOGUE_PORTRAIT_Y;
+    dialoguePortrait.y = DIALOGUE_PORTRAIT_Y; if (dialoguePortrait.portraitRestKey) dialoguePortrait.setTexture(dialoguePortrait.portraitRestKey);
     if (dialogueActor && dialogueActor.restY !== undefined) dialogueActor.y = dialogueActor.restY;
     showDialogueOptions(true);
 }
@@ -9105,7 +9185,7 @@ function showGuideDialogueNode(scene, nodeKey) {
     selectedDialogueOption = 0;
     dialogueFullText = node.text;
     layoutDialogueText();
-    if (dialoguePortrait.texture.key !== node.portrait) dialoguePortrait.setTexture(node.portrait);
+    const portraitLook = node.portraitLook || getGuidePortraitLook(scene), expression = node.portraitExpression || (node.portrait === 'guide-portrait-laughing' ? 'grin' : node.portrait === 'guide-portrait-surprised' ? 'openMouth' : 'normal'); dialoguePortrait.portraitRestKey = getPersonPortraitTexture(scene, portraitLook, expression); if (dialoguePortrait.texture.key !== dialoguePortrait.portraitRestKey) dialoguePortrait.setTexture(dialoguePortrait.portraitRestKey);
     dialoguePortrait.setScale(node.portraitScale || 1);
     const typingText = document.createTextNode('');
     dialogueText.replaceChildren(typingText);
@@ -9119,7 +9199,7 @@ function showGuideDialogueNode(scene, nodeKey) {
         typingText.appendData(letter);
         characterIndex++;
         const bob = Math.floor(characterIndex / 3) % 2;
-        dialoguePortrait.y = DIALOGUE_PORTRAIT_Y - bob;
+        dialoguePortrait.y = DIALOGUE_PORTRAIT_Y - bob; dialoguePortrait.setTexture(getPersonPortraitTexture(scene, portraitLook, bob && !/[.!?,]/.test(letter) ? 'openMouth' : expression));
         if (dialogueActor) dialogueActor.y = dialogueActor.restY - bob;
         if (characterIndex >= dialogueFullText.length) {
             dialogueTypingEvent = null;
@@ -9642,7 +9722,7 @@ const DIALOGUE_OPTION_STEP = 19;
 const DIALOGUE_OPTION_WIDTH = 86;
 const DIALOGUE_OPTION_HEIGHT = 17;
 const DIALOGUE_TYPE_DELAY = 24;
-const DIALOGUE_PORTRAIT_Y = 13;
+const DIALOGUE_PORTRAIT_Y = 8;
 
 const MAP_PANEL_HEIGHT = 142;
 const MAP_WIDTH = 296;
@@ -9904,14 +9984,15 @@ function loadWorldSeed() {
 
 const NPC_PART_SIZE = 16;
 const NPC_FACES = 3;
-const NPC_ACCESSORIES = 7;
+const NPC_FACE_WEIGHTS = [65, 25, 10];
+const NPC_ACCESSORIES = 8;
 const NPC_HAIRSTYLES = 10;
-const NPC_SHIRTS = 9;
+const NPC_SHIRTS = 10;
 const NPC_ACCESSORY_CHANCE = 0.35;
 const NPC_RARE_VANITY_CHANCE = 0.0001, NPC_PASTEL_SKIN_CHANCE = 0.01, NPC_PANTS_STYLES = 5;
 const NPC_EYE_COLORS = [0x191820, 0x633d2b, 0x46758b, 0x527349, 0x77794a, 0xadcddd, 0xb18c53], NPC_EYE_WEIGHTS = [0.64, 0.16, 0.07, 0.06, 0.04, 0.02, 0.01];
 const NPC_EYE_PALETTES = NPC_EYE_COLORS.map(color => [color]);
-const NPC_APPEARANCE_RADICES = [10000, 100, 65536, 65536, 3, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536, 10000, 4294967296];
+const NPC_APPEARANCE_RADICES = [10000, 100, 65536, 65536, 100, 720, 9, 7, 100, 143, 120, 6, 7, 2, 8, 20, 6, 100, 2, 65536, 5, 65536, 10000, 4294967296];
 const NPC_CELL_SIZE = 10;
 const NPC_CELL_MARGIN = 2;
 const NPC_CELL_CHANCE = 0.45;
@@ -9926,7 +10007,7 @@ const NPC_SKIN_TONES = [
     [0x8c5a3c, 0xb07a52, 0xc99a6c, 0x3a2620],
     [0x5e3a2a, 0x7d4f37, 0x9a6a4a, 0x2a1a16],
     [0x3e2620, 0x58372a, 0x744b38, 0x1e1412],
-    [0x9c7abd, 0xc9ace7, 0xebdcff, 0x64477d], [0x80a2bf, 0xafd2eb, 0xd6edf9, 0x506a85], [0x91ad91, 0xbad8b9, 0xe0f0dc, 0x587558], [0xbd93a2, 0xe4bfcd, 0xf8e1ea, 0x805d6c]
+    [0x885fa6, 0xae7fcc, 0xc49ae4, 0x593775], [0x6693b5, 0x96bedc, 0xb4d5ee, 0x3f607e], [0x78a478, 0xa2cda1, 0xc2e2bc, 0x426741], [0xb17696, 0xd6a3bd, 0xeebed4, 0x7a4564]
 ];
 const NPC_HAIR_COLORS = [
     [0x1f1a1d, 0x2f282c, 0x463c40],
@@ -10007,7 +10088,7 @@ const NPC_SCARE_RADIUS = 7;
 const NPC_DISAPPOINT_TIME = 900;
 const NPC_FISH_MIN = 5000;
 const NPC_FISH_RANGE = 7000;
-const NPC_PORTRAIT_SCALE = 3;
+const NPC_PORTRAIT_SCALE = 1;
 const NPC_HASTY_CHANCE = 0.4;
 const NPC_SPRINT_DISTANCE = 8;
 const NPC_MEMORY_LIMIT = 200;

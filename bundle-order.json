@@ -7,6 +7,7 @@
     "art/trees.js",
     "art/cliffs.js",
     "art/people.js",
+    "art/portraits.js",
     "world/terrain.js",
     "world/decks.js",
     "world/surfaces.js",
