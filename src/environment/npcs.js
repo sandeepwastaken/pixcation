@@ -266,16 +266,27 @@ function getNpcStyleProfile(face, feminine) {
 function getNpcMouthVariant(face, roll) {return Number(face !== 2 && roll < NPC_CANINE_CHANCE[face] * 100);}
 function getNpcMakeupVariant(face, feminine, seed) {return Number(feminine && (seed >>> 0) % 100 < NPC_MAKEUP_CHANCE[face] * 100);}
 function getNpcColorValue(color) {return (color >> 16 & 255) * 0.2126 + (color >> 8 & 255) * 0.7152 + (color & 255) * 0.0722;}
-function areNpcColorsSeparated(first, second, minimum = 30, distance = 55) {return Math.abs(getNpcColorValue(first) - getNpcColorValue(second)) >= minimum && Math.hypot((first >> 16 & 255) - (second >> 16 & 255), (first >> 8 & 255) - (second >> 8 & 255), (first & 255) - (second & 255)) >= distance;}
+function getNpcColorDistance(first, second) {return Math.hypot((first >> 16 & 255) - (second >> 16 & 255), (first >> 8 & 255) - (second >> 8 & 255), (first & 255) - (second & 255));}
+function areNpcColorsSeparated(first, second, minimum = 30, distance = 55) {return Math.abs(getNpcColorValue(first) - getNpcColorValue(second)) >= minimum && getNpcColorDistance(first, second) >= distance;}
+function isNpcHairDistinct(hair, skin) {return [skin[1], skin[2]].every(color => areNpcColorsSeparated(hair[1], color, 18, 40));}
+function isNpcFabricDistinct(fabric, skin) {return getNpcColorDistance(fabric, skin[1]) >= 60 || Math.abs(getNpcColorValue(fabric) - getNpcColorValue(skin[1])) >= 24;}
 function balanceNpcAppearance(look, rolls) {
     let palette = getPersonPalette(look);
-    if (!areNpcColorsSeparated(palette.hair[1], palette.skin[1], 18, 40)) {
+    if (!isNpcHairDistinct(palette.hair, palette.skin)) {
         const weights = look[1] === 2 ? NPC_AGE_HAIR_COLOR_WEIGHTS.older : look[1] === 1 ? NPC_AGE_HAIR_COLOR_WEIGHTS.young : NPC_HAIR_COLOR_WEIGHTS;
-        const compatible = weights.map((weight, index) => areNpcColorsSeparated(samplePersonPalette(NPC_HAIR_COLORS, index, look[17][0])[1], palette.skin[1], 18, 40) ? weight : 0);
+        const compatible = weights.map((weight, index) => isNpcHairDistinct(samplePersonPalette(NPC_HAIR_COLORS, index, look[17][0]), palette.skin) ? weight : 0);
         look[9] = getNpcWeightedIndex(rolls[12], compatible); if (!look[5]) look[7] = look[9];
         palette = getPersonPalette(look);
     }
     const buttons = [4, 12, 13].includes(look[2]);
+    if (!isNpcFabricDistinct(palette.shirt[1], palette.skin)) {
+        const compatible = NPC_SHIRT_COLOR_WEIGHTS.map((weight, index) => isNpcFabricDistinct(samplePersonPalette(NPC_SHIRT_COLORS, index, look[17][2])[1], palette.skin) ? weight : 0);
+        look[3] = getNpcWeightedIndex(rolls[6], compatible); palette = getPersonPalette(look);
+    }
+    if (look[5] && !areNpcColorsSeparated(palette.top[2], palette.skin[2], 18, 40)) {
+        const compatible = NPC_HEADWEAR_COLOR_WEIGHTS.map((weight, index) => areNpcColorsSeparated(samplePersonPalette(NPC_ACCESSORY_COLORS, index, look[17][3])[2], palette.skin[2], 18, 40) ? weight : 0);
+        look[7] = getNpcWeightedIndex(rolls[11], compatible);
+    }
     if (!areNpcColorsSeparated(palette.shirt[1], palette.shirtAccent) || buttons && ![9, 10].includes(look[10])) {
         const preferred = NPC_SHIRT_ACCENT_NEUTRALS[look[3]], candidates = (buttons ? [9, 10] : [9, 10, 11, 6]).filter(index => areNpcColorsSeparated(palette.shirt[1], samplePersonPalette(NPC_SHIRT_COLORS, index, look[17][4])[1]));
         look[10] = candidates[getNpcWeightedIndex(rolls[14], candidates.map(index => index === preferred ? 6 : 1))];
