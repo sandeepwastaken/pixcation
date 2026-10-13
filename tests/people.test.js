@@ -1,5 +1,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+test('expanded fair skin includes warm and cool highlights with clearly separated shading', () => {
+    const run = createPeople(); assert.equal(run('(() => {const value=color=>(color>>16&255)*0.2126+(color>>8&255)*0.7152+(color&255)*0.0722; for(let step=0;step<=100;step++){const skin=getPersonSkinRamp(false,5/6+step/600); if(value(skin[2])-value(skin[1])<34 || value(skin[1])-value(skin[0])<40 || value(skin[0])-value(skin[3])<40) return false;} return true;})()'), true); assert.equal(run('getPersonSkinRamp(false,1)[2]'), 0xfff0e9); assert.equal(run('getPersonSkinRamp(false,0.75).every((color,index)=>color===NPC_SKIN_TONES[0][index])'), true);
+    assert.equal(run('(() => {for(let step=1;step<=1000;step++){const first=getPersonSkinRamp(false,(step-1)/1000),second=getPersonSkinRamp(false,step/1000); for(let shade=0;shade<4;shade++) for(const shift of [16,8,0]) if(Math.abs((first[shade]>>shift&255)-(second[shade]>>shift&255))>2)return false;} return true;})()'), true);
+});
+test('expanded accessory palettes stay reachable for seeded residents and shared player palettes', () => {
+    const run = createPeople(); assert.equal(run('NPC_ACCESSORY_COLORS.length'), 13); assert.equal(run('NPC_HEADWEAR_COLOR_WEIGHTS.length'), 13); assert.equal(run('new Set(Array.from({length:100},(_,roll)=>getNpcWeightedIndex(roll,NPC_HEADWEAR_COLOR_WEIGHTS))).size'), 13); run('const paletteLook=createNpc(13,4,null).look; paletteLook[5]=1; paletteLook[17]=new Array(8).fill(0);'); for(let index=0;index<13;index++){run('paletteLook[7]=' + index); assert.equal(run('JSON.stringify(getPersonPalette(paletteLook).top)'), run('JSON.stringify(NPC_ACCESSORY_COLORS[' + index + '])'));}
+});
 test('new shirt and hair rows render in every map direction on the enlarged parts sheet', () => {
     const run = createPeople(); assert.equal(run('getTerrainPixels({}, "character-parts").height >= (NPC_SHIRTS + 1) * NPC_PART_SIZE'), true); run('const expandedLook = createNpc(13,4,null).look; expandedLook[5] = 0;'); for (const direction of ['front','back','left','right']) for (const [slot, count] of [[2,16],[6,13]]) for (let part = 0; part < count; part++) {run('expandedLook[' + slot + '] = ' + part + '; var expandedPixels = composePersonPixels({}, expandedLook, ' + JSON.stringify(direction) + ')'); assert.equal(run('expandedPixels.length'), 256); assert.ok(run('expandedPixels.filter(pixel=>pixel!==null).length') > 20);}
 });
@@ -136,7 +143,7 @@ function createPeople(seed = '13') {
 }
 
 function solveRequestedSeed() {
-    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 87, 52, 90, 0, 0, 0, 90, 99, 0, 29, 8, 99, 0, 1, 0, 0, 0, 0, 0, 1])');
+    return createPeople()('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 87, 52, 90, 0, 0, 0, 64, 99, 0, 29, 8, 99, 0, 1, 0, 0, 0, 0, 0, 1])');
 }
 
 test('a reversed ordinary seed produces the requested rare resident near spawn', () => {

@@ -1127,8 +1127,8 @@ function samplePersonPalette(palettes, index, amount) {
 }
 
 function getPersonSkinRamp(pastel, amount) {
-    const anchors = pastel ? [NPC_SKIN_TONES[8], [0x99763e, 0xcea45e, 0xf3d99e, 0x5a401f], NPC_SKIN_TONES[7], NPC_SKIN_TONES[6], NPC_SKIN_TONES[5], NPC_SKIN_TONES[8]] : [NPC_SKIN_TONES[4], NPC_SKIN_TONES[3], NPC_SKIN_TONES[2], NPC_SKIN_TONES[0], NPC_SKIN_TONES[1]];
-    const value = Math.max(0, Math.min(1, amount)) * (anchors.length - 1), index = Math.min(anchors.length - 2, Math.floor(value));
+    const anchors = pastel ? [NPC_SKIN_TONES[8], [0x99763e, 0xcea45e, 0xf3d99e, 0x5a401f], NPC_SKIN_TONES[7], NPC_SKIN_TONES[6], NPC_SKIN_TONES[5], NPC_SKIN_TONES[8]] : [NPC_SKIN_TONES[4], NPC_SKIN_TONES[3], NPC_SKIN_TONES[2], NPC_SKIN_TONES[0], [0xa47a69, 0xd8ad96, 0xf6d8bc, 0x68493d], [0xa98480, 0xd5b5ad, 0xf9e4db, 0x6a4e50], [0xa88487, 0xd8b8b8, 0xfff0e9, 0x6e5059]];
+    const progress = Math.max(0, Math.min(1, amount)), value = pastel ? progress * (anchors.length - 1) : progress <= 0.75 ? progress * 4 : 3 + (progress - 0.75) * 12, index = Math.min(anchors.length - 2, Math.floor(value));
     return samplePersonPalette(anchors, index, value - index);
 }
 
@@ -7902,8 +7902,9 @@ function characterColorGradient(palettes, shade = 1) {
 }
 function createCharacterCreatorLookControls(look) {
     characterCreatorSelect('Gender', [[0, 'Male'], [1, 'Female']], look[14], value => { look[14] = value; if (!value && look.length > 20) look[20] = 0; });
-    characterCreatorSelect('Face', [[0, 'Normal'], [1, 'Young'], [2, 'Older']], look[1], value => { look[1] = value; if (value === 2 && look.length > 20) look[20] = 0; });
+    characterCreatorSelect('Face', [[0, 'Normal'], [1, 'Young'], [2, 'Older']], look[1], value => { look[1] = value; if (value === 2) {look[19] = 0; if (look.length > 20) look[20] = 0;} });
     if (look[14] && look[1] !== 2) characterCreatorStepper('Makeup', [[0, 'Soft'], [1, 'Full']], look[20] ?? 0, value => {look[20] = value;});
+    if (look[1] !== 2) characterCreatorStepper('Teeth', [[0, 'Normal'], [1, 'Canines']], look[19], value => {look[19] = value; characterCreator.previewExpression = 'grin';});
     characterCreatorSelect('Palette', [[0, 'Natural'], [5, 'Pastel']], look[0] >= 5 ? 5 : 0, value => { look[0] = value; });
     const skinColors = Array.from({length: 17}, (_, index) => '#' + getPersonSkinRamp(look[0] >= 5, index / 16)[1].toString(16).padStart(6, '0'));
     characterCreatorSlider('Tone', Math.round(look[15] * 1000), 1000, 'linear-gradient(to right, ' + skinColors.join(', ') + ')', value => {look[15] = value / 1000;});
@@ -7955,7 +7956,7 @@ function createCharacterCreatorScrollbar() {
     track.addEventListener('keydown', event => {const steps = {ArrowUp: -12, ArrowDown: 12, PageUp: -66, PageDown: 66}; if (event.key in steps || event.key === 'Home' || event.key === 'End') {event.preventDefault(); creator.controls.scrollTop = event.key === 'Home' ? 0 : event.key === 'End' ? creator.controls.scrollHeight : creator.controls.scrollTop + steps[event.key]; updateCharacterCreatorScrollbar();}}); creator.controls.addEventListener('scroll', updateCharacterCreatorScrollbar);
 }
 function paintCharacterCreator() {
-    const creator = characterCreator, portrait = composePersonPortraitPixels(creator.scene, creator.look, 'normal'), context = creator.portrait.getContext('2d'), image = context.createImageData(portrait.width, portrait.height);
+    const creator = characterCreator, portrait = composePersonPortraitPixels(creator.scene, creator.look, creator.previewExpression ?? 'normal'), context = creator.portrait.getContext('2d'), image = context.createImageData(portrait.width, portrait.height);
     image.data.set(portrait.data); context.putImageData(image, 0, 0);
     const sprite = creator.sprite.getContext('2d'), pixels = composePersonPixels(creator.scene, creator.look, 'front'), frame = sprite.createImageData(16, 16);
     pixels.forEach((color, index) => color !== null && writeRGBPixel(frame.data, index, color)); sprite.putImageData(frame, 0, 0);
@@ -10511,7 +10512,7 @@ const NPC_PANTS_COLORS = [
     [0x36363c, 0x4a4a52, 0x66666e],
     [0x9b7965, 0xc9a48e, 0xecd0b8], [0x261334, 0x3f1d54, 0x623580]
 ];
-const NPC_HAIR_COLOR_WEIGHTS = [36, 31, 10, 12, 5, 5, 1], NPC_SHIRT_COLOR_WEIGHTS = [12, 9, 8, 5, 6, 4, 8, 2, 3, 11, 10, 7, 7, 4, 2, 2], NPC_PANTS_COLOR_WEIGHTS = [4, 34, 20, 9, 23, 7, 3], NPC_HEADWEAR_COLOR_WEIGHTS = [16, 27, 14, 13, 20, 10];
+const NPC_HAIR_COLOR_WEIGHTS = [36, 31, 10, 12, 5, 5, 1], NPC_SHIRT_COLOR_WEIGHTS = [12, 9, 8, 5, 6, 4, 8, 2, 3, 11, 10, 7, 7, 4, 2, 2], NPC_PANTS_COLOR_WEIGHTS = [4, 34, 20, 9, 23, 7, 3], NPC_HEADWEAR_COLOR_WEIGHTS = [10, 18, 10, 8, 14, 8, 12, 7, 3, 2, 3, 2, 3];
 const PLAYER_LOOK = [0, 0, 0, 0, 0, 1, 0, 0];
 const PERSON_ARM_TOP = 8;
 const PERSON_ARM_BOTTOM = 13;
@@ -10529,7 +10530,14 @@ const NPC_ACCESSORY_COLORS = [
     [0x1e3320, 0x2f4f33, 0x426b46, 0x5e8c60],
     [0x5a4420, 0x8a6a34, 0xb08c48, 0xd2b06a],
     [0x6e6a64, 0xa8a49c, 0xcdc9c0, 0xeceae4],
-    [0x9b7965, 0xc2a08a, 0xdfc0aa, 0xf4ddca]
+    [0x9b7965, 0xc2a08a, 0xdfc0aa, 0xf4ddca],
+    [0x0c0e14, 0x20232d, 0x393f4b, 0x626b79],
+    [0x757f91, 0xaeb8c8, 0xdce3ef, 0xffffff],
+    [0x30203e, 0x563468, 0x805393, 0xb58fc2],
+    [0x642e42, 0xa65376, 0xd787a5, 0xf2bad0],
+    [0x183839, 0x2d6766, 0x4c9391, 0x90c4bd],
+    [0x69351c, 0xa65c2b, 0xd38b48, 0xefbe7d],
+    [0x32231e, 0x5b4133, 0x876650, 0xb49877]
 ];
 const NPC_PART_COLORS = {
     shirtAccent: [0x00d9ff], pantsAccent: [0xdf8fff],

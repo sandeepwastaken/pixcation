@@ -455,7 +455,7 @@ const NPC_PANTS_COLORS = [
     [0x36363c, 0x4a4a52, 0x66666e],
     [0x9b7965, 0xc9a48e, 0xecd0b8], [0x261334, 0x3f1d54, 0x623580]
 ];
-const NPC_HAIR_COLOR_WEIGHTS = [36, 31, 10, 12, 5, 5, 1], NPC_SHIRT_COLOR_WEIGHTS = [12, 9, 8, 5, 6, 4, 8, 2, 3, 11, 10, 7, 7, 4, 2, 2], NPC_PANTS_COLOR_WEIGHTS = [4, 34, 20, 9, 23, 7, 3], NPC_HEADWEAR_COLOR_WEIGHTS = [16, 27, 14, 13, 20, 10];
+const NPC_HAIR_COLOR_WEIGHTS = [36, 31, 10, 12, 5, 5, 1], NPC_SHIRT_COLOR_WEIGHTS = [12, 9, 8, 5, 6, 4, 8, 2, 3, 11, 10, 7, 7, 4, 2, 2], NPC_PANTS_COLOR_WEIGHTS = [4, 34, 20, 9, 23, 7, 3], NPC_HEADWEAR_COLOR_WEIGHTS = [10, 18, 10, 8, 14, 8, 12, 7, 3, 2, 3, 2, 3];
 const PLAYER_LOOK = [0, 0, 0, 0, 0, 1, 0, 0];
 const PERSON_ARM_TOP = 8;
 const PERSON_ARM_BOTTOM = 13;
@@ -473,7 +473,14 @@ const NPC_ACCESSORY_COLORS = [
     [0x1e3320, 0x2f4f33, 0x426b46, 0x5e8c60],
     [0x5a4420, 0x8a6a34, 0xb08c48, 0xd2b06a],
     [0x6e6a64, 0xa8a49c, 0xcdc9c0, 0xeceae4],
-    [0x9b7965, 0xc2a08a, 0xdfc0aa, 0xf4ddca]
+    [0x9b7965, 0xc2a08a, 0xdfc0aa, 0xf4ddca],
+    [0x0c0e14, 0x20232d, 0x393f4b, 0x626b79],
+    [0x757f91, 0xaeb8c8, 0xdce3ef, 0xffffff],
+    [0x30203e, 0x563468, 0x805393, 0xb58fc2],
+    [0x642e42, 0xa65376, 0xd787a5, 0xf2bad0],
+    [0x183839, 0x2d6766, 0x4c9391, 0x90c4bd],
+    [0x69351c, 0xa65c2b, 0xd38b48, 0xefbe7d],
+    [0x32231e, 0x5b4133, 0x876650, 0xb49877]
 ];
 const NPC_PART_COLORS = {
     shirtAccent: [0x00d9ff], pantsAccent: [0xdf8fff],

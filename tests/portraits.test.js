@@ -119,7 +119,7 @@ test('portrait frames stay in front of shoulders and all layers without covering
 
 test('the new appearance seed naturally produces Emz with a matching layered portrait near spawn', () => {
     const {run} = createPortraitPeople();
-    const seed = run('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 87, 52, 90, 0, 0, 0, 90, 99, 0, 29, 8, 99, 0, 1, 0, 0, 0, 0, 0, 1], 2n)');
+    const seed = run('makeNpcAppearanceSeed(13, 13, 4, [0, 0, 0, 52428, 0, 87, 52, 90, 0, 0, 0, 64, 99, 0, 29, 8, 99, 0, 1, 0, 0, 0, 0, 0, 1], 2n)');
     const reversed = createPortraitPeople(seed);
     reversed.run('const resident = findCellNpc(1, 0), portrait = composePersonPortraitPixels(scene, resident.look);');
     assert.equal(reversed.run('resident.name'), 'Emz');

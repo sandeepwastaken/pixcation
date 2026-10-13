@@ -17,8 +17,8 @@ function samplePersonPalette(palettes, index, amount) {
 }
 
 function getPersonSkinRamp(pastel, amount) {
-    const anchors = pastel ? [NPC_SKIN_TONES[8], [0x99763e, 0xcea45e, 0xf3d99e, 0x5a401f], NPC_SKIN_TONES[7], NPC_SKIN_TONES[6], NPC_SKIN_TONES[5], NPC_SKIN_TONES[8]] : [NPC_SKIN_TONES[4], NPC_SKIN_TONES[3], NPC_SKIN_TONES[2], NPC_SKIN_TONES[0], NPC_SKIN_TONES[1]];
-    const value = Math.max(0, Math.min(1, amount)) * (anchors.length - 1), index = Math.min(anchors.length - 2, Math.floor(value));
+    const anchors = pastel ? [NPC_SKIN_TONES[8], [0x99763e, 0xcea45e, 0xf3d99e, 0x5a401f], NPC_SKIN_TONES[7], NPC_SKIN_TONES[6], NPC_SKIN_TONES[5], NPC_SKIN_TONES[8]] : [NPC_SKIN_TONES[4], NPC_SKIN_TONES[3], NPC_SKIN_TONES[2], NPC_SKIN_TONES[0], [0xa47a69, 0xd8ad96, 0xf6d8bc, 0x68493d], [0xa98480, 0xd5b5ad, 0xf9e4db, 0x6a4e50], [0xa88487, 0xd8b8b8, 0xfff0e9, 0x6e5059]];
+    const progress = Math.max(0, Math.min(1, amount)), value = pastel ? progress * (anchors.length - 1) : progress <= 0.75 ? progress * 4 : 3 + (progress - 0.75) * 12, index = Math.min(anchors.length - 2, Math.floor(value));
     return samplePersonPalette(anchors, index, value - index);
 }
 

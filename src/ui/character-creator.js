@@ -28,8 +28,9 @@ function characterColorGradient(palettes, shade = 1) {
 }
 function createCharacterCreatorLookControls(look) {
     characterCreatorSelect('Gender', [[0, 'Male'], [1, 'Female']], look[14], value => { look[14] = value; if (!value && look.length > 20) look[20] = 0; });
-    characterCreatorSelect('Face', [[0, 'Normal'], [1, 'Young'], [2, 'Older']], look[1], value => { look[1] = value; if (value === 2 && look.length > 20) look[20] = 0; });
+    characterCreatorSelect('Face', [[0, 'Normal'], [1, 'Young'], [2, 'Older']], look[1], value => { look[1] = value; if (value === 2) {look[19] = 0; if (look.length > 20) look[20] = 0;} });
     if (look[14] && look[1] !== 2) characterCreatorStepper('Makeup', [[0, 'Soft'], [1, 'Full']], look[20] ?? 0, value => {look[20] = value;});
+    if (look[1] !== 2) characterCreatorStepper('Teeth', [[0, 'Normal'], [1, 'Canines']], look[19], value => {look[19] = value; characterCreator.previewExpression = 'grin';});
     characterCreatorSelect('Palette', [[0, 'Natural'], [5, 'Pastel']], look[0] >= 5 ? 5 : 0, value => { look[0] = value; });
     const skinColors = Array.from({length: 17}, (_, index) => '#' + getPersonSkinRamp(look[0] >= 5, index / 16)[1].toString(16).padStart(6, '0'));
     characterCreatorSlider('Tone', Math.round(look[15] * 1000), 1000, 'linear-gradient(to right, ' + skinColors.join(', ') + ')', value => {look[15] = value / 1000;});
@@ -81,7 +82,7 @@ function createCharacterCreatorScrollbar() {
     track.addEventListener('keydown', event => {const steps = {ArrowUp: -12, ArrowDown: 12, PageUp: -66, PageDown: 66}; if (event.key in steps || event.key === 'Home' || event.key === 'End') {event.preventDefault(); creator.controls.scrollTop = event.key === 'Home' ? 0 : event.key === 'End' ? creator.controls.scrollHeight : creator.controls.scrollTop + steps[event.key]; updateCharacterCreatorScrollbar();}}); creator.controls.addEventListener('scroll', updateCharacterCreatorScrollbar);
 }
 function paintCharacterCreator() {
-    const creator = characterCreator, portrait = composePersonPortraitPixels(creator.scene, creator.look, 'normal'), context = creator.portrait.getContext('2d'), image = context.createImageData(portrait.width, portrait.height);
+    const creator = characterCreator, portrait = composePersonPortraitPixels(creator.scene, creator.look, creator.previewExpression ?? 'normal'), context = creator.portrait.getContext('2d'), image = context.createImageData(portrait.width, portrait.height);
     image.data.set(portrait.data); context.putImageData(image, 0, 0);
     const sprite = creator.sprite.getContext('2d'), pixels = composePersonPixels(creator.scene, creator.look, 'front'), frame = sprite.createImageData(16, 16);
     pixels.forEach((color, index) => color !== null && writeRGBPixel(frame.data, index, color)); sprite.putImageData(frame, 0, 0);
