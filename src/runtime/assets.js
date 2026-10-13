@@ -47,6 +47,7 @@ function getTextureAliases() {
     alias('bait-mystery', 'items/baits/mysteryBait');
     alias('bait-mystery-icon', 'items/baits/mystery-icon');
     alias('chest', 'items/chest');
+    alias('chest-icon', 'items/chest-icon');
     alias('fishing-ui', 'ui/fishing/panel');
     alias('fishing-catch-zone', 'ui/fishing/catch-zone');
     alias('fishing-fish', 'ui/fishing/fish');

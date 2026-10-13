@@ -32,6 +32,7 @@ let characterMoving = false;
 
 const fishUniforms = new Float32Array(FISH_MAX_VISIBLE * 4);
 const fishShapeUniforms = new Float32Array(FISH_MAX_VISIBLE * 4);
+const fishVisibilityUniforms = new Float32Array(FISH_MAX_VISIBLE);
 
 let horizontalPriority = 0;
 let lastMenuWheelTime = -Infinity;
@@ -86,8 +87,11 @@ let mapTextLayer;
 let mapDrag = null;
 let mapDirty = false;
 const mapPan = { x: 0, y: 0 };
+const mapCenter = { x: 0, y: 0 };
+let mapWaypoint = null, mapWaypointLayer, mapWaypointText, mapWaypointArrow;
 let mapZoom = 1;
 let mapPalette = null;
+let mapGuideLabel, mapMarketLabel;
 
 let inventoryOpen = false;
 let inventoryContainer;

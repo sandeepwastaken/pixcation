@@ -3,6 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+test('WASD movement does not pan the map view', () => {
+    const run = createView(); run('characterKeys.right.isDown = true; characterKeys.up.isDown = true; updateMapPan({}, 50)');
+    assert.equal(run('mapPan.x'), 0); assert.equal(run('mapPan.y'), 0); assert.equal(run('redraws'), 0);
+});
 
 function createView() {
     const context = vm.createContext({});
@@ -32,10 +36,10 @@ test('an idle map still processes a pending redraw exactly once', () => {
 
 test('map movement keeps its zoom scaling and handles opposing keys', () => {
     const run = createView();
-    run('mapZoom = 3; mapDirty = false; characterKeys.right.isDown = true; updateMapPan({}, 50)');
+    run('mapZoom = 3; mapDirty = false; characterKeys.rightArrow.isDown = true; updateMapPan({}, 50)');
     assert.equal(run('mapPan.x'), 1.5);
     assert.equal(run('redraws'), 1);
-    run('characterKeys.left.isDown = true; updateMapPan({}, 50)');
+    run('characterKeys.leftArrow.isDown = true; updateMapPan({}, 50)');
     assert.equal(run('mapPan.x'), 1.5);
     assert.equal(run('redraws'), 1);
 });

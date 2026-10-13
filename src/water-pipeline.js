@@ -15,6 +15,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                 uniform float uViewHeight;
                 uniform vec4 uFish[${FISH_MAX_VISIBLE}];
                 uniform vec4 uFishShape[${FISH_MAX_VISIBLE}];
+                uniform float uFishVisibility[${FISH_MAX_VISIBLE}];
                 uniform float uFishCount;
                 uniform vec2 uBiomeOffset;
                 varying vec2 outTexCoord;
@@ -145,6 +146,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
 
                     float shaded = mask.r < 0.75 ? 1.0 : 0.0;
                     float fishShaded = 0.0;
+                    float surfaceIndex = index;
 
                     for (int fish = 0; fish < ${FISH_MAX_VISIBLE}; fish++) {
                         if (float(fish) >= uFishCount) break;
@@ -168,12 +170,12 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                             headOffset * headOffset + across * across < shape.y * shape.y ||
                             along < head && along > -halfLength && abs(across) < shape.y * (along + halfLength) / (head + halfLength)
                         ) {
-                            fishShaded = 1.0;
-                            break;
+                            fishShaded = max(fishShaded, uFishVisibility[fish]);
+                            if (fishShaded >= 1.0) break;
                         }
                     }
 
-                    if (fishShaded > 0.5) {
+                    if (fishShaded > 0.0) {
                         index = max(index - 2.0, 0.0);
                     } else if (shaded > 0.5) {
                         index = max(index - (edgeCode > 3.5 && edgeCode < 4.5 ? 0.0 : 1.0 + (edgeCode > 1.5 && edgeCode < 2.5 || edgeCode > 2.5 && edgeCode < 3.5 && checker > 0.0 ? 1.0 : 0.0)), 0.0);
@@ -190,7 +192,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         }
                     }
 
-                    gl_FragColor = vec4(tone(index) * (fishShaded < 0.5 && shaded > 0.5 && edgeCode > 4.5 && edgeCode < 5.5 ? 0.9 : 1.0) * (index < 7.5 ? waterTint(p) : vec3(1.0)), 1.0);
+                    gl_FragColor = vec4(mix(tone(surfaceIndex), tone(index), fishShaded > 0.0 ? fishShaded : 1.0) * (fishShaded <= 0.0 && shaded > 0.5 && edgeCode > 4.5 && edgeCode < 5.5 ? 0.9 : 1.0) * (index < 7.5 ? waterTint(p) : vec3(1.0)), 1.0);
                 }
             `
         });

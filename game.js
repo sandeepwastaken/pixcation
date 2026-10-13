@@ -83,7 +83,7 @@ const GUIDE_DIALOGUE = {
     },
     fishing: {
         portraitExpression: 'openMouth',
-        text: "Ignore small taps. On the big splash, press Space or click, then hold to keep the bar on the fish.",
+        text: "Small taps are nibbles. When the white ! appears, press and hold Space or click! Hold to lift the bar; release to lower it over the fish.",
         options: [
             { label: 'Bait', next: 'bait' },
             { label: 'Missed bites', next: 'trouble' },
@@ -116,9 +116,9 @@ const GUIDE_DIALOGUE = {
     advice: {portraitExpression: 'normal', text: "A small catch still counts. You don't have to turn every cast into a competition. Find a spot you actually enjoy.", options: [{label: 'Thanks', next: 'thanks'}, {label: 'Back', next: 'chat'}]},
     joke: {portraitExpression: 'openMouth', portraitEyesClosed: true, text: "I told a fish a joke once. It didn't laugh. Tough crowd down there. You're allowed to laugh out of pity.", options: [{label: 'That was good', next: 'laugh'}, {label: 'Back', next: 'chat'}]},
     laugh: {portraitExpression: 'grin', portraitEyesClosed: true, text: "Ha! I'll take it. I was about to try that one on the shopkeeper, but you've spared them.", options: [{label: 'Back', next: 'chat'}, {label: 'Bye', close: true}]},
-    explore: {portraitExpression: 'normal', text: "M opens your map. H brings you back to spawn. Talk to your neighbors, too. Some of them know the water better than I do.", options: [{label: 'Neighbors?', next: 'neighbors'}, {label: 'Back', next: 'help'}, {label: 'Exit', close: true}]},
+    explore: {portraitExpression: 'normal', text: "M opens the map. WASD walks; arrows or dragging pan it. Click to mark a place and follow its direction. H brings you home!", options: [{label: 'Neighbors?', next: 'neighbors'}, {label: 'Back', next: 'help'}, {label: 'Exit', close: true}]},
     neighbors: {portraitExpression: 'normal', text: "Ask about their company or their plans. Everyone has their own routine. Sometimes a conversation turns up a good rumor.", options: [{label: 'Back', next: 'explore'}, {label: 'Bye', close: true}]},
-    trouble: {portraitExpression: 'normal', text: "Missing a bite happens. Wait for the big splash, then press and hold. Better rods and bait make keeping up with a fish easier.", options: [{label: 'Thanks', next: 'thanks'}, {label: 'Back', next: 'fishing'}, {label: 'Exit', close: true}]},
+    trouble: {portraitExpression: 'normal', text: "Missed a bite? Watch for the white ! above your float. Press and hold then! Some lakes have more fish; try another shore.", options: [{label: 'Thanks', next: 'thanks'}, {label: 'Back', next: 'fishing'}, {label: 'Exit', close: true}]},
     thanks: {portraitExpression: 'grin', portraitEyesClosed: true, text: "You're very welcome. Go enjoy the water. I'll keep this spot warm for you!", options: [{label: 'Back', next: 'intro'}, {label: 'See you!', close: true}]}
 };
 
@@ -304,6 +304,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                 uniform float uViewHeight;
                 uniform vec4 uFish[${FISH_MAX_VISIBLE}];
                 uniform vec4 uFishShape[${FISH_MAX_VISIBLE}];
+                uniform float uFishVisibility[${FISH_MAX_VISIBLE}];
                 uniform float uFishCount;
                 uniform vec2 uBiomeOffset;
                 varying vec2 outTexCoord;
@@ -434,6 +435,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
 
                     float shaded = mask.r < 0.75 ? 1.0 : 0.0;
                     float fishShaded = 0.0;
+                    float surfaceIndex = index;
 
                     for (int fish = 0; fish < ${FISH_MAX_VISIBLE}; fish++) {
                         if (float(fish) >= uFishCount) break;
@@ -457,12 +459,12 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                             headOffset * headOffset + across * across < shape.y * shape.y ||
                             along < head && along > -halfLength && abs(across) < shape.y * (along + halfLength) / (head + halfLength)
                         ) {
-                            fishShaded = 1.0;
-                            break;
+                            fishShaded = max(fishShaded, uFishVisibility[fish]);
+                            if (fishShaded >= 1.0) break;
                         }
                     }
 
-                    if (fishShaded > 0.5) {
+                    if (fishShaded > 0.0) {
                         index = max(index - 2.0, 0.0);
                     } else if (shaded > 0.5) {
                         index = max(index - (edgeCode > 3.5 && edgeCode < 4.5 ? 0.0 : 1.0 + (edgeCode > 1.5 && edgeCode < 2.5 || edgeCode > 2.5 && edgeCode < 3.5 && checker > 0.0 ? 1.0 : 0.0)), 0.0);
@@ -479,7 +481,7 @@ window.WaterWarpPipeline = class WaterWarpPipeline extends Phaser.Renderer.WebGL
                         }
                     }
 
-                    gl_FragColor = vec4(tone(index) * (fishShaded < 0.5 && shaded > 0.5 && edgeCode > 4.5 && edgeCode < 5.5 ? 0.9 : 1.0) * (index < 7.5 ? waterTint(p) : vec3(1.0)), 1.0);
+                    gl_FragColor = vec4(mix(tone(surfaceIndex), tone(index), fishShaded > 0.0 ? fishShaded : 1.0) * (fishShaded <= 0.0 && shaded > 0.5 && edgeCode > 4.5 && edgeCode < 5.5 ? 0.9 : 1.0) * (index < 7.5 ? waterTint(p) : vec3(1.0)), 1.0);
                 }
             `
         });
@@ -1293,6 +1295,17 @@ function updateDialoguePortraitBlink(scene, time) {
 function getTileId(tileX, tileY) {
     return tileX * 67108864 + tileY;
 }
+function getGrassFlowerPlacement(tileX, tileY) {
+    const variant = Math.min(17, Math.floor(worldHash(tileX, tileY, 924) * 18));
+    return { flipX: variant >= 9, x: 0, y: 0 };
+}
+function createGrassFlowerTextures(scene) {
+    const underlay = getTerrainPixels(scene, 'grass2');
+    for (const key of ['grass3', 'grass4']) {
+        const layers = extractGrassFlowerPixels(getTerrainPixels(scene, key), underlay);
+        for (const [layer, suffix] of [[layers.grass, 'plain'], [layers.flowers, 'flowers']]) createCanvasTexture(scene, `${key}-${suffix}`, layer.width, layer.height, context => { const image = context.createImageData(layer.width, layer.height); image.data.set(layer.data); context.putImageData(image, 0, 0); });
+    }
+}
 
 function cacheWorldValue(cache, key, value) {
     if (cache.size >= WORLD_CACHE_LIMIT) {
@@ -1576,6 +1589,17 @@ function generateWorldTile(tileX, tileY) {
 }
 
 const grassTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
+function extractGrassFlowerPixels(source, underlay) {
+    if (source.width !== underlay.width || source.height !== underlay.height) throw new Error('Grass layer dimensions do not match');
+    const mask = new Uint8Array(source.width * source.height), grass = new Uint8ClampedArray(source.data), flowers = new Uint8ClampedArray(source.data.length);
+    for (let pixel = 0; pixel < mask.length; pixel++) {
+        const offset = pixel * 4, color = source.data[offset] << 16 | source.data[offset + 1] << 8 | source.data[offset + 2];
+        if (!source.data[offset + 3] || !FLOWER_COLORS.has(color) && color !== FLOWER_PATCH_SOURCE) continue;
+        mask[pixel] = 1; if (pixel + source.width < mask.length) mask[pixel + source.width] = 1;
+    }
+    for (let pixel = 0; pixel < mask.length; pixel++) if (mask[pixel]) { const offset = pixel * 4; flowers.set(source.data.subarray(offset, offset + 4), offset); grass.set(underlay.data.subarray(offset, offset + 4), offset); }
+    return { grass: { width: source.width, height: source.height, data: grass }, flowers: { width: source.width, height: source.height, data: flowers } };
+}
 
 function stretchNoise(noise, contrast = 1.9) {
     return Phaser.Math.Clamp((noise - 0.5) * contrast + 0.5, 0, 1);
@@ -2706,12 +2730,13 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             drawChunkTexture(
                 terrainTile.baseKey === 'water' || tileKey.startsWith('wood') ? getUpperContext() : groundContext,
                 scene,
-                isWater ? shoreline.textureKey : terrainTile.textureKey || tileKey,
+                isWater ? shoreline.textureKey : terrainTile.textureKey || (tileKey === 'grass3' || tileKey === 'grass4' ? `${tileKey}-plain` : tileKey),
                 drawX,
                 drawY,
                 terrainTile.rotation
             );
 
+            if (tileKey === 'grass3' || tileKey === 'grass4') { const placement = getGrassFlowerPlacement(tileX, tileY); groundContext.save(); groundContext.beginPath(); groundContext.rect(drawX, drawY, TILE_SIZE, TILE_SIZE); groundContext.clip(); drawChunkTexture(groundContext, scene, `${tileKey}-flowers`, drawX + placement.x, drawY + placement.y, 0, placement.flipX); groundContext.restore(); }
             for (const patch of terrainTile.patches || EMPTY_TILE_PATCHES) {
                 drawChunkTexture(getUpperContext(), scene, patch.key, drawX + patch.x, drawY + patch.y, 0, patch.flipX, patch.flipY);
             }
@@ -2966,23 +2991,24 @@ function updateChunkWater(time) {
         for (const fish of chunk.fish) {
             if (count >= FISH_MAX_VISIBLE) break fishChunks;
             const x = fish.x, y = fish.y;
-            if (fish.jumping || x < left || x > right || y < top || y > bottom) continue;
+            if (fish.jumping || (fish.visibility ?? 1) <= 0 || x < left || x > right || y < top || y > bottom) continue;
             const offset = count * 4;
 
             fishUniforms[offset] = Math.round(x);
             fishUniforms[offset + 1] = Math.round(y);
             fishUniforms[offset + 2] = Math.cos(fish.heading);
             fishUniforms[offset + 3] = Math.sin(fish.heading);
-            fishShapeUniforms[offset] = fish.length;
-            fishShapeUniforms[offset + 1] = fish.radius;
+            const visibility = fish.visibility ?? 1, scale = 0.35 + visibility * 0.65; fishVisibilityUniforms[count] = visibility; fishShapeUniforms[offset] = fish.length * scale;
+            fishShapeUniforms[offset + 1] = fish.radius * scale;
             fishShapeUniforms[offset + 2] = fish.phase;
-            fishShapeUniforms[offset + 3] = fish.amplitude;
+            fishShapeUniforms[offset + 3] = fish.amplitude * scale;
             count++;
         }
     }
 
     if (count > 0) waterPipeline.set4fv('uFish', fishUniforms);
     if (count > 0) waterPipeline.set4fv('uFishShape', fishShapeUniforms);
+    if (count > 0) waterPipeline.set1fv('uFishVisibility', fishVisibilityUniforms);
     waterPipeline.set1f('uFishCount', count);
 }
 
@@ -4755,7 +4781,7 @@ function findNpcLureFish(npc) {
     const { bobberX, bobberY } = npc.fishing;
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {
-            if (fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee' || fish.npcLured) continue;
+            if (fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee' || fish.npcLured || (fish.visibility ?? 1) < 0.85 || fish.surfacePhase === 'sinking' || fish.surfacePhase === 'submerged') continue;
             const x = fish.x - bobberX, y = fish.y - bobberY;
             if (x * x + y * y > NPC_LURE_RADIUS * NPC_LURE_RADIUS || !isFishPathClear(chunk, fish, bobberX, bobberY)) continue;
             fish.npcLured = true;
@@ -5485,7 +5511,7 @@ function pickJumpingFish() {
     for (const chunk of loadedWaterChunks) {
         if (!chunk.visible) continue;
         for (const fish of chunk.fish) {
-            if (fish.jumping || fish.npcLured || fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee') continue;
+            if (fish.jumping || fish.npcLured || fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee' || (fish.visibility ?? 1) < 1) continue;
             if (fish.x < left || fish.y < top || fish.x > left + mainCamera.width || fish.y > top + mainCamera.height) continue;
             const weight = (fish.size === 'large' || fish.size === 'giant' ? FISH_JUMP_BIG_WEIGHT : 1) * (fish.rumor ? FISH_JUMP_RUMOR_WEIGHT : 1);
             total += weight;
@@ -5989,6 +6015,15 @@ function isFishPathClear(chunk, fish, targetX, targetY) {
 const fishSpawnPools = new Map();
 const fishSpawnThresholds = [...new Set(FISH_SPECIES.map(species => species.minWater))].sort((a, b) => b - a);
 let fishSpawnRandom = null;
+function updateFishSurface(chunk, fish, delta) {
+    if (fish.jumping || fish.npcLured || fish.state === 'lure' || fish === fishing?.targetFish) { fish.visibility = 1; fish.surfacePhase = 'visible'; fish.surfaceTimer = fish.surfaceDuration || 30000; return false; }
+    fish.surfacePhase ||= 'visible'; fish.surfaceTimer ??= 20000 + Math.random() * 40000; fish.visibility ??= 1; fish.surfaceTimer -= Math.min(delta, 50);
+    if (fish.surfacePhase === 'visible' && fish.surfaceTimer <= 0) { fish.surfacePhase = 'sinking'; fish.surfaceTimer = 1400; }
+    else if (fish.surfacePhase === 'sinking') { fish.visibility = Math.max(0, fish.surfaceTimer / 1400); if (fish.surfaceTimer <= 0) { fish.surfacePhase = 'submerged'; fish.surfaceTimer = 4000 + Math.random() * 8000; } }
+    else if (fish.surfacePhase === 'submerged' && fish.surfaceTimer <= 0) { if (chooseFishTarget(chunk, fish)) { fish.x = fish.targetX; fish.y = fish.targetY; } fish.surfacePhase = 'rising'; fish.surfaceTimer = 1400; setFishIdle(fish, 600); }
+    else if (fish.surfacePhase === 'rising') { fish.visibility = Math.min(1, Math.max(0, 1 - fish.surfaceTimer / 1400)); if (fish.surfaceTimer <= 0) { fish.surfacePhase = 'visible'; fish.surfaceTimer = fish.surfaceDuration || 30000; } }
+    return fish.surfacePhase === 'submerged';
+}
 
 function fishRandom() {
     return fishSpawnRandom ? fishSpawnRandom() : Math.random();
@@ -6003,7 +6038,7 @@ function spawnChunkFish(chunk) {
 
         if (region.length < FISH_MIN_REGION) continue;
 
-        const count = Math.min(FISH_PER_CHUNK_MAX - chunk.fish.length, Math.max(1, Math.floor(region.length / FISH_WATER_PER_FISH)));
+        const richness = 0.85 + coordinateHash(Math.floor(chunk.pixelX / TILE_SIZE), Math.floor(chunk.pixelY / TILE_SIZE), 1789 + regionIndex) * 0.9, desired = Math.max(2, Math.floor(region.length / FISH_WATER_PER_FISH * richness)), existing = chunk.fish.filter(fish => fish.region === regionIndex + 1).length, count = Math.min(FISH_PER_CHUNK_MAX - chunk.fish.length, Math.max(0, desired - existing));
 
         spawnRegionFish(chunk, region, regionIndex + 1, count, chunk.pixelX, chunk.pixelY);
     }
@@ -6055,6 +6090,7 @@ function createFish(species, giantScale) {
         idleTurn: (fishRandom() - 0.5) * FISH_IDLE_TURN,
         state: 'idle',
         timer: fishRandom() * 2000,
+        surfacePhase: 'rising', surfaceTimer: 1400, visibility: 0, surfaceDuration: 20000 + fishRandom() * 40000,
         targetX: 0,
         targetY: 0,
         region: 0,
@@ -6396,7 +6432,9 @@ function updateFish(delta) {
     const running = characterPace > 1 && characterMoving;
 
     for (const chunk of loadedWaterChunks) {
+        if (chunk.fishRestockTimer !== undefined) { chunk.fishRestockTimer -= Math.min(delta, 50); if (chunk.fishRestockTimer <= 0) { delete chunk.fishRestockTimer; spawnChunkFish(chunk); } }
         for (const fish of chunk.fish) {
+            if (updateFishSurface(chunk, fish, delta)) continue;
             if (fish.jumping) continue;
             if (fish.state === 'lure' && updateLuredFish(chunk, fish, delta)) {
                 queueFishMigration(chunk, fish);
@@ -6527,7 +6565,7 @@ function findFishForBobber() {
         if (chunkDX * chunkDX + chunkDY * chunkDY > noticeMaxDistanceSquared) continue;
 
         for (const fish of chunk.fish) {
-            if (fish.state === 'flee' || fish.state === 'lure') continue;
+            if (fish.state === 'flee' || fish.state === 'lure' || fish.npcLured || (fish.visibility ?? 1) < 0.85 || fish.surfacePhase === 'sinking' || fish.surfacePhase === 'submerged') continue;
 
             const dx = bobberX - fish.x;
             const dy = bobberY - fish.y;
@@ -6598,7 +6636,7 @@ function startFishApproach(time) {
 
 function startFishBite(scene, time) {
     setFishingState('bite', time);
-    fishing.biteDeadline = time + Phaser.Math.Linear(1050, 720, FISH_SIZE_CLASSES[fishing.targetFish.size].difficulty);
+    fishing.biteDeadline = time + Phaser.Math.Linear(1700, 1200, FISH_SIZE_CLASSES[fishing.targetFish.size].difficulty);
     splash(scene, time, fishing.bobberX, fishing.bobberY);
 }
 
@@ -6646,7 +6684,7 @@ function spawnFishRise(scene, time) {
     for (const chunk of loadedWaterChunks) {
         if (!chunk.visible) continue;
         for (const fish of chunk.fish) {
-            if (fish.state !== 'flee' && fish.x > left && fish.x < left + mainCamera.width && fish.y > top && fish.y < top + mainCamera.height) candidates.push(fish);
+            if (fish.state !== 'flee' && (fish.visibility ?? 1) >= 1 && fish.x > left && fish.x < left + mainCamera.width && fish.y > top && fish.y < top + mainCamera.height) candidates.push(fish);
         }
     }
     const fish = candidates[Math.floor(Math.random() * candidates.length)];
@@ -6807,6 +6845,7 @@ function finishFishingMinigame(scene, time, caught) {
     if (chunk) {
         const index = chunk.fish.indexOf(fish);
         if (index !== -1) chunk.fish.splice(index, 1);
+        chunk.fishRestockTimer ??= 45000 + Math.random() * 45000;
     }
 
     const species = getMysteryCatchSpecies(fishing.bait, fish.species || FISH_SPECIES[0], playerStats.fishCaught || 0);
@@ -7097,7 +7136,7 @@ function resumeFloating(time) {
 function updateWaterFishing(scene, time, delta) {
     const age = time - fishing.start;
     const state = fishing.state;
-    const canDrift = state !== 'bite' && state !== 'hooked' && state !== 'snagged';
+    const canDrift = state === 'floating' || state === 'approaching' || state === 'inspecting';
     const candidateX = canDrift ? fishing.toX + Math.round(Math.sin(age / 1300 + fishing.driftPhase)) : fishing.toX;
     const candidateY = canDrift ? fishing.toY + Math.round(Math.sin(age / 1700 + fishing.driftPhase * 0.7)) : fishing.toY;
     const drifts = canDrift && isWaterPixel(scene, candidateX, candidateY);
@@ -7131,7 +7170,7 @@ function updateWaterFishing(scene, time, delta) {
         }
     } else if (state === 'inspecting' && age >= fishing.inspectDuration) {
         setFishingState('nibbleWait', time);
-        fishing.nibblesRemaining = Math.floor(Math.random() * 5 / getBaitLure());
+        fishing.nibblesRemaining = Math.floor(Math.random() * 3 / getBaitLure());
         fishing.nextNibbleAt = time + 300 + Math.random() * 420;
     } else if (state === 'nibbleWait' && time >= fishing.nextNibbleAt) {
         if (fishing.nibblesRemaining > 0) {
@@ -7276,6 +7315,7 @@ function drawAnglerLine(scene, cast, angler, delta) {
     updateFishingRope(cast.rope, tipX, tipY, cast.bobberX, cast.bobberY - 2, delta, taut ? 1 : cast.state === 'flying' ? 0.7 : 0);
     drawFishingRope(cast.rope, linePalette, line);
     if (waterFishingStates.has(cast.state) || cast.state === 'reeling') drawFishingWaterShadow(scene, tipHeight, 2, waterShadow);
+    if (cast === fishing && cast.state === 'bite') { const x = Math.round(cast.bobberX), y = Math.round(cast.bobberY) - 14; line.fillStyle(0x230a03, 1).fillRect(x - 2, y - 1, 5, 9).fillStyle(0xf6f5e5, 1).fillRect(x - 1, y, 3, 4).fillRect(x - 1, y + 6, 3, 1); return; }
     line
         .fillStyle(bobberPalette?.[2] || BOBBER_BOTTOM_COLOR, 1)
         .fillRect(cast.bobberX - 1, cast.bobberY - 2, 2, 1)
@@ -7334,7 +7374,7 @@ function createChestSilhouette(scene) {
     const offsets = Uint32Array.from({ length: points.length / 2 }, (_, index) =>
         points[index * 2 + 1] * CHUNK_PIXEL_SIZE + points[index * 2]);
     chestSilhouette = { width, top, bottom, points, offsets };
-    chestSprite = scene.add.image(0, 0, 'chest-small').setOrigin(0.5, 1).setVisible(false);
+    chestSprite = scene.add.image(0, 0, 'chest-icon').setOrigin(0.5, 1).setVisible(false);
     worldObjectLayer.add(chestSprite);
 }
 
@@ -7968,14 +8008,19 @@ function createMapUI(scene) {
         .setOrigin(0);
 
     const textLayer = createTextLayer(MAP_PANEL_HEIGHT);
+    mapGuideLabel = createUIText(textLayer, 0, 0, '#e0f2fd', 48, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(0,0,0,0.9)' }); mapGuideLabel.textContent = 'Guide'; mapMarketLabel = createUIText(textLayer, 0, 0, '#e0f2fd', 48, 'center', { fontSize: '11px', textShadow: '1px 1px rgba(0,0,0,0.9)' }); mapMarketLabel.textContent = 'Market';
 
     createUIText(textLayer, 14, 5, '#acccf9').textContent = 'World Map';
     appendKeyHints(
         createUIText(textLayer, 0, 6, '#8c7358', null, null, { left: 'auto', right: '14px', fontSize: '11px' }),
-        [['Scroll', 'Zoom'], ['WASD', 'Pan'], ['H', 'Spawn'], ['M', 'Close']]
+        [['Scroll', 'Zoom'], ['M', 'Close']]
     );
 
     mapTextLayer = addHudLayer(scene, textLayer, MAP_HIDDEN_Y, 203);
+    createUIText(textLayer, 14, 21, '#e0f2fd', null, null, { fontSize: '11px' }).textContent = 'WASD walk  Arrows/drag pan  Click mark  R clear';
+    createUIText(textLayer, 14, 143, '#c0a887', null, null, { fontSize: '11px' }).textContent = 'White arrow: you  Homes  Gold: marks / rumors';
+    const waypointHud = createTextLayer(12); mapWaypointText = createUIText(waypointHud, 14, 0, '#e0f2fd', null, null, { fontSize: '11px', textShadow: '1px 1px rgba(0,0,0,0.65)' }); mapWaypointLayer = addHudLayer(scene, waypointHud, 30, 103);
+    mapWaypointArrow = scene.add.graphics().setScrollFactor(0).setDepth(103).setVisible(false);
     mapContainer = addPanelContainer(scene, MAP_HIDDEN_Y, 202, [panel, mapImage]);
 }
 
@@ -7983,6 +8028,47 @@ let mapPixels;
 let mapPixelWords;
 let mapFog;
 const mapColors = createTileCache(() => new Uint32Array(CHUNK_SIZE * CHUNK_SIZE));
+function positionMapLandmarkLabel(label, x, y) {
+    if (!label) return;
+    label.style.display = x >= 8 && y >= 8 && x < MAP_WIDTH - 8 && y < MAP_HEIGHT - 20 ? 'block' : 'none'; label.style.left = `${Math.round(Math.max(12, Math.min(MAP_WIDTH - 36, 12 + x - 24)))}px`; label.style.top = `${MAP_TOP + Math.round(y) + 10}px`;
+}
+function setMapWaypoint(pointer) {
+    const x = Math.floor(pointer.x - 12), y = Math.floor(pointer.y - mapContainer.y - MAP_TOP);
+    if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return;
+    mapWaypoint = { x: mapCenter.x - Math.floor(MAP_WIDTH / mapZoom / 2) + Math.round(mapPan.x) + Math.floor(x / mapZoom), y: mapCenter.y - Math.floor(MAP_HEIGHT / mapZoom / 2) + Math.round(mapPan.y) + Math.floor(y / mapZoom) }; mapDirty = true;
+}
+function updateMapWaypoint() {
+    if (!mapWaypointLayer) return;
+    mapWaypointArrow?.setVisible(false);
+    if (!mapWaypoint) { mapWaypointLayer.setVisible(false); return; }
+    const dx = mapWaypoint.x * TILE_SIZE + TILE_SIZE / 2 - character.x - CHARACTER_SIZE / 2, dy = mapWaypoint.y * TILE_SIZE + TILE_SIZE / 2 - character.y - CHARACTER_SIZE / 2, distance = Math.round(Math.hypot(dx, dy) / TILE_SIZE);
+    if (distance <= 1 && !interior) { mapWaypoint = null; mapDirty = true; mapWaypointLayer.setVisible(false); return; }
+    const directions = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'], bearing = directions[(Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8];
+    setUITextContent(mapWaypointText, `Waypoint: ${bearing}  ${distance} tiles`); mapWaypointLayer.setVisible(!startup && !dialogueOpen && !marketOpen && !inventoryOpen && !statsOpen && !mapOpen && !spawnReturn && !interior);
+    if (mapWaypointArrow && mapWaypointLayer.visible) { const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI / 4; mapWaypointArrow.setVisible(true).clear().fillStyle(0xe0f2fd, 1); for (let forward = -3; forward <= 3; forward++) for (let side = -(3 - forward) / 2; side <= (3 - forward) / 2; side++) mapWaypointArrow.fillRect(Math.round(7 + Math.cos(angle) * forward - Math.sin(angle) * side), Math.round(35 + Math.sin(angle) * forward + Math.cos(angle) * side), 1, 1); }
+}
+function getMapEdgeMarker(x, y, margin = 8) {
+    const cx = MAP_WIDTH / 2, cy = MAP_HEIGHT / 2, dx = x - cx, dy = y - cy;
+    const outside = x < margin || y < margin || x >= MAP_WIDTH - margin || y >= MAP_HEIGHT - margin;
+    const scale = outside ? Math.min((cx - margin) / Math.max(0.001, Math.abs(dx)), (cy - margin) / Math.max(0.001, Math.abs(dy))) : 1;
+    return { x: Math.round(cx + dx * scale), y: Math.round(cy + dy * scale), outside, angle: Math.atan2(dy, dx) };
+}
+function drawMapArrow(pixels, marker, color) {
+    drawMapMarker(pixels, marker.x - 3, marker.y - 3, 7, 7, toMapPixel(0x230a03), toMapPixel(0x230a03));
+    for (let forward = -3; forward <= 3; forward++) for (let side = -(3 - forward) / 2; side <= (3 - forward) / 2; side++) {
+        const x = Math.round(marker.x + Math.cos(marker.angle) * forward - Math.sin(marker.angle) * side), y = Math.round(marker.y + Math.sin(marker.angle) * forward + Math.cos(marker.angle) * side);
+        if (x >= 0 && y >= 0 && x < MAP_WIDTH && y < MAP_HEIGHT) pixels[y * MAP_WIDTH + x] = toMapPixel(color);
+    }
+}
+function drawMapSprite(scene, pixels, key, x, y, size = 16) {
+    const source = getTerrainPixels(scene, key), left = Math.round(x - size / 2), top = Math.round(y - size / 2);
+    drawMapMarker(pixels, left, top, size, size, toMapPixel(0x36160d), toMapPixel(0xacccf9));
+    for (let py = 0; py < size; py++) for (let px = 0; px < size; px++) {
+        const sx = Math.floor(px * source.width / size), sy = Math.floor(py * source.height / size), offset = (sy * source.width + sx) * 4;
+        if (source.data[offset + 3] < 128 || left + px < 0 || top + py < 0 || left + px >= MAP_WIDTH || top + py >= MAP_HEIGHT) continue;
+        pixels[(top + py) * MAP_WIDTH + left + px] = toMapPixel(source.data[offset] << 16 | source.data[offset + 1] << 8 | source.data[offset + 2]);
+    }
+}
 
 function getMapPalette(scene) {
     if (mapPalette) return mapPalette;
@@ -8156,8 +8242,8 @@ function redrawMap(scene) {
     const playerTileX = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE);
     const playerTileY = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
     const zoom = mapZoom;
-    const originX = playerTileX - Math.floor(MAP_WIDTH / zoom / 2) + Math.round(mapPan.x);
-    const originY = playerTileY - Math.floor(MAP_HEIGHT / zoom / 2) + Math.round(mapPan.y);
+    const originX = mapCenter.x - Math.floor(MAP_WIDTH / zoom / 2) + Math.round(mapPan.x);
+    const originY = mapCenter.y - Math.floor(MAP_HEIGHT / zoom / 2) + Math.round(mapPan.y);
     const marker = (tileX, tileY, width, height, color) => drawMapMarker(
         pixels, (tileX - originX) * zoom, (tileY - originY) * zoom,
         width * zoom, height * zoom, toMapPixel(color), outline
@@ -8165,20 +8251,25 @@ function redrawMap(scene) {
 
     pixels.set(getMapFogPixels(fog));
     drawMapTerrain(pixels, originX, originY, zoom);
+    if (mapGuideLabel) mapGuideLabel.style.display = 'none'; if (mapMarketLabel) mapMarketLabel.style.display = 'none';
+    for (const house of npcHouseCache.values()) if (house && isTileDiscovered(house.x, house.y)) drawMapSprite(scene, pixels, 'house', (house.x + 1 - originX) * zoom, (house.y + 1 - originY) * zoom, 12);
 
     if (store && isTileDiscovered(Math.floor(store.x / TILE_SIZE), Math.floor(store.y / TILE_SIZE))) {
-        marker(Math.floor(store.x / TILE_SIZE), Math.floor(store.y / TILE_SIZE), STORE_WIDTH_TILES, STORE_HEIGHT_TILES, palette.store);
+        drawMapSprite(scene, pixels, 'store', (store.x / TILE_SIZE + STORE_WIDTH_TILES / 2 - originX) * zoom, (store.y / TILE_SIZE + STORE_HEIGHT_TILES / 2 - originY) * zoom);
+        positionMapLandmarkLabel(mapMarketLabel, (store.x / TILE_SIZE + STORE_WIDTH_TILES / 2 - originX) * zoom, (store.y / TILE_SIZE + STORE_HEIGHT_TILES / 2 - originY) * zoom);
     }
 
     if (guide && isTileDiscovered(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE))) {
-        marker(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE), 1, 1, palette.guide);
+        drawMapSprite(scene, pixels, 'guide', (Math.floor(guide.x / TILE_SIZE) - originX) * zoom, (Math.floor(guide.y / TILE_SIZE) - originY) * zoom);
+        positionMapLandmarkLabel(mapGuideLabel, (Math.floor(guide.x / TILE_SIZE) - originX) * zoom, (Math.floor(guide.y / TILE_SIZE) - originY) * zoom);
     }
 
     for (const rumor of heardRumors.values()) {
         if (rumor.day === getWorldClock().day) marker((rumor.chunkX + 0.5) * CHUNK_SIZE, (rumor.chunkY + 0.5) * CHUNK_SIZE, 1, 1, RUMOR_MAP_COLOR);
     }
 
-    marker(playerTileX, playerTileY, 1, 1, palette.player);
+    const playerMarker = getMapEdgeMarker((playerTileX - originX) * zoom, (playerTileY - originY) * zoom); if (!playerMarker.outside) playerMarker.angle = { right: 0, front: Math.PI / 2, left: Math.PI, back: -Math.PI / 2 }[characterDirection]; drawMapArrow(pixels, playerMarker, palette.player);
+    if (mapWaypoint) { const point = getMapEdgeMarker((mapWaypoint.x - originX) * zoom, (mapWaypoint.y - originY) * zoom, 4); if (point.outside) drawMapArrow(pixels, point, RUMOR_MAP_COLOR); else { drawMapMarker(pixels, point.x - 2, point.y - 2, 5, 5, toMapPixel(RUMOR_MAP_COLOR), outline); drawMapMarker(pixels, point.x, point.y, 1, 1, toMapPixel(palette.outline), toMapPixel(RUMOR_MAP_COLOR)); } }
 
     context.putImageData(mapPixels, 0, 0);
     mapTexture.refresh();
@@ -8229,12 +8320,13 @@ function openMap(scene) {
     mapPan.y = 0;
     mapDrag = null;
     mapDirty = false;
-    stopCharacterForMenu();
+    mapCenter.x = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE); mapCenter.y = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
     redrawMap(scene);
     showSlidingPanel(scene, MAP_HIDDEN_Y, mapContainer, mapTextLayer);
 }
 
 function closeMap(scene) {
+    mapDrag = null;
     if (!mapOpen) return;
 
     mapOpen = false;
@@ -8242,14 +8334,16 @@ function closeMap(scene) {
 }
 
 function handleMapKey(scene, event) {
+    if (event.key.toLowerCase() === 'r') { mapWaypoint = null; mapDirty = true; }
     if (event.key.toLowerCase() === 'm' || event.key === 'Escape') closeMap(scene);
 }
 
 function updateMapPan(scene, delta) {
-    const panX = (characterKeys.right.isDown || characterKeys.rightArrow.isDown ? 1 : 0) -
-        (characterKeys.left.isDown || characterKeys.leftArrow.isDown ? 1 : 0);
-    const panY = (characterKeys.down.isDown || characterKeys.downArrow.isDown ? 1 : 0) -
-        (characterKeys.up.isDown || characterKeys.upArrow.isDown ? 1 : 0);
+
+    const panX = (characterKeys.rightArrow.isDown ? 1 : 0) -
+        (characterKeys.leftArrow.isDown ? 1 : 0);
+    const panY = (characterKeys.downArrow.isDown ? 1 : 0) -
+        (characterKeys.upArrow.isDown ? 1 : 0);
     if (!panX && !panY && !mapDirty) return;
 
     const distance = MAP_PAN_SPEED / mapZoom * Math.min(delta, 50) / 1000;
@@ -9720,8 +9814,8 @@ const FISH_SIZE_CLASSES = {
     giant: { label: 'Monstrous', length: 42, radius: 10, difficulty: 1.65 }
 };
 const FISH_MIN_DEPTH = 3;
-const FISH_PER_CHUNK_MAX = 5;
-const FISH_WATER_PER_FISH = 5000;
+const FISH_PER_CHUNK_MAX = 9;
+const FISH_WATER_PER_FISH = 3000;
 const FISH_MIN_REGION = 1800;
 const FISH_SWIM_SPEED = 13;
 const FISH_ACCELERATION = 40;
@@ -9801,10 +9895,10 @@ const DIALOGUE_OPTION_HEIGHT = 17;
 const DIALOGUE_TYPE_DELAY = 24;
 const DIALOGUE_PORTRAIT_Y = 8;
 
-const MAP_PANEL_HEIGHT = 142;
+const MAP_PANEL_HEIGHT = 156;
 const MAP_WIDTH = 296;
-const MAP_HEIGHT = 114;
-const MAP_TOP = 22;
+const MAP_HEIGHT = 104;
+const MAP_TOP = 36;
 const MAP_HIDDEN_Y = -MAP_PANEL_HEIGHT;
 
 const INVENTORY_HEIGHT = 142;
@@ -10353,6 +10447,7 @@ let characterMoving = false;
 
 const fishUniforms = new Float32Array(FISH_MAX_VISIBLE * 4);
 const fishShapeUniforms = new Float32Array(FISH_MAX_VISIBLE * 4);
+const fishVisibilityUniforms = new Float32Array(FISH_MAX_VISIBLE);
 
 let horizontalPriority = 0;
 let lastMenuWheelTime = -Infinity;
@@ -10407,8 +10502,11 @@ let mapTextLayer;
 let mapDrag = null;
 let mapDirty = false;
 const mapPan = { x: 0, y: 0 };
+const mapCenter = { x: 0, y: 0 };
+let mapWaypoint = null, mapWaypointLayer, mapWaypointText, mapWaypointArrow;
 let mapZoom = 1;
 let mapPalette = null;
+let mapGuideLabel, mapMarketLabel;
 
 let inventoryOpen = false;
 let inventoryContainer;
@@ -10549,6 +10647,7 @@ function getTextureAliases() {
     alias('bait-mystery', 'items/baits/mysteryBait');
     alias('bait-mystery-icon', 'items/baits/mystery-icon');
     alias('chest', 'items/chest');
+    alias('chest-icon', 'items/chest-icon');
     alias('fishing-ui', 'ui/fishing/panel');
     alias('fishing-catch-zone', 'ui/fishing/catch-zone');
     alias('fishing-fish', 'ui/fishing/fish');
@@ -10655,6 +10754,7 @@ function bindGameInput(scene) {
     });
 
     const releasePointer = pointer => {
+        if (pointer.button === 0 && mapOpen && mapDrag && Math.hypot(pointer.x - mapDrag.x, pointer.y - mapDrag.y) < 3) setMapWaypoint(pointer);
         if (pointer.button !== 0) return;
         mapDrag = null;
         releaseAction('pointer');
@@ -10802,6 +10902,7 @@ function create() {
     createPropArt(this);
     createBushSlices(this);
     createRoundedCliffTextures(this);
+    createGrassFlowerTextures(this);
     createBridgeEdgeTexture(this);
     createPlayerTextures(this);
     createShimmerSheet(this);
@@ -11361,11 +11462,11 @@ function updateCharacter(scene, time, delta) {
     let moveX = 0;
     let moveY = 0;
 
-    if (!isMenuOpen()) {
-        const left = characterKeys.left.isDown || characterKeys.leftArrow.isDown;
-        const right = characterKeys.right.isDown || characterKeys.rightArrow.isDown;
-        const up = characterKeys.up.isDown || characterKeys.upArrow.isDown;
-        const down = characterKeys.down.isDown || characterKeys.downArrow.isDown;
+    if (!dialogueOpen && !marketOpen && !inventoryOpen && !statsOpen) {
+        const left = characterKeys.left.isDown || !mapOpen && characterKeys.leftArrow.isDown;
+        const right = characterKeys.right.isDown || !mapOpen && characterKeys.rightArrow.isDown;
+        const up = characterKeys.up.isDown || !mapOpen && characterKeys.upArrow.isDown;
+        const down = characterKeys.down.isDown || !mapOpen && characterKeys.downArrow.isDown;
 
         moveX = left && right ? horizontalPriority : left ? -1 : right ? 1 : 0;
         moveY = up && down ? verticalPriority : up ? -1 : down ? 1 : 0;
@@ -11460,7 +11561,7 @@ function update(time, delta) {
     updateInteractionPrompt(this, guideReach, marketReach);
     updateStatsUI();
 
-    if (mapOpen) updateMapPan(this, delta);
+    if (mapOpen) { mapDirty ||= travelled > 0; updateMapPan(this, delta); } updateMapWaypoint();
 
     if (inventoryOpen && newGameConfirmUntil && time >= newGameConfirmUntil) {
         newGameConfirmUntil = 0;

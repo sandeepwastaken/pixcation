@@ -26,7 +26,7 @@ function findFishForBobber() {
         if (chunkDX * chunkDX + chunkDY * chunkDY > noticeMaxDistanceSquared) continue;
 
         for (const fish of chunk.fish) {
-            if (fish.state === 'flee' || fish.state === 'lure') continue;
+            if (fish.state === 'flee' || fish.state === 'lure' || fish.npcLured || (fish.visibility ?? 1) < 0.85 || fish.surfacePhase === 'sinking' || fish.surfacePhase === 'submerged') continue;
 
             const dx = bobberX - fish.x;
             const dy = bobberY - fish.y;
@@ -97,6 +97,6 @@ function startFishApproach(time) {
 
 function startFishBite(scene, time) {
     setFishingState('bite', time);
-    fishing.biteDeadline = time + Phaser.Math.Linear(1050, 720, FISH_SIZE_CLASSES[fishing.targetFish.size].difficulty);
+    fishing.biteDeadline = time + Phaser.Math.Linear(1700, 1200, FISH_SIZE_CLASSES[fishing.targetFish.size].difficulty);
     splash(scene, time, fishing.bobberX, fishing.bobberY);
 }

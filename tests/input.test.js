@@ -40,6 +40,11 @@ function createInput() {
 
 const space = { key: ' ', code: 'Space', repeat: false, preventDefault() {} };
 const left = { button: 0, x: 0, y: 180 };
+test('clicking the map creates a waypoint but dragging does not', () => {
+    const { input, run } = createInput(); run('let marks = 0; function setMapWaypoint() { marks++; } mapOpen = true; mapDrag = { x: 20, y: 40 };');
+    input.emit('pointerup', { button: 0, x: 20, y: 40 }); assert.equal(run('marks'), 1);
+    run('mapDrag = { x: 20, y: 40 }'); input.emit('pointerup', { button: 0, x: 40, y: 40 }); assert.equal(run('marks'), 1); assert.equal(run('mapDrag'), null);
+});
 test('door transition action reset clears held sources so casting resumes normally afterward', () => {
     const {input, run} = createInput(); input.keyboard.emit('keydown', space);
     run('scene.resetHeldActions();');

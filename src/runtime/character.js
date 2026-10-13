@@ -293,11 +293,11 @@ function updateCharacter(scene, time, delta) {
     let moveX = 0;
     let moveY = 0;
 
-    if (!isMenuOpen()) {
-        const left = characterKeys.left.isDown || characterKeys.leftArrow.isDown;
-        const right = characterKeys.right.isDown || characterKeys.rightArrow.isDown;
-        const up = characterKeys.up.isDown || characterKeys.upArrow.isDown;
-        const down = characterKeys.down.isDown || characterKeys.downArrow.isDown;
+    if (!dialogueOpen && !marketOpen && !inventoryOpen && !statsOpen) {
+        const left = characterKeys.left.isDown || !mapOpen && characterKeys.leftArrow.isDown;
+        const right = characterKeys.right.isDown || !mapOpen && characterKeys.rightArrow.isDown;
+        const up = characterKeys.up.isDown || !mapOpen && characterKeys.upArrow.isDown;
+        const down = characterKeys.down.isDown || !mapOpen && characterKeys.downArrow.isDown;
 
         moveX = left && right ? horizontalPriority : left ? -1 : right ? 1 : 0;
         moveY = up && down ? verticalPriority : up ? -1 : down ? 1 : 0;

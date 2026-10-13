@@ -51,8 +51,8 @@ const FISH_SIZE_CLASSES = {
     giant: { label: 'Monstrous', length: 42, radius: 10, difficulty: 1.65 }
 };
 const FISH_MIN_DEPTH = 3;
-const FISH_PER_CHUNK_MAX = 5;
-const FISH_WATER_PER_FISH = 5000;
+const FISH_PER_CHUNK_MAX = 9;
+const FISH_WATER_PER_FISH = 3000;
 const FISH_MIN_REGION = 1800;
 const FISH_SWIM_SPEED = 13;
 const FISH_ACCELERATION = 40;
@@ -132,10 +132,10 @@ const DIALOGUE_OPTION_HEIGHT = 17;
 const DIALOGUE_TYPE_DELAY = 24;
 const DIALOGUE_PORTRAIT_Y = 8;
 
-const MAP_PANEL_HEIGHT = 142;
+const MAP_PANEL_HEIGHT = 156;
 const MAP_WIDTH = 296;
-const MAP_HEIGHT = 114;
-const MAP_TOP = 22;
+const MAP_HEIGHT = 104;
+const MAP_TOP = 36;
 const MAP_HIDDEN_Y = -MAP_PANEL_HEIGHT;
 
 const INVENTORY_HEIGHT = 142;

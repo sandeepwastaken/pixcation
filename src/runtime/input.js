@@ -77,6 +77,7 @@ function bindGameInput(scene) {
     });
 
     const releasePointer = pointer => {
+        if (pointer.button === 0 && mapOpen && mapDrag && Math.hypot(pointer.x - mapDrag.x, pointer.y - mapDrag.y) < 3) setMapWaypoint(pointer);
         if (pointer.button !== 0) return;
         mapDrag = null;
         releaseAction('pointer');

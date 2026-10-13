@@ -824,7 +824,7 @@ function findNpcLureFish(npc) {
     const { bobberX, bobberY } = npc.fishing;
     for (const chunk of loadedWaterChunks) {
         for (const fish of chunk.fish) {
-            if (fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee' || fish.npcLured) continue;
+            if (fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee' || fish.npcLured || (fish.visibility ?? 1) < 0.85 || fish.surfacePhase === 'sinking' || fish.surfacePhase === 'submerged') continue;
             const x = fish.x - bobberX, y = fish.y - bobberY;
             if (x * x + y * y > NPC_LURE_RADIUS * NPC_LURE_RADIUS || !isFishPathClear(chunk, fish, bobberX, bobberY)) continue;
             fish.npcLured = true;

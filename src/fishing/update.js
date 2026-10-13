@@ -12,7 +12,7 @@ function resumeFloating(time) {
 function updateWaterFishing(scene, time, delta) {
     const age = time - fishing.start;
     const state = fishing.state;
-    const canDrift = state !== 'bite' && state !== 'hooked' && state !== 'snagged';
+    const canDrift = state === 'floating' || state === 'approaching' || state === 'inspecting';
     const candidateX = canDrift ? fishing.toX + Math.round(Math.sin(age / 1300 + fishing.driftPhase)) : fishing.toX;
     const candidateY = canDrift ? fishing.toY + Math.round(Math.sin(age / 1700 + fishing.driftPhase * 0.7)) : fishing.toY;
     const drifts = canDrift && isWaterPixel(scene, candidateX, candidateY);
@@ -46,7 +46,7 @@ function updateWaterFishing(scene, time, delta) {
         }
     } else if (state === 'inspecting' && age >= fishing.inspectDuration) {
         setFishingState('nibbleWait', time);
-        fishing.nibblesRemaining = Math.floor(Math.random() * 5 / getBaitLure());
+        fishing.nibblesRemaining = Math.floor(Math.random() * 3 / getBaitLure());
         fishing.nextNibbleAt = time + 300 + Math.random() * 420;
     } else if (state === 'nibbleWait' && time >= fishing.nextNibbleAt) {
         if (fishing.nibblesRemaining > 0) {
@@ -191,6 +191,7 @@ function drawAnglerLine(scene, cast, angler, delta) {
     updateFishingRope(cast.rope, tipX, tipY, cast.bobberX, cast.bobberY - 2, delta, taut ? 1 : cast.state === 'flying' ? 0.7 : 0);
     drawFishingRope(cast.rope, linePalette, line);
     if (waterFishingStates.has(cast.state) || cast.state === 'reeling') drawFishingWaterShadow(scene, tipHeight, 2, waterShadow);
+    if (cast === fishing && cast.state === 'bite') { const x = Math.round(cast.bobberX), y = Math.round(cast.bobberY) - 14; line.fillStyle(0x230a03, 1).fillRect(x - 2, y - 1, 5, 9).fillStyle(0xf6f5e5, 1).fillRect(x - 1, y, 3, 4).fillRect(x - 1, y + 6, 3, 1); return; }
     line
         .fillStyle(bobberPalette?.[2] || BOBBER_BOTTOM_COLOR, 1)
         .fillRect(cast.bobberX - 1, cast.bobberY - 2, 2, 1)

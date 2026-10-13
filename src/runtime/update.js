@@ -29,7 +29,7 @@ function update(time, delta) {
     updateInteractionPrompt(this, guideReach, marketReach);
     updateStatsUI();
 
-    if (mapOpen) updateMapPan(this, delta);
+    if (mapOpen) { mapDirty ||= travelled > 0; updateMapPan(this, delta); } updateMapWaypoint();
 
     if (inventoryOpen && newGameConfirmUntil && time >= newGameConfirmUntil) {
         newGameConfirmUntil = 0;

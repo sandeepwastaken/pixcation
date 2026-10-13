@@ -42,7 +42,7 @@ function spawnFishRise(scene, time) {
     for (const chunk of loadedWaterChunks) {
         if (!chunk.visible) continue;
         for (const fish of chunk.fish) {
-            if (fish.state !== 'flee' && fish.x > left && fish.x < left + mainCamera.width && fish.y > top && fish.y < top + mainCamera.height) candidates.push(fish);
+            if (fish.state !== 'flee' && (fish.visibility ?? 1) >= 1 && fish.x > left && fish.x < left + mainCamera.width && fish.y > top && fish.y < top + mainCamera.height) candidates.push(fish);
         }
     }
     const fish = candidates[Math.floor(Math.random() * candidates.length)];

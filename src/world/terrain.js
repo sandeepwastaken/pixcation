@@ -1,6 +1,17 @@
 function getTileId(tileX, tileY) {
     return tileX * 67108864 + tileY;
 }
+function getGrassFlowerPlacement(tileX, tileY) {
+    const variant = Math.min(17, Math.floor(worldHash(tileX, tileY, 924) * 18));
+    return { flipX: variant >= 9, x: 0, y: 0 };
+}
+function createGrassFlowerTextures(scene) {
+    const underlay = getTerrainPixels(scene, 'grass2');
+    for (const key of ['grass3', 'grass4']) {
+        const layers = extractGrassFlowerPixels(getTerrainPixels(scene, key), underlay);
+        for (const [layer, suffix] of [[layers.grass, 'plain'], [layers.flowers, 'flowers']]) createCanvasTexture(scene, `${key}-${suffix}`, layer.width, layer.height, context => { const image = context.createImageData(layer.width, layer.height); image.data.set(layer.data); context.putImageData(image, 0, 0); });
+    }
+}
 
 function cacheWorldValue(cache, key, value) {
     if (cache.size >= WORLD_CACHE_LIMIT) {
@@ -284,6 +295,17 @@ function generateWorldTile(tileX, tileY) {
 }
 
 const grassTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
+function extractGrassFlowerPixels(source, underlay) {
+    if (source.width !== underlay.width || source.height !== underlay.height) throw new Error('Grass layer dimensions do not match');
+    const mask = new Uint8Array(source.width * source.height), grass = new Uint8ClampedArray(source.data), flowers = new Uint8ClampedArray(source.data.length);
+    for (let pixel = 0; pixel < mask.length; pixel++) {
+        const offset = pixel * 4, color = source.data[offset] << 16 | source.data[offset + 1] << 8 | source.data[offset + 2];
+        if (!source.data[offset + 3] || !FLOWER_COLORS.has(color) && color !== FLOWER_PATCH_SOURCE) continue;
+        mask[pixel] = 1; if (pixel + source.width < mask.length) mask[pixel + source.width] = 1;
+    }
+    for (let pixel = 0; pixel < mask.length; pixel++) if (mask[pixel]) { const offset = pixel * 4; flowers.set(source.data.subarray(offset, offset + 4), offset); grass.set(underlay.data.subarray(offset, offset + 4), offset); }
+    return { grass: { width: source.width, height: source.height, data: grass }, flowers: { width: source.width, height: source.height, data: flowers } };
+}
 
 function stretchNoise(noise, contrast = 1.9) {
     return Phaser.Math.Clamp((noise - 0.5) * contrast + 0.5, 0, 1);

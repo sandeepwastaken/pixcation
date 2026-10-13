@@ -41,6 +41,7 @@ function finishFishingMinigame(scene, time, caught) {
     if (chunk) {
         const index = chunk.fish.indexOf(fish);
         if (index !== -1) chunk.fish.splice(index, 1);
+        chunk.fishRestockTimer ??= 45000 + Math.random() * 45000;
     }
 
     const species = getMysteryCatchSpecies(fishing.bait, fish.species || FISH_SPECIES[0], playerStats.fishCaught || 0);

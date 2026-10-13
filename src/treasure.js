@@ -47,7 +47,7 @@ function createChestSilhouette(scene) {
     const offsets = Uint32Array.from({ length: points.length / 2 }, (_, index) =>
         points[index * 2 + 1] * CHUNK_PIXEL_SIZE + points[index * 2]);
     chestSilhouette = { width, top, bottom, points, offsets };
-    chestSprite = scene.add.image(0, 0, 'chest-small').setOrigin(0.5, 1).setVisible(false);
+    chestSprite = scene.add.image(0, 0, 'chest-icon').setOrigin(0.5, 1).setVisible(false);
     worldObjectLayer.add(chestSprite);
 }
 

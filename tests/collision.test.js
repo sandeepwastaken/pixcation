@@ -3,6 +3,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+test('WASD walks with the map open while arrows pan and dialogue still blocks movement', () => {
+    const run = createWorld([]);
+    run("character = { x: 0, y: 0, depth: 16, setTexture() {} }; characterKeys = Object.fromEntries(['left', 'right', 'up', 'down', 'leftArrow', 'rightArrow', 'upArrow', 'downArrow', 'sprint'].map(key => [key, {isDown: false}])); function kickUpDust() {} mapOpen = true; characterKeys.right.isDown = true; updateCharacter({}, 0, 50)");
+    assert.equal(run('character.x'), 3); assert.equal(run('characterMoving'), true);
+    run('characterKeys.right.isDown = false; characterKeys.rightArrow.isDown = true; updateCharacter({}, 50, 50)'); assert.equal(run('character.x'), 3); assert.equal(run('characterMoving'), false);
+    run('characterKeys.right.isDown = true; dialogueOpen = true; updateCharacter({}, 100, 50)'); assert.equal(run('character.x'), 3);
+});
 
 function createWorld(waterPixels, tileOptions = {}) {
     const context = vm.createContext({ waterPixels, tileOptions });

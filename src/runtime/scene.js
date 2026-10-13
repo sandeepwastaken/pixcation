@@ -11,6 +11,7 @@ function create() {
     createPropArt(this);
     createBushSlices(this);
     createRoundedCliffTextures(this);
+    createGrassFlowerTextures(this);
     createBridgeEdgeTexture(this);
     createPlayerTextures(this);
     createShimmerSheet(this);

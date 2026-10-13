@@ -105,12 +105,13 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
             drawChunkTexture(
                 terrainTile.baseKey === 'water' || tileKey.startsWith('wood') ? getUpperContext() : groundContext,
                 scene,
-                isWater ? shoreline.textureKey : terrainTile.textureKey || tileKey,
+                isWater ? shoreline.textureKey : terrainTile.textureKey || (tileKey === 'grass3' || tileKey === 'grass4' ? `${tileKey}-plain` : tileKey),
                 drawX,
                 drawY,
                 terrainTile.rotation
             );
 
+            if (tileKey === 'grass3' || tileKey === 'grass4') { const placement = getGrassFlowerPlacement(tileX, tileY); groundContext.save(); groundContext.beginPath(); groundContext.rect(drawX, drawY, TILE_SIZE, TILE_SIZE); groundContext.clip(); drawChunkTexture(groundContext, scene, `${tileKey}-flowers`, drawX + placement.x, drawY + placement.y, 0, placement.flipX); groundContext.restore(); }
             for (const patch of terrainTile.patches || EMPTY_TILE_PATCHES) {
                 drawChunkTexture(getUpperContext(), scene, patch.key, drawX + patch.x, drawY + patch.y, 0, patch.flipX, patch.flipY);
             }

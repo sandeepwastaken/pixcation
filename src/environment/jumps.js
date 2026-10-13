@@ -35,7 +35,7 @@ function pickJumpingFish() {
     for (const chunk of loadedWaterChunks) {
         if (!chunk.visible) continue;
         for (const fish of chunk.fish) {
-            if (fish.jumping || fish.npcLured || fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee') continue;
+            if (fish.jumping || fish.npcLured || fish === fishing?.targetFish || fish.state === 'lure' || fish.state === 'flee' || (fish.visibility ?? 1) < 1) continue;
             if (fish.x < left || fish.y < top || fish.x > left + mainCamera.width || fish.y > top + mainCamera.height) continue;
             const weight = (fish.size === 'large' || fish.size === 'giant' ? FISH_JUMP_BIG_WEIGHT : 1) * (fish.rumor ? FISH_JUMP_RUMOR_WEIGHT : 1);
             total += weight;

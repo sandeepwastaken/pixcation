@@ -3,6 +3,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+test('submerged fish cannot be lured, and a full bite gives a clear reaction window', () => {
+    const run = createSession();
+    run("Phaser = { Math: { Linear: (a, b, t) => a + (b - a) * t } }; fishing = { bobberX: 0, bobberY: 0, targetFish: { size: 'small' } }; const chunk = { pixelX: 0, pixelY: 0, fish: [{ x: 10, y: 0, heading: Math.PI, state: 'idle', visibility: 0 }] }; loadedWaterChunks.add(chunk); function isFishPathClear() { return true; } function splash() {} ");
+    assert.equal(run('findFishForBobber()'), null);
+    run('chunk.fish[0].visibility = 1'); assert.equal(run('findFishForBobber().fish === chunk.fish[0]'), true);
+    run("chunk.fish[0].surfacePhase = 'sinking'"); assert.equal(run('findFishForBobber()'), null);
+    run('startFishBite({}, 1000)'); assert.equal(run('fishing.state'), 'bite'); assert.ok(run('fishing.biteDeadline - 1000') >= 1200);
+});
 
 function createSession() {
     const context = vm.createContext({});

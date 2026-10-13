@@ -69,7 +69,9 @@ function updateFish(delta) {
     const running = characterPace > 1 && characterMoving;
 
     for (const chunk of loadedWaterChunks) {
+        if (chunk.fishRestockTimer !== undefined) { chunk.fishRestockTimer -= Math.min(delta, 50); if (chunk.fishRestockTimer <= 0) { delete chunk.fishRestockTimer; spawnChunkFish(chunk); } }
         for (const fish of chunk.fish) {
+            if (updateFishSurface(chunk, fish, delta)) continue;
             if (fish.jumping) continue;
             if (fish.state === 'lure' && updateLuredFish(chunk, fish, delta)) {
                 queueFishMigration(chunk, fish);

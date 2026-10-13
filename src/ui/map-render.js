@@ -2,6 +2,47 @@ let mapPixels;
 let mapPixelWords;
 let mapFog;
 const mapColors = createTileCache(() => new Uint32Array(CHUNK_SIZE * CHUNK_SIZE));
+function positionMapLandmarkLabel(label, x, y) {
+    if (!label) return;
+    label.style.display = x >= 8 && y >= 8 && x < MAP_WIDTH - 8 && y < MAP_HEIGHT - 20 ? 'block' : 'none'; label.style.left = `${Math.round(Math.max(12, Math.min(MAP_WIDTH - 36, 12 + x - 24)))}px`; label.style.top = `${MAP_TOP + Math.round(y) + 10}px`;
+}
+function setMapWaypoint(pointer) {
+    const x = Math.floor(pointer.x - 12), y = Math.floor(pointer.y - mapContainer.y - MAP_TOP);
+    if (x < 0 || y < 0 || x >= MAP_WIDTH || y >= MAP_HEIGHT) return;
+    mapWaypoint = { x: mapCenter.x - Math.floor(MAP_WIDTH / mapZoom / 2) + Math.round(mapPan.x) + Math.floor(x / mapZoom), y: mapCenter.y - Math.floor(MAP_HEIGHT / mapZoom / 2) + Math.round(mapPan.y) + Math.floor(y / mapZoom) }; mapDirty = true;
+}
+function updateMapWaypoint() {
+    if (!mapWaypointLayer) return;
+    mapWaypointArrow?.setVisible(false);
+    if (!mapWaypoint) { mapWaypointLayer.setVisible(false); return; }
+    const dx = mapWaypoint.x * TILE_SIZE + TILE_SIZE / 2 - character.x - CHARACTER_SIZE / 2, dy = mapWaypoint.y * TILE_SIZE + TILE_SIZE / 2 - character.y - CHARACTER_SIZE / 2, distance = Math.round(Math.hypot(dx, dy) / TILE_SIZE);
+    if (distance <= 1 && !interior) { mapWaypoint = null; mapDirty = true; mapWaypointLayer.setVisible(false); return; }
+    const directions = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'], bearing = directions[(Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8];
+    setUITextContent(mapWaypointText, `Waypoint: ${bearing}  ${distance} tiles`); mapWaypointLayer.setVisible(!startup && !dialogueOpen && !marketOpen && !inventoryOpen && !statsOpen && !mapOpen && !spawnReturn && !interior);
+    if (mapWaypointArrow && mapWaypointLayer.visible) { const angle = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI / 4; mapWaypointArrow.setVisible(true).clear().fillStyle(0xe0f2fd, 1); for (let forward = -3; forward <= 3; forward++) for (let side = -(3 - forward) / 2; side <= (3 - forward) / 2; side++) mapWaypointArrow.fillRect(Math.round(7 + Math.cos(angle) * forward - Math.sin(angle) * side), Math.round(35 + Math.sin(angle) * forward + Math.cos(angle) * side), 1, 1); }
+}
+function getMapEdgeMarker(x, y, margin = 8) {
+    const cx = MAP_WIDTH / 2, cy = MAP_HEIGHT / 2, dx = x - cx, dy = y - cy;
+    const outside = x < margin || y < margin || x >= MAP_WIDTH - margin || y >= MAP_HEIGHT - margin;
+    const scale = outside ? Math.min((cx - margin) / Math.max(0.001, Math.abs(dx)), (cy - margin) / Math.max(0.001, Math.abs(dy))) : 1;
+    return { x: Math.round(cx + dx * scale), y: Math.round(cy + dy * scale), outside, angle: Math.atan2(dy, dx) };
+}
+function drawMapArrow(pixels, marker, color) {
+    drawMapMarker(pixels, marker.x - 3, marker.y - 3, 7, 7, toMapPixel(0x230a03), toMapPixel(0x230a03));
+    for (let forward = -3; forward <= 3; forward++) for (let side = -(3 - forward) / 2; side <= (3 - forward) / 2; side++) {
+        const x = Math.round(marker.x + Math.cos(marker.angle) * forward - Math.sin(marker.angle) * side), y = Math.round(marker.y + Math.sin(marker.angle) * forward + Math.cos(marker.angle) * side);
+        if (x >= 0 && y >= 0 && x < MAP_WIDTH && y < MAP_HEIGHT) pixels[y * MAP_WIDTH + x] = toMapPixel(color);
+    }
+}
+function drawMapSprite(scene, pixels, key, x, y, size = 16) {
+    const source = getTerrainPixels(scene, key), left = Math.round(x - size / 2), top = Math.round(y - size / 2);
+    drawMapMarker(pixels, left, top, size, size, toMapPixel(0x36160d), toMapPixel(0xacccf9));
+    for (let py = 0; py < size; py++) for (let px = 0; px < size; px++) {
+        const sx = Math.floor(px * source.width / size), sy = Math.floor(py * source.height / size), offset = (sy * source.width + sx) * 4;
+        if (source.data[offset + 3] < 128 || left + px < 0 || top + py < 0 || left + px >= MAP_WIDTH || top + py >= MAP_HEIGHT) continue;
+        pixels[(top + py) * MAP_WIDTH + left + px] = toMapPixel(source.data[offset] << 16 | source.data[offset + 1] << 8 | source.data[offset + 2]);
+    }
+}
 
 function getMapPalette(scene) {
     if (mapPalette) return mapPalette;
@@ -175,8 +216,8 @@ function redrawMap(scene) {
     const playerTileX = Math.floor((character.x + CHARACTER_SIZE / 2) / TILE_SIZE);
     const playerTileY = Math.floor((character.y + CHARACTER_SIZE / 2) / TILE_SIZE);
     const zoom = mapZoom;
-    const originX = playerTileX - Math.floor(MAP_WIDTH / zoom / 2) + Math.round(mapPan.x);
-    const originY = playerTileY - Math.floor(MAP_HEIGHT / zoom / 2) + Math.round(mapPan.y);
+    const originX = mapCenter.x - Math.floor(MAP_WIDTH / zoom / 2) + Math.round(mapPan.x);
+    const originY = mapCenter.y - Math.floor(MAP_HEIGHT / zoom / 2) + Math.round(mapPan.y);
     const marker = (tileX, tileY, width, height, color) => drawMapMarker(
         pixels, (tileX - originX) * zoom, (tileY - originY) * zoom,
         width * zoom, height * zoom, toMapPixel(color), outline
@@ -184,20 +225,25 @@ function redrawMap(scene) {
 
     pixels.set(getMapFogPixels(fog));
     drawMapTerrain(pixels, originX, originY, zoom);
+    if (mapGuideLabel) mapGuideLabel.style.display = 'none'; if (mapMarketLabel) mapMarketLabel.style.display = 'none';
+    for (const house of npcHouseCache.values()) if (house && isTileDiscovered(house.x, house.y)) drawMapSprite(scene, pixels, 'house', (house.x + 1 - originX) * zoom, (house.y + 1 - originY) * zoom, 12);
 
     if (store && isTileDiscovered(Math.floor(store.x / TILE_SIZE), Math.floor(store.y / TILE_SIZE))) {
-        marker(Math.floor(store.x / TILE_SIZE), Math.floor(store.y / TILE_SIZE), STORE_WIDTH_TILES, STORE_HEIGHT_TILES, palette.store);
+        drawMapSprite(scene, pixels, 'store', (store.x / TILE_SIZE + STORE_WIDTH_TILES / 2 - originX) * zoom, (store.y / TILE_SIZE + STORE_HEIGHT_TILES / 2 - originY) * zoom);
+        positionMapLandmarkLabel(mapMarketLabel, (store.x / TILE_SIZE + STORE_WIDTH_TILES / 2 - originX) * zoom, (store.y / TILE_SIZE + STORE_HEIGHT_TILES / 2 - originY) * zoom);
     }
 
     if (guide && isTileDiscovered(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE))) {
-        marker(Math.floor(guide.x / TILE_SIZE), Math.floor(guide.y / TILE_SIZE), 1, 1, palette.guide);
+        drawMapSprite(scene, pixels, 'guide', (Math.floor(guide.x / TILE_SIZE) - originX) * zoom, (Math.floor(guide.y / TILE_SIZE) - originY) * zoom);
+        positionMapLandmarkLabel(mapGuideLabel, (Math.floor(guide.x / TILE_SIZE) - originX) * zoom, (Math.floor(guide.y / TILE_SIZE) - originY) * zoom);
     }
 
     for (const rumor of heardRumors.values()) {
         if (rumor.day === getWorldClock().day) marker((rumor.chunkX + 0.5) * CHUNK_SIZE, (rumor.chunkY + 0.5) * CHUNK_SIZE, 1, 1, RUMOR_MAP_COLOR);
     }
 
-    marker(playerTileX, playerTileY, 1, 1, palette.player);
+    const playerMarker = getMapEdgeMarker((playerTileX - originX) * zoom, (playerTileY - originY) * zoom); if (!playerMarker.outside) playerMarker.angle = { right: 0, front: Math.PI / 2, left: Math.PI, back: -Math.PI / 2 }[characterDirection]; drawMapArrow(pixels, playerMarker, palette.player);
+    if (mapWaypoint) { const point = getMapEdgeMarker((mapWaypoint.x - originX) * zoom, (mapWaypoint.y - originY) * zoom, 4); if (point.outside) drawMapArrow(pixels, point, RUMOR_MAP_COLOR); else { drawMapMarker(pixels, point.x - 2, point.y - 2, 5, 5, toMapPixel(RUMOR_MAP_COLOR), outline); drawMapMarker(pixels, point.x, point.y, 1, 1, toMapPixel(palette.outline), toMapPixel(RUMOR_MAP_COLOR)); } }
 
     context.putImageData(mapPixels, 0, 0);
     mapTexture.refresh();

@@ -1,6 +1,15 @@
 const fishSpawnPools = new Map();
 const fishSpawnThresholds = [...new Set(FISH_SPECIES.map(species => species.minWater))].sort((a, b) => b - a);
 let fishSpawnRandom = null;
+function updateFishSurface(chunk, fish, delta) {
+    if (fish.jumping || fish.npcLured || fish.state === 'lure' || fish === fishing?.targetFish) { fish.visibility = 1; fish.surfacePhase = 'visible'; fish.surfaceTimer = fish.surfaceDuration || 30000; return false; }
+    fish.surfacePhase ||= 'visible'; fish.surfaceTimer ??= 20000 + Math.random() * 40000; fish.visibility ??= 1; fish.surfaceTimer -= Math.min(delta, 50);
+    if (fish.surfacePhase === 'visible' && fish.surfaceTimer <= 0) { fish.surfacePhase = 'sinking'; fish.surfaceTimer = 1400; }
+    else if (fish.surfacePhase === 'sinking') { fish.visibility = Math.max(0, fish.surfaceTimer / 1400); if (fish.surfaceTimer <= 0) { fish.surfacePhase = 'submerged'; fish.surfaceTimer = 4000 + Math.random() * 8000; } }
+    else if (fish.surfacePhase === 'submerged' && fish.surfaceTimer <= 0) { if (chooseFishTarget(chunk, fish)) { fish.x = fish.targetX; fish.y = fish.targetY; } fish.surfacePhase = 'rising'; fish.surfaceTimer = 1400; setFishIdle(fish, 600); }
+    else if (fish.surfacePhase === 'rising') { fish.visibility = Math.min(1, Math.max(0, 1 - fish.surfaceTimer / 1400)); if (fish.surfaceTimer <= 0) { fish.surfacePhase = 'visible'; fish.surfaceTimer = fish.surfaceDuration || 30000; } }
+    return fish.surfacePhase === 'submerged';
+}
 
 function fishRandom() {
     return fishSpawnRandom ? fishSpawnRandom() : Math.random();
@@ -15,7 +24,7 @@ function spawnChunkFish(chunk) {
 
         if (region.length < FISH_MIN_REGION) continue;
 
-        const count = Math.min(FISH_PER_CHUNK_MAX - chunk.fish.length, Math.max(1, Math.floor(region.length / FISH_WATER_PER_FISH)));
+        const richness = 0.85 + coordinateHash(Math.floor(chunk.pixelX / TILE_SIZE), Math.floor(chunk.pixelY / TILE_SIZE), 1789 + regionIndex) * 0.9, desired = Math.max(2, Math.floor(region.length / FISH_WATER_PER_FISH * richness)), existing = chunk.fish.filter(fish => fish.region === regionIndex + 1).length, count = Math.min(FISH_PER_CHUNK_MAX - chunk.fish.length, Math.max(0, desired - existing));
 
         spawnRegionFish(chunk, region, regionIndex + 1, count, chunk.pixelX, chunk.pixelY);
     }
@@ -67,6 +76,7 @@ function createFish(species, giantScale) {
         idleTurn: (fishRandom() - 0.5) * FISH_IDLE_TURN,
         state: 'idle',
         timer: fishRandom() * 2000,
+        surfacePhase: 'rising', surfaceTimer: 1400, visibility: 0, surfaceDuration: 20000 + fishRandom() * 40000,
         targetX: 0,
         targetY: 0,
         region: 0,
