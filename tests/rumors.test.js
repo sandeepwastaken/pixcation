@@ -13,6 +13,13 @@ test('only large fish and the current mystery bait target enter rumor candidates
     assert.notEqual(run('smallHint.key'), run('mediumHint.key'));
 });
 
+test('giant rumors boost only their center chunk while other rumors cover neighboring chunks', () => {
+    const run=createRumors(); run('getWorldClock=()=>({day:1}); let species=FISH_SPECIES_BY_ID.get("sturgeon"); getRumorHotspot=()=>({chunkX:2,chunkY:2,species})');
+    assert.ok(run('getChunkRumor(2,2)')); for(const point of [[1,2],[3,2],[2,1],[2,3],[1,1],[3,3]]) assert.equal(run('getChunkRumor(...'+JSON.stringify(point)+')'),null);
+    run('species=FISH_SPECIES.find(fish=>fish.size==="large")'); assert.ok(run('getChunkRumor(1,1)')); assert.equal(run('getChunkRumor(0,2)'),null);
+    run('species=FISH_SPECIES.find(fish=>fish.size==="small")'); assert.ok(run('getChunkRumor(3,3)'));
+});
+
 function createRumors() {
     const context = vm.createContext({ TEST_MODE: false });
     vm.runInContext(['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'world/terrain.js', 'environment/rumors.js'].map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);

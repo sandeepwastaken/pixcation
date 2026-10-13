@@ -30,7 +30,8 @@ function getRumorHotspot(cellX, cellY, day) {
 function getChunkRumor(chunkX, chunkY) {
     const day = getWorldClock().day;
     const hotspot = getRumorHotspot(Math.floor(chunkX / RUMOR_CELL_CHUNKS), Math.floor(chunkY / RUMOR_CELL_CHUNKS), day);
-    return hotspot && Math.abs(hotspot.chunkX - chunkX) <= 1 && Math.abs(hotspot.chunkY - chunkY) <= 1 ? hotspot : null;
+    const radius = hotspot?.species.size === 'giant' ? 0 : 1;
+    return hotspot && Math.abs(hotspot.chunkX - chunkX) <= radius && Math.abs(hotspot.chunkY - chunkY) <= radius ? hotspot : null;
 }
 
 function findNearestRumor(tileX, tileY) {

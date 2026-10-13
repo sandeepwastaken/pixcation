@@ -28,6 +28,25 @@ test('fish involved in fishing and jumping never submerge mid-animation', () => 
     run('fish.jumping = false; fish.npcLured = true; updateFishSurface({}, fish, 50)'); assert.equal(run('fish.visibility'), 1);
 });
 
+test('giant rumor boosts stop after one successful giant without reducing population', () => {
+    const run = createSpawns(0); run('const target=FISH_SPECIES_BY_ID.get("sturgeon"); function getChunkRumor(){return {species:target};} let fishRegionPixels=new Uint32Array(20000); function canFishSwim(){return true;} const chunk={fish:[]}, region={start:0,length:20000}; spawnRegionFish(chunk,region,1,9,0,0)');
+    assert.equal(run('chunk.fish.length'),9); assert.equal(run('chunk.fish.filter(fish=>fish.size==="giant").length'),1); assert.equal(run('chunk.fish.filter(fish=>fish.rumor).length'),1);
+    run('spawnRegionFish(chunk,region,2,9,0,0)'); assert.equal(run('chunk.fish.filter(fish=>fish.size==="giant").length'),1);
+});
+test('existing giants block bonus spawns and failed placements do not consume a bonus', () => {
+    const run=createSpawns(0); run('const rumor={species:FISH_SPECIES_BY_ID.get("sturgeon")}, chunk={fish:[]}; function getChunkRumor(){return rumor;} let fishRegionPixels=new Uint32Array(20000); let fits=false; function canFishSwim(){return fits;} spawnRegionFish(chunk,{start:0,length:20000},1,1,0,0)');
+    assert.equal(run('chunk.fish.length'),0); assert.equal(run('getRumorSpawnChance(chunk,rumor)'),0.05); run('fits=true;spawnRegionFish(chunk,{start:0,length:20000},1,1,0,0)'); assert.equal(run('getRumorSpawnChance(chunk,rumor)'),0);
+});
+test('rumor chance boundaries distinguish giant bonuses from other hints', () => {
+    const run=createSpawns(0.05); run('let target=FISH_SPECIES_BY_ID.get("sturgeon"); function getChunkRumor(){return {species:target};} let fishRegionPixels=new Uint32Array(20000); function canFishSwim(){return true;} const chunk={fish:[]}, region={start:0,length:20000}; spawnRegionFish(chunk,region,1,1,0,0)');
+    assert.equal(run('chunk.fish[0].rumor'),false); run('roll=0.049;chunk.fish=[];spawnRegionFish(chunk,region,1,1,0,0)'); assert.equal(run('chunk.fish[0].rumor'),true);
+    run('target=FISH_SPECIES.find(species=>species.size==="large");roll=0.12;chunk.fish=[];spawnRegionFish(chunk,region,1,1,0,0)'); assert.equal(run('chunk.fish[0].rumor'),false); run('roll=0.119;chunk.fish=[];spawnRegionFish(chunk,region,1,1,0,0)'); assert.equal(run('chunk.fish[0].rumor'),true);
+});
+test('ordinary spawning retains its weighted species even when giants are already present', () => {
+    const run=createSpawns(0.9999); run('function getChunkRumor(){return null;} let fishRegionPixels=new Uint32Array(20000); function canFishSwim(){return true;} const chunk={fish:[]}; spawnRegionFish(chunk,{start:0,length:20000},1,2,0,0)');
+    assert.equal(run('chunk.fish.every(fish=>fish.size==="giant"&&!fish.rumor)'),true); assert.equal(run('chunk.fish.length'),2);
+});
+
 function createSpawns(roll = 0) {
     const context = vm.createContext({ roll });
     const source = ['game-data.js', 'runtime/settings.js', 'runtime/state.js', 'fish/spawning.js']

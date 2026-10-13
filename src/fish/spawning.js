@@ -85,11 +85,16 @@ function createFish(species, giantScale) {
     };
 }
 
+function getRumorSpawnChance(chunk, rumor) {
+    if (!rumor) return 0;
+    if (rumor.species.size !== 'giant') return RUMOR_SPAWN_CHANCE;
+    return chunk.fish.some(fish => fish.size === 'giant') ? 0 : RUMOR_GIANT_SPAWN_CHANCE;
+}
 function spawnRegionFish(chunk, region, label, count, originX, originY) {
     const pool = getFishSpawnPool(region.length);
     const rumor = getChunkRumor(Math.floor(originX / CHUNK_PIXEL_SIZE), Math.floor(originY / CHUNK_PIXEL_SIZE));
     for (let index = 0; index < count; index++) {
-        const rumored = rumor && region.length >= rumor.species.minWater && fishRandom() < RUMOR_SPAWN_CHANCE;
+        const rumored = rumor && region.length >= rumor.species.minWater && fishRandom() < getRumorSpawnChance(chunk, rumor);
         const species = rumored ? rumor.species : chooseFishSpecies(region.length, pool);
         const fish = createFish(species, 2 + fishRandom() * 3);
         fish.rumor = rumored;
