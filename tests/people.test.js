@@ -1,5 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+test('generated appearance contrast uses actual blended palettes without changing the shared player renderer', () => {
+    const run = createPeople(); assert.equal(run('(() => {for(let index=0;index<5000;index++){const npc=createNpc(index*19-40000,index*23-50000,null),p=getPersonPalette(npc.look); if(!areNpcColorsSeparated(p.hair[1],p.skin[1],18,40) || !areNpcColorsSeparated(p.shirt[1],p.shirtAccent) || !areNpcColorsSeparated(p.pants[1],p.pantsAccent[1],24) || [4,12,13].includes(npc.look[2]) && ![9,10].includes(npc.look[10]) || npc.look.some(value=>typeof value === "number" && !Number.isFinite(value)))return false;} return true;})()'), true);
+    run('const unrestrictedLook=[0,0,4,1,1,0,1,1,0,1,1,0,1,0,0,0.5,0,new Array(8).fill(0)]; const unrestrictedPalette=getPersonPalette(unrestrictedLook);'); assert.equal(run('unrestrictedPalette.shirt[1] === unrestrictedPalette.shirtAccent'), true); assert.equal(run('unrestrictedPalette.pants[1] === unrestrictedPalette.pantsAccent[1]'), true);
+});
 test('detailed shirts outweigh basic tops while stated gender preferences hold after normalization', () => {
     const run = createPeople(); for(const profile of ['male','female','youngMale','youngFemale']) assert.equal(run('(() => {const weights=NPC_STYLE_WEIGHTS.shirt.' + profile + '; return weights[7]+weights[9]+weights[10]+weights[12]+weights[14] > weights[0]+weights[2];})()'), true); for(const [male,female,indices] of [['male','female',[10,11,14]],['youngMale','youngFemale',[10]]]) for(const index of indices) assert.equal(run('(() => {const male=NPC_STYLE_WEIGHTS.shirt.' + male + ',female=NPC_STYLE_WEIGHTS.shirt.' + female + '; return female[' + index + ']/female.reduce((sum,weight)=>sum+weight,0) > male[' + index + ']/male.reduce((sum,weight)=>sum+weight,0);})()'), true);
 });
@@ -195,7 +199,7 @@ test('eye weights and wardrobe rarity retain their stated probabilities', () => 
     const run = createPeople();
     assert.deepEqual(JSON.parse(run('JSON.stringify(Array.from({length: 7}, (_, index) => Array.from({length: 100}, (_, roll) => getNpcEyeColor(roll)).filter(color => color === index).length))')), [64, 16, 7, 6, 4, 2, 1]);
     const counts = JSON.parse(run('JSON.stringify(Array.from({length: 10000}, (_, roll) => { const rolls = NPC_APPEARANCE_RADICES.map(() => 0); rolls[0] = roll; rolls[1] = roll % 100; getNpcAppearanceRolls = () => rolls; const npc = createNpc(13, 4, null); return [Number(npc.look[5] === 1 && npc.look[6] === 5), Number(npc.look[0] >= 5), Number(npc.look[3] !== npc.look[10] && npc.look[4] !== npc.look[12])]; }).reduce((counts, row) => counts.map((count, index) => count + row[index]), [0, 0, 0]))'));
-    assert.deepEqual(counts, [1, 100, 0]);
+    assert.deepEqual(counts, [1, 100, 10000]);
 });
 
 test('all pants styles shade their primary color separately from the pink-purple accent', () => {

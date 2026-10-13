@@ -265,6 +265,27 @@ function getNpcStyleProfile(face, feminine) {
 }
 function getNpcMouthVariant(face, roll) {return Number(face !== 2 && roll < NPC_CANINE_CHANCE[face] * 100);}
 function getNpcMakeupVariant(face, feminine, seed) {return Number(feminine && (seed >>> 0) % 100 < NPC_MAKEUP_CHANCE[face] * 100);}
+function getNpcColorValue(color) {return (color >> 16 & 255) * 0.2126 + (color >> 8 & 255) * 0.7152 + (color & 255) * 0.0722;}
+function areNpcColorsSeparated(first, second, minimum = 30, distance = 55) {return Math.abs(getNpcColorValue(first) - getNpcColorValue(second)) >= minimum && Math.hypot((first >> 16 & 255) - (second >> 16 & 255), (first >> 8 & 255) - (second >> 8 & 255), (first & 255) - (second & 255)) >= distance;}
+function balanceNpcAppearance(look, rolls) {
+    let palette = getPersonPalette(look);
+    if (!areNpcColorsSeparated(palette.hair[1], palette.skin[1], 18, 40)) {
+        const weights = look[1] === 2 ? NPC_AGE_HAIR_COLOR_WEIGHTS.older : look[1] === 1 ? NPC_AGE_HAIR_COLOR_WEIGHTS.young : NPC_HAIR_COLOR_WEIGHTS;
+        const compatible = weights.map((weight, index) => areNpcColorsSeparated(samplePersonPalette(NPC_HAIR_COLORS, index, look[17][0])[1], palette.skin[1], 18, 40) ? weight : 0);
+        look[9] = getNpcWeightedIndex(rolls[12], compatible); if (!look[5]) look[7] = look[9];
+        palette = getPersonPalette(look);
+    }
+    const buttons = [4, 12, 13].includes(look[2]);
+    if (!areNpcColorsSeparated(palette.shirt[1], palette.shirtAccent) || buttons && ![9, 10].includes(look[10])) {
+        const preferred = NPC_SHIRT_ACCENT_NEUTRALS[look[3]], candidates = (buttons ? [9, 10] : [9, 10, 11, 6]).filter(index => areNpcColorsSeparated(palette.shirt[1], samplePersonPalette(NPC_SHIRT_COLORS, index, look[17][4])[1]));
+        look[10] = candidates[getNpcWeightedIndex(rolls[14], candidates.map(index => index === preferred ? 6 : 1))];
+    }
+    if (!areNpcColorsSeparated(palette.pants[1], palette.pantsAccent[1], 24)) {
+        const candidates = [5, 4, 1].filter(index => areNpcColorsSeparated(palette.pants[1], samplePersonPalette(NPC_PANTS_COLORS, index, look[17][5])[1], 24));
+        look[12] = candidates[getNpcWeightedIndex(rolls[16], candidates.map(() => 1))];
+    }
+    return look;
+}
 function createNpc(tileX, tileY, water) {
     const appearance = getNpcAppearanceRolls(tileX, tileY);
     const pick = (count, salt) => Math.min(count - 1, Math.floor(npcHash(tileX, tileY, salt) * count));
@@ -284,13 +305,13 @@ function createNpc(tileX, tileY, water) {
         seed: Math.floor(npcHash(tileX, tileY, 1319) * 4294967296) | 0,
         rodIndex: pick(MARKET_RODS.length, 1315),
         name: (rareName || names[appearance[19] % names.length]) + (appearance[20] === 0 ? '' : ' ' + NPC_LAST_NAMES[appearance[21] % NPC_LAST_NAMES.length]),
-        look: [
+        look: balanceNpcAppearance([
             appearance[1] < NPC_PASTEL_SKIN_CHANCE * NPC_APPEARANCE_RADICES[1] ? 5 : 0, face, style(5, NPC_STYLE_WEIGHTS.shirt[profile]), colors.shirt,
             colors.pants, accessory,
             accessory ? (rareVanity ? 5 : style(9, NPC_STYLE_WEIGHTS.vanity[profile])) : style(10, NPC_STYLE_WEIGHTS.hair[profile]),
             accessory ? colors.headwear : colors.hair,
             appearance[13], colors.hair, colors.shirtAccent, style(15, NPC_STYLE_WEIGHTS.pants[profile]), colors.pantsAccent, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23], getNpcColorVariation(appearance[23]), undefined, getNpcMouthVariant(face, appearance[24]), getNpcMakeupVariant(face, feminine, appearance[23])
-        ]
+        ], appearance)
     };
 }
 

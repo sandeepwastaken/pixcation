@@ -1374,8 +1374,9 @@ test('blocked routes go around occupied tiles without losing their purpose or ho
 
 function createNpcs() {
     const context = vm.createContext({ TEST_MODE: true, getTileId: (x, y) => (x + 1000) * 10000 + y, coordinateHash: () => 0.7, cacheWorldValue: (cache, key, value) => (cache.set(key, value), value), getPersonTexture: () => 'portrait', getPersonPortraitTexture: () => 'headshot' });
-    const files = ['runtime/settings.js', 'runtime/state.js', 'npc-names.js', 'npc-dialogue.js', 'environment/npcs.js', 'environment/interiors.js', 'runtime/character.js', 'art/trees.js'];
+    const files = ['runtime/settings.js', 'runtime/state.js', 'npc-names.js', 'npc-dialogue.js', 'art/people.js', 'environment/npcs.js', 'environment/interiors.js', 'runtime/character.js', 'art/trees.js'];
     vm.runInContext(files.map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);
+    vm.runInContext('getPersonTexture = () => "portrait";', context);
     vm.runInContext(`
         const homes = [{ id: 1, tileX: 3, tileY: 3, name: 'Ada Reed' }, { id: 2, tileX: 13, tileY: 3, name: 'Eli Moss' }];
         findCellNpc = (x, y) => y === 0 && x < 2 && x >= 0 ? homes[x] : null;
