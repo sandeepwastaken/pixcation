@@ -2,6 +2,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+test('snapping popup widths includes padding once and preserves pixel-grid sizing', () => {
+    const context = vm.createContext({}); vm.runInContext(['runtime/settings.js', 'runtime/state.js', 'ui/elements.js', 'ui/prompts.js'].map(file => fs.readFileSync('src/' + file, 'utf8')).join('\n'), context);
+    vm.runInContext('const document = {createElement() {return {style:{}, textContent:"", append() {}, appendChild() {}, getBoundingClientRect() {return {width:(this.style.width ? parseFloat(this.style.width) + (this.style.boxSizing === "border-box" ? 0 : 12) : 108) * 4};}};}}; function addHudLayer(scene,node) {return {node:{getBoundingClientRect() {return {width:1280};}}};} createInteractionPromptUI({}); itemPrompt.style.display = "flex"; itemPrompt.label.textContent = "Master Rod"; const before = itemPrompt.getBoundingClientRect().width; snapPromptWidth(itemPrompt);', context);
+    assert.equal(vm.runInContext('itemPrompt.getBoundingClientRect().width', context), vm.runInContext('before', context)); assert.equal(vm.runInContext('itemPrompt.style.width', context), '108px'); assert.equal(vm.runInContext('[marketPrompt,guidePrompt,itemPrompt,npcPrompt].every(box=>box.style.boxSizing === "border-box")', context), true);
+});
 
 test('the guide talk prompt remains available after dismissing her invitation without marking her as met', () => {
     const run = createPrompts(); run(fs.readFileSync('src/ui/interactions.js', 'utf8'));

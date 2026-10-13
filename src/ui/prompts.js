@@ -28,6 +28,7 @@ function createInteractionPromptUI(scene) {
             alignItems: 'center',
             gap: '5px',
             padding: '3px 6px',
+            boxSizing: 'border-box',
             background: '#36160d',
             borderRadius: '0',
             boxShadow: 'inset 0 0 0 1px #465989, 0 0 0 1px #230a03'

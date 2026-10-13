@@ -3,6 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+test('jump handoff fades the normal water silhouette without shrinking its geometry', () => {
+    const run = createWorld(); run('mainCamera={scrollX:0,scrollY:0,width:320,height:192}; waterPipeline={set1f() {},set2f() {},set4fv() {},set1fv() {}}; const fish={x:8,y:8,length:42,radius:10,phase:0.3,amplitude:2,heading:0.2,jumping:true,jumpWaterOpacity:0.5,visibility:1}; loadedWaterChunks.add({visible:true,fish:[fish]}); updateChunkWater(100)');
+    assert.equal(run('fishVisibilityUniforms[0]'), 0.5); assert.equal(run('fishShapeUniforms[0]'), 42); assert.equal(run('fishShapeUniforms[1]'), 10); run('fish.jumping=false; delete fish.jumpWaterOpacity; updateChunkWater(101)'); assert.equal(run('fishVisibilityUniforms[0]'), 1);
+});
 
 function createWorld() {
     const context = vm.createContext({});

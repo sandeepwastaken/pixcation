@@ -1,6 +1,10 @@
 function characterCreatorElement(parent, tag, text, style = {}) {
-    const element = document.createElement(tag); if (text !== null) element.textContent = text; Object.assign(element.style, {pointerEvents: 'auto'}, style); parent.appendChild(element); return element;
-    }
+    const element = document.createElement(tag);
+    if (text !== null) element.textContent = text;
+    Object.assign(element.style, {pointerEvents: 'auto'}, style);
+    parent.appendChild(element);
+    return element;
+}
 function characterCreatorRow(label) {
     const row = characterCreatorElement(characterCreator.controls, 'label', null, {display: 'flex', alignItems: 'center', gap: '4px', height: characterCreator.tab === 2 ? '12px' : '16px'});
     characterCreatorElement(row, 'span', label, {width: '62px', flexShrink: '0', color: '#c0a887'}); return row;
@@ -64,10 +68,14 @@ function updateCharacterCreatorScrollbar() {
     track.setAttribute('aria-valuemax', String(layout.maximum));
     track.setAttribute('aria-valuenow', String(Math.round(creator.controls.scrollTop)));
 }
+function getCharacterCreatorScrollPosition(clientY, bounds, thumbHeight, drag, maximum) {
+    const position = Math.max(0, Math.min(66 - thumbHeight, (clientY - bounds.top) * 66 / bounds.height - (drag ?? thumbHeight / 2)));
+    return Math.round(position / Math.max(1, 66 - thumbHeight) * maximum);
+}
 function createCharacterCreatorScrollbar() {
     const creator = characterCreator, track = characterCreatorElement(creator.root, 'div', null, {position: 'absolute', left: '276px', top: '77px', width: '8px', height: '66px', boxSizing: 'border-box', touchAction: 'none', ...uiPngBackground(creator.scene, 'button')}), thumb = characterCreatorElement(track, 'div', null, {position: 'absolute', left: '0px', width: '6px', boxSizing: 'border-box', cursor: 'grab', ...uiPngBackground(creator.scene, 'button-selected')});
     creator.scrollbar = {track, thumb}; track.tabIndex = 0; track.setAttribute('role', 'scrollbar'); track.setAttribute('aria-label', 'Appearance colors'); track.setAttribute('aria-orientation', 'vertical'); track.setAttribute('aria-valuemin', '0'); let drag = null;
-    const move = event => {const bounds = track.getBoundingClientRect(), height = parseInt(thumb.style.height), position = Math.max(0, Math.min(66 - height, (event.clientY - bounds.top) * 66 / bounds.height - (drag ?? height / 2))), max = creator.controls.scrollHeight - creator.controls.clientHeight; creator.controls.scrollTop = Math.round(position / Math.max(1, 66 - height) * max); updateCharacterCreatorScrollbar();};
+    const move = event => {creator.controls.scrollTop = getCharacterCreatorScrollPosition(event.clientY, track.getBoundingClientRect(), parseInt(thumb.style.height), drag, creator.controls.scrollHeight - creator.controls.clientHeight); updateCharacterCreatorScrollbar();};
     track.addEventListener('pointerdown', event => {event.preventDefault(); const bounds = thumb.getBoundingClientRect(); drag = event.target === thumb ? (event.clientY - bounds.top) * 66 / track.getBoundingClientRect().height : parseInt(thumb.style.height) / 2; track.setPointerCapture(event.pointerId); move(event);}); track.addEventListener('pointermove', event => {if (drag !== null) move(event);}); track.addEventListener('pointerup', () => {drag = null;}); track.addEventListener('lostpointercapture', () => {drag = null;});
     track.addEventListener('keydown', event => {const steps = {ArrowUp: -12, ArrowDown: 12, PageUp: -66, PageDown: 66}; if (event.key in steps || event.key === 'Home' || event.key === 'End') {event.preventDefault(); creator.controls.scrollTop = event.key === 'Home' ? 0 : event.key === 'End' ? creator.controls.scrollHeight : creator.controls.scrollTop + steps[event.key]; updateCharacterCreatorScrollbar();}}); creator.controls.addEventListener('scroll', updateCharacterCreatorScrollbar);
 }

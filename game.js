@@ -2991,14 +2991,14 @@ function updateChunkWater(time) {
         for (const fish of chunk.fish) {
             if (count >= FISH_MAX_VISIBLE) break fishChunks;
             const x = fish.x, y = fish.y;
-            if (fish.jumping || (fish.visibility ?? 1) <= 0 || x < left || x > right || y < top || y > bottom) continue;
+            if (fish.jumping && !(fish.jumpWaterOpacity > 0) || (fish.visibility ?? 1) <= 0 || x < left || x > right || y < top || y > bottom) continue;
             const offset = count * 4;
 
             fishUniforms[offset] = Math.round(x);
             fishUniforms[offset + 1] = Math.round(y);
             fishUniforms[offset + 2] = Math.cos(fish.heading);
             fishUniforms[offset + 3] = Math.sin(fish.heading);
-            const visibility = fish.visibility ?? 1, scale = 0.35 + visibility * 0.65; fishVisibilityUniforms[count] = visibility; fishShapeUniforms[offset] = fish.length * scale;
+            const visibility = fish.visibility ?? 1, scale = 0.35 + visibility * 0.65; fishVisibilityUniforms[count] = visibility * (fish.jumpWaterOpacity ?? 1); fishShapeUniforms[offset] = fish.length * scale;
             fishShapeUniforms[offset + 1] = fish.radius * scale;
             fishShapeUniforms[offset + 2] = fish.phase;
             fishShapeUniforms[offset + 3] = fish.amplitude * scale;
@@ -5514,7 +5514,8 @@ function splashFishJump(scene, time, x, y) {
 function drawFishSilhouette(graphics, fish, centerX, centerY, headingX, headingY, color, bend = 0, waterline = Infinity, opacity = 1) {
     const halfLength = fish.length * 0.5, radius = fish.radius, head = halfLength - radius;
     const bound = Math.ceil(halfLength + radius + Math.abs(fish.amplitude) + Math.abs(bend) + 1);
-    graphics.clear().fillStyle(color, opacity);
+    graphics.clear().fillStyle(color, opacity); let previousAlpha = opacity;
+    if (opacity <= 0) return;
     for (let y = -bound; y <= bound; y++) {
         for (let x = -bound; x <= bound; x++) {
             const localX = x + 0.5, localY = y + 0.5;
@@ -5525,7 +5526,11 @@ function drawFishSilhouette(graphics, fish, centerX, centerY, headingX, headingY
             const headOffset = along - head;
             const inside = headOffset * headOffset + across * across < radius * radius ||
                 along < head && along > -halfLength && Math.abs(across) < radius * (along + halfLength) / (head + halfLength);
-            if (inside && centerY + y < waterline) graphics.fillRect(centerX + x, centerY + y, 1, 1);
+            if (!inside) continue;
+            const alpha = opacity * Phaser.Math.Clamp((waterline - centerY - y) / Math.max(2, radius) + 0.5, 0, 1);
+            if (alpha <= 0) continue;
+            if (alpha !== previousAlpha) {graphics.fillStyle(color, alpha); previousAlpha = alpha;}
+            graphics.fillRect(centerX + x, centerY + y, 1, 1);
         }
     }
 }
@@ -5569,17 +5574,26 @@ function startFishJump(scene, time) {
     if (![0.25, 0.5, 0.75].every(amount => canFishSwim(chunk, fish, fish.x + (toX - fish.x) * amount, fish.y + (toY - fish.y) * amount))) return;
     const graphics = fishJumpGraphics.pop() || scene.add.graphics();
     graphics.setVisible(true).setDepth(1.3);
-    fish.jumping = true;
+    fish.jumping = true; fish.jumpWaterOpacity = 1;
     const color = tintMapColor(FISHING_WATER_SHADOW_COLOR, getWaterTint(fish.x, fish.y));
-    fishJumps.push({fish, graphics, color, fromX: fish.x, fromY: fish.y, toX, toY, heading, start: time, height: FISH_JUMP_HEIGHT + Math.min(9, fish.length * 0.2), anticipation: 140 + Math.min(140, fish.length * 4), airborne: FISH_JUMP_TIME + Math.min(300, fish.length * 6), settling: 220 + Math.min(150, fish.length * 3), launched: false, landed: false});
+    fishJumps.push({fish, graphics, color, fromX: fish.x, fromY: fish.y, toX, toY, heading, fromHeading: fish.heading, start: time, lastTime: time, height: FISH_JUMP_HEIGHT + Math.min(9, fish.length * 0.2), anticipation: 140 + Math.min(140, fish.length * 4), airborne: FISH_JUMP_TIME + Math.min(300, fish.length * 6), settling: 220 + Math.min(150, fish.length * 3), launched: false, landed: false});
     idleRipple(scene, time, Math.round(fish.x), Math.round(fish.y), scene.children, 1.3);
 }
 
+function blendFishJumpHeading(from, to, amount) {
+    if (amount <= 0) return from;
+    if (amount >= 1) return to;
+    return from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * amount;
+}
 function getFishJumpPose(jump, time) {
     const elapsed = Math.max(0, time - jump.start), progress = Math.max(0, Math.min(1, (elapsed - jump.anticipation) / jump.airborne)), surfaceX = jump.fromX + (jump.toX - jump.fromX) * progress, surfaceY = jump.fromY + (jump.toY - jump.fromY) * progress;
-    if (elapsed < jump.anticipation) {const preparation = elapsed / jump.anticipation; return {phase: 'anticipation', x: jump.fromX, y: jump.fromY + Math.sin(preparation * Math.PI) * 2, heading: jump.heading, bend: -Math.sin(preparation * Math.PI) * Math.min(3, jump.fish.length * 0.12), waterline: Infinity, opacity: 1 - Math.sin(preparation * Math.PI) * 0.35};}
-    if (elapsed < jump.anticipation + jump.airborne) return {phase: 'airborne', x: surfaceX, y: surfaceY - 4 * progress * (1 - progress) * jump.height, heading: Math.atan2(jump.toY - jump.fromY - 4 * (1 - 2 * progress) * jump.height, jump.toX - jump.fromX), bend: Math.sin(progress * Math.PI) * Math.min(6, jump.fish.length * 0.18), waterline: surfaceY, opacity: 1};
-    const settling = Math.min(1, (elapsed - jump.anticipation - jump.airborne) / jump.settling); return {phase: settling < 1 ? 'settling' : 'done', x: jump.toX, y: jump.toY + Math.sin(settling * Math.PI) * Math.min(4, jump.fish.radius), heading: jump.heading, bend: -Math.sin(settling * Math.PI) * Math.min(2, jump.fish.length * 0.08), waterline: Infinity, opacity: 0.35 + settling * 0.65};
+    if (elapsed < jump.anticipation) {
+        const preparation = elapsed / jump.anticipation, wave = Math.sin(preparation * Math.PI), blend = preparation * preparation * (3 - 2 * preparation), launchHeading = Math.atan2(jump.toY - jump.fromY - 4 * jump.height, jump.toX - jump.fromX);
+        return {phase: 'anticipation', x: jump.fromX, y: jump.fromY + wave * 2, heading: blendFishJumpHeading(jump.fromHeading ?? jump.heading, launchHeading, blend), bend: -wave * Math.min(3, jump.fish.length * 0.12), waterline: jump.fromY + (1 - blend) * (jump.fish.length / 2 + jump.fish.radius + 2), opacity: blend, waterOpacity: 1 - blend};
+    }
+    if (elapsed < jump.anticipation + jump.airborne) return {phase: 'airborne', x: surfaceX, y: surfaceY - 4 * progress * (1 - progress) * jump.height, heading: Math.atan2(jump.toY - jump.fromY - 4 * (1 - 2 * progress) * jump.height, jump.toX - jump.fromX), bend: Math.sin(progress * Math.PI) * Math.min(6, jump.fish.length * 0.18), waterline: surfaceY, opacity: 1, waterOpacity: 0};
+    const settling = Math.min(1, (elapsed - jump.anticipation - jump.airborne) / jump.settling), blend = settling * settling * (3 - 2 * settling), landingHeading = Math.atan2(jump.toY - jump.fromY + 4 * jump.height, jump.toX - jump.fromX);
+    return {phase: settling < 1 ? 'settling' : 'done', x: jump.toX, y: jump.toY + blend * (jump.fish.length / 2 + jump.fish.radius + 2), heading: landingHeading, bend: 0, waterline: jump.toY, opacity: 1 - blend, waterOpacity: blend, waterHeading: blendFishJumpHeading(landingHeading, jump.heading, blend)};
 }
 function updateFishJumps(scene, time) {
     fishJumpRandom ||= createSeededRandom(Math.imul(WORLD_SEED + 1501, WORLD_HASH_MULTIPLIER));
@@ -5590,7 +5604,10 @@ function updateFishJumps(scene, time) {
 
     for (let index = fishJumps.length - 1; index >= 0; index--) {
         const jump = fishJumps[index];
+        jump.fish.phase = (jump.fish.phase + Math.max(0, time - jump.lastTime) / 1000 * Math.PI * 2 * FISH_BEAT_IDLE) % (Math.PI * 2); jump.lastTime = time;
         const pose = getFishJumpPose(jump, time);
+        jump.fish.jumpWaterOpacity = pose.waterOpacity;
+        if (pose.phase === 'settling' || pose.phase === 'done') {jump.fish.x = jump.toX; jump.fish.y = jump.toY; jump.fish.heading = pose.waterHeading;}
         if (!jump.launched && pose.phase !== 'anticipation') {jump.launched = true; splashFishJump(scene, time, Math.round(jump.fromX), Math.round(jump.fromY));}
         if (!jump.landed && (pose.phase === 'settling' || pose.phase === 'done')) {jump.landed = true; splashFishJump(scene, time, Math.round(jump.toX), Math.round(jump.toY));}
         drawFishSilhouette(jump.graphics, jump.fish, Math.round(pose.x), Math.round(pose.y), Math.cos(pose.heading), Math.sin(pose.heading), jump.color, pose.bend, Math.round(pose.waterline), pose.opacity);
@@ -5599,6 +5616,7 @@ function updateFishJumps(scene, time) {
         jump.fish.x = jump.toX;
         jump.fish.y = jump.toY;
         jump.fish.jumping = false;
+        delete jump.fish.jumpWaterOpacity;
         jump.graphics.clear().setVisible(false);
         fishJumpGraphics.push(jump.graphics);
         fishJumps[index] = fishJumps[fishJumps.length - 1];
@@ -7807,8 +7825,12 @@ function updateStartup(scene, time, delta) {
 }
 
 function characterCreatorElement(parent, tag, text, style = {}) {
-    const element = document.createElement(tag); if (text !== null) element.textContent = text; Object.assign(element.style, {pointerEvents: 'auto'}, style); parent.appendChild(element); return element;
-    }
+    const element = document.createElement(tag);
+    if (text !== null) element.textContent = text;
+    Object.assign(element.style, {pointerEvents: 'auto'}, style);
+    parent.appendChild(element);
+    return element;
+}
 function characterCreatorRow(label) {
     const row = characterCreatorElement(characterCreator.controls, 'label', null, {display: 'flex', alignItems: 'center', gap: '4px', height: characterCreator.tab === 2 ? '12px' : '16px'});
     characterCreatorElement(row, 'span', label, {width: '62px', flexShrink: '0', color: '#c0a887'}); return row;
@@ -7872,10 +7894,14 @@ function updateCharacterCreatorScrollbar() {
     track.setAttribute('aria-valuemax', String(layout.maximum));
     track.setAttribute('aria-valuenow', String(Math.round(creator.controls.scrollTop)));
 }
+function getCharacterCreatorScrollPosition(clientY, bounds, thumbHeight, drag, maximum) {
+    const position = Math.max(0, Math.min(66 - thumbHeight, (clientY - bounds.top) * 66 / bounds.height - (drag ?? thumbHeight / 2)));
+    return Math.round(position / Math.max(1, 66 - thumbHeight) * maximum);
+}
 function createCharacterCreatorScrollbar() {
     const creator = characterCreator, track = characterCreatorElement(creator.root, 'div', null, {position: 'absolute', left: '276px', top: '77px', width: '8px', height: '66px', boxSizing: 'border-box', touchAction: 'none', ...uiPngBackground(creator.scene, 'button')}), thumb = characterCreatorElement(track, 'div', null, {position: 'absolute', left: '0px', width: '6px', boxSizing: 'border-box', cursor: 'grab', ...uiPngBackground(creator.scene, 'button-selected')});
     creator.scrollbar = {track, thumb}; track.tabIndex = 0; track.setAttribute('role', 'scrollbar'); track.setAttribute('aria-label', 'Appearance colors'); track.setAttribute('aria-orientation', 'vertical'); track.setAttribute('aria-valuemin', '0'); let drag = null;
-    const move = event => {const bounds = track.getBoundingClientRect(), height = parseInt(thumb.style.height), position = Math.max(0, Math.min(66 - height, (event.clientY - bounds.top) * 66 / bounds.height - (drag ?? height / 2))), max = creator.controls.scrollHeight - creator.controls.clientHeight; creator.controls.scrollTop = Math.round(position / Math.max(1, 66 - height) * max); updateCharacterCreatorScrollbar();};
+    const move = event => {creator.controls.scrollTop = getCharacterCreatorScrollPosition(event.clientY, track.getBoundingClientRect(), parseInt(thumb.style.height), drag, creator.controls.scrollHeight - creator.controls.clientHeight); updateCharacterCreatorScrollbar();};
     track.addEventListener('pointerdown', event => {event.preventDefault(); const bounds = thumb.getBoundingClientRect(); drag = event.target === thumb ? (event.clientY - bounds.top) * 66 / track.getBoundingClientRect().height : parseInt(thumb.style.height) / 2; track.setPointerCapture(event.pointerId); move(event);}); track.addEventListener('pointermove', event => {if (drag !== null) move(event);}); track.addEventListener('pointerup', () => {drag = null;}); track.addEventListener('lostpointercapture', () => {drag = null;});
     track.addEventListener('keydown', event => {const steps = {ArrowUp: -12, ArrowDown: 12, PageUp: -66, PageDown: 66}; if (event.key in steps || event.key === 'Home' || event.key === 'End') {event.preventDefault(); creator.controls.scrollTop = event.key === 'Home' ? 0 : event.key === 'End' ? creator.controls.scrollHeight : creator.controls.scrollTop + steps[event.key]; updateCharacterCreatorScrollbar();}}); creator.controls.addEventListener('scroll', updateCharacterCreatorScrollbar);
 }
@@ -8886,6 +8912,7 @@ function createInteractionPromptUI(scene) {
             alignItems: 'center',
             gap: '5px',
             padding: '3px 6px',
+            boxSizing: 'border-box',
             background: '#36160d',
             borderRadius: '0',
             boxShadow: 'inset 0 0 0 1px #465989, 0 0 0 1px #230a03'

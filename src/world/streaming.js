@@ -125,14 +125,14 @@ function updateChunkWater(time) {
         for (const fish of chunk.fish) {
             if (count >= FISH_MAX_VISIBLE) break fishChunks;
             const x = fish.x, y = fish.y;
-            if (fish.jumping || (fish.visibility ?? 1) <= 0 || x < left || x > right || y < top || y > bottom) continue;
+            if (fish.jumping && !(fish.jumpWaterOpacity > 0) || (fish.visibility ?? 1) <= 0 || x < left || x > right || y < top || y > bottom) continue;
             const offset = count * 4;
 
             fishUniforms[offset] = Math.round(x);
             fishUniforms[offset + 1] = Math.round(y);
             fishUniforms[offset + 2] = Math.cos(fish.heading);
             fishUniforms[offset + 3] = Math.sin(fish.heading);
-            const visibility = fish.visibility ?? 1, scale = 0.35 + visibility * 0.65; fishVisibilityUniforms[count] = visibility; fishShapeUniforms[offset] = fish.length * scale;
+            const visibility = fish.visibility ?? 1, scale = 0.35 + visibility * 0.65; fishVisibilityUniforms[count] = visibility * (fish.jumpWaterOpacity ?? 1); fishShapeUniforms[offset] = fish.length * scale;
             fishShapeUniforms[offset + 1] = fish.radius * scale;
             fishShapeUniforms[offset + 2] = fish.phase;
             fishShapeUniforms[offset + 3] = fish.amplitude * scale;

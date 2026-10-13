@@ -2,6 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {createPortraitPeople} = require('./portrait-fixture');
+test('scrollbar pointer mapping preserves clipping, drag offsets, and display scaling', () => {
+    const {run} = createCreator(); assert.equal(run('(() => {for(const scale of [1,2,3,4]) for(const height of [12,32,51,66]) for(const drag of [null,0,4,12]) for(let y=-20;y<=300;y+=7) {const bounds={top:20,height:66*scale}, position=Math.max(0,Math.min(66-height,(y-bounds.top)*66/bounds.height-(drag??height/2))), expected=Math.round(position/Math.max(1,66-height)*18); if(getCharacterCreatorScrollPosition(y,bounds,height,drag,18)!==expected) return false;}return true;})()'), true);
+});
 test('scrollbar geometry preserves pixel-aligned endpoints and hides without overflow', () => {
     const {run} = createCreator(); assert.equal(run('JSON.stringify(getCharacterCreatorScrollLayout(66, 84, 0))'), JSON.stringify({maximum:18,height:51,top:0})); assert.equal(run('JSON.stringify(getCharacterCreatorScrollLayout(66, 84, 18))'), JSON.stringify({maximum:18,height:51,top:15})); assert.equal(run('getCharacterCreatorScrollLayout(66, 66, 0).maximum'), 0);
 });
