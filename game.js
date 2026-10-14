@@ -3000,9 +3000,6 @@ function getStaticShadowMask(chunkX, chunkY) {
     return mask;
 }
 
-function isFlatShadowTile(tile, tileX, tileY) {
-    return !tile.patches && tile.key.startsWith('grass') && !(tile.flowers ??= getGrassFlowerPlacement(tileX, tileY, tile)).length;
-}
 
 let detailedShadowScratch;
 
@@ -3014,69 +3011,34 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
     detailedShadowScratch ||= new Uint32Array(mask.length);
     const detailed = detailedShadowScratch;
     let detailedCount = 0;
-    let activeStyle = null;
     const tileOriginX = chunkX * CHUNK_SIZE;
     const tileOriginY = chunkY * CHUNK_SIZE;
-
-    const fillRun = (style, x, y, width) => {
-        if (style !== activeStyle) {
-            context.fillStyle = style;
-            activeStyle = style;
-        }
-
-        context.fillRect(x, y, width, 1);
-    };
 
     for (let localY = 0; localY < CHUNK_PIXEL_SIZE; localY++) {
         const tileY = tileOriginY + Math.floor(localY / TILE_SIZE);
         const surfaceRow = (localY % TILE_SIZE) * TILE_SIZE;
         const pixelRow = localY * CHUNK_PIXEL_SIZE;
-        let runStart = -1;
-        let runColor = null;
         let column = -1;
         let water = null;
-        let flatStyle = null;
 
         for (let localX = 0; localX < CHUNK_PIXEL_SIZE; localX++) {
             const pixel = pixelRow + localX;
-            let color = null;
 
             if (mask[pixel]) {
                 if (column !== Math.floor(localX / TILE_SIZE)) {
                     column = Math.floor(localX / TILE_SIZE);
                     const tile = getWorldTile(tileOriginX + column, tileY);
                     water = getTerrainSurface(scene, tile).water;
-                    flatStyle = isFlatShadowTile(tile, tileOriginX + column, tileY) ? getShadowStyle(scene, tile.key) : null;
                 }
 
                 if (!water[surfaceRow + localX % TILE_SIZE]) {
-                    if (flatStyle) {
-                        color = flatStyle;
-                    } else {
-                        detailed[detailedCount++] = pixel;
-                        minX = Math.min(minX, localX);
-                        minY = Math.min(minY, localY);
-                        maxX = Math.max(maxX, localX);
-                        maxY = Math.max(maxY, localY);
-                    }
+                    detailed[detailedCount++] = pixel;
+                    minX = Math.min(minX, localX);
+                    minY = Math.min(minY, localY);
+                    maxX = Math.max(maxX, localX);
+                    maxY = Math.max(maxY, localY);
                 }
             }
-
-            if (color !== runColor || !color) {
-                if (runStart !== -1) {
-                    fillRun(runColor, runStart, localY, localX - runStart);
-                    runStart = -1;
-                    runColor = null;
-                }
-                if (color) {
-                    runStart = localX;
-                    runColor = color;
-                }
-            }
-        }
-
-        if (runStart !== -1) {
-            fillRun(runColor, runStart, localY, CHUNK_PIXEL_SIZE - runStart);
         }
     }
 
@@ -4207,7 +4169,6 @@ function getGroundShadowColor(scene, worldX, worldY) {
     const pixel = chunk ? (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE : 0;
 
     if (!chunk || chunk.shadowMask?.[pixel]) return null;
-    if (isFlatShadowTile(tile, tileX, tileY)) return tintGrassColor(getTileShadowColor(scene, tile), tileX, tileY);
 
     const { upper, ground } = getChunkPixels(chunk);
     const index = pixel * 4;

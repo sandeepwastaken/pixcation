@@ -228,7 +228,6 @@ function getGroundShadowColor(scene, worldX, worldY) {
     const pixel = chunk ? (worldY - chunkY * CHUNK_PIXEL_SIZE) * CHUNK_PIXEL_SIZE + worldX - chunkX * CHUNK_PIXEL_SIZE : 0;
 
     if (!chunk || chunk.shadowMask?.[pixel]) return null;
-    if (isFlatShadowTile(tile, tileX, tileY)) return tintGrassColor(getTileShadowColor(scene, tile), tileX, tileY);
 
     const { upper, ground } = getChunkPixels(chunk);
     const index = pixel * 4;

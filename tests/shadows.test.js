@@ -3,13 +3,25 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+test('ordinary grass tiles retain distinct texture pixels in tree and baked shadows', () => {
+    for (const key of ['grass1','grass2','grass3','grass4']) {
+        const pixels = new Uint8ClampedArray([160,188,115,255,176,197,121,255]), ground = new Uint8ClampedArray(256 * 256 * 4); ground.set(pixels);
+        const tile = {key,flowers:[]}, chunk = {groundTexture:{getContext:()=>({getImageData:()=>({data:ground})})}};
+        const water = new Uint8Array(256); water[2]=1;
+        const context = vm.createContext({loadedChunks:new Map([['0,0',chunk]]),getWorldTile:()=>tile,isWaterPixel:()=>false,getChunkKey:()=> '0,0',shadowLut:new Map(),getTerrainSurface:()=>({water})});
+        vm.runInContext(['runtime/settings.js','world/shadows.js','environment/shadows.js'].map(file=>fs.readFileSync(path.join(__dirname,'../src',file),'utf8')).join('\n'),context);
+        assert.deepEqual([...context.getGroundShadowColor({},0,0)],[138,162,99]); assert.deepEqual([...context.getGroundShadowColor({},1,0)],[151,169,104]);
+        const mask = new Uint8Array(256 * 256); mask.set([1,1,1]); let written;
+        context.bakeGroundShadows({}, {getImageData:(x,y,width,height)=>{assert.equal(width,2);assert.equal(height,1);return {data:new Uint8ClampedArray(pixels)};},putImageData:image=>{written=image.data;},fillRect:()=>assert.fail('grass detail must not use a flat fill')},0,0,mask);
+        assert.deepEqual([...written],[138,162,99,255,151,169,104,255]);
+    }
+});
 test('tree shadows retain shaded flower pixels instead of replacing them with flat grass', () => {
     const ground = new Uint8ClampedArray(256 * 256 * 4); ground.set([246,245,229,255]);
     const tile = {key:'grass1',flowers:[{x:0,y:0}]}, chunk = {groundTexture:{getContext:()=>({getImageData:()=>({data:ground})})}};
     const context = vm.createContext({loadedChunks:new Map([['0,0',chunk]]),getWorldTile:()=>tile,isWaterPixel:()=>false,getChunkKey:()=> '0,0',shadowLut:new Map(),tintGrassColor:()=>[1,2,3],getTerrainSurface:()=>({water:new Uint8Array(256)})});
     vm.runInContext(['runtime/settings.js','world/shadows.js','environment/shadows.js'].map(file=>fs.readFileSync(path.join(__dirname,'../src',file),'utf8')).join('\n'),context);
     assert.deepEqual([...context.getGroundShadowColor({},0,0)],[212,211,197]);
-    assert.equal(context.isFlatShadowTile(tile,0,0),false);
     const mask = new Uint8Array(256 * 256); mask[0]=1; let written;
     context.bakeGroundShadows({}, {getImageData:()=>({data:new Uint8ClampedArray([246,245,229,255])}),putImageData:image=>{written=image.data;},fillRect:()=>assert.fail('flower pixels must not use the flat grass fill')},0,0,mask);
     assert.deepEqual([...written],[212,211,197,255]);
