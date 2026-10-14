@@ -275,6 +275,7 @@ function getNpcMakeupVariant(face, feminine, seed) {return Number(feminine && (s
 function getNpcExtraRoll(seed, salt) {return (Math.imul(seed ^ salt, 0x45d9f3b) >>> 0) % 100;}
 function getNpcExtraStyle(face, seed) {return getNpcWeightedIndex(getNpcExtraRoll(seed, 1709), NPC_EXTRA_WEIGHTS[face]);}
 function getNpcExtraColor(seed) {return getNpcWeightedIndex(getNpcExtraRoll(seed, 1711), NPC_EXTRA_COLOR_WEIGHTS);}
+function getNpcEyeTrait(seed) {const roll = getNpcExtraRoll(seed, 1713); return roll < 2 ? 2 : roll < 7 ? 1 : 0;}
 function getNpcColorValue(color) {return (color >> 16 & 255) * 0.2126 + (color >> 8 & 255) * 0.7152 + (color & 255) * 0.0722;}
 function getNpcColorDistance(first, second) {return Math.hypot((first >> 16 & 255) - (second >> 16 & 255), (first >> 8 & 255) - (second >> 8 & 255), (first & 255) - (second & 255));}
 function areNpcColorsSeparated(first, second, minimum = 30, distance = 55) {return Math.abs(getNpcColorValue(first) - getNpcColorValue(second)) >= minimum && getNpcColorDistance(first, second) >= distance;}
@@ -331,7 +332,7 @@ function createNpc(tileX, tileY, water, appearance = getNpcAppearanceRolls(tileX
             colors.pants, accessory,
             accessory ? (rareVanity ? 5 : style(9, NPC_STYLE_WEIGHTS.vanity[profile])) : style(10, NPC_STYLE_WEIGHTS.hair[profile]),
             accessory ? colors.headwear : colors.hair,
-            appearance[13], colors.hair, colors.shirtAccent, style(15, NPC_STYLE_WEIGHTS.pants[profile]), colors.pantsAccent, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23], getNpcColorVariation(appearance[23]), undefined, getNpcMouthVariant(face, appearance[24]), getNpcMakeupVariant(face, feminine, appearance[23]), getNpcExtraStyle(face, appearance[23]), getNpcExtraColor(appearance[23])
+            appearance[13], colors.hair, colors.shirtAccent, style(15, NPC_STYLE_WEIGHTS.pants[profile]), colors.pantsAccent, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23], getNpcColorVariation(appearance[23]), undefined, getNpcMouthVariant(face, appearance[24]), getNpcMakeupVariant(face, feminine, appearance[23]), getNpcExtraStyle(face, appearance[23]), getNpcExtraColor(appearance[23]), ...(getNpcEyeTrait(appearance[23]) ? [getNpcEyeTrait(appearance[23])] : [])
         ], appearance)
     };
 }

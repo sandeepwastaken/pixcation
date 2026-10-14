@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {createPortraitPeople} = require('./portrait-fixture');
+test('heterochromia and blindness recolor both map and portrait eyes', () => {const {run}=createPortraitPeople();run('const look=createNpc(13,4,null).look;look[8]=0;look[13]=1;look[17]=new Array(8).fill(0);look[23]=1;const varied=getPersonPalette(look),sprite=composePersonPixels(scene,look,"front"),portrait=composePersonPortraitPixels(scene,look);look[23]=2;const blind=getPersonPalette(look),blindSprite=composePersonPixels(scene,look,"front"),blindPortrait=composePersonPortraitPixels(scene,look)');assert.notEqual(run('varied.eye'),run('varied.eye2'));assert.equal(run('new Set([sprite[6*NPC_PART_SIZE+6],sprite[6*NPC_PART_SIZE+9]]).size'),2);assert.equal(run('blind.eye'),run('NPC_BLIND_EYE_COLOR'));assert.equal(run('blind.eye2'),run('NPC_BLIND_EYE_COLOR'));assert.equal(run('blindSprite[6*NPC_PART_SIZE+6]'),run('NPC_BLIND_EYE_COLOR'));assert.notDeepEqual(run('Array.from(portrait.data)'),run('Array.from(blindPortrait.data)'));});
 test('new clothing and headwear obey their age and gender rules', () => {
     const {run}=createPortraitPeople();
     for(const profile of ['male','female','youngMale','youngFemale','olderMale','olderFemale']) {
@@ -30,6 +31,7 @@ test('glasses align to the shifted map section, preserve eyes and stay behind ha
 });
 test('appearance normalization preserves extra style and color and defaults old saves to none', () => {
     const {run}=createPortraitPeople();run(fs.readFileSync('src/runtime/progress.js','utf8'));run('const old=normalizePlayerLook([0,0,0,0,0,1,0,0]), selected=old.slice();selected[21]=2;selected[22]=7;selected[17][7]=0.5;const restored=normalizePlayerLook(JSON.parse(JSON.stringify(selected)))');
+    const eyeTraits = run('(()=>{const normal=normalizePlayerLook([0,0,0,0,0,1,0,0]),selected=normal.slice();selected[23]=2;return [normal[23],normalizePlayerLook(selected)[23]]})()'); assert.deepEqual([...eyeTraits],[0,2]);
     assert.equal(run('old[21]'),0);assert.equal(run('restored[21]'),2);assert.equal(run('restored[22]'),7);assert.equal(run('restored[17][7]'),0.5);run('selected[21]=99;selected[22]=-1');assert.equal(run('normalizePlayerLook(selected)[21]'),0);assert.equal(run('normalizePlayerLook(selected)[22]'),0);
 });
 test('creator exposes every new part, none for extras and an independent frame-color slider', () => {

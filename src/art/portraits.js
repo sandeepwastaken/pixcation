@@ -25,7 +25,7 @@ function composePersonPortraitPixels(scene, look, expression = 'normal') {
         if (source.width !== width || source.height !== height) throw new Error('Portrait layer dimensions do not match: ' + layer);
         for (let pixel = 0; pixel < width * height; pixel++) {
             const offset = pixel * 4; if (!source.data[offset + 3]) continue;
-            const original = (source.data[offset] << 16) | (source.data[offset + 1] << 8) | source.data[offset + 2], color = mapping.get(original);
+            const original = (source.data[offset] << 16) | (source.data[offset + 1] << 8) | source.data[offset + 2], color = !layer.endsWith('FF') && pixel % width >= width / 2 && original === 0x660000 ? mixPortraitColor(palette.eye2, 0x000000, 0.25) : !layer.endsWith('FF') && pixel % width >= width / 2 && original === 0x8f1010 ? palette.eye2 : !layer.endsWith('FF') && pixel % width >= width / 2 && original === 0xb72323 ? mixPortraitColor(palette.eye2, 0xffffff, 0.2) : mapping.get(original);
             if (color === undefined) throw new Error('Unmapped portrait color: ' + original.toString(16) + ' in ' + layer);
             data[offset] = color >> 16 & 255; data[offset + 1] = color >> 8 & 255; data[offset + 2] = color & 255; data[offset + 3] = source.data[offset + 3];
         }

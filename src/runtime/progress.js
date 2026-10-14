@@ -12,6 +12,7 @@ function normalizePlayerLook(value) {
     if (source.length > 20) look[20] = look[14] && look[1] !== 2 && source[20] === 1 ? 1 : 0;
     look[21] = Number.isInteger(source[21]) && source[21] >= 0 && source[21] <= NPC_EXTRAS ? source[21] : 0;
     look[22] = Number.isInteger(source[22]) && source[22] >= 0 && source[22] < NPC_EXTRA_COLORS.length ? source[22] : 0;
+    look[23] = Number.isInteger(source[23]) && source[23] >= 0 && source[23] < NPC_EYE_TRAITS.length ? source[23] : 0;
     return look;
 }
 function loadPlayerAppearance() {

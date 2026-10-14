@@ -32,6 +32,7 @@ function createCharacterCreatorLookControls(look) {
     if (look[14] && look[1] !== 2) characterCreatorStepper('Makeup', [[0, 'Soft'], [1, 'Full']], look[20] ?? 0, value => {look[20] = value;});
     if (look[1] !== 2) characterCreatorStepper('Teeth', [[0, 'Normal'], [1, 'Canines']], look[19], value => {look[19] = value; characterCreator.previewExpression = 'grin';});
     characterCreatorSelect('Palette', [[0, 'Natural'], [5, 'Pastel']], look[0] >= 5 ? 5 : 0, value => { look[0] = value; });
+    characterCreatorSelect('Eyes', NPC_EYE_TRAITS.map((name, id) => [id, name]), look[23] ?? 0, value => {look[23] = value;});
     const skinColors = Array.from({length: 17}, (_, index) => '#' + getPersonSkinRamp(look[0] >= 5, index / 16)[1].toString(16).padStart(6, '0'));
     characterCreatorSlider('Tone', Math.round(look[15] * 1000), 1000, 'linear-gradient(to right, ' + skinColors.join(', ') + ')', value => {look[15] = value / 1000;});
 }
