@@ -257,7 +257,7 @@ function getNpcOutfitColors(appearance, face = 0) {
     return {hair, shirt, pants, headwear, shirtAccent, pantsAccent};
 }
 function getNpcColorVariation(seed) {
-    return [0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0].map((spread, index) => seed ? spread * (((Math.imul(seed ^ (index + 1), 0x45d9f3b) >>> 0) & 65535) / 65535) : 0);
+    return [0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0, 0.06].map((spread, index) => seed ? spread * (((Math.imul(seed ^ (index + 1), 0x45d9f3b) >>> 0) & 65535) / 65535) : 0);
 }
 function getNpcStyleProfile(face, feminine) {
     const gender = feminine ? 'Female' : 'Male';
@@ -265,6 +265,9 @@ function getNpcStyleProfile(face, feminine) {
 }
 function getNpcMouthVariant(face, roll) {return Number(face !== 2 && roll < NPC_CANINE_CHANCE[face] * 100);}
 function getNpcMakeupVariant(face, feminine, seed) {return Number(feminine && (seed >>> 0) % 100 < NPC_MAKEUP_CHANCE[face] * 100);}
+function getNpcExtraRoll(seed, salt) {return (Math.imul(seed ^ salt, 0x45d9f3b) >>> 0) % 100;}
+function getNpcExtraStyle(face, seed) {return getNpcWeightedIndex(getNpcExtraRoll(seed, 1709), NPC_EXTRA_WEIGHTS[face]);}
+function getNpcExtraColor(seed) {return getNpcWeightedIndex(getNpcExtraRoll(seed, 1711), NPC_EXTRA_COLOR_WEIGHTS);}
 function getNpcColorValue(color) {return (color >> 16 & 255) * 0.2126 + (color >> 8 & 255) * 0.7152 + (color & 255) * 0.0722;}
 function getNpcColorDistance(first, second) {return Math.hypot((first >> 16 & 255) - (second >> 16 & 255), (first >> 8 & 255) - (second >> 8 & 255), (first & 255) - (second & 255));}
 function areNpcColorsSeparated(first, second, minimum = 30, distance = 55) {return Math.abs(getNpcColorValue(first) - getNpcColorValue(second)) >= minimum && getNpcColorDistance(first, second) >= distance;}
@@ -278,6 +281,7 @@ function balanceNpcAppearance(look, rolls) {
         look[9] = getNpcWeightedIndex(rolls[12], compatible); if (!look[5]) look[7] = look[9];
         palette = getPersonPalette(look);
     }
+    if (look[21] && !areNpcColorsSeparated(palette.extra[1], palette.skin[1], 18, 40)) {const compatible = NPC_EXTRA_COLOR_WEIGHTS.map((weight, index) => areNpcColorsSeparated(samplePersonPalette(NPC_EXTRA_COLORS, index, look[17][7] ?? 0)[1], palette.skin[1], 18, 40) ? weight : 0); look[22] = getNpcWeightedIndex(getNpcExtraRoll(look[16], 1711), compatible);}
     const buttons = [4, 13, 14].includes(look[2]);
     if (!isNpcFabricDistinct(palette.shirt[1], palette.skin)) {
         const compatible = NPC_SHIRT_COLOR_WEIGHTS.map((weight, index) => isNpcFabricDistinct(samplePersonPalette(NPC_SHIRT_COLORS, index, look[17][2])[1], palette.skin) ? weight : 0);
@@ -320,7 +324,7 @@ function createNpc(tileX, tileY, water, appearance = getNpcAppearanceRolls(tileX
             colors.pants, accessory,
             accessory ? (rareVanity ? 5 : style(9, NPC_STYLE_WEIGHTS.vanity[profile])) : style(10, NPC_STYLE_WEIGHTS.hair[profile]),
             accessory ? colors.headwear : colors.hair,
-            appearance[13], colors.hair, colors.shirtAccent, style(15, NPC_STYLE_WEIGHTS.pants[profile]), colors.pantsAccent, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23], getNpcColorVariation(appearance[23]), undefined, getNpcMouthVariant(face, appearance[24]), getNpcMakeupVariant(face, feminine, appearance[23])
+            appearance[13], colors.hair, colors.shirtAccent, style(15, NPC_STYLE_WEIGHTS.pants[profile]), colors.pantsAccent, getNpcEyeColor(appearance[17]), Number(feminine), (appearance[1] === 0 ? appearance[3] : appearance[2]) / 65535, appearance[23], getNpcColorVariation(appearance[23]), undefined, getNpcMouthVariant(face, appearance[24]), getNpcMakeupVariant(face, feminine, appearance[23]), getNpcExtraStyle(face, appearance[23]), getNpcExtraColor(appearance[23])
         ], appearance)
     };
 }

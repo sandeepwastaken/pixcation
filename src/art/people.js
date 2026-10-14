@@ -6,6 +6,7 @@ function getPersonPalette(look) {
         hair: samplePersonPalette(NPC_HAIR_COLORS, look[9] ?? (accessory ? 0 : topColor), blend(1)), eye: samplePersonPalette(NPC_EYE_PALETTES, look[13] ?? 0, look[17] || look[13] ? blend(7) : 0)[0],
         pants: samplePersonPalette(NPC_PANTS_COLORS, pants, blend(2)),
         shirt: samplePersonPalette(NPC_SHIRT_COLORS, shirtColor, blend(3)),
+        extra: samplePersonPalette(NPC_EXTRA_COLORS, look[22] ?? 0, blend(8)),
         shirtAccent: samplePersonPalette(NPC_SHIRT_COLORS, look[10] ?? shirtColor, blend(5))[1], pantsAccent: samplePersonPalette(NPC_PANTS_COLORS, look[12] ?? pants, blend(6)),
         top: samplePersonPalette(accessory ? NPC_ACCESSORY_COLORS : NPC_HAIR_COLORS, topColor, blend(accessory ? 4 : 1))
     };
@@ -62,8 +63,9 @@ function composePersonPixels(scene, look, direction, blink = false) {
     assign(NPC_PART_COLORS.shirt, palette.shirt);
     assign(NPC_PART_COLORS.shirtAccent, [palette.shirtAccent]); assign(NPC_PART_COLORS.pantsAccent, [palette.pantsAccent[1]]);
     assign(NPC_PART_COLORS.hair, palette.hair);
+    assign([0xe2d700, 0xfff200], palette.extra);
     assign(accessory ? NPC_PART_COLORS.accessory : NPC_PART_COLORS.hair, palette.top);
-    const layers = [[face * 3 + column, 0], [9 + column, 2 + (look[11] ?? 0), 8], [6 + column, 1 + shirt], [(accessory ? 0 : 3) + column, 1 + top]];
+    const layers = [[face * 3 + column, 0], [9 + column, 2 + (look[11] ?? 0), 8], [6 + column, 1 + shirt], ...(look[21] ? [[12 + column, (NPC_EXTRA_START_Y + (look[21] - 1) * NPC_PART_SIZE) / NPC_PART_SIZE]] : []), [(accessory ? 0 : 3) + column, 1 + top]];
     const sheet = getTerrainPixels(scene, 'character-parts');
     const pixels = new Array(NPC_PART_SIZE * NPC_PART_SIZE).fill(null);
 

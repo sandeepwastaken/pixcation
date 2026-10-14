@@ -42,17 +42,19 @@ function refreshCharacterCreator() {
     if (creator.tab === 1) {
         const parts = count => Array.from({length: count}, (_, index) => [index, 'Style ' + (index + 1)]);
         characterCreatorStepper('Head', [[0, 'Hair'], [1, 'Headwear']], look[5], value => {if (!look[5]) look[18] = look[6]; else creator.headwear = look[6]; look[5] = value; look[6] = value ? creator.headwear ?? 0 : look[18] ?? 0; look[7] = value ? look[7] % NPC_ACCESSORY_COLORS.length : look[9];});
-        const headwear = [0, 1, 2, 3, 4, 6, 7].map((id, index) => [id, 'Style ' + (index + 1)]);
+        const headwear = Array.from({length: NPC_ACCESSORIES}, (_, id) => id).filter(id => id !== 5).map((id, index) => [id, 'Style ' + (index + 1)]);
         characterCreatorStepper('Style', look[5] ? headwear : parts(NPC_HAIRSTYLES), look[6], value => {look[6] = value; if (look[5]) creator.headwear = value; else look[18] = value;});
         characterCreatorStepper('Shirt', parts(NPC_SHIRTS), look[2], value => { look[2] = value; });
         characterCreatorStepper('Pants', parts(NPC_PANTS_STYLES), look[11], value => { look[11] = value; });
+        characterCreatorStepper('Extra', [[0, 'None'], [1, 'Glasses 1'], [2, 'Glasses 2']], look[21] ?? 0, value => {look[21] = value;});
     }
     if (creator.tab === 2) {
-        const colors = [['Hair', 9, 1, NPC_HAIR_COLORS], ['Headwear', 7, 4, NPC_ACCESSORY_COLORS], ['Shirt', 3, 3, NPC_SHIRT_COLORS], ['Shirt trim', 10, 5, NPC_SHIRT_COLORS], ['Pants', 4, 2, NPC_PANTS_COLORS], ['Pants trim', 12, 6, NPC_PANTS_COLORS], ['Eyes', 13, 7, NPC_EYE_PALETTES]];
+        const colors = [['Hair', 9, 1, NPC_HAIR_COLORS], ['Headwear', 7, 4, NPC_ACCESSORY_COLORS], ['Shirt', 3, 3, NPC_SHIRT_COLORS], ['Shirt trim', 10, 5, NPC_SHIRT_COLORS], ['Pants', 4, 2, NPC_PANTS_COLORS], ['Pants trim', 12, 6, NPC_PANTS_COLORS], ['Eyes', 13, 7, NPC_EYE_PALETTES], ['Glasses', 22, 8, NPC_EXTRA_COLORS]];
         for (const [label, index, salt, palettes] of colors) {
             const current = index === 7 && !look[5] ? 0 : look[index];
             const slider = characterCreatorSlider(label, Math.round((current + look[17][salt - 1]) * 1000), palettes.length * 1000 - 1, characterColorGradient(palettes), value => {look[index] = Math.floor(value / 1000); look[17][salt - 1] = value % 1000 / 1000; if (index === 9 && !look[5]) look[7] = look[9];});
             if (index === 7 && !look[5]) {slider.disabled = true; slider.style.opacity = '0.35';}
+            if (index === 22 && !look[21]) {slider.disabled = true; slider.style.opacity = '0.35';}
         }
     }
     creator.controls.scrollTop = scroll; updateCharacterCreatorScrollbar(); if (focused) [...creator.controls.querySelectorAll('label')].find(row => row.querySelector('span').textContent === focused)?.querySelector('select,input')?.focus(); paintCharacterCreator();

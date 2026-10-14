@@ -14,7 +14,7 @@ def compile_targets(targets, model):
             raise ValueError('NPC targets need optional rolls and look objects')
         if any(key in target and not isinstance(target[key], str) for key in ['name', 'firstName']):
             raise ValueError('NPC names must be strings')
-        if any(not str(key).isdecimal() or not 0 <= int(key) <= 20 for key in target.get('look', {})):
+        if any(not str(key).isdecimal() or not 0 <= int(key) <= 22 for key in target.get('look', {})):
             raise ValueError('Invalid final appearance index')
         copy = dict(target, rolls=dict(target.get('rolls', {})))
         name = target.get('firstName') or target.get('name', '').split(' ')[0]

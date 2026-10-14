@@ -27,7 +27,7 @@ test('new shirt and hair rows render in every map direction on the enlarged part
     const run = createPeople(); assert.equal(run('getTerrainPixels({}, "character-parts").height >= (NPC_SHIRTS + 1) * NPC_PART_SIZE'), true); run('const expandedLook = createNpc(13,4,null).look; expandedLook[5] = 0;'); for (const direction of ['front','back','left','right']) for (const [slot, count] of [[2,16],[6,13]]) for (let part = 0; part < count; part++) {run('expandedLook[' + slot + '] = ' + part + '; var expandedPixels = composePersonPixels({}, expandedLook, ' + JSON.stringify(direction) + ')'); assert.equal(run('expandedPixels.length'), 256); assert.ok(run('expandedPixels.filter(pixel=>pixel!==null).length') > 20);}
 });
 test('new wardrobe rows follow explicit age and gender rules with softer young outfit exceptions', () => {
-    const run = createPeople(); for (const profile of ['male','female','youngMale','youngFemale','olderMale','olderFemale']) {assert.equal(run('NPC_STYLE_WEIGHTS.hair.' + profile + '.length'), 13); assert.equal(run('NPC_STYLE_WEIGHTS.shirt.' + profile + '.length'), 16); for (const index of [10,11,12]) assert.equal(run('NPC_STYLE_WEIGHTS.hair.' + profile + '[' + index + '] > 0'), profile === 'female');}
+    const run = createPeople(); for (const profile of ['male','female','youngMale','youngFemale','olderMale','olderFemale']) {assert.equal(run('NPC_STYLE_WEIGHTS.hair.' + profile + '.length'), 13); assert.equal(run('NPC_STYLE_WEIGHTS.shirt.' + profile + '.length'), 19); for (const index of [10,11,12]) assert.equal(run('NPC_STYLE_WEIGHTS.hair.' + profile + '[' + index + '] > 0'), profile === 'female');}
     for (const [index, profiles] of [[9,['male','female','youngMale','youngFemale']],[10,['male','female','youngMale','youngFemale']],[11,['male','female']],[12,['female','youngFemale']],[13,['male','female','youngMale','youngFemale','olderMale','olderFemale']],[14,['male','female']],[15,['female','youngFemale']]]) for (const profile of ['male','female','youngMale','youngFemale','olderMale','olderFemale']) assert.equal(run('NPC_STYLE_WEIGHTS.shirt.' + profile + '[' + index + '] > 0'), profiles.includes(profile));
     for (const index of [10,11,14]) assert.ok(run('NPC_STYLE_WEIGHTS.shirt.female[' + index + ']') > run('NPC_STYLE_WEIGHTS.shirt.male[' + index + ']')); for (const index of [12,15]) assert.ok(run('NPC_STYLE_WEIGHTS.shirt.youngFemale[' + index + ']') < run('NPC_STYLE_WEIGHTS.shirt.female[' + index + ']'));
 });
@@ -68,7 +68,7 @@ test('natural wardrobe weights favor everyday colors while every palette remains
     assert.equal(run('NPC_SHIRT_COLORS.length'), 16); assert.equal(run('Array.from({length: 100}, (_, roll) => getNpcAccentColor(roll, 7, 10, NPC_SHIRT_COLORS.length)).filter(color => color === 10).length > 60'), true);
 });
 test('seeded residents keep small color variations without drifting into adjacent bright palettes', () => {
-    const run = createPeople(); assert.equal(run('Array.from({length:200},(_,i)=>createNpc(i*19-800,i*23-500,null)).every(npc=>npc.look[17].length === 7 && npc.look[17].every(value=>value >= 0 && value <= 0.08))'), true);
+    const run = createPeople(); assert.equal(run('Array.from({length:200},(_,i)=>createNpc(i*19-800,i*23-500,null)).every(npc=>npc.look[17].length === 8 && npc.look[17].every(value=>value >= 0 && value <= 0.08))'), true);
 });
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -168,7 +168,7 @@ test('a reversed ordinary seed produces the requested rare resident near spawn',
     assert.equal(run('resident.tileX'), 13);
     assert.equal(run('resident.tileY'), 4);
     assert.equal(run('resident.name'), 'Emz');
-    assert.deepEqual(JSON.parse(run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1, 0.8, 0, [0, 0, 0, 0, 0, 0, 0], null, 1, 1]);
+    assert.deepEqual(JSON.parse(run('JSON.stringify(resident.look)')), [5, 0, 1, 7, 5, 1, 5, 5, 0, 6, 8, 1, 6, 0, 1, 0.8, 0, [0, 0, 0, 0, 0, 0, 0, 0], null, 1, 1, 1, 0]);
     assert.equal(run('WORLD_SEED'), 13);
     assert.equal(run('getTerrainType(0, 0)'), 'grass');
     assert.equal(run('(() => { const queue = [[0, 0]], seen = new Set(["0,0"]); for (let index = 0; index < queue.length; index++) { const [x, y] = queue[index]; if (x === 13 && y === 4) return true; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy, key = nx + "," + ny; if (Math.abs(nx) > 25 || Math.abs(ny) > 25 || seen.has(key) || !isNpcWalkableTile(nx, ny)) continue; seen.add(key); queue.push([nx, ny]); } } return false; })()'), true);
@@ -229,7 +229,7 @@ test('all specified hair, clothing, and pants rows obey their gender rules and r
     for (const feminine of [0, 1]) {
         const run = createPeople();
         run('const wardrobeRolls = NPC_APPEARANCE_RADICES.map(() => 0); wardrobeRolls[0] = 1; wardrobeRolls[22] = 1; wardrobeRolls[8] = 99; wardrobeRolls[18] = ' + feminine + '; getNpcAppearanceRolls = () => wardrobeRolls; const looks = []; for(let roll = 0; roll < 720; roll++) {wardrobeRolls[5] = roll; wardrobeRolls[10] = roll % 120; wardrobeRolls[15] = roll % 20; looks.push(createNpc(13, 4, null).look);}');
-        for (const [index, allowed] of [[6, feminine ? [0, 2, 7, 8, 9, 10, 11, 12] : [0, 1, 3, 4, 5, 6, 8, 9]], [2, feminine ? Array.from({length: 16}, (_, index) => index) : [0, 2, 4, 6, 7, 8, 9, 10, 11, 13, 14]], [11, feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4]]]) assert.deepEqual(JSON.parse(run('JSON.stringify([...new Set(looks.map(look => look[' + index + ']))].sort((a, b) => a - b))')), allowed);
+        for (const [index, allowed] of [[6, feminine ? [0, 2, 7, 8, 9, 10, 11, 12] : [0, 1, 3, 4, 5, 6, 8, 9]], [2, feminine ? Array.from({length: 19}, (_, index) => index) : [0, 2, 4, 6, 7, 8, 9, 10, 11, 13, 14, 17]], [11, feminine ? [0, 1, 2, 3, 4] : [0, 2, 3, 4]]]) assert.deepEqual(JSON.parse(run('JSON.stringify([...new Set(looks.map(look => look[' + index + ']))].sort((a, b) => a - b))')), allowed);
     }
 });
 
@@ -237,7 +237,7 @@ test('unisex vanity preferences retain both genders without admitting female-onl
     const counts = [];
     for (const feminine of [0, 1]) {
         const run = createPeople();
-        run('const vanityRolls = NPC_APPEARANCE_RADICES.map(() => 0); vanityRolls[0] = 1; vanityRolls[22] = 1; vanityRolls[18] = ' + feminine + '; getNpcAppearanceRolls = () => vanityRolls; const counts = new Array(8).fill(0); for(let roll = 0; roll < 143; roll++) {vanityRolls[9] = roll; counts[createNpc(13, 4, null).look[6]]++;}');
+        run('const vanityRolls = NPC_APPEARANCE_RADICES.map(() => 0); vanityRolls[0] = 1; vanityRolls[22] = 1; vanityRolls[18] = ' + feminine + '; getNpcAppearanceRolls = () => vanityRolls; const counts = new Array(NPC_ACCESSORIES).fill(0); for(let roll = 0; roll < 143; roll++) {vanityRolls[9] = roll; counts[createNpc(13, 4, null).look[6]]++;}');
         counts.push(JSON.parse(run('JSON.stringify(counts)')));
     }
     assert.equal(counts[0][4], 0); assert.equal(counts[0][5], 0);

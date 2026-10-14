@@ -10,6 +10,8 @@ function normalizePlayerLook(value) {
     look[18] = Number.isInteger(source[18]) && source[18] >= 0 && source[18] < NPC_HAIRSTYLES ? source[18] : look[5] ? undefined : look[6];
     look[19] = look[1] !== 2 && source[19] === 1 ? 1 : 0;
     if (source.length > 20) look[20] = look[14] && look[1] !== 2 && source[20] === 1 ? 1 : 0;
+    look[21] = Number.isInteger(source[21]) && source[21] >= 0 && source[21] <= NPC_EXTRAS ? source[21] : 0;
+    look[22] = Number.isInteger(source[22]) && source[22] >= 0 && source[22] < NPC_EXTRA_COLORS.length ? source[22] : 0;
     return look;
 }
 function loadPlayerAppearance() {
