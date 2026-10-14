@@ -1,6 +1,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {createPortraitPeople} = require('./portrait-fixture');
+test('full-makeup eyelids use the darkest two skin shades without changing iris and lash colors', () => {
+    const {run}=createPortraitPeople();run('const look=createNpc(13,4,null).look;look[14]=1;look[20]=1;look[5]=0;look[6]=9;look[8]=0;look[21]=0');
+    for(const pastel of [0,5])for(const tone of [0,0.5,1])for(const eye of [0,2,3,5]) {run('look[0]='+pastel+';look[15]='+tone+';look[13]='+eye+';var palette=getPersonPalette(look), normal=getPortraitColorMap(look), makeup=getPortraitColorMap(look,false,true)');assert.equal(run('makeup.get(0x660000)'),run('palette.skin[3]'));assert.equal(run('makeup.get(0x8f1010)'),run('palette.skin[0]'));assert.equal(run('normal.get(0x8f1010)'),run('palette.eye'));for(const color of [0x1a0000,0x3b0000,0xb72323])assert.equal(run('makeup.get('+color+')'),run('normal.get('+color+')'));}
+});
+test('composed adult and young makeup eyelids follow skin rather than eye color', () => {
+    const {run}=createPortraitPeople();run('const look=createNpc(13,4,null).look;look[14]=1;look[20]=1;look[5]=0;look[6]=9;look[8]=0;look[21]=0');
+    for(const face of [0,1]) {run('look[1]='+face+';look[13]=2;var blue=composePersonPortraitPixels(scene,look);look[13]=3;var green=composePersonPortraitPixels(scene,look), overlay=getTerrainPixels(scene,"characters/people/portraits/base"+(look[1]+1)+"FF"), hair=getTerrainPixels(scene,"characters/people/portraits/hair10"), palette=getPersonPalette(look)');
+        assert.equal(run('(()=>{let checked=0;for(let p=0;p<55*62;p++){const o=p*4,c=(overlay.data[o]<<16)|(overlay.data[o+1]<<8)|overlay.data[o+2];if(!overlay.data[o+3]||hair.data[o+3]||![0x660000,0x8f1010].includes(c))continue;const expected=c===0x660000?palette.skin[3]:palette.skin[0];for(const image of [blue,green])if(((image.data[o]<<16)|(image.data[o+1]<<8)|image.data[o+2])!==expected)return false;checked++;}return checked>0;})()'),true);
+        assert.equal(run('blue.data.some((color,index)=>color!==green.data[index])'),true);
+    }
+});
 test('alternate makeup overlays render both supported faces without leaking into older portraits', () => {
     const {run} = createPortraitPeople(); run('const makeupLook = createNpc(13,4,null).look; makeupLook[14] = 1; makeupLook[5] = 0; makeupLook[6] = 0; makeupLook[20] = 0;'); for (const face of [0,1,2]) {run('makeupLook[1] = ' + face + '; makeupLook[20] = 0; var ordinaryMakeup = composePersonPortraitPixels(scene,makeupLook); makeupLook[20] = 1; var strongerMakeup = composePersonPortraitPixels(scene,makeupLook);'); assert.equal(run('ordinaryMakeup.data.some((value,index)=>value!==strongerMakeup.data[index])'), face !== 2);}
 });
