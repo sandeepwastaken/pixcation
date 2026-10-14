@@ -29,10 +29,4 @@ function decodePixelArt(pack, key) {
     if (pixel !== words.length) throw new Error('Incomplete pixel image');
     return {width, height, data};
 }
-function getPackedPersonPixels(scene, key) {
-    if (key !== 'character-parts' && !key.startsWith('characters/people/')) return null;
-    const binary = scene.cache?.binary?.get('person-art'); if (!binary) return null;
-    scene.personArtPack ||= indexPixelArt(binary);
-    return decodePixelArt(scene.personArtPack, key);
-}
 if (typeof module !== 'undefined' && module.exports) module.exports = {pixelArtId, indexPixelArt, decodePixelArt};

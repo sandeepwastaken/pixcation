@@ -1,8 +1,28 @@
 {
  "frames": {
-  "ui/common/backdrop": {
+  "characters/people/parts": {
    "frame": {
     "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 328
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 328
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 328
+   }
+  },
+  "ui/common/backdrop": {
+   "frame": {
+    "x": 257,
     "y": 0,
     "w": 320,
     "h": 192
@@ -22,7 +42,7 @@
   },
   "ui/creator/panel": {
    "frame": {
-    "x": 321,
+    "x": 578,
     "y": 0,
     "w": 256,
     "h": 144
@@ -43,7 +63,7 @@
   "ui/settings/panel": {
    "frame": {
     "x": 0,
-    "y": 193,
+    "y": 329,
     "w": 256,
     "h": 144
    },
@@ -63,7 +83,7 @@
   "ui/stats/panel": {
    "frame": {
     "x": 257,
-    "y": 193,
+    "y": 329,
     "w": 256,
     "h": 144
    },
@@ -82,8 +102,8 @@
   },
   "ui/shop/panel": {
    "frame": {
-    "x": 0,
-    "y": 338,
+    "x": 514,
+    "y": 329,
     "w": 320,
     "h": 142
    },
@@ -102,8 +122,8 @@
   },
   "ui/fishing/panel": {
    "frame": {
-    "x": 321,
-    "y": 338,
+    "x": 835,
+    "y": 329,
     "w": 22,
     "h": 104
    },
@@ -122,8 +142,8 @@
   },
   "ui/fishing/progress": {
    "frame": {
-    "x": 344,
-    "y": 338,
+    "x": 858,
+    "y": 329,
     "w": 3,
     "h": 91
    },
@@ -142,8 +162,8 @@
   },
   "ui/title/logo": {
    "frame": {
-    "x": 348,
-    "y": 338,
+    "x": 0,
+    "y": 474,
     "w": 190,
     "h": 72
    },
@@ -162,8 +182,8 @@
   },
   "environment/objects/tree-bare": {
    "frame": {
-    "x": 539,
-    "y": 338,
+    "x": 191,
+    "y": 474,
     "w": 40,
     "h": 69
    },
@@ -182,8 +202,8 @@
   },
   "characters/guide/portraits/base": {
    "frame": {
-    "x": 580,
-    "y": 338,
+    "x": 232,
+    "y": 474,
     "w": 55,
     "h": 62
    },
@@ -202,8 +222,8 @@
   },
   "characters/guide/portraits/eyes-closed": {
    "frame": {
-    "x": 0,
-    "y": 481,
+    "x": 288,
+    "y": 474,
     "w": 55,
     "h": 62
    },
@@ -222,8 +242,8 @@
   },
   "characters/guide/portraits/grin": {
    "frame": {
-    "x": 56,
-    "y": 481,
+    "x": 344,
+    "y": 474,
     "w": 55,
     "h": 62
    },
@@ -242,8 +262,8 @@
   },
   "characters/guide/portraits/open-mouth": {
    "frame": {
-    "x": 112,
-    "y": 481,
+    "x": 400,
+    "y": 474,
     "w": 55,
     "h": 62
    },
@@ -260,70 +280,1170 @@
     "h": 62
    }
   },
-  "characters/guide/legacy/friendly": {
+  "characters/people/portraits/background": {
+   "frame": {
+    "x": 456,
+    "y": 474,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/base1": {
+   "frame": {
+    "x": 512,
+    "y": 474,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/base1F": {
+   "frame": {
+    "x": 568,
+    "y": 474,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/base1FF": {
+   "frame": {
+    "x": 624,
+    "y": 474,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/base2": {
+   "frame": {
+    "x": 680,
+    "y": 474,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/base2F": {
+   "frame": {
+    "x": 736,
+    "y": 474,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/base2FF": {
+   "frame": {
+    "x": 792,
+    "y": 474,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/base3": {
+   "frame": {
+    "x": 0,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/base3F": {
+   "frame": {
+    "x": 56,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/extra1": {
+   "frame": {
+    "x": 112,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/extra2": {
    "frame": {
     "x": 168,
-    "y": 481,
-    "w": 46,
-    "h": 52
+    "y": 547,
+    "w": 55,
+    "h": 62
    },
    "rotated": false,
    "trimmed": false,
    "spriteSourceSize": {
     "x": 0,
     "y": 0,
-    "w": 46,
-    "h": 52
+    "w": 55,
+    "h": 62
    },
    "sourceSize": {
-    "w": 46,
-    "h": 52
+    "w": 55,
+    "h": 62
    }
   },
-  "characters/guide/legacy/laughing": {
+  "characters/people/portraits/grin": {
    "frame": {
-    "x": 215,
-    "y": 481,
-    "w": 46,
-    "h": 52
+    "x": 224,
+    "y": 547,
+    "w": 55,
+    "h": 62
    },
    "rotated": false,
    "trimmed": false,
    "spriteSourceSize": {
     "x": 0,
     "y": 0,
-    "w": 46,
-    "h": 52
+    "w": 55,
+    "h": 62
    },
    "sourceSize": {
-    "w": 46,
-    "h": 52
+    "w": 55,
+    "h": 62
    }
   },
-  "characters/guide/legacy/surprised": {
+  "characters/people/portraits/grin1": {
    "frame": {
-    "x": 262,
-    "y": 481,
-    "w": 46,
-    "h": 52
+    "x": 280,
+    "y": 547,
+    "w": 55,
+    "h": 62
    },
    "rotated": false,
    "trimmed": false,
    "spriteSourceSize": {
     "x": 0,
     "y": 0,
-    "w": 46,
-    "h": 52
+    "w": 55,
+    "h": 62
    },
    "sourceSize": {
-    "w": 46,
-    "h": 52
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/grin2": {
+   "frame": {
+    "x": 336,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair1": {
+   "frame": {
+    "x": 392,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair10": {
+   "frame": {
+    "x": 448,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair11": {
+   "frame": {
+    "x": 504,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair12": {
+   "frame": {
+    "x": 560,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair13": {
+   "frame": {
+    "x": 616,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair2": {
+   "frame": {
+    "x": 672,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair3": {
+   "frame": {
+    "x": 728,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair4": {
+   "frame": {
+    "x": 784,
+    "y": 547,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair5": {
+   "frame": {
+    "x": 0,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair6": {
+   "frame": {
+    "x": 56,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair7": {
+   "frame": {
+    "x": 112,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair8": {
+   "frame": {
+    "x": 168,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/hair9": {
+   "frame": {
+    "x": 224,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/openMouth1": {
+   "frame": {
+    "x": 280,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/openMouth2": {
+   "frame": {
+    "x": 336,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt1": {
+   "frame": {
+    "x": 392,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt10": {
+   "frame": {
+    "x": 448,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt11": {
+   "frame": {
+    "x": 504,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt12": {
+   "frame": {
+    "x": 560,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt13": {
+   "frame": {
+    "x": 616,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt14": {
+   "frame": {
+    "x": 672,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt15": {
+   "frame": {
+    "x": 728,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt16": {
+   "frame": {
+    "x": 784,
+    "y": 610,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt17": {
+   "frame": {
+    "x": 0,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt18": {
+   "frame": {
+    "x": 56,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt19": {
+   "frame": {
+    "x": 112,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt2": {
+   "frame": {
+    "x": 168,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt3": {
+   "frame": {
+    "x": 224,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt4": {
+   "frame": {
+    "x": 280,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt5": {
+   "frame": {
+    "x": 336,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt6": {
+   "frame": {
+    "x": 392,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt7": {
+   "frame": {
+    "x": 448,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt8": {
+   "frame": {
+    "x": 504,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/shirt9": {
+   "frame": {
+    "x": 560,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity1": {
+   "frame": {
+    "x": 616,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity10": {
+   "frame": {
+    "x": 672,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity2": {
+   "frame": {
+    "x": 728,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity3": {
+   "frame": {
+    "x": 784,
+    "y": 673,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity4": {
+   "frame": {
+    "x": 0,
+    "y": 736,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity5": {
+   "frame": {
+    "x": 56,
+    "y": 736,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity6": {
+   "frame": {
+    "x": 112,
+    "y": 736,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity7": {
+   "frame": {
+    "x": 168,
+    "y": 736,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity8": {
+   "frame": {
+    "x": 224,
+    "y": 736,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
+   }
+  },
+  "characters/people/portraits/vanity9": {
+   "frame": {
+    "x": 280,
+    "y": 736,
+    "w": 55,
+    "h": 62
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 55,
+    "h": 62
+   },
+   "sourceSize": {
+    "w": 55,
+    "h": 62
    }
   },
   "ui/creator/sprite-frame": {
    "frame": {
-    "x": 309,
-    "y": 481,
+    "x": 336,
+    "y": 736,
     "w": 34,
     "h": 34
    },
@@ -342,8 +1462,8 @@
   },
   "environment/objects/house": {
    "frame": {
-    "x": 344,
-    "y": 481,
+    "x": 371,
+    "y": 736,
     "w": 48,
     "h": 32
    },
@@ -362,8 +1482,8 @@
   },
   "environment/objects/store": {
    "frame": {
-    "x": 393,
-    "y": 481,
+    "x": 420,
+    "y": 736,
     "w": 48,
     "h": 32
    },
@@ -382,8 +1502,8 @@
   },
   "environment/effects/water-overlay": {
    "frame": {
-    "x": 442,
-    "y": 481,
+    "x": 469,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -402,8 +1522,8 @@
   },
   "fish/bluegill": {
    "frame": {
-    "x": 475,
-    "y": 481,
+    "x": 502,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -422,8 +1542,8 @@
   },
   "fish/largemouthBass": {
    "frame": {
-    "x": 508,
-    "y": 481,
+    "x": 535,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -442,8 +1562,8 @@
   },
   "fish/placeholder": {
    "frame": {
-    "x": 541,
-    "y": 481,
+    "x": 568,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -462,8 +1582,8 @@
   },
   "fish/pumpkinSeed": {
    "frame": {
-    "x": 574,
-    "y": 481,
+    "x": 601,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -482,8 +1602,8 @@
   },
   "fish/smallmouthBass": {
    "frame": {
-    "x": 607,
-    "y": 481,
+    "x": 634,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -502,8 +1622,8 @@
   },
   "fish/yellowPerch": {
    "frame": {
-    "x": 0,
-    "y": 544,
+    "x": 667,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -522,8 +1642,8 @@
   },
   "items/baits/advancedBait": {
    "frame": {
-    "x": 33,
-    "y": 544,
+    "x": 700,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -542,8 +1662,8 @@
   },
   "items/baits/mysteryBait": {
    "frame": {
-    "x": 66,
-    "y": 544,
+    "x": 733,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -562,8 +1682,8 @@
   },
   "items/baits/noviceBait": {
    "frame": {
-    "x": 99,
-    "y": 544,
+    "x": 766,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -582,8 +1702,8 @@
   },
   "items/baits/trainerBait": {
    "frame": {
-    "x": 132,
-    "y": 544,
+    "x": 799,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -602,28 +1722,8 @@
   },
   "items/chest": {
    "frame": {
-    "x": 165,
-    "y": 544,
-    "w": 32,
-    "h": 32
-   },
-   "rotated": false,
-   "trimmed": false,
-   "spriteSourceSize": {
-    "x": 0,
-    "y": 0,
-    "w": 32,
-    "h": 32
-   },
-   "sourceSize": {
-    "w": 32,
-    "h": 32
-   }
-  },
-  "items/rods/legacy": {
-   "frame": {
-    "x": 198,
-    "y": 544,
+    "x": 832,
+    "y": 736,
     "w": 32,
     "h": 32
    },
@@ -642,8 +1742,8 @@
   },
   "items/rods/basic": {
    "frame": {
-    "x": 231,
-    "y": 544,
+    "x": 0,
+    "y": 799,
     "w": 31,
     "h": 32
    },
@@ -662,8 +1762,8 @@
   },
   "items/rods/intermediate": {
    "frame": {
-    "x": 263,
-    "y": 544,
+    "x": 32,
+    "y": 799,
     "w": 31,
     "h": 32
    },
@@ -682,8 +1782,8 @@
   },
   "items/rods/master": {
    "frame": {
-    "x": 295,
-    "y": 544,
+    "x": 64,
+    "y": 799,
     "w": 31,
     "h": 32
    },
@@ -702,8 +1802,8 @@
   },
   "environment/interior/couchMid": {
    "frame": {
-    "x": 327,
-    "y": 544,
+    "x": 96,
+    "y": 799,
     "w": 16,
     "h": 32
    },
@@ -722,8 +1822,8 @@
   },
   "environment/interior/couchSide": {
    "frame": {
-    "x": 344,
-    "y": 544,
+    "x": 113,
+    "y": 799,
     "w": 16,
     "h": 32
    },
@@ -742,8 +1842,8 @@
   },
   "ui/hud/selected": {
    "frame": {
-    "x": 361,
-    "y": 544,
+    "x": 130,
+    "y": 799,
     "w": 30,
     "h": 31
    },
@@ -762,8 +1862,8 @@
   },
   "environment/interior/recolorableRug": {
    "frame": {
-    "x": 392,
-    "y": 544,
+    "x": 161,
+    "y": 799,
     "w": 48,
     "h": 30
    },
@@ -782,8 +1882,8 @@
   },
   "environment/interior/chairFront": {
    "frame": {
-    "x": 441,
-    "y": 544,
+    "x": 210,
+    "y": 799,
     "w": 16,
     "h": 29
    },
@@ -802,8 +1902,8 @@
   },
   "environment/interior/chairSide": {
    "frame": {
-    "x": 458,
-    "y": 544,
+    "x": 227,
+    "y": 799,
     "w": 16,
     "h": 29
    },
@@ -822,8 +1922,8 @@
   },
   "ui/hud/hotbar": {
    "frame": {
-    "x": 0,
-    "y": 577,
+    "x": 244,
+    "y": 799,
     "w": 234,
     "h": 26
    },
@@ -842,8 +1942,8 @@
   },
   "environment/objects/boulder": {
    "frame": {
-    "x": 235,
-    "y": 577,
+    "x": 479,
+    "y": 799,
     "w": 28,
     "h": 23
    },
@@ -862,8 +1962,8 @@
   },
   "environment/objects/bush": {
    "frame": {
-    "x": 264,
-    "y": 577,
+    "x": 508,
+    "y": 799,
     "w": 32,
     "h": 22
    },
@@ -882,8 +1982,8 @@
   },
   "ui/title/button": {
    "frame": {
-    "x": 297,
-    "y": 577,
+    "x": 541,
+    "y": 799,
     "w": 96,
     "h": 20
    },
@@ -902,8 +2002,8 @@
   },
   "ui/widgets/input": {
    "frame": {
-    "x": 394,
-    "y": 577,
+    "x": 638,
+    "y": 799,
     "w": 92,
     "h": 18
    },
@@ -922,8 +2022,8 @@
   },
   "ui/settings/button": {
    "frame": {
-    "x": 487,
-    "y": 577,
+    "x": 731,
+    "y": 799,
     "w": 48,
     "h": 16
    },
@@ -942,8 +2042,8 @@
   },
   "ui/stats/button": {
    "frame": {
-    "x": 536,
-    "y": 577,
+    "x": 780,
+    "y": 799,
     "w": 48,
     "h": 16
    },
@@ -962,8 +2062,8 @@
   },
   "characters/guide/sprite": {
    "frame": {
-    "x": 585,
-    "y": 577,
+    "x": 829,
+    "y": 799,
     "w": 16,
     "h": 16
    },
@@ -982,8 +2082,8 @@
   },
   "environment/interior/insideFloor": {
    "frame": {
-    "x": 602,
-    "y": 577,
+    "x": 846,
+    "y": 799,
     "w": 16,
     "h": 16
    },
@@ -1002,8 +2102,8 @@
   },
   "environment/terrain/cornerDirt1": {
    "frame": {
-    "x": 619,
-    "y": 577,
+    "x": 863,
+    "y": 799,
     "w": 16,
     "h": 16
    },
@@ -1023,7 +2123,7 @@
   "environment/terrain/cornerDirt2": {
    "frame": {
     "x": 0,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1043,7 +2143,7 @@
   "environment/terrain/cornerDirt3": {
    "frame": {
     "x": 17,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1063,7 +2163,7 @@
   "environment/terrain/dirt1": {
    "frame": {
     "x": 34,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1083,7 +2183,7 @@
   "environment/terrain/dirtEdge": {
    "frame": {
     "x": 51,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1103,7 +2203,7 @@
   "environment/terrain/dirtEdgeInnerLeft": {
    "frame": {
     "x": 68,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1123,7 +2223,7 @@
   "environment/terrain/dirtEdgeInnerRight": {
    "frame": {
     "x": 85,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1143,7 +2243,7 @@
   "environment/terrain/dirtEdgeOuterBoth": {
    "frame": {
     "x": 102,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1163,7 +2263,7 @@
   "environment/terrain/dirtEdgeOuterLeft": {
    "frame": {
     "x": 119,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1183,7 +2283,7 @@
   "environment/terrain/dirtEdgeOuterRight": {
    "frame": {
     "x": 136,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1203,7 +2303,7 @@
   "environment/terrain/grass1": {
    "frame": {
     "x": 153,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1223,7 +2323,7 @@
   "environment/terrain/grass2": {
    "frame": {
     "x": 170,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1243,7 +2343,7 @@
   "environment/terrain/grass3": {
    "frame": {
     "x": 187,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1263,7 +2363,7 @@
   "environment/terrain/grass4": {
    "frame": {
     "x": 204,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1283,7 +2383,7 @@
   "environment/terrain/grassEdge": {
    "frame": {
     "x": 221,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1303,7 +2403,7 @@
   "environment/terrain/transition1": {
    "frame": {
     "x": 238,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1323,7 +2423,7 @@
   "environment/terrain/transition2": {
    "frame": {
     "x": 255,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1343,7 +2443,7 @@
   "environment/terrain/transition3": {
    "frame": {
     "x": 272,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1363,7 +2463,7 @@
   "environment/terrain/transition4": {
    "frame": {
     "x": 289,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1383,7 +2483,7 @@
   "environment/terrain/water": {
    "frame": {
     "x": 306,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1403,7 +2503,7 @@
   "environment/terrain/waterDirt": {
    "frame": {
     "x": 323,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1423,7 +2523,7 @@
   "environment/terrain/waterDirtInnerLeft": {
    "frame": {
     "x": 340,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1443,7 +2543,7 @@
   "environment/terrain/waterDirtInnerRight": {
    "frame": {
     "x": 357,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1463,7 +2563,7 @@
   "environment/terrain/waterGrass": {
    "frame": {
     "x": 374,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1483,7 +2583,7 @@
   "environment/terrain/wood": {
    "frame": {
     "x": 391,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1503,7 +2603,7 @@
   "environment/terrain/woodLeft": {
    "frame": {
     "x": 408,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1523,7 +2623,7 @@
   "environment/terrain/woodRight": {
    "frame": {
     "x": 425,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1543,7 +2643,7 @@
   "items/baits/advanced-icon": {
    "frame": {
     "x": 442,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1563,7 +2663,7 @@
   "items/baits/mystery-icon": {
    "frame": {
     "x": 459,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1583,7 +2683,7 @@
   "items/baits/novice-icon": {
    "frame": {
     "x": 476,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1603,7 +2703,7 @@
   "items/baits/trainer-icon": {
    "frame": {
     "x": 493,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1623,7 +2723,7 @@
   "items/chest-icon": {
    "frame": {
     "x": 510,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1643,7 +2743,7 @@
   "items/rods/basic-icon": {
    "frame": {
     "x": 527,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1663,7 +2763,7 @@
   "items/rods/intermediate-icon": {
    "frame": {
     "x": 544,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1683,7 +2783,7 @@
   "items/rods/master-icon": {
    "frame": {
     "x": 561,
-    "y": 604,
+    "y": 832,
     "w": 16,
     "h": 16
    },
@@ -1703,7 +2803,7 @@
   "environment/objects/rock": {
    "frame": {
     "x": 578,
-    "y": 604,
+    "y": 832,
     "w": 14,
     "h": 16
    },
@@ -1723,7 +2823,7 @@
   "environment/effects/shimmer": {
    "frame": {
     "x": 593,
-    "y": 604,
+    "y": 832,
     "w": 12,
     "h": 16
    },
@@ -1743,7 +2843,7 @@
   "ui/widgets/slider-knob": {
    "frame": {
     "x": 606,
-    "y": 604,
+    "y": 832,
     "w": 5,
     "h": 12
    },
@@ -1763,7 +2863,7 @@
   "ui/widgets/button": {
    "frame": {
     "x": 612,
-    "y": 604,
+    "y": 832,
     "w": 9,
     "h": 9
    },
@@ -1783,7 +2883,7 @@
   "ui/widgets/button-selected": {
    "frame": {
     "x": 622,
-    "y": 604,
+    "y": 832,
     "w": 9,
     "h": 9
    },
@@ -1803,7 +2903,7 @@
   "ui/fishing/bite": {
    "frame": {
     "x": 632,
-    "y": 604,
+    "y": 832,
     "w": 5,
     "h": 9
    },
@@ -1822,8 +2922,8 @@
   },
   "ui/fishing/fish": {
    "frame": {
-    "x": 0,
-    "y": 621,
+    "x": 638,
+    "y": 832,
     "w": 11,
     "h": 8
    },
@@ -1842,8 +2942,8 @@
   },
   "ui/fishing/catch-zone": {
    "frame": {
-    "x": 12,
-    "y": 621,
+    "x": 650,
+    "y": 832,
     "w": 8,
     "h": 8
    },
@@ -1862,8 +2962,8 @@
   },
   "ui/widgets/arrow-left": {
    "frame": {
-    "x": 21,
-    "y": 621,
+    "x": 659,
+    "y": 832,
     "w": 8,
     "h": 8
    },
@@ -1882,8 +2982,8 @@
   },
   "ui/widgets/arrow-right": {
    "frame": {
-    "x": 30,
-    "y": 621,
+    "x": 668,
+    "y": 832,
     "w": 8,
     "h": 8
    },
@@ -1902,8 +3002,8 @@
   },
   "ui/widgets/arrow-up": {
    "frame": {
-    "x": 39,
-    "y": 621,
+    "x": 677,
+    "y": 832,
     "w": 8,
     "h": 8
    },
@@ -1922,8 +3022,8 @@
   },
   "ui/widgets/select-arrow": {
    "frame": {
-    "x": 48,
-    "y": 621,
+    "x": 686,
+    "y": 832,
     "w": 8,
     "h": 8
    },
@@ -1942,8 +3042,8 @@
   },
   "environment/terrain/corner": {
    "frame": {
-    "x": 57,
-    "y": 621,
+    "x": 695,
+    "y": 832,
     "w": 7,
     "h": 7
    },
@@ -1962,8 +3062,8 @@
   },
   "ui/settings/volume-track": {
    "frame": {
-    "x": 65,
-    "y": 621,
+    "x": 703,
+    "y": 832,
     "w": 92,
     "h": 6
    },
@@ -1982,8 +3082,8 @@
   },
   "ui/widgets/slider-track": {
    "frame": {
-    "x": 158,
-    "y": 621,
+    "x": 0,
+    "y": 849,
     "w": 92,
     "h": 6
    },
@@ -2002,8 +3102,8 @@
   },
   "environment/terrain/dirtCliffCorner": {
    "frame": {
-    "x": 251,
-    "y": 621,
+    "x": 93,
+    "y": 849,
     "w": 5,
     "h": 5
    },
@@ -2022,8 +3122,8 @@
   },
   "environment/terrain/dirtEdgeCorner": {
    "frame": {
-    "x": 257,
-    "y": 621,
+    "x": 99,
+    "y": 849,
     "w": 5,
     "h": 5
    },
@@ -2044,8 +3144,8 @@
  "meta": {
   "image": "atlas.png",
   "size": {
-   "w": 645,
-   "h": 629
+   "w": 887,
+   "h": 855
   },
   "scale": 1
  }

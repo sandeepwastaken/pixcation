@@ -1,5 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+test('palette interpolation preserves the original channel rounding at every blend step', () => {
+    const run = createPeople();
+    assert.equal(run('(()=>{const palettes=[[0x000000,0xffffff,0x123456],[0xffffff,0x000000,0xabcdef]];for(let index=0;index<2;index++)for(let step=0;step<=256;step++){const amount=step/256,old=palettes[index].map((color,shade)=>[16,8,0].reduce((value,shift)=>value|Math.round((color>>shift&255)*(1-amount)+(palettes[(index+1)%2][shade]>>shift&255)*amount)<<shift,0)),next=samplePersonPalette(palettes,index,amount);if(old.some((value,shade)=>value!==next[shade]))return false;}return true;})()'), true);
+});
 test('corrected shirt order keeps decorative trim on thirteen and neutral fastenings on fourteen and fifteen', () => {
     const run = createPeople(); run('const orderedRolls=NPC_APPEARANCE_RADICES.map(()=>0); orderedRolls[14]=29; const orderedLook=[5,0,12,7,5,1,5,5,0,6,8,1,6,0,1,0.8,0,new Array(8).fill(0),undefined,1,1]; balanceNpcAppearance(orderedLook,orderedRolls);'); assert.equal(run('orderedLook[10]'), 8); for(const shirt of [13,14]) {run('orderedLook[2]=' + shirt + ';orderedLook[10]=8;balanceNpcAppearance(orderedLook,orderedRolls);'); assert.equal(run('[9,10].includes(orderedLook[10])'), true);}
 });

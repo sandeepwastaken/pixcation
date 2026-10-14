@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const {pixelArtId} = require('./src/art/pixel-pack');
+const {pixelArtId} = require('./tools/pixel-pack');
 function isPersonArt(file, media) {return path.relative(media, file).replace(/\\/g, '/').startsWith('characters/people/');}
 function encodePersonArt(images) {
     if (images.length > 65535) throw new Error('Too many pixel records');

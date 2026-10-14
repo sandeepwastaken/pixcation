@@ -1,73 +1,607 @@
 const NPC_PERSONALITIES = [
     {
-        greetings: ["Oh, hello! I'm {first}. Isn't it a gorgeous day?","Hi there! {first}, nice to meet you. You picked a great day to be out!","Hello! I'm {first}. I was hoping I'd run into someone.","I'm {first}. Come stand in the sunshine for a minute.","Hi! Have you had a chance to look around?","Oh, a new face! {first}. Glad you found your way here.","I'm {first}. You're welcome to stop and chat.","Hello there! I was just taking the long way home.","Hi! I'm {first}. You look like you've been exploring.","{first}, nice to meet you. There's plenty of room by the water."],
-        familiar: ["Oh, it's you again! Good to see you.","Welcome back! How has your day been?","There you are! I wondered how your fishing was going.","It's good to see a familiar face out here.","Hello again! Find anything interesting since last time?","You picked a nice moment to stop by.","Back for a visit? I'll always make time for one.","Oh, hello! I saved a little sunshine for you.","I was just thinking I hadn't seen you in a while.","Good to see you! Come tell me how you're getting on."],
-        rainGreetings: ["Oh, hello! I'm {first}. A little rain won't ruin the day.","I'm {first}. Mind the slippery ground.","Hello! I'm {first}. I like how fresh everything smells.","Hi, I'm {first}. We can still have a nice chat in the rain.","{first}, nice to meet you. I hope you found somewhere dry.","Oh, it's you again! We keep meeting in wet weather.","Back again! At least we can complain about the rain together.","Hello again! You didn't let the weather put you off.","Oh, it's you! The puddles have grown since we last talked.","You're back! Shall we pretend this is a sunny afternoon?"],
-        chatter: ["I counted three kinds of flowers on my walk this morning. I'm going for four tomorrow.","The guide by the shop knows everything. Well, almost everything!","Have you seen the blue flower patches? They make me so happy.","I found a flower growing beside a rock. It picked a lovely little spot.","I always mean to take a short walk. Then I see something pretty.","A cloud looked exactly like a rabbit earlier. I hope someone else saw it.","I like knowing which paths take me past my neighbors.","The little sounds out here are half the reason I stay.","I saw a bird hop around a puddle instead of going through it. Sensible.","Some days the nicest thing you find is a quiet place to sit.","I keep changing my mind about which tree is my favorite.","You don't have to catch anything to have a good day out here.","I like coming home with something to tell people about.","I nearly walked past a lovely view while looking at my shoes.","Have you noticed how much brighter the flowers look against dark soil?"],
-        fishing: ["Not a nibble yet, but the sun's warm, so who's complaining?","One almost bit! It changed its mind at the last second, the rascal.","Still waiting! I'm giving the fish a chance to get curious.","Nothing yet. I can be patient if they can.","A fish swam past my line. We had a brief disagreement about lunch.","I like this spot even when the fish don't.","I got distracted by a flower and nearly missed a bite.","There was a splash over there. I hope whoever cast there noticed.","I'm hoping for a nice catch, but I won't turn down a small one.","Waiting is easier when someone stops to say hello."],
-        rainFishing: ["A few raindrops will not spoil a quiet moment by the water.","The rain keeps making little rings around my bobber. I nearly mistake them for bites!","I can watch the rings on the water all afternoon.","The fish have the right idea. They're already underwater.","My sleeves are getting damp, but I'm not ready to give up.","The rain has made this spot feel very peaceful.","I'm taking it slow. There are a lot of little splashes to ignore.","A bite would be lovely before I head somewhere dry.","I nearly reeled in at a raindrop. Good thing nobody saw. Except you.","I don't mind waiting here while the rain stays gentle."],
-        tradeDone: ["We already traded this hour! Come back a little later, okay?","I've already got my fish for this hour. Thanks for checking!","Our last trade was lovely. Let's do another one a little later.","I'm all set for now. Come see me next hour.","Not another deal just yet, but you're welcome to stay and chat."],
-        thanks: ["Wonderful! Here's {coins}c. You're a natural!","Thank you! Here's {coins}c. That's a lovely catch.","Just what I was looking for! {coins}c for you.","You came through! Here's the {coins}c I promised.","Much appreciated. Take {coins}c, and good luck with the next catch."]
+        greetings: [
+            "Oh, hello! I'm {first}. Isn't it a gorgeous day?",
+            "Hi there! {first}, nice to meet you. You picked a great day to be out!",
+            "Hello! I'm {first}. I was hoping I'd run into someone.",
+            "I'm {first}. Come stand in the sunshine for a minute.",
+            "Hi! Have you had a chance to look around?",
+            "Oh, a new face! {first}. Glad you found your way here.",
+            "I'm {first}. You're welcome to stop and chat.",
+            "Hello there! I was just taking the long way home.",
+            "Hi! I'm {first}. You look like you've been exploring.",
+            "{first}, nice to meet you. There's plenty of room by the water."
+        ],
+        familiar: [
+            "Oh, it's you again! Good to see you.",
+            "Welcome back! How has your day been?",
+            "There you are! I wondered how your fishing was going.",
+            "It's good to see a familiar face out here.",
+            "Hello again! Find anything interesting since last time?",
+            "You picked a nice moment to stop by.",
+            "Back for a visit? I'll always make time for one.",
+            "Oh, hello! I saved a little sunshine for you.",
+            "I was just thinking I hadn't seen you in a while.",
+            "Good to see you! Come tell me how you're getting on."
+        ],
+        rainGreetings: [
+            "Oh, hello! I'm {first}. A little rain won't ruin the day.",
+            "I'm {first}. Mind the slippery ground.",
+            "Hello! I'm {first}. I like how fresh everything smells.",
+            "Hi, I'm {first}. We can still have a nice chat in the rain.",
+            "{first}, nice to meet you. I hope you found somewhere dry.",
+            "Oh, it's you again! We keep meeting in wet weather.",
+            "Back again! At least we can complain about the rain together.",
+            "Hello again! You didn't let the weather put you off.",
+            "Oh, it's you! The puddles have grown since we last talked.",
+            "You're back! Shall we pretend this is a sunny afternoon?"
+        ],
+        chatter: [
+            "I counted three kinds of flowers on my walk this morning. I'm going for four tomorrow.",
+            "The guide by the shop knows everything. Well, almost everything!",
+            "Have you seen the blue flower patches? They make me so happy.",
+            "I found a flower growing beside a rock. It picked a lovely little spot.",
+            "I always mean to take a short walk. Then I see something pretty.",
+            "A cloud looked exactly like a rabbit earlier. I hope someone else saw it.",
+            "I like knowing which paths take me past my neighbors.",
+            "The little sounds out here are half the reason I stay.",
+            "I saw a bird hop around a puddle instead of going through it. Sensible.",
+            "Some days the nicest thing you find is a quiet place to sit.",
+            "I keep changing my mind about which tree is my favorite.",
+            "You don't have to catch anything to have a good day out here.",
+            "I like coming home with something to tell people about.",
+            "I nearly walked past a lovely view while looking at my shoes.",
+            "Have you noticed how much brighter the flowers look against dark soil?"
+        ],
+        fishing: [
+            "Not a nibble yet, but the sun's warm, so who's complaining?",
+            "One almost bit! It changed its mind at the last second, the rascal.",
+            "Still waiting! I'm giving the fish a chance to get curious.",
+            "Nothing yet. I can be patient if they can.",
+            "A fish swam past my line. We had a brief disagreement about lunch.",
+            "I like this spot even when the fish don't.",
+            "I got distracted by a flower and nearly missed a bite.",
+            "There was a splash over there. I hope whoever cast there noticed.",
+            "I'm hoping for a nice catch, but I won't turn down a small one.",
+            "Waiting is easier when someone stops to say hello."
+        ],
+        rainFishing: [
+            "A few raindrops will not spoil a quiet moment by the water.",
+            "The rain keeps making little rings around my bobber. I nearly mistake them for bites!",
+            "I can watch the rings on the water all afternoon.",
+            "The fish have the right idea. They're already underwater.",
+            "My sleeves are getting damp, but I'm not ready to give up.",
+            "The rain has made this spot feel very peaceful.",
+            "I'm taking it slow. There are a lot of little splashes to ignore.",
+            "A bite would be lovely before I head somewhere dry.",
+            "I nearly reeled in at a raindrop. Good thing nobody saw. Except you.",
+            "I don't mind waiting here while the rain stays gentle."
+        ],
+        tradeDone: [
+            "We already traded this hour! Come back a little later, okay?",
+            "I've already got my fish for this hour. Thanks for checking!",
+            "Our last trade was lovely. Let's do another one a little later.",
+            "I'm all set for now. Come see me next hour.",
+            "Not another deal just yet, but you're welcome to stay and chat."
+        ],
+        thanks: [
+            "Wonderful! Here's {coins}c. You're a natural!",
+            "Thank you! Here's {coins}c. That's a lovely catch.",
+            "Just what I was looking for! {coins}c for you.",
+            "You came through! Here's the {coins}c I promised.",
+            "Much appreciated. Take {coins}c, and good luck with the next catch."
+        ]
     },
     {
-        greetings: ["Hm? Oh. {first}. What do you want?","{first}. If you're here to chat, make it quick.","{first}. Don't stand on my line.","Name's {first}. Yes, I have a minute.","{first}. What brings you over here?","Oh. Someone new. I'm {first}.","I'm {first}. Keep your boots away from my gear.","{first}. You can talk. Just don't expect a long speech.","Hello. {first}. I was enjoying the quiet.","{first}. I suppose introductions are necessary."],
-        familiar: ["You again. All right, what is it?","Back already? Make yourself comfortable, I suppose.","You found me again. Persistent, aren't you?","Oh, it's you. Go on, then.","At least I know who you are this time.","Back for a chat? I haven't moved very far.","You again. I was wondering when you'd turn up.","All right, come over. There's room.","Haven't scared you off yet, apparently.","Good. A familiar face. Saves me an introduction."],
-        rainGreetings: ["{first}. Mind the puddles, and don't drip on my gear.","{first}. Watch where you put those muddy boots.","I'm {first}. The weather isn't helping my mood.","{first}. If you're looking for sunshine, keep looking.","Name's {first}. I hope your gear stays drier than mine.","You again. At least the rain is quieter than most people.","You again. Picked fine weather for a visit.","Back in the rain? Well, you're not boring.","Oh, you. Don't tell me my clothes are wet. I know.","At least we've both got something to complain about."],
-        chatter: ["Everyone thinks fishing is relaxing. It is not. It is war.","The fish around here are smarter than they look. Don't let them fool you.","Shop prices keep going up. Mark my words.","I like my neighbors. I like them even more when they're not shouting.","The water was quiet until I sat down. Typical.","People ask if I've caught anything before saying hello.","I've found a good spot. No, I'm not putting up a sign.","Somebody called my rod old. It still works.","I can handle a bad cast. It's the advice afterward that annoys me.","Every rock looks comfortable until you actually sit on it.","I take the same walk most days. It gets me where I need to go.","Being quiet doesn't mean I'm having a bad time.","I've got nothing against small fish. They just take the bait too often.","Everyone's got a trick for fishing. Mine is to actually fish.","It's a nice place. Don't make me say it twice."],
-        fishing: ["Shh. You'll scare them off. Again.","They keep nibbling and running. I swear they're laughing at me.","No bites. Don't ask again in thirty seconds.","One got away. We won't be discussing it.","I'm waiting. That's what fishing looks like sometimes.","The fish are making me work for it today.","I had a perfectly good cast before that little nuisance swam off.","Nothing worth showing you yet.","If this bobber moves, I'm ready. It has been warned.","I didn't come all this way to catch a leaf."],
-        rainFishing: ["Now the rain is tapping the water too. As if the fish were not enough trouble.","I am watching the bobber, not every raindrop. There is a difference.","Everything is wet. Thank you for noticing.","I can tell a bite from a raindrop. Most of the time.","The fish aren't getting out of this by blaming the weather.","I'll stay a little longer. I've already soaked my boots.","It's the cold sleeves that bother me, not the rain.","One decent bite and I'll consider going somewhere dry.","I was having a peaceful grumble before you came over.","At least there are fewer people making noise by the water."],
-        tradeDone: ["We're done for this hour. Shoo.","We've made our deal for this hour. That's enough.","Already traded. Come back when I need more.","I'm not buying another batch just yet.","You can ask again later. The answer's still no for now."],
-        thanks: ["Fine. {coins}c. Don't spend it all at once.","There. {coins}c. We both got what we wanted.","A decent catch. Here's {coins}c.","Good. {coins}c, like we agreed.","I'll admit that was useful. Take {coins}c."]
+        greetings: [
+            "Hm? Oh. {first}. What do you want?",
+            "{first}. If you're here to chat, make it quick.",
+            "{first}. Don't stand on my line.",
+            "Name's {first}. Yes, I have a minute.",
+            "{first}. What brings you over here?",
+            "Oh. Someone new. I'm {first}.",
+            "I'm {first}. Keep your boots away from my gear.",
+            "{first}. You can talk. Just don't expect a long speech.",
+            "Hello. {first}. I was enjoying the quiet.",
+            "{first}. I suppose introductions are necessary."
+        ],
+        familiar: [
+            "You again. All right, what is it?",
+            "Back already? Make yourself comfortable, I suppose.",
+            "You found me again. Persistent, aren't you?",
+            "Oh, it's you. Go on, then.",
+            "At least I know who you are this time.",
+            "Back for a chat? I haven't moved very far.",
+            "You again. I was wondering when you'd turn up.",
+            "All right, come over. There's room.",
+            "Haven't scared you off yet, apparently.",
+            "Good. A familiar face. Saves me an introduction."
+        ],
+        rainGreetings: [
+            "{first}. Mind the puddles, and don't drip on my gear.",
+            "{first}. Watch where you put those muddy boots.",
+            "I'm {first}. The weather isn't helping my mood.",
+            "{first}. If you're looking for sunshine, keep looking.",
+            "Name's {first}. I hope your gear stays drier than mine.",
+            "You again. At least the rain is quieter than most people.",
+            "You again. Picked fine weather for a visit.",
+            "Back in the rain? Well, you're not boring.",
+            "Oh, you. Don't tell me my clothes are wet. I know.",
+            "At least we've both got something to complain about."
+        ],
+        chatter: [
+            "Everyone thinks fishing is relaxing. It is not. It is war.",
+            "The fish around here are smarter than they look. Don't let them fool you.",
+            "Shop prices keep going up. Mark my words.",
+            "I like my neighbors. I like them even more when they're not shouting.",
+            "The water was quiet until I sat down. Typical.",
+            "People ask if I've caught anything before saying hello.",
+            "I've found a good spot. No, I'm not putting up a sign.",
+            "Somebody called my rod old. It still works.",
+            "I can handle a bad cast. It's the advice afterward that annoys me.",
+            "Every rock looks comfortable until you actually sit on it.",
+            "I take the same walk most days. It gets me where I need to go.",
+            "Being quiet doesn't mean I'm having a bad time.",
+            "I've got nothing against small fish. They just take the bait too often.",
+            "Everyone's got a trick for fishing. Mine is to actually fish.",
+            "It's a nice place. Don't make me say it twice."
+        ],
+        fishing: [
+            "Shh. You'll scare them off. Again.",
+            "They keep nibbling and running. I swear they're laughing at me.",
+            "No bites. Don't ask again in thirty seconds.",
+            "One got away. We won't be discussing it.",
+            "I'm waiting. That's what fishing looks like sometimes.",
+            "The fish are making me work for it today.",
+            "I had a perfectly good cast before that little nuisance swam off.",
+            "Nothing worth showing you yet.",
+            "If this bobber moves, I'm ready. It has been warned.",
+            "I didn't come all this way to catch a leaf."
+        ],
+        rainFishing: [
+            "Now the rain is tapping the water too. As if the fish were not enough trouble.",
+            "I am watching the bobber, not every raindrop. There is a difference.",
+            "Everything is wet. Thank you for noticing.",
+            "I can tell a bite from a raindrop. Most of the time.",
+            "The fish aren't getting out of this by blaming the weather.",
+            "I'll stay a little longer. I've already soaked my boots.",
+            "It's the cold sleeves that bother me, not the rain.",
+            "One decent bite and I'll consider going somewhere dry.",
+            "I was having a peaceful grumble before you came over.",
+            "At least there are fewer people making noise by the water."
+        ],
+        tradeDone: [
+            "We're done for this hour. Shoo.",
+            "We've made our deal for this hour. That's enough.",
+            "Already traded. Come back when I need more.",
+            "I'm not buying another batch just yet.",
+            "You can ask again later. The answer's still no for now."
+        ],
+        thanks: [
+            "Fine. {coins}c. Don't spend it all at once.",
+            "There. {coins}c. We both got what we wanted.",
+            "A decent catch. Here's {coins}c.",
+            "Good. {coins}c, like we agreed.",
+            "I'll admit that was useful. Take {coins}c."
+        ]
     },
     {
-        greetings: ["Oh... hello. I'm {first}. I was just watching the water ripple.","Mm, hi. {first}. Did you know clouds look like fish if you squint?","I'm {first}. I was watching that cloud drift away.","Hello. {first}. It's easy to lose track of time here.","Oh, hi. I'm {first}. There's a nice sound to the water today.","{first}. I didn't hear you coming over.","Hello there. I'm {first}. Were you following the shoreline too?","I'm {first}. I was just letting my thoughts wander.","Hi. {first}. You found a peaceful little corner.","Oh, a visitor. I'm {first}. Stay a moment if you like."],
-        familiar: ["Oh... we meet again. The water is different today.","Hello again. I was hoping our paths would cross.","Hello again. I think the wind has changed since last time.","It's you. I remember the sound of your footsteps.","We keep finding the same quiet places.","Oh, welcome back. Did you see anything lovely?","I wondered whether I'd meet you on this path again.","Hello. It's nice when a face becomes familiar.","You're back. I was watching the clouds again.","Good to see you. There's no hurry, is there?"],
-        rainGreetings: ["I'm {first}. I like listening to the rain on the water.","I'm {first}. The water looks silver in this weather.","Hello. {first}. I like how rain softens the distance.","I'm {first}. Were you listening to it too?","Oh, hi. {first}. Everything smells different after a shower.","Oh... hello again. The rain makes everything sound softer.","It's you again. The rain hasn't stopped the day after all.","Hello again. I think the clouds are settling in.","We meet in all sorts of weather, don't we?","Oh, welcome back. Come listen for a little while."],
-        chatter: ["Sometimes I think the island hums when it's quiet. Can you hear it?","I like the way the water changes color out in the deep. Teal, then blue, then darker blue.","I dreamt about a fish as big as a bridge. I'm still looking for it.","I forget what I was going to say when the light changes on the water.","A familiar path can feel new if you walk it slowly.","Sometimes a reflection stays in my mind longer than the thing itself.","The clouds never seem to have anywhere important to be.","I like the moment just before a ripple reaches the bank.","There was a leaf floating past earlier. I watched until it disappeared.","I wonder how a place feels to the fish that live in it.","Walking home is nicer when I don't think about arriving.","The space between two bird calls can be strangely comforting.","I had a good thought earlier. I should have kept hold of it.","The trees look different from the other side of the water.","I like finding a little patch of shade that nobody's using."],
-        fishing: ["I'm not really trying to catch anything. The bobber is good company.","Something swam right up and then... left. Like a thought you almost had.","I'm watching the reflection of my bobber more than the bobber itself.","Nothing yet. It's a pleasant kind of waiting.","A fish passed under the line so quietly I nearly missed it.","I was thinking about something else. The fish probably noticed.","Sometimes I forget that the bobber has a job.","There was a ripple beside my bait. I wonder what made it.","I don't mind bringing home a story instead of a fish.","The line looks like a tiny road into another world."],
-        rainFishing: ["The bobber and the rain make their own little rhythm.","It is harder to see the fish in the rain. I like listening while I wait.","The reflection keeps breaking apart and coming back.","I like the way the bank disappears into all those ripples.","There are so many small sounds to listen to.","I nearly lost track of the bobber. It blends into the rain.","The water never quite looks still in weather like this.","Waiting here feels different when the sky is so low.","I'll leave before the cold gets into my hands.","I wonder whether the fish notice the weather as much as we do."],
-        tradeDone: ["We traded already, didn't we? Time is so slippery. Maybe in an hour.","We've made a trade already. I remember now.","I'm all right for this hour. Perhaps later.","Our last deal was enough for now. Come back in a little while.","I don't need another catch just yet. We could talk instead."],
-        thanks: ["Oh, how lovely. Here, {coins}c. Thank you, truly.","That's lovely. Here are your {coins}c.","Thank you. {coins}c, just as I promised.","A nice find. Take {coins}c.","I'm glad you brought it over. Here's {coins}c."]
+        greetings: [
+            "Oh... hello. I'm {first}. I was just watching the water ripple.",
+            "Mm, hi. {first}. Did you know clouds look like fish if you squint?",
+            "I'm {first}. I was watching that cloud drift away.",
+            "Hello. {first}. It's easy to lose track of time here.",
+            "Oh, hi. I'm {first}. There's a nice sound to the water today.",
+            "{first}. I didn't hear you coming over.",
+            "Hello there. I'm {first}. Were you following the shoreline too?",
+            "I'm {first}. I was just letting my thoughts wander.",
+            "Hi. {first}. You found a peaceful little corner.",
+            "Oh, a visitor. I'm {first}. Stay a moment if you like."
+        ],
+        familiar: [
+            "Oh... we meet again. The water is different today.",
+            "Hello again. I was hoping our paths would cross.",
+            "Hello again. I think the wind has changed since last time.",
+            "It's you. I remember the sound of your footsteps.",
+            "We keep finding the same quiet places.",
+            "Oh, welcome back. Did you see anything lovely?",
+            "I wondered whether I'd meet you on this path again.",
+            "Hello. It's nice when a face becomes familiar.",
+            "You're back. I was watching the clouds again.",
+            "Good to see you. There's no hurry, is there?"
+        ],
+        rainGreetings: [
+            "I'm {first}. I like listening to the rain on the water.",
+            "I'm {first}. The water looks silver in this weather.",
+            "Hello. {first}. I like how rain softens the distance.",
+            "I'm {first}. Were you listening to it too?",
+            "Oh, hi. {first}. Everything smells different after a shower.",
+            "Oh... hello again. The rain makes everything sound softer.",
+            "It's you again. The rain hasn't stopped the day after all.",
+            "Hello again. I think the clouds are settling in.",
+            "We meet in all sorts of weather, don't we?",
+            "Oh, welcome back. Come listen for a little while."
+        ],
+        chatter: [
+            "Sometimes I think the island hums when it's quiet. Can you hear it?",
+            "I like the way the water changes color out in the deep. Teal, then blue, then darker blue.",
+            "I dreamt about a fish as big as a bridge. I'm still looking for it.",
+            "I forget what I was going to say when the light changes on the water.",
+            "A familiar path can feel new if you walk it slowly.",
+            "Sometimes a reflection stays in my mind longer than the thing itself.",
+            "The clouds never seem to have anywhere important to be.",
+            "I like the moment just before a ripple reaches the bank.",
+            "There was a leaf floating past earlier. I watched until it disappeared.",
+            "I wonder how a place feels to the fish that live in it.",
+            "Walking home is nicer when I don't think about arriving.",
+            "The space between two bird calls can be strangely comforting.",
+            "I had a good thought earlier. I should have kept hold of it.",
+            "The trees look different from the other side of the water.",
+            "I like finding a little patch of shade that nobody's using."
+        ],
+        fishing: [
+            "I'm not really trying to catch anything. The bobber is good company.",
+            "Something swam right up and then... left. Like a thought you almost had.",
+            "I'm watching the reflection of my bobber more than the bobber itself.",
+            "Nothing yet. It's a pleasant kind of waiting.",
+            "A fish passed under the line so quietly I nearly missed it.",
+            "I was thinking about something else. The fish probably noticed.",
+            "Sometimes I forget that the bobber has a job.",
+            "There was a ripple beside my bait. I wonder what made it.",
+            "I don't mind bringing home a story instead of a fish.",
+            "The line looks like a tiny road into another world."
+        ],
+        rainFishing: [
+            "The bobber and the rain make their own little rhythm.",
+            "It is harder to see the fish in the rain. I like listening while I wait.",
+            "The reflection keeps breaking apart and coming back.",
+            "I like the way the bank disappears into all those ripples.",
+            "There are so many small sounds to listen to.",
+            "I nearly lost track of the bobber. It blends into the rain.",
+            "The water never quite looks still in weather like this.",
+            "Waiting here feels different when the sky is so low.",
+            "I'll leave before the cold gets into my hands.",
+            "I wonder whether the fish notice the weather as much as we do."
+        ],
+        tradeDone: [
+            "We traded already, didn't we? Time is so slippery. Maybe in an hour.",
+            "We've made a trade already. I remember now.",
+            "I'm all right for this hour. Perhaps later.",
+            "Our last deal was enough for now. Come back in a little while.",
+            "I don't need another catch just yet. We could talk instead."
+        ],
+        thanks: [
+            "Oh, how lovely. Here, {coins}c. Thank you, truly.",
+            "That's lovely. Here are your {coins}c.",
+            "Thank you. {coins}c, just as I promised.",
+            "A nice find. Take {coins}c.",
+            "I'm glad you brought it over. Here's {coins}c."
+        ]
     },
     {
-        greetings: ["Ah! Oh, sorry, you startled me. I'm {first}.","H-hi! I'm {first}. Please don't step on my line!","I'm {first}. Sorry, I wasn't expecting anyone.","Oh! Hello. {first}. Am I in your way?","Hi, I'm {first}. I nearly dropped my rod when you came over.","I'm {first}. You can stand here. Just watch the edge.","Hello! {first}. I hope I haven't got mud on my face.","Oh, hi. I'm {first}. Is the path clear over there?","{first}. Sorry, I always forget what to say first.","H-hi. {first}. You didn't see me untangling my line, did you?"],
-        familiar: ["Oh, h-hi again! I recognize you now.","It's you! That is a relief. How are you?","Oh, it's you. I can relax a little.","Hi again! I remembered your face right away.","You're back! Everything went okay, I hope?","It's nice to see someone I already know.","Hello again. I didn't jump quite as much this time.","I was hoping that was you coming down the path.","Oh, good. A familiar face. How did your fishing go?","Back for a visit? I'll try not to talk too fast."],
-        rainGreetings: ["H-hi, I'm {first}. Do you think this rain will get worse?","I'm {first}. Please tell me that's just rain and not a fish splashing.","Hi, {first}. I keep checking whether my pockets are getting wet.","I'm {first}. Watch your step here, okay?","Oh! {first}. I thought I heard someone behind me.","Oh, it's you again! I feel better with someone familiar around.","It's you again. I'm glad neither of us slipped.","Hi again! I was hoping someone would come along.","You're back. Does this look like ordinary rain to you?","Oh, good. I don't mind the weather as much when there's company."],
-        chatter: ["Do you think the cliffs ever crumble? I try not to stand too close.","I keep a spare bobber in every pocket. Just in case. You never know.","The chests in the deep water make me nervous. What if something's guarding them?","I check my pockets before leaving home. Then I check them again.","I rehearsed saying hello, but it never comes out the same way.","I don't mind a quiet walk. It's sudden noises that get me.","Sometimes I stop to make sure I haven't left anything behind.","I try to learn my neighbors' routines. Familiar things help.","I once tripped over absolutely nothing. I still look at that spot.","I like the shallow parts where I can see what's under the water.","If I find a good path, I tend to keep using it.","I brought an extra bit of gear. I probably won't need it.","It's easier to try something new when someone patient is nearby.","I keep meaning to ask the guide a question. Then I forget which one.","I had a nice walk earlier. Nothing surprising happened. That was the nice part."],
-        fishing: ["I had one! Then I panicked and it swam off. Again.","The splash always scares me more than it scares the fish.","Nothing yet. I'm trying not to grip the rod so tightly.","One tugged on the line. I nearly answered it out loud.","I'm ready for the splash. I think. Mostly.","I almost had a catch, but my hands forgot what they were doing.","The waiting is fine until the bobber suddenly moves.","I checked the bait twice. It should be all right.","If I catch something big, please don't let me panic.","A quiet fish would be nice. Is that a thing?"],
-        rainFishing: ["Every raindrop looks like a nibble. I am trying not to jump at all of them.","If it rains much harder, I think I will put my rod away for a while.","I keep wiping the handle so it won't slip.","That was a raindrop. I knew that. Afterward.","I'm watching the clouds in case it gets worse.","My line looks fine, but I keep checking it anyway.","It's harder to tell what moved when everything is moving.","I'll stay a little longer if the wind doesn't pick up.","I'm relieved someone else is out in this weather.","If you hear me gasp, it was probably another raindrop."],
-        tradeDone: ["W-we already traded this hour. Sorry! Come back later?","We already made a deal this hour. I wrote it down.","I'm all set for now. Could you check back later?","I don't need another batch yet. Sorry!","I promised myself one deal an hour. I'd better stick to that."],
-        thanks: ["Th-thank you! Here's {coins}c. I counted it twice.","Thank you! {coins}c. Let me make sure I counted it right.","Oh, that's perfect. Here's {coins}c.","You really helped. Take {coins}c.","Here are your {coins}c. Thanks for being patient."]
+        greetings: [
+            "Ah! Oh, sorry, you startled me. I'm {first}.",
+            "H-hi! I'm {first}. Please don't step on my line!",
+            "I'm {first}. Sorry, I wasn't expecting anyone.",
+            "Oh! Hello. {first}. Am I in your way?",
+            "Hi, I'm {first}. I nearly dropped my rod when you came over.",
+            "I'm {first}. You can stand here. Just watch the edge.",
+            "Hello! {first}. I hope I haven't got mud on my face.",
+            "Oh, hi. I'm {first}. Is the path clear over there?",
+            "{first}. Sorry, I always forget what to say first.",
+            "H-hi. {first}. You didn't see me untangling my line, did you?"
+        ],
+        familiar: [
+            "Oh, h-hi again! I recognize you now.",
+            "It's you! That is a relief. How are you?",
+            "Oh, it's you. I can relax a little.",
+            "Hi again! I remembered your face right away.",
+            "You're back! Everything went okay, I hope?",
+            "It's nice to see someone I already know.",
+            "Hello again. I didn't jump quite as much this time.",
+            "I was hoping that was you coming down the path.",
+            "Oh, good. A familiar face. How did your fishing go?",
+            "Back for a visit? I'll try not to talk too fast."
+        ],
+        rainGreetings: [
+            "H-hi, I'm {first}. Do you think this rain will get worse?",
+            "I'm {first}. Please tell me that's just rain and not a fish splashing.",
+            "Hi, {first}. I keep checking whether my pockets are getting wet.",
+            "I'm {first}. Watch your step here, okay?",
+            "Oh! {first}. I thought I heard someone behind me.",
+            "Oh, it's you again! I feel better with someone familiar around.",
+            "It's you again. I'm glad neither of us slipped.",
+            "Hi again! I was hoping someone would come along.",
+            "You're back. Does this look like ordinary rain to you?",
+            "Oh, good. I don't mind the weather as much when there's company."
+        ],
+        chatter: [
+            "Do you think the cliffs ever crumble? I try not to stand too close.",
+            "I keep a spare bobber in every pocket. Just in case. You never know.",
+            "The chests in the deep water make me nervous. What if something's guarding them?",
+            "I check my pockets before leaving home. Then I check them again.",
+            "I rehearsed saying hello, but it never comes out the same way.",
+            "I don't mind a quiet walk. It's sudden noises that get me.",
+            "Sometimes I stop to make sure I haven't left anything behind.",
+            "I try to learn my neighbors' routines. Familiar things help.",
+            "I once tripped over absolutely nothing. I still look at that spot.",
+            "I like the shallow parts where I can see what's under the water.",
+            "If I find a good path, I tend to keep using it.",
+            "I brought an extra bit of gear. I probably won't need it.",
+            "It's easier to try something new when someone patient is nearby.",
+            "I keep meaning to ask the guide a question. Then I forget which one.",
+            "I had a nice walk earlier. Nothing surprising happened. That was the nice part."
+        ],
+        fishing: [
+            "I had one! Then I panicked and it swam off. Again.",
+            "The splash always scares me more than it scares the fish.",
+            "Nothing yet. I'm trying not to grip the rod so tightly.",
+            "One tugged on the line. I nearly answered it out loud.",
+            "I'm ready for the splash. I think. Mostly.",
+            "I almost had a catch, but my hands forgot what they were doing.",
+            "The waiting is fine until the bobber suddenly moves.",
+            "I checked the bait twice. It should be all right.",
+            "If I catch something big, please don't let me panic.",
+            "A quiet fish would be nice. Is that a thing?"
+        ],
+        rainFishing: [
+            "Every raindrop looks like a nibble. I am trying not to jump at all of them.",
+            "If it rains much harder, I think I will put my rod away for a while.",
+            "I keep wiping the handle so it won't slip.",
+            "That was a raindrop. I knew that. Afterward.",
+            "I'm watching the clouds in case it gets worse.",
+            "My line looks fine, but I keep checking it anyway.",
+            "It's harder to tell what moved when everything is moving.",
+            "I'll stay a little longer if the wind doesn't pick up.",
+            "I'm relieved someone else is out in this weather.",
+            "If you hear me gasp, it was probably another raindrop."
+        ],
+        tradeDone: [
+            "W-we already traded this hour. Sorry! Come back later?",
+            "We already made a deal this hour. I wrote it down.",
+            "I'm all set for now. Could you check back later?",
+            "I don't need another batch yet. Sorry!",
+            "I promised myself one deal an hour. I'd better stick to that."
+        ],
+        thanks: [
+            "Th-thank you! Here's {coins}c. I counted it twice.",
+            "Thank you! {coins}c. Let me make sure I counted it right.",
+            "Oh, that's perfect. Here's {coins}c.",
+            "You really helped. Take {coins}c.",
+            "Here are your {coins}c. Thanks for being patient."
+        ]
     },
     {
-        greetings: ["Well, well. The name's {first}. Best angler on the island.","{first}, at your service. You've probably heard of me.","{first}. You've arrived at exactly the right place for advice.","I'm {first}. Always happy to meet another aspiring angler.","{first}. Careful, you might learn something just standing here.","The name's {first}. This is one of my many excellent spots.","{first}. Did someone send you to see the expert?","I'm {first}. I know, the modesty is impressive.","{first}. A pleasure. I'll try not to overwhelm you with wisdom.","Ah, a visitor! {first}. You've caught me between triumphs."],
-        familiar: ["Welcome back. Come for more expert advice?","There you are! Ready to hear from the island's finest?","Back again! Clearly my advice made an impression.","There you are. Have you put my tips to good use?","Welcome back. Progress report?","Good to see you. Every great angler needs a sounding board.","You again! I was just refining my technique.","Another visit? My reputation is growing.","I remember you. You had the good sense to come talk to me.","Welcome back. I'll make room for a fellow enthusiast."],
-        rainGreetings: ["{first}, at your service. A bit of rain is no match for experience.","{first}. This is excellent weather for proving my dedication.","I'm {first}. Expertise doesn't wash off.","{first}. Conditions like these separate the patient from the merely hopeful.","The name's {first}. I knew the rain was coming. Roughly.","Back for more advice? Even in this weather, I see.","Back again! I trust you're here to learn about fishing in the rain.","There you are. Observe how composed I remain in these conditions.","Welcome back. Even the weather couldn't keep you from my advice.","You again! I was just explaining my technique to the clouds."],
-        chatter: ["I once caught a bass so big the scale broke. Nobody believes me.","A good cast is all in the wrist. And the confidence. Mostly the confidence.","I've fished every pond on this island. Twice.","I have a favorite cast. Other people just call it a cast.","Confidence is important. I've never had a shortage of it.","I don't tell every fishing story at once. It would take too long.","A good spot needs a good angler. Fortunately, I'm available.","People underestimate the work that goes into looking this relaxed.","I've had some unfortunate catches. I call them learning opportunities.","I can spot a promising ripple from quite a distance. Usually.","I once explained my technique to someone who hadn't asked. They looked amazed.","Every angler has a lucky habit. Mine is being prepared.","I'm not keeping score. Not publicly, anyway.","I like to give the fish a moment to appreciate the bait.","The guide knows a great deal. I consider us colleagues."],
-        fishing: ["They're just warming up. Champions are patient.","That fish was too small for me anyway. I let it go. On purpose.","I'm letting the fish build anticipation.","Patience. You can't rush an excellent catch.","Nothing yet. Even a great performance needs a quiet opening.","That last fish got lucky. It won't happen twice. I hope.","I'm making this look easy because I've practiced.","A small catch would still be a useful demonstration.","Observe the steady hand. Ignore the empty line.","I'm waiting for a fish that appreciates good technique."],
-        rainFishing: ["A little rain just makes the challenge more interesting. I can wait.","Rain or not, patience is part of the technique. I am demonstrating it.","You can't let a wet sleeve ruin your confidence.","The rain adds difficulty. I welcome difficulty. In moderation.","This is a fine demonstration of persistence.","I could go home, but then who would set the example?","A reliable grip matters even more in this weather.","I'm saving my best cast for a particularly promising moment.","No bites yet. The conditions are giving the fish a head start.","I don't always fish in the rain. Only when I'm committed to the story."],
-        tradeDone: ["One deal an hour, friend. Even legends have rules.","Our business is concluded for this hour. Quality takes time.","One excellent trade is enough for now.","I don't need another haul just yet. Come back later.","I'm keeping to my schedule. Even an expert needs one."],
-        thanks: ["A fine haul. {coins}c, as promised. Tell your friends who paid you.","Very respectable. Here's {coins}c.","A worthy catch. Take your {coins}c.","Just as we agreed. {coins}c, and a compliment from me.","Excellent work. Here's {coins}c. You earned it."]
+        greetings: [
+            "Well, well. The name's {first}. Best angler on the island.",
+            "{first}, at your service. You've probably heard of me.",
+            "{first}. You've arrived at exactly the right place for advice.",
+            "I'm {first}. Always happy to meet another aspiring angler.",
+            "{first}. Careful, you might learn something just standing here.",
+            "The name's {first}. This is one of my many excellent spots.",
+            "{first}. Did someone send you to see the expert?",
+            "I'm {first}. I know, the modesty is impressive.",
+            "{first}. A pleasure. I'll try not to overwhelm you with wisdom.",
+            "Ah, a visitor! {first}. You've caught me between triumphs."
+        ],
+        familiar: [
+            "Welcome back. Come for more expert advice?",
+            "There you are! Ready to hear from the island's finest?",
+            "Back again! Clearly my advice made an impression.",
+            "There you are. Have you put my tips to good use?",
+            "Welcome back. Progress report?",
+            "Good to see you. Every great angler needs a sounding board.",
+            "You again! I was just refining my technique.",
+            "Another visit? My reputation is growing.",
+            "I remember you. You had the good sense to come talk to me.",
+            "Welcome back. I'll make room for a fellow enthusiast."
+        ],
+        rainGreetings: [
+            "{first}, at your service. A bit of rain is no match for experience.",
+            "{first}. This is excellent weather for proving my dedication.",
+            "I'm {first}. Expertise doesn't wash off.",
+            "{first}. Conditions like these separate the patient from the merely hopeful.",
+            "The name's {first}. I knew the rain was coming. Roughly.",
+            "Back for more advice? Even in this weather, I see.",
+            "Back again! I trust you're here to learn about fishing in the rain.",
+            "There you are. Observe how composed I remain in these conditions.",
+            "Welcome back. Even the weather couldn't keep you from my advice.",
+            "You again! I was just explaining my technique to the clouds."
+        ],
+        chatter: [
+            "I once caught a bass so big the scale broke. Nobody believes me.",
+            "A good cast is all in the wrist. And the confidence. Mostly the confidence.",
+            "I've fished every pond on this island. Twice.",
+            "I have a favorite cast. Other people just call it a cast.",
+            "Confidence is important. I've never had a shortage of it.",
+            "I don't tell every fishing story at once. It would take too long.",
+            "A good spot needs a good angler. Fortunately, I'm available.",
+            "People underestimate the work that goes into looking this relaxed.",
+            "I've had some unfortunate catches. I call them learning opportunities.",
+            "I can spot a promising ripple from quite a distance. Usually.",
+            "I once explained my technique to someone who hadn't asked. They looked amazed.",
+            "Every angler has a lucky habit. Mine is being prepared.",
+            "I'm not keeping score. Not publicly, anyway.",
+            "I like to give the fish a moment to appreciate the bait.",
+            "The guide knows a great deal. I consider us colleagues."
+        ],
+        fishing: [
+            "They're just warming up. Champions are patient.",
+            "That fish was too small for me anyway. I let it go. On purpose.",
+            "I'm letting the fish build anticipation.",
+            "Patience. You can't rush an excellent catch.",
+            "Nothing yet. Even a great performance needs a quiet opening.",
+            "That last fish got lucky. It won't happen twice. I hope.",
+            "I'm making this look easy because I've practiced.",
+            "A small catch would still be a useful demonstration.",
+            "Observe the steady hand. Ignore the empty line.",
+            "I'm waiting for a fish that appreciates good technique."
+        ],
+        rainFishing: [
+            "A little rain just makes the challenge more interesting. I can wait.",
+            "Rain or not, patience is part of the technique. I am demonstrating it.",
+            "You can't let a wet sleeve ruin your confidence.",
+            "The rain adds difficulty. I welcome difficulty. In moderation.",
+            "This is a fine demonstration of persistence.",
+            "I could go home, but then who would set the example?",
+            "A reliable grip matters even more in this weather.",
+            "I'm saving my best cast for a particularly promising moment.",
+            "No bites yet. The conditions are giving the fish a head start.",
+            "I don't always fish in the rain. Only when I'm committed to the story."
+        ],
+        tradeDone: [
+            "One deal an hour, friend. Even legends have rules.",
+            "Our business is concluded for this hour. Quality takes time.",
+            "One excellent trade is enough for now.",
+            "I don't need another haul just yet. Come back later.",
+            "I'm keeping to my schedule. Even an expert needs one."
+        ],
+        thanks: [
+            "A fine haul. {coins}c, as promised. Tell your friends who paid you.",
+            "Very respectable. Here's {coins}c.",
+            "A worthy catch. Take your {coins}c.",
+            "Just as we agreed. {coins}c, and a compliment from me.",
+            "Excellent work. Here's {coins}c. You earned it."
+        ]
     },
     {
-        greetings: ["Hey, hey! I'm {first}! Oh, I love meeting people. Where are you from?","Hi! {first} here! Have you been fishing? What did you catch? Tell me everything!","Hi! I'm {first}. I was just looking for someone to talk to.","{first}! Have you seen anything interesting today?","I'm {first}. Wait, let me move my gear so you can come over.","Hey! {first}. Are you exploring or fishing? Or both?","Hi there! {first}. I'm so glad you stopped.","{first}! I haven't met you before, have I?","I'm {first}. I hope you've got a minute.","Oh, hello! {first}. I have about six things to tell you."],
-        familiar: ["Hey, you're back! What have you been up to?","My friend! Tell me everything since we last talked!","You're back! Start with the best part of your day.","Hey! I've been hoping we'd bump into each other.","There you are! Did you try that spot we talked about?","Hello again! I remembered another thing I meant to say.","A familiar face! Now I won't need to explain who I am.","Back for more stories? I've got plenty.","I was just telling myself I should go visit someone. Then you arrived!","You again! Come catch me up on everything."],
-        rainGreetings: ["Hey! I'm {first}. Have you noticed how different the island sounds in the rain?","I'm {first}! Did you see that enormous puddle on the path?","Hi! {first}. I have so many thoughts about this weather.","{first}! Come over. We can get rained on together.","I'm {first}. I tried to hurry here, but then I stopped to look at the clouds.","You're back! Did you get caught in the rain too?","You're back! Did you find somewhere to wait out the rain?","Hey, it's you! I've got a rainy-day story for you.","Hello again! Are your sleeves as wet as mine?","There you are! I was getting tired of talking to the weather."],
-        chatter: ["My cousin says the shop gets new rods sometimes. Or was it new bait? Something new, anyway!","If you walk far enough, the grass goes from gold to green. I tested it. Twice!","I tried to name every tree on the island. I got to forty and forgot the first one.","I went to say hello to one neighbor and somehow visited three.","I have a favorite walking route. It changes whenever someone waves at me.","I keep trying to tell a short story. Then I remember another part.","A quiet day is nice, but I like having someone to tell about it.","I nearly missed a turn because I was talking to someone behind me.","I've decided flowers are easier to count than fish. They stay put.","I was going home, but I saw someone I hadn't talked to yet.","I told the same story twice yesterday. The second telling was better.","Everyone has a different favorite spot. I want to hear all of them.","I know a good view, but I always describe the way there badly.","My favorite part of fishing is when someone asks how it's going.","Sometimes I ask a question and answer it before the other person can."],
-        fishing: ["Nothing yet, but I've been talking the whole time, so that might be why.","A fish came right up to my bobber and stared at me! Then it left. Rude!","Nothing yet! I've already told the fish my entire morning.","I saw a ripple. Then another. Then I forgot which one mattered.","The waiting gives us plenty of time to chat.","I nearly missed a bite because I was telling a story.","A fish looked at my bait and left. I'd love to hear its reasoning.","No catch yet, but I've had a very productive conversation.","I'm trying to talk less until the bobber moves. It's not going well.","If I catch one while you're here, you'll get the full story immediately."],
-        rainFishing: ["Have you noticed how many little ripples the rain makes? I keep losing count!","I am still waiting for a bite. The rain is keeping me company in the meantime.","I've talked about every puddle I stepped in on the way here.","The rain makes the wait feel busier, somehow.","I was going to head home, but I thought I'd try one more cast.","Nothing yet! Have you noticed how different the trees look when they're wet?","I keep saying I'll stop if the rain gets worse. Then I keep talking.","The bobber is there somewhere. I've been watching you while we chat.","A bite would give me something new to talk about.","I don't mind a rainy wait if I've got someone to share it with."],
-        tradeDone: ["We already traded! But I'll take more next hour, promise!","We're all sorted for this hour! Come see me later.","I've got what I need for now, but we can still chat.","Another deal? Not just yet. Tell me how you caught them instead!","I promised myself one batch an hour. Remind me to stick to that."],
-        thanks: ["Yes! Perfect! Here's {coins}c! Pleasure doing business!","That's exactly it! Here's {coins}c.","Wonderful! Take {coins}c, and tell me where you caught them sometime.","Thank you! Your {coins}c, as promised.","A great catch and a good visit! Here's {coins}c."]
+        greetings: [
+            "Hey, hey! I'm {first}! Oh, I love meeting people. Where are you from?",
+            "Hi! {first} here! Have you been fishing? What did you catch? Tell me everything!",
+            "Hi! I'm {first}. I was just looking for someone to talk to.",
+            "{first}! Have you seen anything interesting today?",
+            "I'm {first}. Wait, let me move my gear so you can come over.",
+            "Hey! {first}. Are you exploring or fishing? Or both?",
+            "Hi there! {first}. I'm so glad you stopped.",
+            "{first}! I haven't met you before, have I?",
+            "I'm {first}. I hope you've got a minute.",
+            "Oh, hello! {first}. I have about six things to tell you."
+        ],
+        familiar: [
+            "Hey, you're back! What have you been up to?",
+            "My friend! Tell me everything since we last talked!",
+            "You're back! Start with the best part of your day.",
+            "Hey! I've been hoping we'd bump into each other.",
+            "There you are! Did you try that spot we talked about?",
+            "Hello again! I remembered another thing I meant to say.",
+            "A familiar face! Now I won't need to explain who I am.",
+            "Back for more stories? I've got plenty.",
+            "I was just telling myself I should go visit someone. Then you arrived!",
+            "You again! Come catch me up on everything."
+        ],
+        rainGreetings: [
+            "Hey! I'm {first}. Have you noticed how different the island sounds in the rain?",
+            "I'm {first}! Did you see that enormous puddle on the path?",
+            "Hi! {first}. I have so many thoughts about this weather.",
+            "{first}! Come over. We can get rained on together.",
+            "I'm {first}. I tried to hurry here, but then I stopped to look at the clouds.",
+            "You're back! Did you get caught in the rain too?",
+            "You're back! Did you find somewhere to wait out the rain?",
+            "Hey, it's you! I've got a rainy-day story for you.",
+            "Hello again! Are your sleeves as wet as mine?",
+            "There you are! I was getting tired of talking to the weather."
+        ],
+        chatter: [
+            "My cousin says the shop gets new rods sometimes. Or was it new bait? Something new, anyway!",
+            "If you walk far enough, the grass goes from gold to green. I tested it. Twice!",
+            "I tried to name every tree on the island. I got to forty and forgot the first one.",
+            "I went to say hello to one neighbor and somehow visited three.",
+            "I have a favorite walking route. It changes whenever someone waves at me.",
+            "I keep trying to tell a short story. Then I remember another part.",
+            "A quiet day is nice, but I like having someone to tell about it.",
+            "I nearly missed a turn because I was talking to someone behind me.",
+            "I've decided flowers are easier to count than fish. They stay put.",
+            "I was going home, but I saw someone I hadn't talked to yet.",
+            "I told the same story twice yesterday. The second telling was better.",
+            "Everyone has a different favorite spot. I want to hear all of them.",
+            "I know a good view, but I always describe the way there badly.",
+            "My favorite part of fishing is when someone asks how it's going.",
+            "Sometimes I ask a question and answer it before the other person can."
+        ],
+        fishing: [
+            "Nothing yet, but I've been talking the whole time, so that might be why.",
+            "A fish came right up to my bobber and stared at me! Then it left. Rude!",
+            "Nothing yet! I've already told the fish my entire morning.",
+            "I saw a ripple. Then another. Then I forgot which one mattered.",
+            "The waiting gives us plenty of time to chat.",
+            "I nearly missed a bite because I was telling a story.",
+            "A fish looked at my bait and left. I'd love to hear its reasoning.",
+            "No catch yet, but I've had a very productive conversation.",
+            "I'm trying to talk less until the bobber moves. It's not going well.",
+            "If I catch one while you're here, you'll get the full story immediately."
+        ],
+        rainFishing: [
+            "Have you noticed how many little ripples the rain makes? I keep losing count!",
+            "I am still waiting for a bite. The rain is keeping me company in the meantime.",
+            "I've talked about every puddle I stepped in on the way here.",
+            "The rain makes the wait feel busier, somehow.",
+            "I was going to head home, but I thought I'd try one more cast.",
+            "Nothing yet! Have you noticed how different the trees look when they're wet?",
+            "I keep saying I'll stop if the rain gets worse. Then I keep talking.",
+            "The bobber is there somewhere. I've been watching you while we chat.",
+            "A bite would give me something new to talk about.",
+            "I don't mind a rainy wait if I've got someone to share it with."
+        ],
+        tradeDone: [
+            "We already traded! But I'll take more next hour, promise!",
+            "We're all sorted for this hour! Come see me later.",
+            "I've got what I need for now, but we can still chat.",
+            "Another deal? Not just yet. Tell me how you caught them instead!",
+            "I promised myself one batch an hour. Remind me to stick to that."
+        ],
+        thanks: [
+            "Yes! Perfect! Here's {coins}c! Pleasure doing business!",
+            "That's exactly it! Here's {coins}c.",
+            "Wonderful! Take {coins}c, and tell me where you caught them sometime.",
+            "Thank you! Your {coins}c, as promised.",
+            "A great catch and a good visit! Here's {coins}c."
+        ]
     }
 ];
 
 const NPC_ACTIVITY_LINES = {
-    greeting: ["I just said hello to {neighbor}. It is nice to see a familiar face.", "I ran into {neighbor} a moment ago. We had time for a quick hello.", "I was glad to see {neighbor} on the path earlier.", "I just had a little chat with {neighbor}. A familiar face can brighten a walk.", "{neighbor} came past a little while ago. It's nice to know your neighbors."],
-    social: ["I was just catching up with {neighbor}. It is good to have company nearby.", "{neighbor} and I had a nice chat. I hadn't realized how long we'd been standing there.", "I got to spend a little time with {neighbor} earlier. It was a good break.", "I've been talking with {neighbor}. We always find something to catch up on.", "I was glad to run into {neighbor}. A quiet afternoon is better with someone to share it."],
-    fishing: ["I put my rod away for a bit. Sometimes a quiet break is better than another cast.", "I'm taking a little break from fishing. My hands could use one.", "I've had enough casts for the moment. It's nice to do something else for a while.", "I was fishing earlier. I thought I'd stretch my legs before trying again.", "I put the line away for now. There's no rush to get back to it."],
-    walk: ["Nice walk earlier. I found a little stretch of path I hadn't paid much attention to.", "I've just been out for a walk. It was good to get moving for a while.", "I took a stroll earlier. Now I'm enjoying a moment without having anywhere to go.", "I've been walking around the neighborhood. It's easy to take the familiar bits for granted.", "I had a pleasant walk before you came over. I always notice something when I slow down."],
-    rest: ["I had a quiet break at home. It's good to be outside again.", "I spent a little time at home before coming back out.", "A break at home helped. I was ready for some fresh air afterward.", "I've had a bit of rest at home. Now I feel like being out here again.", "I stopped at home for a while. The water called me back out."],
-    home: ["It's nice to have someone stop by. I was just enjoying a quiet moment at home.", "Come in! It's good to have a little company here.", "I was getting comfortable at home. How has your day been?", "You're welcome to stay and chat. I'm not in a hurry to go anywhere.", "Nice to see you here. Sometimes a little time at home is exactly what I need."]
+    greeting: [
+        "I just said hello to {neighbor}. It is nice to see a familiar face.",
+        "I ran into {neighbor} a moment ago. We had time for a quick hello.",
+        "I was glad to see {neighbor} on the path earlier.",
+        "I just had a little chat with {neighbor}. A familiar face can brighten a walk.",
+        "{neighbor} came past a little while ago. It's nice to know your neighbors."
+    ],
+    social: [
+        "I was just catching up with {neighbor}. It is good to have company nearby.",
+        "{neighbor} and I had a nice chat. I hadn't realized how long we'd been standing there.",
+        "I got to spend a little time with {neighbor} earlier. It was a good break.",
+        "I've been talking with {neighbor}. We always find something to catch up on.",
+        "I was glad to run into {neighbor}. A quiet afternoon is better with someone to share it."
+    ],
+    fishing: [
+        "I put my rod away for a bit. Sometimes a quiet break is better than another cast.",
+        "I'm taking a little break from fishing. My hands could use one.",
+        "I've had enough casts for the moment. It's nice to do something else for a while.",
+        "I was fishing earlier. I thought I'd stretch my legs before trying again.",
+        "I put the line away for now. There's no rush to get back to it."
+    ],
+    walk: [
+        "Nice walk earlier. I found a little stretch of path I hadn't paid much attention to.",
+        "I've just been out for a walk. It was good to get moving for a while.",
+        "I took a stroll earlier. Now I'm enjoying a moment without having anywhere to go.",
+        "I've been walking around the neighborhood. It's easy to take the familiar bits for granted.",
+        "I had a pleasant walk before you came over. I always notice something when I slow down."
+    ],
+    rest: [
+        "I had a quiet break at home. It's good to be outside again.",
+        "I spent a little time at home before coming back out.",
+        "A break at home helped. I was ready for some fresh air afterward.",
+        "I've had a bit of rest at home. Now I feel like being out here again.",
+        "I stopped at home for a while. The water called me back out."
+    ],
+    home: [
+        "It's nice to have someone stop by. I was just enjoying a quiet moment at home.",
+        "Come in! It's good to have a little company here.",
+        "I was getting comfortable at home. How has your day been?",
+        "You're welcome to stay and chat. I'm not in a hurry to go anywhere.",
+        "Nice to see you here. Sometimes a little time at home is exactly what I need."
+    ]
 };
 
 const NPC_FISHING_TIPS = [
@@ -75,27 +609,87 @@ const NPC_FISHING_TIPS = [
     "Deep water past the shore holds the bigger fish. Cast long if your rod can.",
     "Bait makes your catch bar bigger. Press B to swap between the kinds you own.",
     "If you see a chest shadow under the water, cast right on top of it.",
-    "Hold Shift to run. Your feet will thank you on the long walks.", "Wait for the big splash. The little taps aren't your cue to reel.", "Press and hold when the bite comes. Letting go makes it harder to keep up.", "A stronger rod gives you more room for error during a catch.", "Try a longer cast if the deep water is just out of reach.", "Choose bait before you cast. B cycles through the kinds you own.", "Different rods have different reach. Pick one that suits the spot.", "You can check your catches in the fishpedia with I.", "Your map is useful when a neighbor tells you where a fish was seen.", "The shop sells gear if you've been saving your coins.", "A fish that gets away isn't the end of the day. You can try another cast.", "A chest shadow is a good reason to aim carefully.", "A quiet shoreline makes it easier to watch your own bobber.", "Find room beside the water before winding up your cast.", "Space or a click can dismiss the catch card when you're ready for the next cast.", "H will take you back to spawn if your walk has gone farther than you intended.", "Ask the neighbors about rumors. Sometimes they have a good lead.", "The guide can explain the bite timing if it keeps catching you out.", "A longer catch bar gives you more room to follow the fish.", "You don't have to spend all your bait on one spot.", "Check your stats if you want to see how your fishing has been going."
+    "Hold Shift to run. Your feet will thank you on the long walks.",
+    "Wait for the big splash. The little taps aren't your cue to reel.",
+    "Press and hold when the bite comes. Letting go makes it harder to keep up.",
+    "A stronger rod gives you more room for error during a catch.",
+    "Try a longer cast if the deep water is just out of reach.",
+    "Choose bait before you cast. B cycles through the kinds you own.",
+    "Different rods have different reach. Pick one that suits the spot.",
+    "You can check your catches in the fishpedia with I.",
+    "Your map is useful when a neighbor tells you where a fish was seen.",
+    "The shop sells gear if you've been saving your coins.",
+    "A fish that gets away isn't the end of the day. You can try another cast.",
+    "A chest shadow is a good reason to aim carefully.",
+    "A quiet shoreline makes it easier to watch your own bobber.",
+    "Find room beside the water before winding up your cast.",
+    "Space or a click can dismiss the catch card when you're ready for the next cast.",
+    "H will take you back to spawn if your walk has gone farther than you intended.",
+    "Ask the neighbors about rumors. Sometimes they have a good lead.",
+    "The guide can explain the bite timing if it keeps catching you out.",
+    "A longer catch bar gives you more room to follow the fish.",
+    "You don't have to spend all your bait on one spot.",
+    "Check your stats if you want to see how your fishing has been going."
 ];
 
 const NPC_RUMOR_LINES = [
     "Word is a {species} is circling the water {where}. Check your map!",
     "My cousin saw a {species} jump {where}. Check your map!",
     "Try fishing {where}. Folks keep seeing a {species}. Check your map!",
-    "Psst. There's a {species} lurking {where}. Check your map!", "Someone spotted a {species} {where}. Might be worth a cast.", "I've heard about a {species} {where}. Have a look at your map.", "If you're looking for something interesting, try {where}. Someone saw a {species}.", "A neighbor mentioned a {species} {where}. I thought you'd want to know.", "People keep talking about a {species} {where}.", "I can't promise a catch, but there's a report of a {species} {where}.", "You could try {where}. That's where the story about a {species} came from.", "A {species} has been seen {where}. Take a look when you have time.", "Someone came back talking about a {species} {where}.", "I'd keep {where} in mind. There's talk of a {species} around there.", "A friend pointed out {where} after seeing a {species}.", "You might have some luck {where}. I've heard a {species} is there.", "I heard a promising story about a {species} {where}.", "Check {where} on your map. That's where someone reported a {species}.", "There's a lead on a {species} {where}. That's all I know.", "I thought of you when I heard about a {species} {where}."
+    "Psst. There's a {species} lurking {where}. Check your map!",
+    "Someone spotted a {species} {where}. Might be worth a cast.",
+    "I've heard about a {species} {where}. Have a look at your map.",
+    "If you're looking for something interesting, try {where}. Someone saw a {species}.",
+    "A neighbor mentioned a {species} {where}. I thought you'd want to know.",
+    "People keep talking about a {species} {where}.",
+    "I can't promise a catch, but there's a report of a {species} {where}.",
+    "You could try {where}. That's where the story about a {species} came from.",
+    "A {species} has been seen {where}. Take a look when you have time.",
+    "Someone came back talking about a {species} {where}.",
+    "I'd keep {where} in mind. There's talk of a {species} around there.",
+    "A friend pointed out {where} after seeing a {species}.",
+    "You might have some luck {where}. I've heard a {species} is there.",
+    "I heard a promising story about a {species} {where}.",
+    "Check {where} on your map. That's where someone reported a {species}.",
+    "There's a lead on a {species} {where}. That's all I know.",
+    "I thought of you when I heard about a {species} {where}."
 ];
 
 const NPC_NO_RUMOR_LINES = [
     "Rumors? Not today. The water's been quiet around here.",
-    "I haven't heard a thing. Ask me again tomorrow!", "Nothing new has reached me. Try another neighbor.", "I haven't got a good lead today. I'd rather not invent one.", "No fresh sightings from me, I'm afraid.", "I've heard plenty of stories, but nothing useful for your fishing.", "Not this time. If someone tells me something good, I'll remember it.", "I haven't had any interesting news by the water.", "I'm out of rumors for now. We could talk about something else.", "Nothing I could honestly send you out to look for."
+    "I haven't heard a thing. Ask me again tomorrow!",
+    "Nothing new has reached me. Try another neighbor.",
+    "I haven't got a good lead today. I'd rather not invent one.",
+    "No fresh sightings from me, I'm afraid.",
+    "I've heard plenty of stories, but nothing useful for your fishing.",
+    "Not this time. If someone tells me something good, I'll remember it.",
+    "I haven't had any interesting news by the water.",
+    "I'm out of rumors for now. We could talk about something else.",
+    "Nothing I could honestly send you out to look for."
 ];
 
 const NPC_RARE_BAIT_NOW_LINES = [
     "I saw something really rare in the shop just now... You should check it out!",
-    "The shop has a strange can in the Rare tab today. I've never seen one like it. Go look!", "The shop has an unusual bait in stock right now. Check the Rare tab.", "I wouldn't leave the shop visit too long. There's something unusual there today.", "Have you looked at the Rare tab today? Something interesting turned up.", "The shopkeeper has a bait I hadn't seen before. It's available now.", "There's a special bait at the shop right now. I thought you'd want to know.", "Someone showed me the unusual can in the shop. Go take a look.", "You picked a good time to check the shop's Rare tab.", "That rare bait people were talking about is at the shop now."
+    "The shop has a strange can in the Rare tab today. I've never seen one like it. Go look!",
+    "The shop has an unusual bait in stock right now. Check the Rare tab.",
+    "I wouldn't leave the shop visit too long. There's something unusual there today.",
+    "Have you looked at the Rare tab today? Something interesting turned up.",
+    "The shopkeeper has a bait I hadn't seen before. It's available now.",
+    "There's a special bait at the shop right now. I thought you'd want to know.",
+    "Someone showed me the unusual can in the shop. Go take a look.",
+    "You picked a good time to check the shop's Rare tab.",
+    "That rare bait people were talking about is at the shop now."
 ];
 
 const NPC_RARE_BAIT_SOON_LINES = [
     "The shopkeeper hinted something really rare is coming in soon. Keep an eye on the shop!",
-    "Word is a very special bait will turn up at the shop before long. Don't miss it!", "Keep checking the Rare tab. I've heard something unusual is on the way.", "The shopkeeper is expecting a special bait before long.", "I heard a new rare bait is coming in soon. It isn't there yet.", "Don't forget to look at the shop again later. Something unusual is expected.", "Someone mentioned a special bait arriving soon. I'm curious about it.", "There's talk of a rare bait delivery. I'd keep the shop in mind.", "Nothing to buy just yet, but a special bait should turn up before long.", "The shopkeeper sounded pleased about a rare bait that's coming in."
+    "Word is a very special bait will turn up at the shop before long. Don't miss it!",
+    "Keep checking the Rare tab. I've heard something unusual is on the way.",
+    "The shopkeeper is expecting a special bait before long.",
+    "I heard a new rare bait is coming in soon. It isn't there yet.",
+    "Don't forget to look at the shop again later. Something unusual is expected.",
+    "Someone mentioned a special bait arriving soon. I'm curious about it.",
+    "There's talk of a rare bait delivery. I'd keep the shop in mind.",
+    "Nothing to buy just yet, but a special bait should turn up before long.",
+    "The shopkeeper sounded pleased about a rare bait that's coming in."
 ];

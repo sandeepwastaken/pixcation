@@ -1,6 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {createPortraitPeople} = require('./portrait-fixture');
+test('standalone dialogue source keeps one entry per line for easy editing', () => {
+    const source = require('node:fs').readFileSync('src/npc-dialogue.js', 'utf8');
+    for (const line of source.split('\n')) assert.ok((line.match(/"(?:[^"\\]|\\.)*"/g) || []).length <= 1, line);
+});
 
 test('all six NPC voices have five times their original dialogue pool sizes', () => {
     const {run} = createPortraitPeople();

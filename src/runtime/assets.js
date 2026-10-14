@@ -1,6 +1,5 @@
 function preload() {
     this.load.atlas('atlas', withCacheBuster('media/atlas.png'), withCacheBuster('media/atlas.json'));
-    this.load.binary('person-art', withCacheBuster('media/person-art.bin'));
     this.load.image('title-logo', withCacheBuster('media/ui/title/logo.png'));
     this.load.image('ui-button', withCacheBuster('media/ui/title/button.png'));
     this.load.image('stats-panel', withCacheBuster('media/ui/stats/panel.png'));
@@ -27,9 +26,6 @@ function getTextureAliases() {
     }
     for (const key of ['couchMid', 'couchSide', 'insideFloor', 'recolorableRug', 'chairFront', 'chairSide']) alias(key, `environment/interior/${key}`);
 
-    for (const mood of ['friendly', 'laughing', 'surprised']) {
-        alias(`guide-legacy-${mood}`, `characters/guide/legacy/${mood}`);
-    }
 
     for (const rod of MARKET_RODS) {
         alias(rod.texture, `items/rods/${rod.id}`);

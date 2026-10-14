@@ -1,6 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {createPortraitPeople} = require('./portrait-fixture');
+test('portrait composition computes its shared palette once across expression and makeup layers', () => {
+    const {run} = createPortraitPeople(); run('const look=createNpc(13,4,null).look;look[14]=1;look[20]=1;look[1]=0;const originalPalette=getPersonPalette;let paletteCalls=0;getPersonPalette=look=>{paletteCalls++;return originalPalette(look)}');
+    for (const expression of ['normal', 'openMouth', 'grin']) {run('paletteCalls=0;composePersonPortraitPixels(scene,look,"' + expression + '")'); assert.equal(run('paletteCalls'), 1);}
+});
 test('full-makeup eyelids use the darkest two skin shades without changing iris and lash colors', () => {
     const {run}=createPortraitPeople();run('const look=createNpc(13,4,null).look;look[14]=1;look[20]=1;look[5]=0;look[6]=9;look[8]=0;look[21]=0');
     for(const pastel of [0,5])for(const tone of [0,0.5,1])for(const eye of [0,2,3,5]) {run('look[0]='+pastel+';look[15]='+tone+';look[13]='+eye+';var palette=getPersonPalette(look), normal=getPortraitColorMap(look), makeup=getPortraitColorMap(look,false,true)');assert.equal(run('makeup.get(0x660000)'),run('palette.skin[3]'));assert.equal(run('makeup.get(0x8f1010)'),run('palette.skin[0]'));assert.equal(run('normal.get(0x8f1010)'),run('palette.eye'));for(const color of [0x1a0000,0x3b0000,0xb72323])assert.equal(run('makeup.get('+color+')'),run('normal.get('+color+')'));}

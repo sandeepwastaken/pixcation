@@ -5,7 +5,7 @@ const {buildAtlas} = require('./build-atlas');
 function copyPublicMedia(source, output, relative = '') {
     for (const entry of fs.readdirSync(source, {withFileTypes: true})) {
         const name = path.posix.join(relative, entry.name);
-        if (name === 'characters/people' || entry.name.startsWith('.') || /\.(psd|md)$/i.test(entry.name)) continue;
+        if (name === 'characters/people' || entry.name === 'legacy' || entry.name === 'legacy.png' || entry.name.startsWith('.') || /\.(psd|md)$/i.test(entry.name)) continue;
         const from = path.join(source, entry.name), to = path.join(output, entry.name);
         if (entry.isDirectory()) {fs.mkdirSync(to, {recursive: true}); copyPublicMedia(from, to, name);}
         else if (entry.isFile()) fs.copyFileSync(from, to);

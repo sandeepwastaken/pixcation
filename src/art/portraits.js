@@ -2,8 +2,8 @@ function mixPortraitColor(first, second, amount) {
     return samplePersonPalette([[first], [second]], 0, amount)[0];
 }
 
-function getPortraitColorMap(look, expression = false, makeup = false) {
-    const palette = getPersonPalette(look), mix = mixPortraitColor;
+function getPortraitColorMap(look, expression = false, makeup = false, palette = getPersonPalette(look)) {
+    const mix = mixPortraitColor;
     const colors = new Map([[0xff0000, palette.skin[2]], [0xe90000, mix(palette.skin[1], palette.skin[2], 0.5)], [0xd20000, palette.skin[1]], [0xa40000, palette.skin[0]], [0xff2d1c, mix(palette.skin[2], 0xffffff, 0.12)]]);
     for (const [source, target] of [[0xd07d00, palette.hair[0]], [0xe88b00, mix(palette.hair[0], palette.hair[1], 0.6)], [0xff9900, palette.hair[1]], [0xffdeab, palette.hair[2]]]) colors.set(source, target);
     for (const [source, target] of [[0x004a16, palette.top[0]], [0x00ac34, palette.top[1]], [0x00d540, mix(palette.top[1], palette.top[2], 0.5)], [0x00ff4d, palette.top[2]], [0x8affad, palette.top[3]]]) colors.set(source, target);
@@ -18,10 +18,10 @@ function getPersonMouthLayer(look, expression) {return expression + (look[1] !==
 function composePersonPortraitPixels(scene, look, expression = 'normal') {
     if (!['normal', 'openMouth', 'grin'].includes(expression)) throw new Error('Unknown portrait expression');
     const prefix = 'characters/people/portraits/', background = getTerrainPixels(scene, prefix + 'background');
-    const {width, height} = background, data = new Uint8ClampedArray(background.data.length), colors = getPortraitColorMap(look);
+    const {width, height} = background, data = new Uint8ClampedArray(background.data.length), palette = getPersonPalette(look), colors = getPortraitColorMap(look, false, false, palette);
     const layers = ['base' + (look[1] + 1), ...(look[14] ? ['base' + (look[1] + 1) + (look[1] !== 2 && look[20] === 1 ? 'FF' : 'F')] : []), ...(expression === 'normal' ? [] : [getPersonMouthLayer(look, expression)]), 'shirt' + (look[2] + 1), ...(look[21] ? ['extra' + look[21]] : []), (look[5] ? 'vanity' : 'hair') + (look[6] + 1)];
     for (const layer of layers) {
-        const source = getTerrainPixels(scene, prefix + layer), mapping = layer.startsWith('openMouth') || layer.startsWith('grin') ? getPortraitColorMap(look, true) : layer.endsWith('FF') ? getPortraitColorMap(look, false, true) : colors;
+        const source = getTerrainPixels(scene, prefix + layer), mapping = layer.startsWith('openMouth') || layer.startsWith('grin') ? getPortraitColorMap(look, true, false, palette) : layer.endsWith('FF') ? getPortraitColorMap(look, false, true, palette) : colors;
         if (source.width !== width || source.height !== height) throw new Error('Portrait layer dimensions do not match: ' + layer);
         for (let pixel = 0; pixel < width * height; pixel++) {
             const offset = pixel * 4; if (!source.data[offset + 3]) continue;

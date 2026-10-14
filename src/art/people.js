@@ -14,7 +14,11 @@ function getPersonPalette(look) {
 
 function samplePersonPalette(palettes, index, amount) {
     const first = palettes[index], next = palettes[(index + 1) % palettes.length];
-    return first.map((color, shade) => [16, 8, 0].reduce((result, shift) => result | Math.round(((color >> shift) & 255) * (1 - amount) + ((next[shade] >> shift) & 255) * amount) << shift, 0));
+    const inverse = 1 - amount;
+    return first.map((color, shade) => {
+        const target = next[shade];
+        return Math.round((color >> 16 & 255) * inverse + (target >> 16 & 255) * amount) << 16 | Math.round((color >> 8 & 255) * inverse + (target >> 8 & 255) * amount) << 8 | Math.round((color & 255) * inverse + (target & 255) * amount);
+    });
 }
 
 function getPersonSkinRamp(pastel, amount) {
