@@ -3,6 +3,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const {decodePng} = require('../build-atlas');
+test('tree canopies contain only leaf shades without isolated decorative dots', () => {
+    const png = decodePng('media/environment/objects/tree-bare.png');
+    const context = vm.createContext({TEST_MODE:false,trunk:{width:png.width,height:png.height,data:png.rgba}});
+    vm.runInContext(['runtime/settings.js','runtime/state.js','world/terrain.js','art/textures.js','art/trees.js'].map(file=>fs.readFileSync('src/'+file,'utf8')).join('\n'),context);
+    assert.equal(vm.runInContext('(()=>{for(let palette=0;palette<TREE_LEAF_PALETTES.length;palette++)for(let seed=0;seed<20;seed++){const tree=generateTreeVariant(trunk,seed,palette),allowed=new Set(TREE_LEAF_PALETTES[palette].colors);for(let pixel=0;pixel<tree.width*tree.height;pixel++)if(tree.canopyData[pixel*4+3]&&!allowed.has(readTreePixel(tree.canopyData,pixel)))return false;}return true;})()',context),true);
+});
 
 test('birch bark variations are reproducible and change existing trunk markings without changing its footprint', () => {
     const png = decodePng('media/environment/objects/tree-bare.png');
