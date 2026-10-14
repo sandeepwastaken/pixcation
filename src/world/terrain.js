@@ -1,14 +1,22 @@
 function getTileId(tileX, tileY) {
     return tileX * 67108864 + tileY;
 }
-function getGrassFlowerPlacement(tileX, tileY) {
-    const variant = Math.min(17, Math.floor(worldHash(tileX, tileY, 924) * 18));
-    return { flipX: variant >= 9, x: 0, y: 0 };
+function getGrassFlowerPlacement(tileX, tileY, tile = getWorldTile(tileX, tileY)) {
+    const placements = []; if (tile.bridge || !/^grass[1-4]$/.test(tile.key)) return placements;
+    for (let row = 0; row < 3; row++) for (let column = 0; column < 4; column++) {
+        const x = Math.min(13, column * 4 + Math.min(3, Math.floor(worldHash(tileX * 4 + column, tileY * 3 + row, 926) * 4))), y = row * 5 + Math.min(2, Math.floor(worldHash(tileX * 4 + column, tileY * 3 + row, 927) * 3));
+        const patch = valueNoise(tileX + x / TILE_SIZE, tileY + y / TILE_SIZE, 7, 925), density = 0.015 + Math.max(0, (patch - 0.48) / 0.52) ** 1.3 * 0.65;
+        if (worldHash(tileX * 4 + column, tileY * 3 + row, 924) >= density) continue;
+        if (placements.some(other => x < other.x + 3 && x + 3 > other.x && y < other.y + 4 && y + 4 > other.y)) continue;
+        if ((tile.patches || []).some(corner => x < corner.x + corner.size && x + 3 > corner.x && y < corner.y + corner.size && y + 4 > corner.y)) continue;
+        placements.push({ x, y, flipX: worldHash(tileX * 4 + column, tileY * 3 + row, 928) > 0.5, key: valueNoise(tileX + 149, tileY - 83, 24, 672) > 0.5 ? 'grass4-flowers' : 'grass3-flowers' });
+    }
+    return placements;
 }
 function createGrassFlowerTextures(scene) {
     const underlay = getTerrainPixels(scene, 'grass2');
     for (const key of ['grass3', 'grass4']) {
-        const layers = extractGrassFlowerPixels(getTerrainPixels(scene, key), underlay);
+        const layers = extractGrassFlowerPixels(getTerrainPixels(scene, key), underlay); layers.flowers = extractSingleGrassFlower(layers.flowers);
         for (const [layer, suffix] of [[layers.grass, 'plain'], [layers.flowers, 'flowers']]) createCanvasTexture(scene, `${key}-${suffix}`, layer.width, layer.height, context => { const image = context.createImageData(layer.width, layer.height); image.data.set(layer.data); context.putImageData(image, 0, 0); });
     }
 }
@@ -295,6 +303,11 @@ function generateWorldTile(tileX, tileY) {
 }
 
 const grassTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
+function extractSingleGrassFlower(source) {
+    const data = new Uint8ClampedArray(3 * 4 * 4);
+    for (let y = 0; y < 4; y++) data.set(source.data.subarray(y * source.width * 4, (y * source.width + 3) * 4), y * 3 * 4);
+    return { width: 3, height: 4, data };
+}
 function extractGrassFlowerPixels(source, underlay) {
     if (source.width !== underlay.width || source.height !== underlay.height) throw new Error('Grass layer dimensions do not match');
     const mask = new Uint8Array(source.width * source.height), grass = new Uint8ClampedArray(source.data), flowers = new Uint8ClampedArray(source.data.length);

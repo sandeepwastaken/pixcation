@@ -17,7 +17,7 @@ test('all six NPC voices have five times their original dialogue pool sizes', ()
 
 test('spoken lines are short, unique within each pool, and contain no dash-style pauses', () => {
     const {run} = createPortraitPeople();
-    const pools = JSON.parse(run('JSON.stringify([...NPC_PERSONALITIES.flatMap(person => Object.values(person)), ...Object.values(NPC_ACTIVITY_LINES), NPC_FISHING_TIPS, NPC_RUMOR_LINES, NPC_NO_RUMOR_LINES, NPC_RARE_BAIT_NOW_LINES, NPC_RARE_BAIT_SOON_LINES])'));
+    const pools = JSON.parse(run('JSON.stringify([...NPC_PERSONALITIES.flatMap(person => Object.values(person)), ...Object.values(NPC_ACTIVITY_LINES), NPC_FISHING_TIPS, NPC_RUMOR_LINES, NPC_NO_RUMOR_LINES, NPC_RARE_BAIT_NOW_LINES, NPC_RARE_BAIT_SOON_LINES, NPC_SPOUSE_LINES, NPC_COMPANION_GREETINGS, NPC_COMPANION_REPLY_LINES, NPC_COMPANION_SLOW_LINES, NPC_COMPANION_INVITE_LINES])'));
     for (const pool of pools) {assert.equal(new Set(pool).size, pool.length); for (const line of pool) {assert.ok(line.length <= 145, line); assert.doesNotMatch(line, /[\u2013\u2014]|\s-\s/);}}
 });
 

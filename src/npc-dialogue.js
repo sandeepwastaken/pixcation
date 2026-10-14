@@ -559,6 +559,47 @@ const NPC_PERSONALITIES = [
     }
 ];
 
+const NPC_SPOUSE_LINES = [
+    "{neighbor} is my {relation}. We never run out of stories to share.",
+    "My {relation}, {neighbor}, makes even an ordinary day feel special.",
+    "{neighbor} is my {relation}. We disagree about the best fishing spot.",
+    "My {relation} is {neighbor}. We still make time for a walk together.",
+    "{neighbor} is my {relation}. I usually save my best stories for them.",
+    "My {relation}, {neighbor}, knows when I need a quiet afternoon."
+];
+const NPC_COMPANION_GREETINGS = [
+    "Hi! {first} is my {relation}. Mind if I join the conversation?",
+    "Hello! My {relation}, {first}, has found some company. How is your day going?",
+    "Oh, hello! I am {first}'s {relation}. Have the fish been kind to you today?",
+    "Hi there! I hope my {relation}, {first}, left a few stories for me. How are you?",
+    "Hello! {first} is my {relation}. It is nice to meet someone new together.",
+    "There you are! My {relation}, {first}, and I are always glad to have company."
+];
+const NPC_COMPANION_REPLY_LINES = [
+    "Good! I like hearing that someone is having a nice day.",
+    "Glad to hear it. You will have to tell us about your best catch sometime.",
+    "That is lovely. Sometimes a good day is just a few little things going right.",
+    "You sound pleased. That makes me want to try another cast.",
+    "Wonderful! Save a story for the next time we meet.",
+    "I am glad. It is nice to share a little good news."
+];
+const NPC_COMPANION_SLOW_LINES = [
+    "I know that feeling. You do not have to catch anything for your time here to count.",
+    "Some days are like that. A chat is a good excuse to rest your hands.",
+    "No luck yet? I hope the next cast surprises you.",
+    "You are welcome to stay a while. We can keep you company.",
+    "That happens to all of us. Try not to let one quiet afternoon spoil your day.",
+    "I would take a little break. The fish will still be there afterward."
+];
+const NPC_COMPANION_INVITE_LINES = [
+    "Of course! There is no need to rush off. Tell us a little about your day.",
+    "You are welcome to chat. It is always nice to get to know another neighbor.",
+    "Absolutely. I like these little conversations by the water.",
+    "Please do. You can tell us your fishing stories, even the ones that got away.",
+    "Of course. We are happy to have a little company.",
+    "Stay and chat whenever you like. It is nice seeing a familiar face."
+];
+
 const NPC_ACTIVITY_LINES = {
     greeting: [
         "I just said hello to {neighbor}. It is nice to see a familiar face.",

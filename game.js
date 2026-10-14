@@ -746,6 +746,47 @@ const NPC_PERSONALITIES = [
     }
 ];
 
+const NPC_SPOUSE_LINES = [
+    "{neighbor} is my {relation}. We never run out of stories to share.",
+    "My {relation}, {neighbor}, makes even an ordinary day feel special.",
+    "{neighbor} is my {relation}. We disagree about the best fishing spot.",
+    "My {relation} is {neighbor}. We still make time for a walk together.",
+    "{neighbor} is my {relation}. I usually save my best stories for them.",
+    "My {relation}, {neighbor}, knows when I need a quiet afternoon."
+];
+const NPC_COMPANION_GREETINGS = [
+    "Hi! {first} is my {relation}. Mind if I join the conversation?",
+    "Hello! My {relation}, {first}, has found some company. How is your day going?",
+    "Oh, hello! I am {first}'s {relation}. Have the fish been kind to you today?",
+    "Hi there! I hope my {relation}, {first}, left a few stories for me. How are you?",
+    "Hello! {first} is my {relation}. It is nice to meet someone new together.",
+    "There you are! My {relation}, {first}, and I are always glad to have company."
+];
+const NPC_COMPANION_REPLY_LINES = [
+    "Good! I like hearing that someone is having a nice day.",
+    "Glad to hear it. You will have to tell us about your best catch sometime.",
+    "That is lovely. Sometimes a good day is just a few little things going right.",
+    "You sound pleased. That makes me want to try another cast.",
+    "Wonderful! Save a story for the next time we meet.",
+    "I am glad. It is nice to share a little good news."
+];
+const NPC_COMPANION_SLOW_LINES = [
+    "I know that feeling. You do not have to catch anything for your time here to count.",
+    "Some days are like that. A chat is a good excuse to rest your hands.",
+    "No luck yet? I hope the next cast surprises you.",
+    "You are welcome to stay a while. We can keep you company.",
+    "That happens to all of us. Try not to let one quiet afternoon spoil your day.",
+    "I would take a little break. The fish will still be there afterward."
+];
+const NPC_COMPANION_INVITE_LINES = [
+    "Of course! There is no need to rush off. Tell us a little about your day.",
+    "You are welcome to chat. It is always nice to get to know another neighbor.",
+    "Absolutely. I like these little conversations by the water.",
+    "Please do. You can tell us your fishing stories, even the ones that got away.",
+    "Of course. We are happy to have a little company.",
+    "Stay and chat whenever you like. It is nice seeing a familiar face."
+];
+
 const NPC_ACTIVITY_LINES = {
     greeting: [
         "I just said hello to {neighbor}. It is nice to see a familiar face.",
@@ -1898,14 +1939,22 @@ function updateDialoguePortraitBlink(scene, time) {
 function getTileId(tileX, tileY) {
     return tileX * 67108864 + tileY;
 }
-function getGrassFlowerPlacement(tileX, tileY) {
-    const variant = Math.min(17, Math.floor(worldHash(tileX, tileY, 924) * 18));
-    return { flipX: variant >= 9, x: 0, y: 0 };
+function getGrassFlowerPlacement(tileX, tileY, tile = getWorldTile(tileX, tileY)) {
+    const placements = []; if (tile.bridge || !/^grass[1-4]$/.test(tile.key)) return placements;
+    for (let row = 0; row < 3; row++) for (let column = 0; column < 4; column++) {
+        const x = Math.min(13, column * 4 + Math.min(3, Math.floor(worldHash(tileX * 4 + column, tileY * 3 + row, 926) * 4))), y = row * 5 + Math.min(2, Math.floor(worldHash(tileX * 4 + column, tileY * 3 + row, 927) * 3));
+        const patch = valueNoise(tileX + x / TILE_SIZE, tileY + y / TILE_SIZE, 7, 925), density = 0.015 + Math.max(0, (patch - 0.48) / 0.52) ** 1.3 * 0.65;
+        if (worldHash(tileX * 4 + column, tileY * 3 + row, 924) >= density) continue;
+        if (placements.some(other => x < other.x + 3 && x + 3 > other.x && y < other.y + 4 && y + 4 > other.y)) continue;
+        if ((tile.patches || []).some(corner => x < corner.x + corner.size && x + 3 > corner.x && y < corner.y + corner.size && y + 4 > corner.y)) continue;
+        placements.push({ x, y, flipX: worldHash(tileX * 4 + column, tileY * 3 + row, 928) > 0.5, key: valueNoise(tileX + 149, tileY - 83, 24, 672) > 0.5 ? 'grass4-flowers' : 'grass3-flowers' });
+    }
+    return placements;
 }
 function createGrassFlowerTextures(scene) {
     const underlay = getTerrainPixels(scene, 'grass2');
     for (const key of ['grass3', 'grass4']) {
-        const layers = extractGrassFlowerPixels(getTerrainPixels(scene, key), underlay);
+        const layers = extractGrassFlowerPixels(getTerrainPixels(scene, key), underlay); layers.flowers = extractSingleGrassFlower(layers.flowers);
         for (const [layer, suffix] of [[layers.grass, 'plain'], [layers.flowers, 'flowers']]) createCanvasTexture(scene, `${key}-${suffix}`, layer.width, layer.height, context => { const image = context.createImageData(layer.width, layer.height); image.data.set(layer.data); context.putImageData(image, 0, 0); });
     }
 }
@@ -2192,6 +2241,11 @@ function generateWorldTile(tileX, tileY) {
 }
 
 const grassTints = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
+function extractSingleGrassFlower(source) {
+    const data = new Uint8ClampedArray(3 * 4 * 4);
+    for (let y = 0; y < 4; y++) data.set(source.data.subarray(y * source.width * 4, (y * source.width + 3) * 4), y * 3 * 4);
+    return { width: 3, height: 4, data };
+}
 function extractGrassFlowerPixels(source, underlay) {
     if (source.width !== underlay.width || source.height !== underlay.height) throw new Error('Grass layer dimensions do not match');
     const mask = new Uint8Array(source.width * source.height), grass = new Uint8ClampedArray(source.data), flowers = new Uint8ClampedArray(source.data.length);
@@ -3339,7 +3393,7 @@ function createWorldChunk(scene, chunkX, chunkY, deferWater = false) {
                 terrainTile.rotation
             );
 
-            if (tileKey === 'grass3' || tileKey === 'grass4') { const placement = getGrassFlowerPlacement(tileX, tileY); groundContext.save(); groundContext.beginPath(); groundContext.rect(drawX, drawY, TILE_SIZE, TILE_SIZE); groundContext.clip(); drawChunkTexture(groundContext, scene, `${tileKey}-flowers`, drawX + placement.x, drawY + placement.y, 0, placement.flipX); groundContext.restore(); }
+            for (const placement of getGrassFlowerPlacement(tileX, tileY, worldTile)) drawChunkTexture(groundContext, scene, placement.key, drawX + placement.x, drawY + placement.y, 0, placement.flipX);
             for (const patch of terrainTile.patches || EMPTY_TILE_PATCHES) {
                 drawChunkTexture(getUpperContext(), scene, patch.key, drawX + patch.x, drawY + patch.y, 0, patch.flipX, patch.flipY);
             }
@@ -4589,13 +4643,20 @@ function getNpcConnection(npc) {
     const companion = index < 0 ? null : neighbors[index ^ 1];
     if (!companion) return null;
     const kind = ['sibling', 'cousin', 'close'][Math.min(2, Math.floor(npcHash(groupX, groupY, 1330 + Math.floor(index / 2)) * 3))];
+    if (kind === 'close' && [0, 2].includes(npc.look?.[1]) && [0, 2].includes(companion.look?.[1]) && npcHash(groupX, groupY, 1340 + Math.floor(index / 2)) > 0.55) return { companion, kind: 'spouse' };
     return { companion, kind };
 }
 
+function getNpcRelationName(npc, kind) {
+    if (kind !== 'spouse') return kind === 'close' ? 'friend' : kind;
+    return npc.look?.[14] === 1 ? 'wife' : npc.look?.[14] === 0 ? 'husband' : 'spouse';
+}
+
 function describeNpcConnection(npc, connection) {
+    const relation = getNpcRelationName(connection.companion, connection.kind);
     const name = connection.companion.name.split(' ')[0];
     const shared = npc.house?.residents?.includes(connection.companion.id);
-    const text = (connection.kind === 'close' ? `I'm close to ${name}.` : `${name} is my ${connection.kind}.`) + (shared ? ' We share a home nearby.' : ' We spend time together around here.');
+    const text = (connection.kind === 'spouse' ? NPC_SPOUSE_LINES[Math.min(NPC_SPOUSE_LINES.length - 1, Math.floor(npcHash(npc.tileX, npc.tileY, 1341) * NPC_SPOUSE_LINES.length))].replaceAll('{neighbor}', name).replaceAll('{relation}', relation) : connection.kind === 'close' ? `I'm close to ${name}.` : `${name} is my ${relation}.`) + (shared ? ' We share a home nearby.' : ' We spend time together around here.');
     const other = activeNpcs.find(resident => resident.id === connection.companion.id);
     if (!other) return text;
     if (other.state === 'home') return text + ` ${name} is at home for now.`;
@@ -5822,8 +5883,10 @@ function buildNpcDialogue(scene, npc) {
     if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
     if (npc.fishing?.state === 'reeling') nodes.tips.text = npc.needsShelter ? 'I am bringing my line in and getting out of this rain for a while.' : 'I am bringing my line in. I will try another cast after a short break.';
     if (companion?.joining === npc.id) nodes.company.options.unshift({ label: 'Say hello', action: () => companion.joinedConversation === npc.id && companion.talking ? 'companion' : 'waiting' });
-    if (companion) nodes.companion = { portrait: getPersonPortraitTexture(scene, companion.look), portraitLook: companion.look, portraitExpression: 'normal', portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: `Hi! ${connection.kind === 'close' ? "I'm close to " + first : first + ' is my ' + connection.kind}. How is your fishing going?`, options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'Back', next: 'intro' }, bye] };
-    if (companion) nodes.companionReply = { ...nodes.companion, portrait: getPersonPortraitTexture(scene, companion.look, 'grin'), portraitExpression: 'grin', text: 'Glad to hear it. Maybe we will see you around the water later!', options: [back, bye] };
+    if (companion) nodes.companion = { portrait: getPersonPortraitTexture(scene, companion.look), portraitLook: companion.look, portraitExpression: 'normal', portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: pickNpcDialogueLine(companion, NPC_COMPANION_GREETINGS).replaceAll('{first}', first).replaceAll('{relation}', getNpcRelationName(npc, connection.kind)), options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'A slow day', next: 'companionSlow' }, { label: 'Can I join you?', next: 'companionInvite' }, bye] };
+    if (companion) nodes.companionReply = { ...nodes.companion, portrait: getPersonPortraitTexture(scene, companion.look, 'grin'), portraitExpression: 'grin', text: pickNpcDialogueLine(companion, NPC_COMPANION_REPLY_LINES), options: [{ label: 'Can I join you?', next: 'companionInvite' }, back, bye] };
+    if (companion) nodes.companionSlow = { ...nodes.companionReply, text: pickNpcDialogueLine(companion, NPC_COMPANION_SLOW_LINES) };
+    if (companion) nodes.companionInvite = { ...nodes.companionReply, text: pickNpcDialogueLine(companion, NPC_COMPANION_INVITE_LINES), options: [back, bye] };
 
     if (npc.role !== 'trader') {
         nodes.intro = node(greeting, [{ label: 'Chat', next: 'chat' }, { label: npc.fishing ? 'Any bites?' : 'Tips', next: 'tips' }, bye]);

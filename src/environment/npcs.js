@@ -29,13 +29,20 @@ function getNpcConnection(npc) {
     const companion = index < 0 ? null : neighbors[index ^ 1];
     if (!companion) return null;
     const kind = ['sibling', 'cousin', 'close'][Math.min(2, Math.floor(npcHash(groupX, groupY, 1330 + Math.floor(index / 2)) * 3))];
+    if (kind === 'close' && [0, 2].includes(npc.look?.[1]) && [0, 2].includes(companion.look?.[1]) && npcHash(groupX, groupY, 1340 + Math.floor(index / 2)) > 0.55) return { companion, kind: 'spouse' };
     return { companion, kind };
 }
 
+function getNpcRelationName(npc, kind) {
+    if (kind !== 'spouse') return kind === 'close' ? 'friend' : kind;
+    return npc.look?.[14] === 1 ? 'wife' : npc.look?.[14] === 0 ? 'husband' : 'spouse';
+}
+
 function describeNpcConnection(npc, connection) {
+    const relation = getNpcRelationName(connection.companion, connection.kind);
     const name = connection.companion.name.split(' ')[0];
     const shared = npc.house?.residents?.includes(connection.companion.id);
-    const text = (connection.kind === 'close' ? `I'm close to ${name}.` : `${name} is my ${connection.kind}.`) + (shared ? ' We share a home nearby.' : ' We spend time together around here.');
+    const text = (connection.kind === 'spouse' ? NPC_SPOUSE_LINES[Math.min(NPC_SPOUSE_LINES.length - 1, Math.floor(npcHash(npc.tileX, npc.tileY, 1341) * NPC_SPOUSE_LINES.length))].replaceAll('{neighbor}', name).replaceAll('{relation}', relation) : connection.kind === 'close' ? `I'm close to ${name}.` : `${name} is my ${relation}.`) + (shared ? ' We share a home nearby.' : ' We spend time together around here.');
     const other = activeNpcs.find(resident => resident.id === connection.companion.id);
     if (!other) return text;
     if (other.state === 'home') return text + ` ${name} is at home for now.`;
@@ -1262,8 +1269,10 @@ function buildNpcDialogue(scene, npc) {
     if (npc.dailyPlan === 'late') nodes.tips.text = 'I like fishing after dark. The water is quiet, and there is no hurry to get home.';
     if (npc.fishing?.state === 'reeling') nodes.tips.text = npc.needsShelter ? 'I am bringing my line in and getting out of this rain for a while.' : 'I am bringing my line in. I will try another cast after a short break.';
     if (companion?.joining === npc.id) nodes.company.options.unshift({ label: 'Say hello', action: () => companion.joinedConversation === npc.id && companion.talking ? 'companion' : 'waiting' });
-    if (companion) nodes.companion = { portrait: getPersonPortraitTexture(scene, companion.look), portraitLook: companion.look, portraitExpression: 'normal', portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: `Hi! ${connection.kind === 'close' ? "I'm close to " + first : first + ' is my ' + connection.kind}. How is your fishing going?`, options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'Back', next: 'intro' }, bye] };
-    if (companion) nodes.companionReply = { ...nodes.companion, portrait: getPersonPortraitTexture(scene, companion.look, 'grin'), portraitExpression: 'grin', text: 'Glad to hear it. Maybe we will see you around the water later!', options: [back, bye] };
+    if (companion) nodes.companion = { portrait: getPersonPortraitTexture(scene, companion.look), portraitLook: companion.look, portraitExpression: 'normal', portraitScale: NPC_PORTRAIT_SCALE, speaker: companion.name, text: pickNpcDialogueLine(companion, NPC_COMPANION_GREETINGS).replaceAll('{first}', first).replaceAll('{relation}', getNpcRelationName(npc, connection.kind)), options: [{ label: 'Doing well', next: 'companionReply' }, { label: 'A slow day', next: 'companionSlow' }, { label: 'Can I join you?', next: 'companionInvite' }, bye] };
+    if (companion) nodes.companionReply = { ...nodes.companion, portrait: getPersonPortraitTexture(scene, companion.look, 'grin'), portraitExpression: 'grin', text: pickNpcDialogueLine(companion, NPC_COMPANION_REPLY_LINES), options: [{ label: 'Can I join you?', next: 'companionInvite' }, back, bye] };
+    if (companion) nodes.companionSlow = { ...nodes.companionReply, text: pickNpcDialogueLine(companion, NPC_COMPANION_SLOW_LINES) };
+    if (companion) nodes.companionInvite = { ...nodes.companionReply, text: pickNpcDialogueLine(companion, NPC_COMPANION_INVITE_LINES), options: [back, bye] };
 
     if (npc.role !== 'trader') {
         nodes.intro = node(greeting, [{ label: 'Chat', next: 'chat' }, { label: npc.fishing ? 'Any bites?' : 'Tips', next: 'tips' }, bye]);

@@ -2,6 +2,26 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
+test('married connections are mutual and only appear between adult or older residents', () => {
+    const run = createNpcs(); run('npcHash=()=>0.9;homes[0].look=first.look;homes[1].look=second.look;first.look[1]=0;second.look[1]=2;first.look[14]=1;second.look[14]=0');
+    assert.equal(run('getNpcConnection(first).kind'), 'spouse'); assert.equal(run('getNpcConnection(second).kind'), 'spouse');
+    run('npcCache.clear()'); assert.equal(run('getNpcConnection(first).kind'), 'spouse');
+    for (const index of [0,1]) {run('first.look[1]=second.look[1]=0;homes[' + index + '].look[1]=1'); assert.equal(run('getNpcConnection(first).kind'), 'close'); assert.equal(run('getNpcConnection(second).kind'), 'close');}
+    run('first.look[1]=second.look[1]=0;npcHash=()=>0.2'); assert.equal(run('getNpcConnection(first).kind'), 'sibling');
+});
+test('spouse wording follows the other resident and keeps actual routine updates', () => {
+    const run = createNpcs(); run('first.look[14]=1;second.look[14]=0;first.house={residents:[1,2]};second.state="home";const married={companion:second,kind:"spouse"}');
+    assert.ok(run('describeNpcConnection(first,married).includes("husband")')); assert.ok(run('describeNpcConnection(first,married).endsWith("Eli is at home for now.")'));
+    assert.ok(run('describeNpcConnection(second,{companion:first,kind:"spouse"}).includes("wife")'));
+});
+test('joint conversations offer distinct responses and spouse labels from both perspectives', () => {
+    const run = createNpcs(); run('findNearestRumor=getMysteryShopRumor=()=>null;first.look[14]=1;second.look[14]=0;getNpcConnection=()=>({companion:second,kind:"spouse"});second.joining=first.id;const nodes=buildNpcDialogue(scene,first)');
+    assert.ok(run('nodes.companion.text.includes("wife")')); assert.equal(run('nodes.companion.speaker'), 'Eli Moss');
+    assert.equal(run('nodes.companion.options.find(o=>o.label==="A slow day").next'), 'companionSlow');
+    assert.equal(run('nodes.companion.options.find(o=>o.label==="Can I join you?").next'), 'companionInvite');
+    assert.ok(run('NPC_COMPANION_SLOW_LINES.includes(nodes.companionSlow.text)')); assert.ok(run('NPC_COMPANION_INVITE_LINES.includes(nodes.companionInvite.text)'));
+    for (const key of ['companion', 'companionReply', 'companionSlow', 'companionInvite']) assert.ok(run('nodes.' + key + '.options.length') <= 4);
+});
 
 test('dialogue avoids repeating the same line twice even when random rolls repeat', () => {
     const run = createNpcs();
