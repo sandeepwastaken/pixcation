@@ -3,13 +3,13 @@ function getTileId(tileX, tileY) {
 }
 function getGrassFlowerPlacement(tileX, tileY, tile = getWorldTile(tileX, tileY)) {
     const placements = []; if (tile.bridge || !/^grass[1-4]$/.test(tile.key)) return placements;
-    for (let row = 0; row < 3; row++) for (let column = 0; column < 4; column++) {
-        const x = Math.min(13, column * 4 + Math.min(3, Math.floor(worldHash(tileX * 4 + column, tileY * 3 + row, 926) * 4))), y = row * 5 + Math.min(2, Math.floor(worldHash(tileX * 4 + column, tileY * 3 + row, 927) * 3));
-        const patch = valueNoise(tileX + x / TILE_SIZE, tileY + y / TILE_SIZE, 7, 925), density = 0.015 + Math.max(0, (patch - 0.48) / 0.52) ** 1.3 * 0.65;
-        if (worldHash(tileX * 4 + column, tileY * 3 + row, 924) >= density) continue;
-        if (placements.some(other => x < other.x + 3 && x + 3 > other.x && y < other.y + 4 && y + 4 > other.y)) continue;
+    for (let row = 0; row < 2; row++) for (let column = 0; column < 2; column++) {
+        const x = 1 + column * 8 + Math.min(3, Math.floor(worldHash(tileX * 2 + column, tileY * 2 + row, 926) * 4)), y = 1 + row * 8 + Math.min(2, Math.floor(worldHash(tileX * 2 + column, tileY * 2 + row, 927) * 3));
+        const patch = valueNoise(tileX + x / TILE_SIZE, tileY + y / TILE_SIZE, 7, 925), density = 0.004 + Math.max(0, (patch - 0.52) / 0.48) ** 1.6 * 0.38;
+        if (worldHash(tileX * 2 + column, tileY * 2 + row, 924) >= density) continue;
+        if (placements.some(other => x < other.x + 5 && x + 5 > other.x && y < other.y + 6 && y + 6 > other.y)) continue;
         if ((tile.patches || []).some(corner => x < corner.x + corner.size && x + 3 > corner.x && y < corner.y + corner.size && y + 4 > corner.y)) continue;
-        placements.push({ x, y, flipX: worldHash(tileX * 4 + column, tileY * 3 + row, 928) > 0.5, key: valueNoise(tileX + 149, tileY - 83, 24, 672) > 0.5 ? 'grass4-flowers' : 'grass3-flowers' });
+        placements.push({ x, y, flipX: worldHash(tileX * 2 + column, tileY * 2 + row, 928) > 0.5, key: valueNoise(tileX + 149, tileY - 83, 24, 672) > 0.5 ? 'grass4-flowers' : 'grass3-flowers' });
     }
     return placements;
 }

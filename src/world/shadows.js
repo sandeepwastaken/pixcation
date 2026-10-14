@@ -69,8 +69,8 @@ function getStaticShadowMask(chunkX, chunkY) {
     return mask;
 }
 
-function isFlatShadowTile(tile) {
-    return !tile.patches && tile.key.startsWith('grass');
+function isFlatShadowTile(tile, tileX, tileY) {
+    return !tile.patches && tile.key.startsWith('grass') && !(tile.flowers ??= getGrassFlowerPlacement(tileX, tileY, tile)).length;
 }
 
 let detailedShadowScratch;
@@ -115,7 +115,7 @@ function bakeGroundShadows(scene, context, chunkX, chunkY, mask) {
                     column = Math.floor(localX / TILE_SIZE);
                     const tile = getWorldTile(tileOriginX + column, tileY);
                     water = getTerrainSurface(scene, tile).water;
-                    flatStyle = isFlatShadowTile(tile) ? getShadowStyle(scene, tile.key) : null;
+                    flatStyle = isFlatShadowTile(tile, tileOriginX + column, tileY) ? getShadowStyle(scene, tile.key) : null;
                 }
 
                 if (!water[surfaceRow + localX % TILE_SIZE]) {

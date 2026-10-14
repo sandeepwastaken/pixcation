@@ -2,6 +2,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {createPortraitPeople} = require('./portrait-fixture');
 const {decodePng} = require('../build-atlas');
+test('flowers retain two clear pixels between footprints even across tiles and chunk edges', () => {
+    for (const seed of ['0', '1', '13', '1000']) {
+        const {run} = createPortraitPeople(seed);
+        assert.equal(run('(()=>{const occupied=new Set();for(let y=-32;y<32;y++)for(let x=-32;x<32;x++)for(const p of getGrassFlowerPlacement(x,y,{key:"grass1"})){for(let dy=-1;dy<5;dy++)for(let dx=-1;dx<4;dx++){const key=(x*TILE_SIZE+p.x+dx)+","+(y*TILE_SIZE+p.y+dy);if(occupied.has(key))return false;occupied.add(key);}}return true;})()'), true);
+    }
+});
+test('flower patches stay sparse instead of filling most grass tiles', () => {
+    const {run} = createFlowers();
+    assert.ok(run('(()=>{let count=0;for(let y=-50;y<50;y++)for(let x=-50;x<50;x++)count+=getGrassFlowerPlacement(x,y,{key:"grass1"}).length;return count;})()') < 3000);
+});
 test('flower placement avoids bridges, water, dirt, and grass dirt-corner footprints', () => {
     const {run} = createFlowers();
     for (const tile of [{key:'dirt1'}, {key:'water'}, {key:'grassEdge'}, {key:'wood',bridge:true}]) assert.equal(run('getGrassFlowerPlacement(4,5,' + JSON.stringify(tile) + ').length'), 0);
@@ -36,6 +46,6 @@ test('flower textures contain one native-size flower while grass stays tile-size
 });
 test('seeded single-flower patches vary in density and position without clipping', () => {
     const {run} = createFlowers();
-    const placements = run('(() => {const values = new Set(), counts = new Set(); for(let y = -20; y < 20; y++) for(let x = -20; x < 20; x++) {const tile={key:"grass1"},a = getGrassFlowerPlacement(x, y,tile), b = getGrassFlowerPlacement(x, y,tile); if(JSON.stringify(a) !== JSON.stringify(b) || a.some(p=>!Number.isInteger(p.x)||!Number.isInteger(p.y)||p.x<0||p.y<0||p.x+3>TILE_SIZE||p.y+4>TILE_SIZE)) return -1;counts.add(a.length);for(const p of a)values.add(JSON.stringify(p));}return counts.size>4?values.size:-1;})()');
+    const placements = run('(() => {const values = new Set(), counts = new Set(); for(let y = -20; y < 20; y++) for(let x = -20; x < 20; x++) {const tile={key:"grass1"},a = getGrassFlowerPlacement(x, y,tile), b = getGrassFlowerPlacement(x, y,tile); if(JSON.stringify(a) !== JSON.stringify(b) || a.some(p=>!Number.isInteger(p.x)||!Number.isInteger(p.y)||p.x<1||p.y<1||p.x+3>=TILE_SIZE||p.y+4>=TILE_SIZE)) return -1;counts.add(a.length);for(const p of a)values.add(JSON.stringify(p));}return counts.size>=3?values.size:-1;})()');
     assert.ok(placements > 50);
 });
