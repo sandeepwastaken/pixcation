@@ -9406,7 +9406,7 @@ function createInventoryUI(scene) {
     });
 
     inventoryNewGameText = createUIText(textLayer, 12, 128, '#8c7358', 296, 'center', { fontSize: '11px' });
-    inventoryFooterHints = appendKeyHints(document.createElement('span'), [['I/Esc', 'Close'], ['N', 'New Game']]);
+    inventoryFooterHints = appendKeyHints(document.createElement('span'), [['I/Esc', 'Close'], ['U', 'Next new'], ['N', 'New Game']]);
 
     inventoryContainer = addPanelContainer(scene, INVENTORY_HIDDEN_Y, 203, [panel, inventoryHighlight, inventoryDetailImage]);
     inventoryTextLayer = addHudLayer(scene, textLayer, INVENTORY_HIDDEN_Y, 204);
@@ -9476,6 +9476,18 @@ function selectFishpediaEntry(index) {
     refreshInventoryUI(inventoryDetailImage.scene.time.now);
 }
 
+function selectNextUndiscoveredFish() {
+    for (let offset = 1; offset <= FISH_SPECIES.length; offset++) {
+        const index = (selectedFishIndex + offset) % FISH_SPECIES.length;
+        if (!catchLog.has(FISH_SPECIES[index].id)) {
+            selectFishpediaEntry(index);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function openInventory(scene) {
     if (isMenuOpen() || !inventoryContainer) return;
 
@@ -9507,6 +9519,8 @@ function handleInventoryKey(scene, event) {
         selectFishpediaEntry((selectedFishIndex + FISHPEDIA_ROWS) % (FISHPEDIA_ROWS * 2));
     } else if (key === 'i' || event.key === 'Escape') {
         closeInventory(scene);
+    } else if (key === 'u') {
+        selectNextUndiscoveredFish();
     } else if (key === 'n' && scene.time.now < newGameConfirmUntil) {
         openNewGameChoice();
         newGameConfirmUntil = 0; refreshInventoryUI(scene.time.now);
