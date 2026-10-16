@@ -2046,6 +2046,7 @@ function createTileCache(createChunk) {
 }
 
 const TERRAIN_TYPES = [null, 'grass', 'dirt', 'water'];
+const POND_NEIGHBOR_OFFSETS = [1, 0, -1, 0, 0, 1, 0, -1];
 const terrainTiles = createTileCache(() => new Uint8Array(CHUNK_SIZE * CHUNK_SIZE));
 const worldTiles = createTileCache(() => new Array(CHUNK_SIZE * CHUNK_SIZE));
 
@@ -2064,8 +2065,8 @@ function isSmallPond(tileX, tileY) {
     const seen = new Set([getTileId(tileX, tileY)]);
     const queue = [tileX, tileY];
     for (let index = 0; index < queue.length; index += 2) {
-        for (const [offsetX, offsetY] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-            const x = queue[index] + offsetX, y = queue[index + 1] + offsetY, id = getTileId(x, y);
+        for (let neighbor = 0; neighbor < POND_NEIGHBOR_OFFSETS.length; neighbor += 2) {
+            const x = queue[index] + POND_NEIGHBOR_OFFSETS[neighbor], y = queue[index + 1] + POND_NEIGHBOR_OFFSETS[neighbor + 1], id = getTileId(x, y);
             if (seen.has(id) || generateTerrainType(x, y) !== 'water') continue;
             seen.add(id);
             if (seen.size >= MIN_POND_TILES) return false;
